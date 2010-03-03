@@ -1,0 +1,19 @@
+function f = approx_f(model_data, x,t,mu)
+%APPROX_F Summary of this function goes here
+%   Detailed explanation goes here
+
+% Support vectors in format [t; x; mu] each column
+sv = model_data.suppvect;
+% Contains struct with fields ai,b,svidx
+data = model_data.approx_data;
+
+dims = size(data,2);
+
+f = zeros(dims,1);
+
+for idx = 1:dims
+    f(idx) = data(idx).ai'*model.kernel
+end
+
+end
+

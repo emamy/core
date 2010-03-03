@@ -1,0 +1,15 @@
+function plot_f_approx( model, model_data )
+%PLOT_F_APPROX Summary of this function goes here
+%   Detailed explanation goes here
+
+    param_samples: [-0.7893 -0.6495 -0.4206 -0.4007 -0.1160 0.3539 0.4835 0.6081 0.8606 0.9313]
+        snapshots: [5x11x10 double]
+         f_values: [5x11x10 double]
+                V: [5x2 double]
+         suppvect: [70x1 double]
+      approx_data: [1x5 struct]
+
+    
+
+end
+

@@ -1,0 +1,163 @@
+function dynsys = pcd_dynsystem
+%pcd_dynsystem System from Markus Daub's Thesis
+
+%% Custom system settings
+% Space discretization
+omega = [0 1; 0 1];
+h = .05;
+% compute size of each function elements
+d1 =  (omega(1,2)-omega(1,1)) / h;
+d2 =  (omega(2,2)-omega(2,1)) / h;
+m = d1*d2;
+% Create diffusion matrix
+[A,idxmat] = diffmat(h,d1,d2);
+%A = A*.1;
+upper = idxmat(1:d1:m);
+right = idxmat(m-d1:m);
+lower = idxmat(d1:d1:m);
+left = idxmat(1:d1);
+
+n = 2; % Exponent in ya,yi term (necessary casp-3 for casp-8 activation)
+% Parameter values from [1] in daub's milestone
+Kc1 = 1e5;
+Kc2 = 5.8e12;
+Kd1 = .0001;
+Kd2 = .0001;
+Kp1 = 1.4e-11;
+Kp2 = 2.3e-12;
+
+% System Rescaling settings
+xa0 = 1e-7; %[M]
+ya0 = 1e-7; %[M]
+xi0 = 1e-7; %[M]
+yi0 = 1e-7; %[M]
+L = 1e-5; %[m]
+di1 = 1e-11; %[m^2/s]
+di2 = di1; %[m^2/s]
+tau = L^2/di1; %[s]
+
+% Automatic values
+Kc1 = Kc1*ya0*tau;
+Kc2 = Kc2*xa0^n*tau;
+Kd1 = Kd1 * tau;
+Kd2 = Kd2 * tau;
+Kp1 = Kp1*tau/xi0;
+Kp2 = Kp2*tau/yi0;
+lam1 = xi0/xa0;
+lam2 = yi0/ya0;
+D = di1/di2;
+
+%% Overall dynamical system struct
+dynsys = base_dynsystem;
+
+%% Initial value function
+% Default: Zero initial value, dependent on mu
+% Format: Function handle that takes a parameter mu and returns a col-vector
+% TODO!
+dynsys.x0 = @initialX;
+
+%% System Inputs
+% Default: No input conversion
+% Format: Function handle, dependent on t,mu
+%dynsys.B = @(t,mu)0;
+% Default: No inputs. Has to be a cell of function handles
+%dynsys.inputs = [];
+
+%% System parameter Space
+% Default: No parameters.
+% Format: params is a struct array with each struct in the format of
+%         struct('Name',<name>,'MinVal',<min>,'MaxVal',<max>,'Desired',<num>)
+dynsys.params = struct('Name',{},'MinVal',{},'MaxVal',{},'Desired',{});
+dynsys.params(1) = struct('Name', 'mu1', 'MinVal', 0, 'MaxVal', 0, 'Desired', 1);
+dynsys.params(2) = struct('Name', 'mu2', 'MinVal', 0, 'MaxVal', 2, 'Desired', 1);
+dynsys.params(3) = struct('Name', 'mu3', 'MinVal', 0, 'MaxVal', 10, 'Desired', 1);
+dynsys.params(4) = struct('Name', 'mu4', 'MinVal', 0, 'MaxVal', 0, 'Desired', 1);
+dynsys.params(5) = struct('Name', 'Kc1', 'MinVal', Kc1, 'MaxVal', Kc1, 'Desired', 1);
+dynsys.params(6) = struct('Name', 'Kc2', 'MinVal', Kc2, 'MaxVal', Kc2, 'Desired', 1);
+dynsys.params(7) = struct('Name', 'Kd1', 'MinVal', Kd1, 'MaxVal', Kd1, 'Desired', 1);
+dynsys.params(8) = struct('Name', 'Kd2', 'MinVal', Kd2, 'MaxVal', Kd2, 'Desired', 1);
+dynsys.params(9) = struct('Name', 'Kp1', 'MinVal', Kp1, 'MaxVal', Kp1, 'Desired', 1);
+dynsys.params(10) = struct('Name', 'Kp2', 'MinVal', Kp2, 'MaxVal', Kp2, 'Desired', 1);
+
+%% Nonlinearity definitions
+% Default: Zero
+% Type: function handle, dependent on x,t,mu
+dynsys.f = @ffun;
+
+%% System outputs
+% Default: Empty
+% Type: Function handle, dependent on t,mu
+dynsys.C = @Cfun;
+
+%% Things to store
+dynsys.specific.d1 = d1;
+dynsys.specific.d2 = d2;
+dynsys.max_timestep = h;
+
+    function fx = ffun(x,t,mu)
+        
+        % Allocate result vector
+        fx = zeros(size(x));
+        
+        % Extract single functions
+        xa = x(1:m);
+        xan = xa.^n;
+        ya = x(m+1:2*m);
+        xi = x(2*m+1:3*m);
+        yi = x(3*m+1:end);
+        
+        % Compile boundary conditions
+        rb = zeros(m,1);
+        rb(upper) = -(xi(upper)*mu(1))/h;
+        rb(right) = rb(right) - (xi(right)*mu(2))/h;
+        rb(lower) = rb(lower) - (xi(lower)*mu(3))/h;
+        rb(left) = rb(left) - (xi(left)*mu(4))/h;
+        edges = [upper(1) upper(end) lower(1) lower(end)];
+        rb(edges) = .5*rb(edges);
+        
+        % Handle xa function
+%         fx(1:m) = A*xa;
+%         fx(m+1:2*m) = A*ya;
+%         fx(2*m+1:3*m) = A*xi;
+%         fx(3*m+1:end) = A*yi;
+        fx(1:m) = mu(5)*lam1*xi.*ya - mu(7)*xa + A*xa - rb;
+        fx(m+1:2*m) = mu(6)*lam2*yi.*xan - mu(8)*ya + D*A*ya;
+        fx(2*m+1:3*m) = -mu(5)*xi.*ya - mu(7)*xi + mu(9) + A*xi + rb;
+        fx(3*m+1:end) = -mu(6)*yi.*xan - mu(8)*yi + mu(10) + D*A*yi;
+        
+%         figure(1);
+%         plo(x,1);
+%         title('casp-8');
+%         plo(x,2);
+%         title('casp-3');
+%         plo(x,3);
+%         title('procasp-8');
+%         plo(x,4);
+%         title('procasp-3');
+%         pause;
+    end
+
+    function plo(fx,idx)
+        subplot(2,2,idx);
+        x = fx((idx-1)*m+1:idx*m);
+        surf(reshape(x,d1,d2));
+    end
+
+    function C = Cfun(t,mu)
+        % Extracts the value of ya in the cell center
+        centeridx = m + round(m/2);
+        C = zeros(4*m,4*m);
+        C(centeridx,centeridx) = 1;
+    end
+
+    function x0 = initialX(mu)
+        x0 = zeros(4*m,1);
+        %x0(2*m+1:end) = .3;
+        [X,Y] = meshgrid(1:d2,1:d1);
+        s = sin(X * pi/d1) .* exp(-Y/4)*.5;
+        x0(2*m+1:3*m) = s(:);
+    end
+
+    
+
+end

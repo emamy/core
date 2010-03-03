@@ -1,0 +1,159 @@
+function model_data = gen_param_samples( model )
+%GENERATE_SAMPLES Generates parameter training samples
+%   Uses the dynsys' parameter settings to generate sample points
+%
+%   Returns: samples
+%   A matrix containing a set of mu-parameters per column. The entries in
+%   row i correspond to the i-th model parameter.
+
+% Allow for no parameters
+if isempty(model.system.params)
+    samples = [];
+    return;
+elseif ~isfield(model, 'sampling')
+    error('Invalid model structure; field ''sampling'' is missing.');
+elseif ~isfield(model.sampling,'mode')
+    error('No ''mode'' field set.');
+end
+
+switch model.sampling.mode
+    case 'grid'
+        samples = generate_grid(model.system); % no model data needed
+    case 'rand'
+        if ~isfield(model.sampling,'samples')
+            error('No ''samples'' field set. Required for ''rand'' mode.');
+        end
+        samples = generate_rand(model);
+    otherwise
+        e
+end
+
+model_data.param_samples = samples;
+
+    function samples = generate_grid(dynsys)
+        % Uses the given model and generates a training set by creating
+        % a regular grid in joint time/parameter space
+        
+        np = length(dynsys.params);
+        ranges = cell(np,1);
+                
+        % Create linearly spaced parameter value ranges
+        for pidx=1:np
+            ranges{pidx} = linspace(dynsys.params(pidx).MinVal,...
+                                    dynsys.params(pidx).MaxVal,...
+                                    dynsys.params(pidx).Desired);
+        end
+        
+        samples = createCombinations(ranges);
+    end
+
+    function samples = generate_rand(model)
+        % Randomly generates input samples by choosing params and
+        % time parameter by chance.
+        %
+        % Note: Read test_model.m notices on sampling settings.
+        
+        dynsys = model.system;
+        np = length(dynsys.params);
+        snum = model.sampling.samples;
+        
+        % Compute rescaling factor for each Desired entry to end up with
+        % prod(<ranges>) = model.sampling.samples
+        rescaler = (snum/prod([dynsys.params.Desired]))^(1/np);
+        
+        ranges = cell(np,1);
+        
+        %% Compute param ranges
+        for pidx=1:np
+            p = dynsys.params(pidx);
+            num = round(p.Desired * rescaler);
+            ranges{pidx} = sort(rand(1,num) * (p.MaxVal-p.MinVal) + p.MinVal);
+        end
+        
+        % No combinations necessary if only one parameter
+        if np == 1
+            samples = ranges{pidx};
+        else
+            samples = createCombinations(ranges);
+        end
+    end
+
+    function comb = createCombinations(ranges)
+        % Private function that takes an array of
+        % value ranges and computes their combinations
+        n = length(ranges);
+        % Create nd-grids
+        [matrices{1:n}] = ndgrid(ranges{:});
+        % Convert to np x params matrix
+        comb = zeros(n,numel(matrices{1}));
+        for idx=1:n
+            comb(idx,:) = matrices{idx}(:);
+        end
+    end
+
+
+end
+
+%% Old version for random sampling, containing timesteps / timeratio
+%       function samples = generate_rand(model)
+%         % Randomly generates input samples by choosing params and
+%         % time parameter by chance.
+%         %
+%         % Note: Read test_model.m notices on sampling settings.
+%         
+%         dynsys = model.system;
+%         np = length(dynsys.params)+1;
+%         snum = model.sampling.samples;
+%         
+%         % Compute Number of timesteps to include
+%         if isfield(model.sampling,'timeratio')
+%             if model.sampling.timeratio <= 0 || model.sampling.timeratio >= 1
+%                 error('model.sampling.timeratio must be in ]0,1[.');
+%             end
+%             paramDesiredTotal = sum([dynsys.params.Desired]);
+%             
+%             % computation via t/(t+p) = ratio
+%             t = model.sampling.timeratio;
+%             timesDesired = (paramDesiredTotal * t) / (1-t);
+%             
+%             if timesDesired > length(dynsys.times)
+%                 warning('KerMor:timeratio',...
+%                        ['timeratio setting requires more timesteps than'...
+%                          'available in model.system.times\n'...
+%                          'Resetting to length(model.system.times)']);
+%                 timesDesired = length(dynsys.times);
+%             end
+%         else
+%             timesDesired = length(dynsys.times);
+%         end
+%         
+%         % Compute rescaling factor for each Desired entry to end up with
+%         % prod(<ranges>) = model.sampling.samples
+%         rescaler = (snum/prod([timesDesired [dynsys.params.Desired]]))^(1/np);
+%         
+%         ranges = cell(np,1);
+%         
+%         %% Compute time Range
+%         % Rescale number of different times
+%         timesDesired = round(timesDesired*rescaler);
+%         
+%         % Start with all time entries (we cant randomly guess them as they
+%         % are given by the system)
+%         trange = dynsys.times;
+%         num_to_remove = length(trange)-timesDesired;
+%         for noneed=1:num_to_remove
+%             trange(randi(length(trange))) = [];
+%         end
+%         % Assign to first range entry
+%         ranges{1} = trange;
+%         
+%         %% Compute param ranges
+%         for pidx=2:np
+%             p = dynsys.params(pidx-1);
+%             num = round(p.Desired * rescaler);
+%             ranges{pidx} = sort(rand(1,num) * (p.MaxVal-p.MinVal) + p.MinVal);
+%         end
+%         
+%         samples = createCombinations(ranges);
+%     end
+

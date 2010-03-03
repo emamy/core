@@ -1,0 +1,48 @@
+function model = base_model
+%BASE_MODEL The basic model every KerMor model starts from
+%   Detailed explanation goes here
+
+%% Overall model struct
+model = struct;
+model.info.name = 'KerMor base model';
+% Determine verbose mode
+model.info.verbose = 2;
+
+%% The underlying dynamical system
+model.system = base_dynsystem;
+
+
+%% Boundary settings
+model.T = .5; % Max. Simulation time
+model.timestep = .1; % Timesteps to use
+model.times = 0:model.timestep:model.T;
+
+%% Sampling settings
+% README: For any given total number "model.sampling.samples" the
+% samples created are weighted with the corresponding
+% "Desired"-fields of the param structs.
+% Sampling mode: Allowed: 'grid' and 'rand'
+model.sampling.mode = 'rand';
+% For 'rand': Number of samples
+model.sampling.samples = 10;
+
+%% ODE Solver settings
+model.odesolver = @ode45;
+
+%% Reduction settings
+% The mode determines the algorithm used to compute the projection space.
+% Possible values: 'POD',
+model.reduction.mode = 'POD';
+% POD settings
+% README: Two possible values: 'frac' and 'abs'
+% 'frac': All eigenvectors with evalues larger than 'value' percent of the
+% largest eigenvalue
+model.reduction.POD.mode = 'frac';
+model.reduction.POD.value = .5;
+
+%% Model main functions
+%model.gen_model_data = @generate_training_samples;
+
+
+end
+
