@@ -12,5 +12,9 @@ model.sampling.samples = ts.samples;
 
 % Set system here, too to have running testmodel external to testKerMor
 model.system = test_dynsys;
+
+model.approx.mode = 'scalar_svr';
+model.approx.scalar_svr.eps = 10;
+model.approx.scalar_svr.C = 100000;
 end
 

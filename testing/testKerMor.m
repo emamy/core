@@ -83,7 +83,7 @@ fprintf('KerMor tests done.\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
         disp(['Checking model ' model.info.name ' ..........']);
         model.verbose = 2;
         sn = offline_phase(model);
-        disp(size(sn));
+        disp(sn);
     end
 
     function m = test_model_lin
