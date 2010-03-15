@@ -1,0 +1,29 @@
+classdef ReducedSystem < models.BaseDynSystem
+    %REDUCEDSYSTEM Summary of this class goes here
+    %   Detailed explanation goes here
+    
+    properties
+    end
+    
+    methods
+        function this = ReducedSystem(fullsys)
+            if nargin == 0
+                warning('KerMor:ReducedSystem:EmptyConstructor',...
+                    'This class should not be constructed without arguments.');
+            else
+                % Clones the full system's basic (all but functions)
+                % properties
+                this.Params = fullsys.Params;
+                this.Inputs = fullsys.Inputs;
+                this.MaxTimestep = fullsys.MaxTimestep;
+                % Copy component handles (it's NOT cloning them!)
+                this.f = fullsys.f;
+                this.B = fullsys.B;
+                this.C = fullsys.C;
+                this.x0 = fullsys.x0;
+            end
+        end
+    end
+    
+end
+

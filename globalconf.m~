@@ -1,0 +1,15 @@
+classdef globalconf
+    %CONFIG Global KerMor configuration class
+    
+    properties(Constant)
+        %% SVR
+        % Options for quadprog-solver
+        SVRQuadProgOpts = optimset('LargeScale','off','MaxIter',300,'Display','off');
+        % Minimum value for any alpha to be considered a support vector
+        % coefficient
+        SVRAlphaMinValue = 1e-10;
+        SVRMaxIt
+    end
+    
+end
+

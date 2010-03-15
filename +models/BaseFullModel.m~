@@ -1,0 +1,228 @@
+classdef BaseFullModel < models.BaseModel
+    %BASEFULLMODEL Summary of this class goes here
+    %   Detailed explanation goes here
+    
+    properties
+        % The sampling strategy the Model uses
+        %
+        % See also: sampling BaseSampler
+        Sampler = sampling.RandomSampler;
+        
+        % The full model's data container.
+        % Defaults to an empty container.
+        %
+        % See also: ModelData
+        Data = ModelData;
+        
+        % The reduction algorithm for subspaces
+        %
+        % See also: spacereduction BaseSpaceReducer
+        SpaceReducer = spacereduction.PODReducer;
+        
+        % The approximation method for the CoreFunction
+        %
+        % Defaults to scalar kernel SVR regression
+        Approx = approx.CompWiseSVR;
+    end
+    
+    methods
+        
+        function offlinePhase(this)
+            %% Offline - Large Data
+            this.Data.ParamSamples = this.Sampler.generateSamples(this);
+            
+            this.genSnapshots;
+            
+            %% Offline - Small Data
+            this.Data.V = this.SpaceReducer.generateReducedSpace(this);
+            
+            this.Approx.approximateCoreFun(this);
+        end
+        
+        function reduced = buildReducedModel(this)
+            
+            % Check if a reduction 
+            if isempty(this.Approx) && isempty(this.SpaceReducer)
+                warning('KerMor:Reducing:noEffectiveReduction',...
+                    ['Model setup lacks reduction methods.\n'...
+                    'Reduced model will equal the full model (computationally).']);
+            end
+            
+            %% Reduced Model creation
+            reduced = models.ReducedModel(this);
+            sys = this.System;
+            % Get a new handle with all the system's nonfunc-properties
+            rsys = models.ReducedSystem(this.System);
+            
+            % Figure whether preojection was setup for this system
+            if ~isempty(this.SpaceReducer)
+                if isempty(this.Data.V)
+                    error(['Model has a SpaceReducer set but no projection'...
+                           'matrix Data.V set.\nForgot to call offlinePhase?']);
+                end
+                % Project input/output
+                if ~isempty(sys.B)
+                    rsys.B = sys.B.project(this.Data.V);
+                end
+                % We have a C in each case, mostly StdOutputConv.
+                rsys.C = sys.C.project(this.Data.V);
+                
+                % Project the approximated CoreFun of the full model if exists
+                if ~isempty(this.Approx)
+                    rsys.f = this.Approx.project(this.Data.V);
+                else
+                    % Otherwise at least try to project the models' full
+                    % function.
+                    rsys.f = this.f.project(this.Data.V);
+                end
+                
+                % Project the initial value function
+                rsys.x0 = @(mu)this.Data.V'*sys.x0(mu);
+            else
+                % Only use approximated version if set
+                if ~isempty(this.Approx)
+                    rsys.f = this.Approx;
+                end
+            end
+            
+            reduced.System = rsys;
+        end
+        
+    end
+    
+    %% Getter & Setter
+    methods
+        function set.Sampler(this, value)
+            this.checkType(value, 'sampling.BaseSampler');%#ok
+            this.Sampler = value;
+        end
+        
+        function set.Data(this, value)
+            this.checkType(value, 'ModelData');%#ok
+            this.Data = value;
+        end
+        
+        function set.SpaceReducer(this, value)
+            this.checkType(value, 'spacereduction.BaseSpaceReducer');%#ok
+            this.SpaceReducer = value;
+        end
+    end
+    
+    %% Privates
+    methods(Access=private)
+        
+        function genSnapshots(this)
+            %GENERATE_SNAPSHOTS Summary of this function goes here
+            %   Detailed explanation goes here
+            
+            ps = this.Data.ParamSamples;
+            
+            % Need minimum "one" for loops.
+            num_samples = max(1,this.Data.SampleCount);
+            num_inputs = max(1,this.System.InputCount);
+            num_times = length(this.Times);
+            
+            % Compute system dimension using x0.
+            mu = [];
+            if this.System.ParamCount > 0
+                mu = zeros(this.System.ParamCount,1);
+            end
+            dims = length(this.System.x0(mu));
+            
+            % Initialize snapshot array
+            snapshots = zeros(dims, length(this.Times), num_samples, num_inputs);
+            f_val = zeros(dims, length(this.Times), num_samples, num_inputs);
+            
+            try
+                wh = waitbar(0,'Initializing snapshot generation...');
+                cnt = 1;
+                % Iterate through all input functions
+                for inidx = 1:num_inputs
+                    % Iterate through all parameter samples
+                    for pidx = 1:num_samples
+                        
+                        % Check for no parameters
+                        if isempty(ps)
+                            mu = [];
+                        else
+                            mu = ps(:,pidx);
+                        end
+                        % Check for no inputs
+                        if this.System.InputCount == 0
+                            inputidx = [];
+                        else
+                            inputidx = inidx;
+                        end
+                        
+                        % Display
+                        perc = cnt/(num_inputs*num_samples);
+                        waitbar(perc,wh,sprintf('Generating snapshots ... %2.0f %%',perc*100));
+                        cnt=cnt+1;
+                        
+                        %% Get ODE function (general function)
+                        [t,x] = this.computeTrajectory(mu, inputidx);
+                        
+                        % Assign snapshot value
+                        snapshots(:,:,pidx,inidx) = x;
+                        
+                        %% Evaluate f at those points
+                        for tidx=1:num_times
+                            fx = this.System.f.evaluate(x(:,tidx),this.Times(tidx),mu);
+                            f_val(:,tidx,pidx,inidx) = fx;
+                        end
+                    end
+                end
+                
+            catch ME
+                close(wh);
+                rethrow(ME);
+            end
+            
+            this.Data.Snapshots = snapshots;
+            this.Data.fValues = f_val;
+            
+            if ishandle(wh)
+                close(wh);
+            end
+        end
+    end
+    
+    methods(Static)
+        function test_BaseModels
+            m = models.BaseFullModel;
+            af = dscomponents.AffLinCoreFcn;
+            af.addSummand(@(t,mu)1, rand(4,4));
+            af.addSummand(@(t,mu)sum(mu)*5, rand(4,4)*3);
+            m.System.f = af;
+            m.System.x0 = @(mu)sin(1:4)';
+            m.offlinePhase;
+            red = m.buildReducedModel;
+            cprit
+            [t,x] = m.simulate();
+            [rt,rx] = red.simulate();
+            
+            % dont forget to free resources! (static handles seem to
+            % persist over several method calls)
+            clear af m red;
+        end
+        
+        function test_ANoReductionModel
+            m = models.BaseFullModel;
+            m.SpaceReducer = [];
+            m.Approx = [];
+            af = dscomponents.AffLinCoreFcn;
+            af.addSummand(@(t,mu)1, rand(4,4));
+            af.addSummand(@(t,mu)sum(mu)*5, rand(4,4)*3);
+            m.System.f = af;
+            m.System.x0 = @(mu)sin(1:4);
+            m.offlinePhase;
+            red = m.buildReducedModel;
+            red.simulate([],[]);
+            % dont forget to free resources! (static handles seem to
+            % persist over several method calls)
+            clear af m red;
+        end
+    end
+    
+end
+
