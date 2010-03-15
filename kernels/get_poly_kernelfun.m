@@ -1,8 +1,0 @@
-function kernelfun = get_poly_kernelfun( degree )
-%GET_POLY_KERNELFUN Summary of this function goes here
-%   Detailed explanation goes here
-
-kernelfun = @(X,Y)poly_kernel(X,Y,degree);
-
-end
-
