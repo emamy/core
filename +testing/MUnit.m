@@ -115,10 +115,11 @@ classdef MUnit
                                 try
                                     eval(['outargs = nargout(@' mc.Name '.' m.Name ');']);
                                     if outargs > 0
-                                        eval(['succ = ' mc.Name '.' m.Name]);
+                                        command = ['succ = ' mc.Name '.' m.Name ';'];
                                     else
-                                        eval([mc.Name '.' m.Name]);
+                                        command = [mc.Name '.' m.Name ';'];
                                     end
+                                    eval(command);
                                     if outargs == 0 || succ
                                         cprintf(testing.MUnit.GreenCol,'Success!\n');
                                         s = s+1;

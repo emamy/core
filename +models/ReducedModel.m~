@@ -1,0 +1,187 @@
+classdef ReducedModel < models.BaseModel
+    %REDUCEDMODEL Summary of this class goes here
+    %   Detailed explanation goes here
+    
+    properties(SetAccess=private)
+        % The full model this reduced model was created from.
+        % Once an instance of a reduced model gets saved to disk, the
+        % FullModels .Data and .Approx properties get set to [] for disk
+        % space reduction since these properties are not necessarily used
+        % by the reduced system. So far, only error computations will take
+        % longer since the initial snapshots are not available anymore.
+        FullModel;
+        
+        % The matrix that has been used for projection
+        V;
+        
+        % The parameter samples that have been used for computation of the
+        % reduced model.
+        ParamSamples;
+    end
+    
+    methods
+        
+        function this = ReducedModel(fullmodel)
+            % Copy common values from the full model
+            this.FullModel = fullmodel;
+            this.T = fullmodel.T;
+            this.dt = fullmodel.dt;
+            this.Verbose = fullmodel.Verbose;
+            this.ODESolver = fullmodel.ODESolver;
+            this.V = fullmodel.Data.V;
+            this.ParamSamples = fullmodel.Data.ParamSamples;
+            % Update name ;-)
+            this.Name = ['Reduced: ' fullmodel.Name];
+        end
+        
+        function getReductionErrorsParamWise(this)
+            numparams = this.System.ParamCount;
+            figure(1);
+            plotcnt = 1;
+            for pidx = 1:numparams
+                p = this.System.Params(pidx);
+                % Only bother to compute error along parameter if
+                if p.HasRange
+                    [vals, repmu] = this.getSamplesForParam(pidx);
+                    
+                    % Add up some more parameter values 
+                    news = linspace(p.MinVal,p.MaxVal,2*p.Desired-1);
+                    vals = sort(union(vals,news));
+                    musam = repmat(repmu,1,length(vals));
+                    musam(pidx,:) = vals;
+                    
+                    e = zeros(length(vals),length(this.Times));
+                    for sidx = 1:size(musam,2)
+                        [t,et] = this.getError(musam(:,sidx),1);
+                        e(sidx,:) = et;
+                    end
+                    % Plot it!
+                    subplot(1,plotcnt,plotcnt);
+                    mesh(this.Times,vals,e);
+                    xlabel('Time');
+                    ylabel(sprintf('Range for %s',p.Name));
+                    title(sprintf('Errors for reduced model %s, parameter %s',this.Name,p.Name));
+                    plotcnt = plotcnt+1;
+                end
+            end
+        end
+        
+        function [t,e] = getError(this, mu, inputidx)
+            d = this.FullModel.Data;
+            xFull = [];
+            % Try to get an already computed trajectory
+            if ~isempty(d)
+                xFull = d.getTrajectory(mu, inputidx);
+            end
+            % Otherwise compute it again
+            if isempty(xFull)
+                [t,xFull] = this.FullModel.computeTrajectory(mu, inputidx);
+            end
+            % Perform reduced simulation
+            [t,x] = this.computeTrajectory(mu, inputidx);
+            % Compute L^2-norm of difference for each timestep
+            e = sqrt(sum((xFull - this.V*x).^2,1));
+            %plot(t,e,'r');
+        end
+        
+        function save(this, matfile)
+            % Saves the reduced model to disk.
+            %
+            % Parameters:
+            % matfile: The target file. If not specified, a file with the
+            % name of the reduced model's variable name is used.
+            
+            name = inputname(1);
+            if nargin == 1
+                matfile = fullfile(cd,name);
+            end
+            % For the save process of the reduced model the full model's
+            % Data (=ModelData) and Approx properties are not needed. This
+            % is the fastest way to ensure that the reduced model can still
+            % have access to all important features of the full model but
+            % uses less disk space.
+            m = this.FullModel;
+            d = m.Data;
+            a = m.Approx;
+            
+            m.Data = [];
+            m.Approx = [];
+            
+            eval([name ' = this;']);
+            save(matfile,name);
+            
+            m.Data = d;
+            m.Approx = a;
+        end
+        
+    end
+    
+    methods(Access=private)
+        function [vals, repmu] = getSamplesForParam(this, pidx)
+            % Gets 
+            ps = this.ParamSamples;
+            numparams = this.System.ParamCount;
+            numsamples = size(ps,2);
+            paridx = 1:numparams;
+            
+            % Sort values of current param
+            [tmp, idx] = sort(ps(pidx,:));
+            % Get index of lowest value to have something to start
+            % with
+            first = idx(1);
+            % figure out the leftover indices
+            restpar = paridx;
+            restpar(pidx) = [];
+            
+            % get comparing vector (whole column but the current
+            % parameter's index)
+            cmp = ps(restpar,first);
+            % find columns that are equal to cmp in the whole
+            % column but at the current param's index
+            all = sum(repmat(cmp,1,numsamples) == ps(restpar,:),1) == (numparams-1);
+            
+            vals = sort(unique(ps(pidx,all)));
+            repmu = ps(:,first);
+        end
+    end
+    
+    %% Save & Load
+    %     methods
+    %         function S = saveobj(obj)
+    %             % Just save everything straight
+    %             S.fData = obj.fData;
+    %             S.fSource = obj.fSource;
+    %             S.SubpartOffset = obj.SubpartOffset;
+    %             S.Range = obj.Range;
+    %             S.InitialSize = obj.InitialSize;
+    %             S.LevelSetData = obj.LevelSetData;
+    %             S.Regions = obj.Regions;
+    %             S.Info = obj.Info;
+    %             S.View = obj.View;
+    %         end
+    %
+    %         function obj = reload(obj,S)
+    %             obj.fData = S.fData;
+    %             obj.SubpartOffset = S.SubpartOffset;
+    %             % Important: fSource and SubpartOffset have to be set before
+    %             % the range parameter is set.
+    %             obj.Range = S.Range;
+    %             % Leftover props
+    %             obj.InitialSize = S.InitialSize;
+    %             obj.LevelSetData = S.LevelSetData;
+    %             obj.Regions = S.Regions;
+    %             obj.Info = S.Info;
+    %             obj.View = S.View;
+    %         end
+    %     end
+    %
+    %     methods (Static)
+    %         function obj = loadobj(S)
+    %             a = S.fSource;
+    %             obj = segmentation(sourceimage(S.fSource));
+    %             obj = reload(obj,S);
+    %         end
+    %     end
+    
+end
+

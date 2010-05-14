@@ -1,0 +1,23 @@
+function tmp
+%x = 0.00001:.01:.6;
+%plot(x,exp(log(x)./x),'r',x,exp(-1./x),'b');
+
+    mu(1)=1;
+    mu(2)=1;
+    th = pi/2;
+    A = [cos(th) -sin(th); sin(th) cos(th)];
+    t = 0:.01:5;
+    [to,yo] = ode45(@odefun,t,[0;1]);
+    
+    plot(yo(:,1),yo(:,2),'r');
+
+    function y = odefun(t,x)
+            %y = zeros(size(x));
+%             y(1) = mu(1) * cos(x(1)) - sin(x(2));
+%             y(2) = mu(2) * sin(x(1)) + cos(x(2));
+            %y(1) = mu(1) * cos(th)*x(1) - sin(th)*x(2);
+            %y(2) = mu(2) * sin(th)*x(1) + cos(th)*x(2);
+            y = A*x*t/2;
+    end
+
+end

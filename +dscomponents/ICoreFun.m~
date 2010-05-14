@@ -1,0 +1,20 @@
+classdef ICoreFun < dscomponents.IProjectable
+    %BASECOREFUN Basic interface for all dynamical system's core functions
+    %
+    % @Daniel Wirtz, 17.03.2010
+    
+    methods(Abstract)
+        % Evaluates the core function
+        y = evaluate(x,t,mu);
+        
+        % Initializes inner properties that stay constant for the
+        % simulation of a trajectory. This is a chance to gain efficiency
+        % and is not required; just leave implementation body empty
+        % otherwise.
+        %
+        % It is arguable if it should be preferred to implement a
+        updateSimConstants;
+    end
+    
+end
+

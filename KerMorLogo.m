@@ -1,0 +1,10 @@
+figure(1);
+[X,Y] = meshgrid(-10:.5:10);
+X2 = X-5;
+Y2 = Y;
+Z = exp(-(X.^2+Y.^2-2*X'*Y)/20);% + .5*exp(-(X2.^2+Y2.^2-2*X2'*Y2)/5);
+surfl(X,Y,Z);
+lighting gouraud;
+colormap autumn;
+%shading flat;
+grid on;

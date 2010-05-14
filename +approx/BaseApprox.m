@@ -121,7 +121,7 @@ classdef BaseApprox < dscomponents.ICoreFun & ICloneable
             end
         end
         
-        function vect = compileTripleVect(this, x, t, mu)
+        function vect = compileTripleVect(this, x, t, mu)%#ok
             % Forms a triple vector from the input arguments x,t,mu.
             % For each the column count must be identical.
             %
@@ -159,11 +159,11 @@ classdef BaseApprox < dscomponents.ICoreFun & ICloneable
         gen_approximation_data(xi,fxi);
         
         % Implement this method to perform any approximation data-structure
-        % specific operations. Needs to return a new instance of the class
+        % specific operations. Needs to return a NEW INSTANCE of the class
         % in order to keep old settings. Use the clone method to create
         % copies.
         %
-        % See also: clone ICloneable
+        % See also: IProjectable ICloneable BaseApprox/clone
         projApprox = customProject(V);
     end
     

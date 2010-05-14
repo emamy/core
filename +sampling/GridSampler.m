@@ -15,9 +15,14 @@ classdef GridSampler < sampling.BaseSampler
             
             % Create linearly spaced parameter value ranges
             for pidx=1:sys.ParamCount
-                ranges{pidx} = linspace(sys.Params(pidx).MinVal,...
-                    sys.Params(pidx).MaxVal,...
-                    sys.Params(pidx).Desired);
+                % Cater for single parameters 
+                if (sys.Params(pidx).MinVal == sys.Params(pidx).MaxVal)
+                    ranges{pidx} = sys.Params(pidx).MinVal;
+                else
+                    ranges{pidx} = linspace(sys.Params(pidx).MinVal,...
+                        sys.Params(pidx).MaxVal,...
+                        sys.Params(pidx).Desired-1);
+                end
             end
             
             samples = this.createCombinations(ranges);

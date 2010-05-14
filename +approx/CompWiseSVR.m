@@ -8,16 +8,16 @@ classdef CompWiseSVR < approx.BaseKernelApprox
         % Wrapped.
         %
         % See also: ScalarSVR
-        eps = .5;
+        eps = .05;
         
         % The C value for the scalar SVR regression
         % Wrapped.
         %
         % See also: ScalarSVR
-        C = 10000;
+        C = 10;
         
         % Minimum `\alpha` coefficient value
-        % 
+        %
         % At projection, the coefficients for each component approximation
         % get mixed leading to an enlarged set of support vectors. Thus,
         % after combination of the coefficients each new one must be
@@ -86,7 +86,7 @@ classdef CompWiseSVR < approx.BaseKernelApprox
         end
         
         function gen_approximation_data(this, xi, fxi)
-                       
+            
             svr = general.regression.ScalarSVR;
             svr.C = this.C;
             svr.eps = this.eps;
@@ -99,30 +99,36 @@ classdef CompWiseSVR < approx.BaseKernelApprox
             
             this.adata = struct('ai',{},'b',{},'svidx',{});
             svidxsum = [];
-            
-            for idx = 1:this.fdims
-                %waitbar(idx/fdims,wh,sprintf('Performing SVR for dimension %d/%d ... %2.0f %%',idx,fdims,(idx/fdims)*100));
+            wh = waitbar(0,'Initializing component-wise SVR');
+            try
+                for idx = 1:this.fdims
+                    waitbar(idx/this.fdims,wh,sprintf('Performing SVR for dimension %d/%d ... %2.0f %%',idx,this.fdims,(idx/this.fdims)*100));
+                    
+                    [ai,b,svidx] = svr.regress(fxi(idx,:));
+                    this.adata(idx).ai = ai;
+                    this.adata(idx).b = b;
+                    this.adata(idx).svidx = svidx;
+                    % collect all used support vector indices
+                    svidxsum = union(svidxsum,svidx);
+                end
                 
-                [ai,b,svidx] = svr.regress(fxi(idx,:));
+                waitbar(1,wh,'Compiling approximation model data...');
                 
-                this.adata(idx).ai = ai;
-                this.adata(idx).b = b;
-                this.adata(idx).svidx = svidx;
-                % collect all used support vector indices
-                svidxsum = union(svidxsum,svidx);
-            end
-            
-            %waitbar(1,wh,'Compiling approximation model data...');
-            
-            % Create transition matrix for index updates
-            trans(svidxsum) = 1:length(svidxsum);
-            % Update the support vector indices to the new index in the reduced support
-            % vector set. Unfortunately can first be done after finishing scalar
-            % approximation (hence second for-loop)
-            for idx = 1:this.fdims
-                this.adata(idx).svidx = trans(this.adata(idx).svidx);
-            end
-            this.suppvect = xi(:,svidxsum);
+                % Create transition matrix for index updates
+                trans(svidxsum) = 1:length(svidxsum);
+                % Update the support vector indices to the new index in the reduced support
+                % vector set. Unfortunately can first be done after finishing scalar
+                % approximation (hence second for-loop)
+                for idx = 1:this.fdims
+                    this.adata(idx).svidx = trans(this.adata(idx).svidx);
+                end
+                this.suppvect = xi(:,svidxsum);
+                close(wh);
+                
+            catch ME
+                close(wh);
+                rethrow(ME);
+            end 
         end
         
         function fx = evaluate_approximation(this, x)

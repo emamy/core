@@ -1,8 +1,10 @@
 classdef ICoreFun < dscomponents.IProjectable
-    %BASECOREFUN Summary of this class goes here
-    %   Detailed explanation goes here
+    %ICOREFUN Basic interface for all dynamical system's core functions
+    %
+    % @Daniel Wirtz, 17.03.2010
     
     methods(Abstract)
+        % Evaluates the core function
         y = evaluate(x,t,mu);
     end
     

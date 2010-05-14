@@ -21,6 +21,9 @@ classdef PolyKernel < kernels.BaseKernel
         end
         
         function K = evaluate(this, x, y)
+            if nargin == 2
+                y=x;
+            end
             K = x'*y.^this.Degree;
         end
     end

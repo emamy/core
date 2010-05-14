@@ -4,13 +4,24 @@ classdef CompWiseSVR < approx.BaseKernelApprox
     % @Daniel Wirtz, 11.03.2010
     
     properties
+        % The eps value for the scalar SVR regression
+        % Wrapped.
+        %
+        % See also: ScalarSVR
         eps = .5;
-        C = 10000;
+        
+        % The C value for the scalar SVR regression
+        % Wrapped.
+        %
+        % See also: ScalarSVR
+        C = 10;
         
         % Minimum `\alpha` coefficient value
         % 
         % At projection, the coefficients for each component approximation
-        % get mixed leading to an enlarged set of support vectors
+        % get mixed leading to an enlarged set of support vectors. Thus,
+        % after combination of the coefficients each new one must be
+        % greater than this threshold to be considered a new one.
         %
         % See also: ScalarSVR
         AlphaMinValue = 1e-5;
@@ -42,33 +53,35 @@ classdef CompWiseSVR < approx.BaseKernelApprox
             
             copy.adata = struct('ai',{},'b',{},'svidx',{});
             
-            totalsuppvect = size(this.suppvect,2);
             olddim = length(this.adata);
-            augai = zeros(totalsuppvect,olddim);
+            all_ai = zeros(size(this.suppvect,2),olddim);
             for idx = 1:olddim
-                augai(this.adata(idx).svidx,idx) = this.adata(idx).ai;
+                all_ai(this.adata(idx).svidx,idx) = this.adata(idx).ai;
             end
             B(1:olddim) = [this.adata(:).b];
             
             % Transform coefficients
             B = B * V;
-            augai = augai * V;
+            all_ai = all_ai * V;
             
             % Write back into new adata structure
-            for idx = 1:this.fdims
+            for idx = 1:copy.fdims
                 % Compute new ai's
-                newai = augai(:,idx);
-                copy.adata(idx).ai = newai;
+                newai = all_ai(:,idx);
+                newsvidx = abs(newai) > this.AlphaMinValue;
+                copy.adata(idx).ai = newai(newsvidx);
                 copy.adata(idx).b = B(idx);
-                copy.adata(idx).svidx = abs(newai) > 1e-5;
+                copy.adata(idx).svidx = newsvidx;
             end
             
             % Project snapshot vectors into reduced space, in case the used
             % Kernel is rotation invariant (lossless projection, no change
             % of coefficients necessary)
             if this.RotationInvariantKernel
-                % Project 
-                copy.suppvect = V'*this.suppvect;
+                % Extract system part and project into V space
+                [x,t,mu] = this.splitTripleVect(this.suppvect);
+                x = V' * x;
+                copy.suppvect = this.compileTripleVect(x,t,mu);
             end
         end
         
@@ -87,16 +100,39 @@ classdef CompWiseSVR < approx.BaseKernelApprox
             this.adata = struct('ai',{},'b',{},'svidx',{});
             svidxsum = [];
             
+            ex = [];
+            figure(1);
             for idx = 1:this.fdims
                 %waitbar(idx/fdims,wh,sprintf('Performing SVR for dimension %d/%d ... %2.0f %%',idx,fdims,(idx/fdims)*100));
                 
-                [ai,b,svidx] = svr.regress(fxi(idx,:));
+                subplot(1,this.fdims,idx);
+                x = 1:size(fxi,2);
+                y = fxi(idx,:);
+                plot(x,y, 'r');
+                axis ti
                 
-                this.adata(idx).ai = ai;
-                this.adata(idx).b = b;
-                this.adata(idx).svidx = svidx;
-                % collect all used support vector indices
-                svidxsum = union(svidxsum,svidx);
+                fail = 'success';
+                try
+                    [ai,b,svidx] = svr.regress(fxi(idx,:));
+                    this.adata(idx).ai = ai;
+                    this.adata(idx).b = b;
+                    this.adata(idx).svidx = svidx;
+                    % collect all used support vector indices
+                    svidxsum = union(svidxsum,svidx);
+                catch ME
+                    %eps = svr.eps
+                    %C = svr.C
+                    %K = svr.K
+                    %x = xi
+                    %fx = fxi(idx,:) 
+                    ex = ME;
+                    fail = 'failed';
+                end
+                title(sprintf('Status:%s, C=%1.2f, eps=%1.2f, dim=%d',fail,svr.C,svr.eps, idx));
+            end
+            if ~isempty(ex)
+                %return;
+                rethrow(ex);
             end
             
             %waitbar(1,wh,'Compiling approximation model data...');
@@ -142,6 +178,7 @@ classdef CompWiseSVR < approx.BaseKernelApprox
             % Copy local properties
             target.eps = this.eps;
             target.C = this.C;
+            target.AlphaMinValue = this.AlphaMinValue;
             target.adata = this.adata;
             target.suppvect = this.suppvect;
             target.fdims = this.fdims;

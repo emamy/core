@@ -2,7 +2,7 @@ classdef MatUtils
     %MATUTILS Matrix utility functions
     
     methods(Static)
-        function [A, idxmat] = laplacemat(h, d1,d2)
+        function [A, idxmat] = laplacemat(h, d1, d2)
             %Computes a 2D diffusion sparse matrix with zero neuman
             %boundary conditions.
             %

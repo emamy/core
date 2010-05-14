@@ -14,17 +14,17 @@ classdef BaseKernelApprox < approx.BaseApprox
         % The Kernel to use for time variables
         %
         % See also: SystemKernel ParamKernel
-        TimeKernel = kernels.RBFKernel;
+        TimeKernel;
         
         % The Kernel to use for system variables
         %
         % See also: TimeKernel ParamKernel
-        SystemKernel = kernels.RBFKernel;
+        SystemKernel;
         
         % The Kernel to use for parameter variables
         %
         % See also: TimeKernel SystemKernel
-        ParamKernel = kernels.RBFKernel;
+        ParamKernel;
     end
     
     properties(SetAccess=private, GetAccess=protected, Dependent)
@@ -34,6 +34,15 @@ classdef BaseKernelApprox < approx.BaseApprox
         RotationInvariantKernel;
     end
     
+    methods
+        function this = BaseKernelApprox
+            % Default constructors. Initializes default kernels.
+            this.TimeKernel = kernels.LinearKernel;
+            this.SystemKernel = kernels.RBFKernel(2);
+            this.ParamKernel = kernels.RBFKernel(2);
+        end
+    end
+    
     methods(Access=protected)
         function K = evaluateKernel(this, x, y)
             % Evaluates the specified Kernel by using a multiplication
@@ -41,7 +50,7 @@ classdef BaseKernelApprox < approx.BaseApprox
             %
             % Argument y is optional, if not given y=x is assumed.
             
-            [t1,x1,mu1] = this.splitTripleVect(x);
+            [x1,t1,mu1] = this.splitTripleVect(x);
             
             % NOTE:
             % The "weird" structure of this code is for speed reasons.
@@ -51,7 +60,7 @@ classdef BaseKernelApprox < approx.BaseApprox
             % more efficient for x=y
             
             if nargin == 3
-                [t2,x2,mu2] = this.splitTripleVect(y);
+                [x2,t2,mu2] = this.splitTripleVect(y);
             end
             
             % Make sure the ParamKernel doesnt destroy the other kernels in

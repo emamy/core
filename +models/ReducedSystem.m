@@ -2,7 +2,8 @@ classdef ReducedSystem < models.BaseDynSystem
     %REDUCEDSYSTEM Summary of this class goes here
     %   Detailed explanation goes here
     
-    properties
+    properties(Access=private)
+        plotPtr;
     end
     
     methods
@@ -21,9 +22,15 @@ classdef ReducedSystem < models.BaseDynSystem
                 this.B = fullsys.B;
                 this.C = fullsys.C;
                 this.x0 = fullsys.x0;
+                this.plotPtr = @fullsys.plot;
             end
         end
+        
+        function plot(this, model, t, y)
+            % Unless overridden for specific reduced system plots this
+            % method just calls the plot method of the original full system
+            this.plotPtr(model, t, y);
+        end
     end
-    
 end
 

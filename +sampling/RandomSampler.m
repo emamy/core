@@ -19,7 +19,7 @@ classdef RandomSampler < sampling.BaseSampler
             
             % Compute rescaling factor for each Desired entry to end up with
             % prod(<ranges>) = model.sampling.samples
-            rescaler = (this.Samples/prod([dynsys.params.Desired]))^(1/sys.ParamCount);
+            rescaler = (this.Samples/prod([sys.Params(:).Desired]))^(1/sys.ParamCount);
             
             ranges = cell(sys.ParamCount,1);
             

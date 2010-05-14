@@ -1,12 +1,20 @@
 classdef BaseDynSystem < handle
-    %BASEDYNSYSTEM Summary of this class goes here
-    %   Detailed explanation goes here
-    
-    properties(SetAccess=protected)
-        % The parameters usable for the dynamical system.
-        Params = ModelParam.empty;
-    end
-    
+    %BASEDYNSYSTEM Base class for all KerMor dynamical systems.
+    %   
+    % To setup custom dynamical systems, inherit from this class.
+    %
+    % Programming convention:
+    % Any system-specific properties should be added in the subclass, even
+    % though sometimes one might tend to put settings into the core
+    % function f (e.g. for space-discretized systems and thus all
+    % space-discretization relevant settings). In order to have all
+    % settings combined at one class one should rather pass the custom
+    % system's instance to the ICoreFun implementing classes' constructor
+    % and read settings from that instead.
+    % For an example see the models.pcd.PCDSystem and models.pcd.CoreFun.
+    %
+    % @Daniel Wirtz, 17.03.2010
+        
     properties
         % The core f function from the dynamical system.
         f;
@@ -15,17 +23,24 @@ classdef BaseDynSystem < handle
         B;
         
         % The output conversion
-        C = dscomponents;
+        % Defaults to an StdOutputConv instance, which just forwards the
+        % state variables ans supports projection.
+        %
+        % See also: StdOutputConv
+        C;
         
         % The system's possible input functions.
         % A cell array of function handles, each taking a time argument t.
         Inputs = {};
         
+        % The parameters usable for the dynamical system.
+        Params = models.ModelParam.empty;
+        
         % The initial value function.
         % A function handle taking the parameter argument mu.
         % The argument mu may be empty if no parameters are used within the
         % dynamic system.
-        x0 = @(mu)0;
+        x0;
         
         % The maximum timestep allowed for any ODE solvers.
         %
@@ -42,23 +57,11 @@ classdef BaseDynSystem < handle
     end
     
     methods
-%         function this = BaseDynSystem()
-%             % Default no-argument constructor
-%         end
         
-%         function copy = clone(this)
-%             % Clones this system's basic (all but functions) properties and
-%             % returns a new BaseDynSystem handle
-%             copy = models.BaseDynSystem;
-%             copy.Params = this.Params;
-%             copy.Inputs = this.Inputs;
-%             copy.MaxTimestep = this.MaxTimestep;
-%             % Copy component handles (it's NOT cloning them!)
-%             copy.f = this.f;
-%             copy.B = this.B;
-%             copy.C = this.C;
-%             copy.x0 = this.x0;
-%         end
+        function this = BaseDynSystem
+            this.x0 = @(mu)0;
+            this.C = dscomponents.StdOutputConv;
+        end
         
         function odefun = getODEFun(this, mu, inputidx)
             % Generates the ODE function for a specific parameter mu and
@@ -70,6 +73,10 @@ classdef BaseDynSystem < handle
             % system's input; however, if no inputconv component is set
             % this is ignored in any case.
             
+            if isempty(this.f)
+                error('No system''s core function specified. ODE function creation impossible; first set "f" property.');
+            end
+            
             % System without inputs
             if isempty(inputidx) || isempty(this.Inputs) || isempty(this.B)
                 odefun = @(t,x)(this.f.evaluate(x,t,mu));
@@ -80,10 +87,75 @@ classdef BaseDynSystem < handle
             end
         end
         
+        function mu = getRandomParam(this)
+            % Gets a random parameter sample from the system's parameter
+            % domain P
+            if this.ParamCount > 0
+                pmin = [this.Params(:).MinVal]';
+                pmax = [this.Params(:).MaxVal]';
+                mu = rand(this.ParamCount,1) .* (pmax-pmin) + pmin;
+            else
+                mu = [];
+            end
+        end
+        
+        function plot(this, model, t, y)
+            % Plots the results of the 
+            figure;
+            plot(t,y);
+            title(sprintf('Plot for output of model "%s"', model.Name));
+            xlabel('Time'); ylabel('Output functions');
+        end
+        
     end
     
     %% Getter & Setter
     methods
+        
+        function addParam(this, name, range, varargin)
+            % Adds a parameter with the given values to the parameter
+            % collection of the current dynamical system.
+            %
+            % Use in subclass constructors to easily define desired default
+            % parameters for a specific dynamical system.
+            %
+            % Parameters:
+            % name: The name of the Parameter
+            % range: The range of the Parameter. Can be either a scalar or
+            % a 1x2 double vector.
+            % desired: The desired number of samples for that parameter.
+            % Optional.
+            %
+            % See also: ModelParam setParam
+            if ~isempty(this.Params) && ~isempty(find(strcmpi(name,{this.Params(:).Name}),1))
+                error('Parameter with name %s already exists. Use setParam instead.',name);
+            end
+            this.Params(end+1) = models.ModelParam(name, range, varargin{:});
+        end
+        
+        function setParam(this, name, range, varargin)
+            % Sets values for a parameter with the name "name".
+            % If no such parameter exists a new one is created using the
+            % specified name and values.
+            %
+            % Parameters:
+            % name: The name of the Parameter
+            % range: The range of the Parameter. Can be either a scalar or
+            % a 1x2 double vector.
+            % desired: The desired number of samples for that parameter.
+            % Optional.
+            %
+            % See also: addParam
+            pidx = find(strcmpi(name,{this.Params(:).Name}),1);
+            if ~isempty(pidx)
+                this.Params(pidx).Range = range;
+                if ~isempty(varargin)
+                    this.Params(pidx).Desired = varargin{1};
+                end
+            else
+                this.addParam(name, range, varargin{:});
+            end
+        end
         
         function set.f(this,value)
             if ~isempty(value) && ~isa(value, 'dscomponents.ICoreFun')
@@ -106,6 +178,15 @@ classdef BaseDynSystem < handle
             this.C = value;
         end
         
+        function set.x0(this,value)
+            if ~isa(value,'function_handle')
+                error('Argument funPtr must be a function handle.');
+            elseif nargin(value) ~= 1
+                error('funPtr nargin must equal one (= mu).');
+            end
+            this.x0 = value;
+        end
+        
         function set.Inputs(this,value)
             if ~iscell(value)
                 error('Property "Inputs" must be a cell array.');
@@ -120,34 +201,19 @@ classdef BaseDynSystem < handle
             this.Inputs = value;
         end
         
+        function set.Params(this, value)
+            if ~isa(value,'models.ModelParam');
+                error('Params property must be a ModelParam array.');
+            end
+            this.Params = value;
+        end
+        
         function value = get.ParamCount(this)
             value = length(this.Params);
         end
         
         function value = get.InputCount(this)
             value = length(this.Inputs);
-        end
-    end
-    
-    %% Protected methods
-    methods(Access=protected)
-        
-        function addParam(this, name, range, desired)
-            % Adds a parameter with the given values to the parameter
-            % collection of the current dynamical system.
-            %
-            % Use in subclass constructors to easily define desired default
-            % parameters for a specific dynamical system.
-            % range can be either a scalar or a 1x2 double vector.
-            %
-            % See also: ModelParam
-            
-            this.Params(end+1) = ModelParam(name, range, desired);
-        end
-        
-        function removeParam(this, name)
-            % @TODO implement
-            error('not implemented');
         end
     end
     

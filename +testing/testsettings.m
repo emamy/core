@@ -1,27 +1,45 @@
 function s = testsettings
-%TESTSETTINGS Summary of this function goes here
-%   Detailed explanation goes here
+%TESTSETTINGS KerMor test settings collection
+%
+%   Common structure from which unit tests throughout the framework should
+%   use settings and functions.
+%   This is intended to ensure tests use the same data base to get some
+%   kind of comparability.
+%
+% @Daniel Wirtz, 16.03.2010
+
 
 s = struct;
 
 %% Test sizes
 % What dimension?
-s.testdim = 5;
+s.testdim = 2;
 % How many params? (to use from the ones defined below)
-s.testparams = 1;
-s.testinputs = 0;
+s.testparams = 2;
+s.testinputs = 2;
 
 %% Model settings
-s.times = 0:.1:1;
-s.mode = 'rand';
-s.samples = 10;
+s.m = models.BaseFullModel;
+s.m.T = 1;
+s.m.dt = .3;
+s.m.Sampler = sampling.RandomSampler;
+s.m.Sampler.Samples = 10;
+
+a = approx.CompWiseSVR;
+%a = approx.CompWiseLS;
+%a = approx.CompWiseInt;
+a.TimeKernel = kernels.LinearKernel;
+%a.TimeKernel = kernels.RBFKernel(2);
+a.SystemKernel = kernels.RBFKernel(2);
+a.ParamKernel = kernels.RBFKernel(2);
+s.m.Approx = a;
 
 
 %% Dynamical System settings/functions
 
-s.inputs{1} = @(t)1; % Function 1: Constant 1
-s.inputs{2} = @(t)sin(4*t); % Function 2: some sin(t)
-s.inputs = s.inputs(1:s.testinputs);
+s.Inputs{1} = @(t)1; % Function 1: Constant 1
+s.Inputs{2} = @(t)sin(4*t); % Function 2: some sin(t)
+s.Inputs = s.Inputs(1:s.testinputs);
 
 % Used Parameter Space
 s.params(1) = struct('Name', 'P1', 'MinVal', -1, 'MaxVal', 1, 'Desired', 10);
@@ -49,8 +67,8 @@ s.flin_p = @(x,t,mu)(A + diag(mu(muidx)))*x;
 % Nonlinear functions
 randx = randi(s.testdim);
 randmu = randi(s.testparams);
-s.fnlin_p = @(x,t,mu)(.5+t)*sin(x) + x(randx)*mu(randmu);
-s.fnlin = @(x,t,mu)(.5+t)*sin(x);
+s.fnlin_p = @(x,t,mu)(.5+t/2)*sin(x) + x(randx)*mu(randmu);
+s.fnlin = @(x,t,mu)(.5+t/2)*sin(x);
 
 end
 

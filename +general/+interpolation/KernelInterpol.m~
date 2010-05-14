@@ -1,0 +1,61 @@
+classdef KernelInterpol
+    %KERNELINTERPOL Summary of this class goes here
+    %   Detailed explanation goes here
+    
+    properties
+        K;
+    end
+    
+    methods
+        function a = interpolate(this, fxi)
+            a = this.K\fxi;
+        end
+    end
+    
+    methods(Static)
+        function test_KernelInterpolation
+            % Performs a test of this class
+            
+            x = -5:.05:5;
+            fx = sinc(x);
+            
+            n = length(x);
+            samp = 1:25:n;
+            
+            fignr=10;
+            internal_test(x,fx,samp,kernels.RBFKernel(1));
+            
+            multi = kernels.InvMultiquadrics(-1,1);
+            fignr=11;
+            internal_test(x,fx,samp,multi);
+            
+            function internal_test(x,fx,samp,kernel)
+                xi = x(samp);
+                fxi = fx(samp)';
+                
+                ki = general.interpolation.KernelInterpol;
+                
+                ki.K = kernel.evaluate(xi,xi);
+                
+                figure(fignr);
+                plot(x,fx,'r');
+                
+                a = ki.interpolate(fxi);
+                
+                svfun = @(x)a'*kernel.evaluate(xi,x);
+                
+                fsvr = svfun(x);
+                
+                hold on;
+                
+                % Plot approximated function
+                plot(x,fsvr,'b--');
+                %skipped = setdiff(1:length(x),svidx);
+                plot(xi,fxi,'.r');
+                
+                hold off;
+            end
+        end 
+    end    
+end
+

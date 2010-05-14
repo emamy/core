@@ -1,0 +1,44 @@
+classdef PointerInputConv < dscomponents.IInputConv
+    %POINTERINPUTCONV Allows for input converters provided by function handles.
+    %   
+    % In many contexts the creation of a specific class implementing
+    % IInputConv is not necessary due to the simplicity of the conversion
+    % or because no function-specific properties have to be modeled. In
+    % this case use this class and pass a function handle to the
+    % constructor which will be used as the actual function.
+    %
+    % See also: PointerCoreFun PointerOutputConv
+    %
+    % @Daniel Wirtz, 16.03.2010
+    
+    properties(Access=private)
+        Target;
+    end
+    
+    methods
+        function this = PointerInputConv(funPtr)
+            % Creates a new wrapper for a core function handle.
+            if ~isa(funPtr,'function_handle')
+                error('Argument funPtr must be a function handle.');
+            elseif nargin(funPtr) ~= 3
+                error('funPtr nargin must equal two (= t,mu).');
+            end
+            this.Target = funPtr;
+        end
+        
+        function B = evaluate(this, t, mu)
+            % Evaluates the core function at x,t,mu
+            B = this.Target(t,mu);
+        end
+        
+        function proj = project(this, V)
+            % Projects the core function into the reduced space.
+            % Creates a new PointerCoreFun and computes `B^r(t,\mu) =
+            % V^tB(t,\mu`
+            newfun = @(t,mu)V' * this.Target(t,mu);
+            proj = dscomponents.PointerInputConv(newfun);
+        end
+    end
+    
+end
+

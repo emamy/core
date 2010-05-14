@@ -1,119 +1,72 @@
 classdef BaseFullModel < models.BaseModel
-    %BASEFULLMODEL Summary of this class goes here
-    %   Detailed explanation goes here
+    %BASEFULLMODEL The base class for any KerMor detailed model
+    %   Implementers of custom models are to inherit from this base class
+    %   in order for it to work with KerMor.
+    %   For custom models, the properties of this class (combined with
+    %   those from BaseModel) can be set to influence the model behaviour
+    %   and reduction methods.
+    %   For the implementation of custom dynamical systems, refer to
+    %   BaseDynSystem.
+    %
+    % See also: models BaseModel BaseDynSystem
+    %
+    % @Daniel Wirtz, 16.03.2010
     
     properties
         % The sampling strategy the Model uses
         %
         % See also: sampling BaseSampler
-        Sampler = sampling.RandomSampler;
+        Sampler;
         
         % The full model's data container.
         % Defaults to an empty container.
         %
         % See also: ModelData
-        Data = ModelData;
+        Data;
         
         % The reduction algorithm for subspaces
         %
         % See also: spacereduction BaseSpaceReducer
-        SpaceReducer = spacereduction.PODReducer;
+        SpaceReducer;
         
         % The approximation method for the CoreFunction
         %
         % Defaults to scalar kernel SVR regression
-        Approx = approx.CompWiseSVR;
+        Approx;
     end
     
     methods
         
-        function offlinePhase(this)
-            %% Offline - Large Data
-            this.Data.ParamSamples = this.Sampler.generateSamples(this);
+        function this = BaseFullModel
+            % Creates a new instance of a full model.
             
-            this.genSnapshots;
+            % Setting default values for properties that are handle classes
+            % will have the negative side-effect of having each instance of
+            % BaseFullModel initialized with the SAME instance of the
+            % Sampler, Approx etc. instances which of course is NOT
+            % desireable.
+            % See
+            % http://www.mathworks.com/access/helpdesk/help/techdoc/matlab_oop/bsdtcz7.html#bsdu1g9-1
+            % for details.
             
-            %% Offline - Small Data
-            this.Data.V = this.SpaceReducer.generateReducedSpace(this);
-            
-            this.Approx.approximateCoreFun(this);
+            % Setup default values for the full model's components
+            this.Sampler = sampling.RandomSampler;
+            this.SpaceReducer = spacereduction.PODReducer;
+            this.Approx = approx.CompWiseSVR;
+            this.Data = models.ModelData;
         end
         
-        function reduced = buildReducedModel(this)
+        function off1_generateSamples(this)
+            % Offline phase 1: Sample generation.
             
-            % Check if a reduction 
-            if isempty(this.Approx) && isempty(this.SpaceReducer)
-                warning('KerMor:Reducing:noEffectiveReduction',...
-                    ['Model setup lacks reduction methods.\n'...
-                    'Reduced model will equal the full model (computationally).']);
+            % Sampling
+            if ~isempty(this.Sampler)
+                this.Data.ParamSamples = this.Sampler.generateSamples(this);
             end
-            
-            %% Reduced Model creation
-            reduced = models.ReducedModel(this);
-            sys = this.System;
-            % Get a new handle with all the system's nonfunc-properties
-            rsys = models.ReducedSystem(this.System);
-            
-            % Figure whether preojection was setup for this system
-            if ~isempty(this.SpaceReducer)
-                if isempty(this.Data.V)
-                    error(['Model has a SpaceReducer set but no projection'...
-                           'matrix Data.V set.\nForgot to call offlinePhase?']);
-                end
-                % Project input/output
-                if ~isempty(sys.B)
-                    rsys.B = sys.B.project(this.Data.V);
-                end
-                % We have a C in each case, mostly StdOutputConv.
-                rsys.C = sys.C.project(this.Data.V);
-                
-                % Project the approximated CoreFun of the full model if exists
-                if ~isempty(this.Approx)
-                    rsys.f = this.Approx.project(this.Data.V);
-                else
-                    % Otherwise at least try to project the models' full
-                    % function.
-                    rsys.f = this.f.project(this.Data.V);
-                end
-                
-                % Project the initial value function
-                rsys.x0 = @(mu)this.Data.V'*sys.x0(mu);
-            else
-                % Only use approximated version if set
-                if ~isempty(this.Approx)
-                    rsys.f = this.Approx;
-                end
-            end
-            
-            reduced.System = rsys;
         end
         
-    end
-    
-    %% Getter & Setter
-    methods
-        function set.Sampler(this, value)
-            this.checkType(value, 'sampling.BaseSampler');%#ok
-            this.Sampler = value;
-        end
-        
-        function set.Data(this, value)
-            this.checkType(value, 'ModelData');%#ok
-            this.Data = value;
-        end
-        
-        function set.SpaceReducer(this, value)
-            this.checkType(value, 'spacereduction.BaseSpaceReducer');%#ok
-            this.SpaceReducer = value;
-        end
-    end
-    
-    %% Privates
-    methods(Access=private)
-        
-        function genSnapshots(this)
-            %GENERATE_SNAPSHOTS Summary of this function goes here
-            %   Detailed explanation goes here
+        function off2_generateSnapshots(this)
+            % Offline phase 2: Snapshot generation.
             
             ps = this.Data.ParamSamples;
             
@@ -184,45 +137,330 @@ classdef BaseFullModel < models.BaseModel
             if ishandle(wh)
                 close(wh);
             end
+            
+        end
+        
+        function off3_generateReducedSpace(this)
+            % Offline phase 3: Generate state space reduction
+            if ~isempty(this.SpaceReducer)
+                if size(this.Data.Snapshots,2) == 1
+                    % Easy case: Source dimension is already one. Just set V = Id.
+                    this.Data.V = 1;
+                    warning('KerMor:spacereduction',['System''s state dimension'...
+                        'is already one; no effective reduction.']);
+                end
+                this.Data.V = this.SpaceReducer.generateReducedSpace(this);
+            end
+        end
+        
+        function off4_generateApproximation(this)
+            % Offline phase 4: Core function approximation
+            if ~isempty(this.Approx)
+                this.Approx.approximateCoreFun(this);
+            end
+        end
+        
+        function offlineGenerations(this)
+            % Performs all large offline computations for model reduction.
+            %
+            % This method is mainly used to compile all large data for the
+            % reduction process. Its separation from the buildReducedModel
+            % method is only for separation reasons.
+            % It calls all of the offX_ - methods in their order.
+            %
+            % See also: buildReducedModel
+            
+            this.off1_generateSamples;
+            this.off2_generateSnapshots;
+            this.off3_generateReducedSpace;
+            this.off4_generateApproximation;
+        end
+        
+        function reduced = buildReducedModel(this)
+            % Builds a reduced model from a full model.
+            %
+            % Before calling this method ensure that offlineGenerations was
+            % called at least once to provide the model's necessary data
+            % for the reduction process.
+            %
+            % See also: offlineGenerations
+            
+            % Check if a reduction
+            if isempty(this.Approx) && isempty(this.SpaceReducer)
+                warning('KerMor:Reducing:noEffectiveReduction',...
+                    ['Model setup lacks reduction methods.\n'...
+                    'Reduced model will equal the full model (computationally).']);
+            end
+            
+            %% Reduced Model creation
+            reduced = models.ReducedModel(this);
+            sys = this.System;
+            % Get a new handle with all the system's nonfunc-properties
+            rsys = models.ReducedSystem(this.System);
+            
+            % Figure whether preojection was setup for this system
+            if ~isempty(this.SpaceReducer)
+                if isempty(this.Data.V)
+                    error(['Model has a SpaceReducer set but no projection'...
+                        'matrix Data.V set. Forgot to call offlinePhase?']);
+                end
+                % Project input/output
+                if ~isempty(sys.B)
+                    rsys.B = sys.B.project(reduced.V);
+                end
+                % We have a C in each case, mostly StdOutputConv.
+                rsys.C = sys.C.project(reduced.V);
+                
+                % Project the approximated CoreFun of the full model if exists
+                if ~isempty(this.Approx)
+                    rsys.f = this.Approx.project(reduced.V);
+                else
+                    % Otherwise at least try to project the models' full
+                    % function.
+                    rsys.f = this.f.project(reduced.V);
+                end
+                
+                % Project the initial value function
+                rsys.x0 = @(mu)reduced.V'*sys.x0(mu);
+            else
+                % Only use approximated version if set
+                if ~isempty(this.Approx)
+                    rsys.f = this.Approx;
+                end
+            end
+            
+            reduced.System = rsys;
+        end
+        
+    end
+    
+    %% Getter & Setter
+    methods
+        function set.Sampler(this, value)
+            this.checkType(value, 'sampling.BaseSampler');%#ok
+            this.Sampler = value;
+        end
+        
+        function set.Data(this, value)
+            this.checkType(value, 'models.ModelData');%#ok
+            this.Data = value;
+        end
+        
+        function set.SpaceReducer(this, value)
+            this.checkType(value, 'spacereduction.BaseSpaceReducer');%#ok
+            this.SpaceReducer = value;
+        end
+        
+        function set.Approx(this, value)
+            this.checkType(value, 'approx.BaseApprox');%#ok
+            this.Approx = value;
         end
     end
     
     methods(Static)
         function test_BaseModels
             m = models.BaseFullModel;
-            af = dscomponents.AffLinCoreFcn;
+            af = dscomponents.AffLinCoreFun;
             af.addSummand(@(t,mu)1, rand(4,4));
             af.addSummand(@(t,mu)sum(mu)*5, rand(4,4)*3);
             m.System.f = af;
             m.System.x0 = @(mu)sin(1:4)';
-            m.offlinePhase;
+            m.offlineGenerations;
             red = m.buildReducedModel;
-            cprit
-            [t,x] = m.simulate();
-            [rt,rx] = red.simulate();
+            % Test simulations
+            m.simulate();
+            red.simulate();
             
             % dont forget to free resources! (static handles seem to
             % persist over several method calls)
             clear af m red;
         end
         
-        function test_ANoReductionModel
+        function test_BareModel
             m = models.BaseFullModel;
             m.SpaceReducer = [];
             m.Approx = [];
-            af = dscomponents.AffLinCoreFcn;
-            af.addSummand(@(t,mu)1, rand(4,4));
-            af.addSummand(@(t,mu)sum(mu)*5, rand(4,4)*3);
-            m.System.f = af;
-            m.System.x0 = @(mu)sin(1:4);
-            m.offlinePhase;
+            m.Sampler = [];
+            A = rand(2,2);
+            m.System.f = dscomponents.PointerCoreFun(@(x,t,mu)A*x);
+            m.System.x0 = @(mu)sin(1:2);
+            m.offlineGenerations;
             red = m.buildReducedModel;
-            red.simulate([],[]);
+            red.simulate();
             % dont forget to free resources! (static handles seem to
             % persist over several method calls)
             clear af m red;
         end
+        
+        function test_LinearModel
+            ts = testing.testsettings;
+            m = ts.m;
+            s = m.System;
+            s.f = dscomponents.PointerCoreFun(ts.flin);
+            s.x0 = ts.x0;
+            m.simulate();
+            m.offlineGenerations;
+            r = m.buildReducedModel;
+            r.simulate();
+            clear s m r;
+        end
+        
+        function test_LinearModelNoProj
+            ts = testing.testsettings;
+            m = ts.m;
+            m.SpaceReducer = [];
+            s = m.System;
+            s.f = dscomponents.PointerCoreFun(ts.flin);
+            s.x0 = ts.x0;
+            m.simulate();
+            m.offlineGenerations;
+            r = m.buildReducedModel;
+            r.simulate();
+            clear s m r;
+        end
+        
+        function test_LinearModelNoApprox
+            ts = testing.testsettings;
+            m = ts.m;
+            m.Approx = [];
+            s = m.System;
+            s.f = dscomponents.PointerCoreFun(ts.flin);
+            s.x0 = ts.x0;
+            m.simulate();
+            m.offlineGenerations;
+            r = m.buildReducedModel;
+            r.simulate();
+            clear s m r;
+        end
+        
+        function test_LinearModelParams
+            ts = testing.testsettings;
+            m = ts.m;
+            s = m.System;
+            s.f = dscomponents.PointerCoreFun(ts.flin_p);
+            s.x0 = ts.x0_p;
+            for idx = 1:length(ts.params)
+                p = ts.params(idx);
+                s.addParam(p.Name, [p.MinVal p.MaxVal], p.Desired);
+            end
+            m.simulate(m.System.getRandomParam);
+            m.offlineGenerations;
+            r = m.buildReducedModel;
+            r.simulate(r.System.getRandomParam);
+            clear s m r;
+        end
+        
+        function test_LinearModelInputs
+            ts = testing.testsettings;
+            m = ts.m;
+            s = m.System;
+            s.B = dscomponents.PointerInputConv(ts.B);
+            s.f = dscomponents.PointerCoreFun(ts.flin);
+            s.x0 = ts.x0;
+            s.Inputs = ts.Inputs;
+            m.simulate([],1);
+            m.offlineGenerations;
+            r = m.buildReducedModel;
+            r.simulate([],1);
+            clear s m r;
+        end
+        
+        function test_LinearModelParamsInput
+            ts = testing.testsettings;
+            m = ts.m;
+            s = m.System;
+            s.f = dscomponents.PointerCoreFun(ts.flin_p);
+            s.B = dscomponents.PointerInputConv(ts.B_p);
+            s.x0 = ts.x0_p;
+            for idx = 1:length(ts.params)
+                p = ts.params(idx);
+                s.addParam(p.Name, [p.MinVal p.MaxVal], p.Desired);
+            end
+            s.Inputs = ts.Inputs;
+            m.simulate(m.System.getRandomParam, 1);
+            m.offlineGenerations;
+            r = m.buildReducedModel;
+            r.simulate(r.System.getRandomParam, 1);
+            clear s m r;
+        end
+        
+        function test_NonlinearModel
+            ts = testing.testsettings;
+            m = ts.m;
+            s = m.System;
+            s.f = dscomponents.PointerCoreFun(ts.fnlin);
+            s.x0 = ts.x0;
+            m.simulate();
+            m.offlineGenerations;
+            r = m.buildReducedModel;
+            r.simulate();
+            clear s m r;
+        end
+        
+        function test_NonlinearModelParams
+            ts = testing.testsettings;
+            m = ts.m;
+            s = m.System;
+            s.f = dscomponents.PointerCoreFun(ts.fnlin_p);
+            s.x0 = ts.x0_p;
+            for idx = 1:length(ts.params)
+                p = ts.params(idx);
+                s.addParam(p.Name, [p.MinVal p.MaxVal], p.Desired);
+            end
+            m.simulate(m.System.getRandomParam);
+            m.offlineGenerations;
+            r = m.buildReducedModel;
+            r.simulate(r.System.getRandomParam);
+            clear s m r;
+        end
+        
+        function test_NonlinearModelInputs
+            ts = testing.testsettings;
+            m = ts.m;
+            s = m.System;
+            s.B = dscomponents.PointerInputConv(ts.B);
+            s.f = dscomponents.PointerCoreFun(ts.fnlin);
+            s.x0 = ts.x0;
+            s.Inputs = ts.Inputs;
+            m.simulate([],1);
+            m.offlineGenerations;
+            r = m.buildReducedModel;
+            r.simulate([],1);
+            clear s m r;
+        end
+        
+        function test_NonlinearModelParamsInput
+            ts = testing.testsettings;
+            m = ts.m;
+            s = m.System;
+            s.f = dscomponents.PointerCoreFun(ts.fnlin_p);
+            s.B = dscomponents.PointerInputConv(ts.B_p);
+            s.x0 = ts.x0_p;
+            for idx = 1:length(ts.params)
+                p = ts.params(idx);
+                s.addParam(p.Name, [p.MinVal p.MaxVal], p.Desired);
+            end
+            s.Inputs = ts.Inputs;
+            m.simulate(m.System.getRandomParam,1);
+            m.offlineGenerations;
+            r = m.buildReducedModel;
+            r.simulate(r.System.getRandomParam,1);
+            clear s m r;
+        end
+        
+        function test_TimeDependentOutput
+            ts = testing.testsettings;
+            m = ts.m;
+            s = m.System;
+            s.f = dscomponents.PointerCoreFun(ts.flin);
+            s.x0 = ts.x0;
+            s.C = dscomponents.PointerOutputConv(@(t,mu)t,true);
+            m.simulate();
+            m.offlineGenerations;
+            r = m.buildReducedModel;
+            r.simulate();
+            clear s m r;
+        end
     end
-    
 end
 

@@ -1,0 +1,40 @@
+classdef KernelLS
+    %KERNELLS Summary of this class goes here
+    %   Detailed explanation goes here
+    
+    properties
+        % The kernel matrix to use für LS regression
+        K;
+        
+        % The regularization term weight
+        lambda;
+        
+        % Maximum iteration count for the pcg method
+        % 
+        % See also: pcg
+        PCGMaxIt = [];
+        
+        % Tolerance for pcg method
+        % 
+        % See also: pcg
+        PCGTol = 1e-6;
+    end
+    
+    methods
+        
+        function a = regress(this,fx)
+            
+            % Ensure fxi is a column vector
+            fx = reshape(fx,size(this.K,1),[]);
+            
+            y = this.K'*fx;
+            M = this.K'*this.K + this.lambda*eye(size(this.K));
+            
+            [a, flag] = pcg(M,y);
+            %a = M\y;
+        end
+        
+    end
+    
+end
+

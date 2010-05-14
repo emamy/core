@@ -1,10 +1,18 @@
 classdef BaseModel < handle
-    %MODEL Summary of this class goes here
-    %   Detailed explanation goes here
+    %BASEMODEL Base class for both full and reduced models.
+    %   This class gathers all common functionalities of models in the
+    %   KerMor framework.
+    %   The most important method would be @code [t,y] =
+    %   simulate(mu,inputidx) @endcode which computes the system's solution
+    %   for given `\mu` and input number (if applicable).
+    %   Also a plot wrapper is provided that refers to the plotting methods
+    %   within the model's system.
+    %
+    % @DanielWirtz, 19.03.2010
     
     properties
         % The actual dynamical system used in the model.
-        System = models.BaseDynSystem;
+        System;
         
         % The name of the Model
         Name = 'Base Model';
@@ -12,13 +20,23 @@ classdef BaseModel < handle
         % The verbose output level at simulations
         Verbose = 0;
         
-        % The final timestep up to which to simulate
+        % The final timestep up to which to simulate.
+        %
+        % NOTE: When changing this property any offline computations have
+        % to be repeated in order to obtain a new reduced model.
         T = 1;
         
         % The desired time-stepsize for simulations
+        %
+        % NOTE: When changing this property any offline computations have
+        % to be repeated in order to obtain a new reduced model.
         dt = .1;
         
-        % The solver to use for the ODE
+        % The solver to use for the ODE.
+        % This property must be a function handle with a signature
+        % equivalent to those of the matlab built-in ode solver functions.
+        %
+        % See also: ode23 ode45 ode113
         ODESolver = @ode45;
     end
     
@@ -29,7 +47,11 @@ classdef BaseModel < handle
     
     methods
         
-        function [t,y] = simulate(this, mu, inputidx)
+        function this = BaseModel
+             this.System = models.BaseDynSystem;
+        end
+        
+        function [t,y,sec] = simulate(this, mu, inputidx)
             % Simulates the system and produces the system's output.
             %
             % Parameters:
@@ -44,35 +66,64 @@ classdef BaseModel < handle
             % y: Depending on the existance of an output converter, this
             %    either returns the full trajectory or the processed output
             %    at times t.
+            % sec: the seconds needed for simulation.
             
             if nargin < 3
-                inputidx = [];
+                if ~isempty(this.System.Inputs)
+                    warning('BaseModel:NoInputSpecified',['You must specify'...
+                        'an input index if inputs are set up. Using inputidx=1']);
+                    inputidx = 1;
+                else
+                    inputidx = [];
+                end
                 if nargin < 2
                     mu = [];
                 end
             end
+            if isempty(mu) && ~isempty(this.System.Params)
+                error('A model with parameters cannot be simulated without a parameter argument.');
+            end
             
-            [t,y] = this.computeTrajectory(mu, inputidx);
+            starttime = tic;
+            
+            [t,x] = this.computeTrajectory(mu, inputidx);
+            
             if ~isempty(this.System.C)
                 if this.System.C.TimeDependent
                     % Evaluate the output conversion at each time t
-                    for idx=1:length(t)
-                        y(:,idx) = this.System.C.evaluate(t(idx),mu)*y(:,idx);
+                    % Figure out resulting size of C*x evaluation
+                    hlp = this.System.C.evaluate(t(1),mu)*x(:,1);
+                    y = zeros(size(hlp,1),length(t));
+                    y(:,1) = hlp;
+                    for idx=2:length(t)
+                        y(:,idx) = this.System.C.evaluate(t(idx),mu)*x(:,idx);
                     end
                 else
                     % otherwise it's a constant matrix so multiplication
                     % can be preformed much faster.
-                    y = this.System.C.evaluate(0,mu)*y;
+                    y = this.System.C.evaluate([],mu)*x;
                 end
             else
                 warning('KerMor:NoOutputConversion',['No system output'...
                     'conversion set. Forgot to set property C? Result'...
                     'equals state variables.']);
+                y = x;
             end
+            
+            sec = toc(starttime);
         end
         
         function value = get.Times(this)
             value = 0:this.dt:this.T;
+        end
+    end
+    
+    methods(Sealed)
+        function plot(this, t, y)
+            % Forwards a plot request to the current system passing the
+            % instance of the current model.
+            %
+            this.System.plot(this, t, y);
         end
     end
     
@@ -93,11 +144,19 @@ classdef BaseModel < handle
             % x: Depending on the existance of an output converter, this
             %    either returns the full trajectory or the processed output
             %    at times t.
-                        
+            
             % Set ODE options
             opts = [];
             if ~isempty(this.System.MaxTimestep)
                 opts = odeset('MaxStep',this.System.MaxTimestep, 'InitialStep',.5*this.System.MaxTimestep);
+            end
+            
+            % Setup simulation-time constant data (if available)
+            if isa(this.System,'ISimConstants')
+                this.System.updateSimConstants;
+            end
+            if isa(this.System.f,'ISimConstants')
+                this.System.f.updateSimConstants;
             end
             
             % Get target ODE function
@@ -112,25 +171,15 @@ classdef BaseModel < handle
             x = x';
         end
         
-        function checkType(this, obj, type)
+        function checkType(this, obj, type)%#ok
             % Object typechecker.
             % Checks if a given object is of the specified type and throws
             % an error if not.
             % Convenience method.
-            if ~isa(obj, type)
+            if ~isempty(obj) && ~isa(obj, type)
                 error(['Wrong type ''' class(obj) ''' for this property. Has to be a ' type]);
             end
         end
     end
-    
-    methods(Abstract)
-        % Abstract simulation method. Computes a solution/trajectory for
-        % the given mu and inputidx. Leave parameters empty if the system
-        % does not have the according features (it will be ignored anyway)
-        %[t,x] = simulate(mu, inputidx);
-    end
-    
-    
-    
 end
 

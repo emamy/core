@@ -1,4 +1,4 @@
-classdef ScalarSVR
+classdef ScalarSVR < handle
     %SCALARSVR Scalar support vector regression.
     %
     %  See B. Schölkopf & A. Smola's "Learning with Kernels" for
@@ -18,7 +18,7 @@ classdef ScalarSVR
         % Effectiveness also depends on C
         %
         % See also: C
-        eps;
+        eps = 0.05;
         
         % The weighting of the slack variables. For larger C, the slack
         % variables are forced towards zero so that violations of the
@@ -27,7 +27,7 @@ classdef ScalarSVR
         % around the original function.
         %
         % See also: eps
-        C;
+        C = 10;
         
         % Options for quadprog-solver
         QuadProgOpts = optimset('LargeScale','off','MaxIter',300,'Display','off');
@@ -53,6 +53,16 @@ classdef ScalarSVR
             % Ensure fxi is a column vector
             fxi = reshape(fxi,m,[]);
             
+            % "Bugfix" for epsilons that are set larger than the range of
+            % the function values to approximate.
+            fxirange = max(fxi)-min(fxi);
+            oldeps = [];
+            if 2*this.eps >= fxirange
+                oldeps = this.eps;
+                this.eps = fxirange*.49;
+                warning('ScalarSVR:epsTooLarge','eps is too large for data to approximate. Using eps=%1.5f temporarily.',this.eps);
+            end
+            
             % Storage: alpha(1..m) = alpha_i, alpha(m+1..2m) = alpha_i*
             % T performs alpha_i* - alpha_i each
             T = [-diag(ones(1,m)) diag(ones(1,m))];
@@ -75,7 +85,10 @@ classdef ScalarSVR
             prog.options = this.QuadProgOpts;
             
             %% Solve quadratic problem
-            ai = quadprog(prog);
+            %ai = quadprog(prog);
+            % @TODO compile return messages for simulation summary/warnings
+            [ai, fval, exitflag, out] = quadprog(prog);
+            
             
             %% Extract support vectors
             % reduce ai from 2m to m vector
@@ -86,7 +99,7 @@ classdef ScalarSVR
             svidx = find(abs(ai) >= this.AlphaMinValue);
             
             if isempty(svidx) && any(fxi ~= 0)
-                error('No support vectors found. Problem unsolvable with current config?');
+                error('No support vectors found. Problem unsolvable with current config?\nQuadprog exit flag:%d\nQuadprog out.message:%s',exitflag,out.message);
             end
             
             % check if b can be computed correctly
@@ -142,6 +155,16 @@ classdef ScalarSVR
                 b = fxi(index) - ai' * kmat(:,idx(1)) + sign(m-index)*this.eps;
             end
             
+            % Reset eps to the old value if changed at beginning.
+            if ~isempty(oldeps)
+                this.eps = oldeps;
+            end
+            
+        end
+        
+        function set.K(this, value)
+            % Make matrix symmetric (can be false due to rounding errors)
+            this.K = .5*(value + value');
         end
     end
     
@@ -149,12 +172,16 @@ classdef ScalarSVR
         function test_ScalarSVR
             % Performs a test of this class
             
-            x = -2:.1:5;
+            x = -5:.1:5;
             fx = sinc(x);
+            %x = 1:10;
+            %fx = ones(size(x))*5;
             
             svr = general.regression.ScalarSVR;
-            svr.eps = .1;
-            svr.C = 100000;
+            svr.eps = .2;
+            svr.C = 10;
+            %kernel = kernels.PolyKernel(2);
+            %kernel = kernels.LinearKernel;
             kernel = kernels.RBFKernel(1);
             svr.K = kernel.evaluate(x,x);
             
@@ -162,7 +189,7 @@ classdef ScalarSVR
             plot(x,fx,'r',x,[fx-svr.eps; fx+svr.eps],'r--');
             
             [ai,b,svidx] = svr.regress(fx);
-            sv = x(svidx);
+            sv = x(:,svidx);
             svfun = @(x)ai'*kernel.evaluate(sv,x) + b;
             
             fsvr = svfun(x);
@@ -173,6 +200,38 @@ classdef ScalarSVR
             plot(x,fsvr,'b',x,[fsvr-svr.eps; fsvr+svr.eps],'b--');
             skipped = setdiff(1:length(x),svidx);
             plot(sv,fx(svidx),'.r',x(skipped),fx(skipped),'xr');
+            
+            hold off;
+        end
+        
+        function test2_CustomSVR
+            % Performs a test of this class
+            
+            x = [0    0.3000    0.6000    0.9000;
+                 0.8321    1.0756    1.3557    1.6539];
+            fx = [0.7393    0.8799    0.9769    0.9966];
+            
+            svr = general.regression.ScalarSVR;
+            svr.eps = 0.5;
+            svr.C = 10;
+            kernel = kernels.RBFKernel(1);
+            svr.K = kernel.evaluate(x,x);
+            
+            figure(1);
+            xp = x(1,:);
+            plot(xp,fx,'r',xp,[fx-svr.eps; fx+svr.eps],'r--');
+            
+            [ai,b,svidx] = svr.regress(fx);
+            sv = x(:,svidx);
+            svfun = @(x)ai'*kernel.evaluate(sv,x) + b;
+            
+            fsvr = svfun(x);
+            hold on;
+            
+            % Plot approximated function
+            plot(xp,fsvr,'b',xp,[fsvr-svr.eps; fsvr+svr.eps],'b--');
+            skipped = setdiff(1:length(x),svidx);
+            plot(sv(1,:),fx(svidx),'.r',xp(skipped),fx(skipped),'xr');
             
             hold off;
         end

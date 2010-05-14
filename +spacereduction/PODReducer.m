@@ -1,7 +1,11 @@
 classdef PODReducer < spacereduction.BaseSpaceReducer
     %PODREDUCER Uses POD for reduced space generation.
     %
-    % @DanielWirtz, 11.03.2010
+    % Internally the SVD decomposition of the snapshot array is used.
+    % Several modes are supported to enable more specific reduced space
+    % selection.
+    %
+    % @DanielWirtz, 19.03.2010
     
     properties
         % The modus used to generate the reduced space.
@@ -14,10 +18,19 @@ classdef PODReducer < spacereduction.BaseSpaceReducer
         % 'abs' : Explicitly specified reduced space dimension. Uses the first
         %         'value' eigenvectors as space.
         %
+        % The fastest modes are 'rel' and 'abs' as for these cases the
+        % target dimension can be computed before svd decomposition; for
+        % 'sign' and 'eps' all singular values are computed and the
+        % dimension is computed using these singular values.
+        %
+        % Defaults to 'rel'.
+        %
         % See also: Value
         Mode = 'rel';
         
         % The value associated with the selected Mode
+        %
+        % Defaults to .3
         %
         % See also: Mode
         Value = .3;
@@ -28,56 +41,54 @@ classdef PODReducer < spacereduction.BaseSpaceReducer
             % Implements the abstract method from BaseSpaceReducer
             
             %% Preparation
-            % Collapse parameter samples and input dimension
-            sn = model.Data.PlainSnapshotArray;
+            % Collapse parameter samples and input dimension.
+            % Transpose so that the columns are dimensions and rows measures
+            data = model.Data.PlainSnapshotArray;   
             
-            A = sn'*sn;
-            
-            useeig = false;
             %% Dimension checks
+            % This is for the "explicit" modes where the target dimension
+            % is either a fixed value or a fraction of the full dimension.
+            target_dim=[];
             if strcmpi(this.Mode,'rel')
-                target_dim = round(size(sn,1)*this.Value);
-                if target_dim > size(A,2)
-                    warning('KerMor:PODReducer:mode_rel','Reduced space cant be bigger (%d) than sample size (%d). Using sample size.',target_dim,size(A,2));
-                    useeig = true;
-                end
+                target_dim = ceil(size(data,1)*this.Value);
             elseif strcmpi(this.Mode,'abs')
                 target_dim = this.Value;
-                if target_dim > size(A,2)
-                    warning('KerMor:PODReducer:mode_abs','''Value'' cant be bigger (%d) than sample size (%d). Setting to sample size.',this.Value,size(A,2));
-                    this.Value = size(A,2);
-                    useeig = true;
-                end
             end
-            %% Actual computation
-            if any(strcmpi(this.Mode,{'sign','eps'})) || useeig
-                % compute full eigenvalues for sign/eps mode or if other modes result
-                % in full space, too. (efficiency)
-                [ev,ew] = eig(A);
-                % Invert
-                ev = flipdim(ev,2);
-                ew = flipdim(diag(ew),1);
-            else
-                % Forward verbose setting to eigs fcn
-                opts.disp = model.Verbose;
-                [ev, ew] = eigs(A,target_dim,'lm',opts);
-                ew = diag(ew);
-            end
-            %% Reduction for modes 'sign' and 'eps'
-            if strcmpi(this.Mode,'sign')
-                sig = ew >= ew(1)*this.Value;
-                % Reduce
-                ev = ev(:,sig);
-                ew = ew(sig);
-            elseif strcmpi(this.Mode,'eps')
-                sig = ew >= this.Value;
-                % Reduce
-                ev = ev(:,sig);
-                ew = ew(sig);
+            if ~isempty(target_dim) && target_dim >= size(data,1)
+                % Yell boo if no reduction achieved!
+                error('Reduced space dimension (%d) has to be smaller than the full state space dimension (%d)!',target_dim,size(data,1));
             end
             
-            % Compute projection matrix
-            V = sn * ev * diag(ew.^(-0.5));
+            %% Reduction for modes 'sign' and 'eps'
+            % For these "dynamic" modes the full singular values have
+            % to be computed in order to determine how many to use.
+            if any(strcmpi(this.Mode,{'sign','eps'}))    
+                [u,s,v] = svd(data,'econ');
+                s = diag(s);
+                if strcmpi(this.Mode,'sign')
+                    sig = s >= s(1)*this.Value;
+                elseif strcmpi(this.Mode,'eps')
+                    sig = s >= this.Value;
+                end
+                % Select wanted subspace
+                u = u(:,sig);
+                v = v(:,sig);
+                s = s(sig);
+            else
+                %% Reduction for modes 'abs' and 'rel'
+                % For cases 'abs' or 'rel': fixed target dimension.
+                % So just let svds extract the wanted components!
+                [u,s,v] = svds(data, target_dim);
+                s = diag(s);
+            end
+            
+            % Case N >> d (more samples, "normal case")
+            if size(data,2) > size(data,1)
+                V = u;
+            else
+                % Case d >> N ("undersampled")
+                V = data * v * diag(s.^-1);
+            end
         end
         
         function set.Mode(this, value)
@@ -90,32 +101,50 @@ classdef PODReducer < spacereduction.BaseSpaceReducer
     
     methods(Static)
         
-        function test_POD
+        function res = test_POD
             
             model = models.BaseFullModel;
-            model.Data.Snapshots = rand(25,25,10,3);
-            
             pod = spacereduction.PODReducer;
             
+            res = true;
+            
+            % d << N
+            model.Data.Snapshots = rand(25,25,10,3);
+            res = res && spacereduction.PODReducer.internalPODTest(model,pod);
+            
+            % d >> N
+            model.Data.Snapshots = rand(800,25,5,2);
+            res = res && spacereduction.PODReducer.internalPODTest(model,pod);
+        end
+        
+    end
+    
+    methods(Static,Access=private)
+        function res = internalPODTest(model, pod)
+            res = true;
             pod.Mode = 'eps';
-            pod.Value = 1e-2;
+            pod.Value = 7;
             fprintf('eps..');
-            pod.generateReducedSpace(model);
+            V = pod.generateReducedSpace(model);
+            res = res && isequal(round(V'*V),eye(size(V,2)));
             
             pod.Mode = 'sign';
             pod.Value = .3;
             fprintf('sign..');
-            pod.generateReducedSpace(model);
+            V = pod.generateReducedSpace(model);
+            res = res && isequal(round(V'*V),eye(size(V,2)));
             
             pod.Mode = 'rel';
             pod.Value = .3;
             fprintf('rel..');
-            pod.generateReducedSpace(model);
+            V = pod.generateReducedSpace(model);
+            res = res && isequal(round(V'*V),eye(size(V,2)));
             
             pod.Mode = 'abs';
             pod.Value = 10;
             fprintf('abs..');
-            pod.generateReducedSpace(model);
+            V = pod.generateReducedSpace(model);
+            res = res && isequal(round(V'*V),eye(size(V,2)));
         end
     end
     
