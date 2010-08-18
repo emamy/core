@@ -20,6 +20,7 @@ classdef ModelParam < handle
     properties(Dependent)
         MinVal;
         MaxVal;
+        HasRange;
     end
     
     methods
@@ -27,12 +28,13 @@ classdef ModelParam < handle
             % Creates a new model parameter.
             %
             % Arguments:
+            % name: Parameter name
             % range: Can be either a scalar or a 1x2 double vector.
-            % desire
+            % desired: The desired number for GridSampling
             %
-            % @TODO: Validity checks
+            % @todo: Validity checks
             
-            if nargin > 0
+            
                 this.Name = name;
                 this.Range = range;
                 this.Desired = desired;
@@ -50,12 +52,23 @@ classdef ModelParam < handle
             this.Range = range;
         end
         
+        function set.Desired(this, value)
+            if value < 1 || ~isscalar(value)
+                error('Desired must be a positive integer greater than zero.');
+            end
+            this.Desired = value;
+        end
+        
         function value = get.MinVal(this)
             value = this.Range(1);
         end
         
         function value = get.MaxVal(this)
             value = this.Range(2);
+        end
+        
+        function value = get.HasRange(this)
+            value = this.MinVal ~= this.MaxVal;
         end
     end
     

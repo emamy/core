@@ -6,14 +6,15 @@ function s = testsettings
 %   This is intended to ensure tests use the same data base to get some
 %   kind of comparability.
 %
-% @Daniel Wirtz, 16.03.2010
+% @author Daniel Wirtz @date 16.03.2010
 
 
 s = struct;
 
 %% Test sizes
 % What dimension?
-s.testdim = 2;
+s.testdim = 4;
+
 % How many params? (to use from the ones defined below)
 s.testparams = 2;
 s.testinputs = 2;
@@ -28,10 +29,10 @@ s.m.Sampler.Samples = 10;
 a = approx.CompWiseSVR;
 %a = approx.CompWiseLS;
 %a = approx.CompWiseInt;
-a.TimeKernel = kernels.LinearKernel;
-%a.TimeKernel = kernels.RBFKernel(2);
-a.SystemKernel = kernels.RBFKernel(2);
-a.ParamKernel = kernels.RBFKernel(2);
+s.TimeKernel = kernels.LinearKernel;
+%a.TimeKernel = kernels.GaussKernel(2);
+s.SystemKernel = kernels.GaussKernel(2);
+s.ParamKernel = kernels.GaussKernel(2);
 s.m.Approx = a;
 
 
@@ -68,7 +69,12 @@ s.flin_p = @(x,t,mu)(A + diag(mu(muidx)))*x;
 randx = randi(s.testdim);
 randmu = randi(s.testparams);
 s.fnlin_p = @(x,t,mu)(.5+t/2)*sin(x) + x(randx)*mu(randmu);
-s.fnlin = @(x,t,mu)(.5+t/2)*sin(x);
+s.fnlin = @(x,t,mu)(.5+t/2).*sin(x);
+
+if s.testdim > 10
+    disp('testdim > 10, really run all tests? press Ctrl+C otherwise.');
+    pause
+end
 
 end
 

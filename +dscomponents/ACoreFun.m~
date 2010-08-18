@@ -1,0 +1,59 @@
+classdef ACoreFun < dscomponents.IProjectable & ICloneable
+    %ICOREFUN Basic interface for all dynamical system's core functions
+    % Inherits the IProjectable interface.
+    %
+    % @author Daniel Wirtz @date 17.03.2010
+    
+    properties(Access=protected)
+        % Set this property if the projection process is customized by
+        % overriding the default project method. This affects the
+        % evaluation method of the ACoreFun.
+        CustomProjection = false;
+    end
+    
+    properties(Access=private)
+        V;
+        W;
+    end
+
+    methods
+        
+        function projected = project(this, V, W)
+            % @todo: check if both matrices are set!
+            projected = this.clone;
+            projected.V = V;
+            projected.W = W;
+        end
+        
+        function fx = evaluate(this, x, t, mu)
+            % Evaluates the f-approximation. Depending on a possible
+            % projection and the CustomProjection-property the function
+            % either calls the inner evaluation directly which assumes
+            % `f = f^r(z)` or projects the reduced state variable z into
+            % the original space and evaluates the function there, so via
+            % `f = V'f(Vz)`
+            if this.CustomProjection || isempty(this.V) || isempty(this.W)
+                fx = this.evaluateCoreFun(x, t, mu);
+            else
+                fx = this.W'*this.evaluateCoreFun(this.V*x, t, mu);
+            end
+        end
+        
+        function copy = clone(this, copy)
+            % Clones this instance.
+            % No need to copy the V,W pr
+            copy.CustomProjection = this.CustomProjection;
+        end
+    end
+    
+    methods(Abstract)
+        % Evaluates the core function
+        y = evaluateCoreFun(this, x, t, mu);
+        
+        % Gets the Lipschitz constant of the core function.
+        % Used for error estimation.
+        c = getLipschitz(this);
+    end
+    
+end
+

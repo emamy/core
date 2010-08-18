@@ -21,7 +21,7 @@ classdef GridSampler < sampling.BaseSampler
                 else
                     ranges{pidx} = linspace(sys.Params(pidx).MinVal,...
                         sys.Params(pidx).MaxVal,...
-                        sys.Params(pidx).Desired-1);
+                        sys.Params(pidx).Desired);
                 end
             end
             

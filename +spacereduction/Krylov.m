@@ -1,0 +1,14 @@
+classdef Krylov < spacereduction.BaseSpaceReducer
+    %KRYLOV Krylov Subspace generation
+    %   @todo Implementation
+    
+    properties
+    end
+    
+    methods
+        function [V,W] = generateReducedSpace(this, model)
+        end
+    end
+    
+end
+

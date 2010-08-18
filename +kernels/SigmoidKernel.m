@@ -3,10 +3,10 @@ classdef SigmoidKernel < kernels.BaseKernel
     %
     % This kernel is defined via `K(x,y) = \tanh(\kappa<x,y> + \nu)`
     %
-    % See also: BaseKernel LinearKernel PolyKernel RBFKernel
+    % See also: BaseKernel LinearKernel PolyKernel GaussKernel
     % CombinationKernel
     %
-    % @DanielWirtz 23.03.2010
+    % @author Daniel Wirtz 23.03.2010
     
     properties
         % The factor for the scalar product inside tanh
@@ -28,6 +28,9 @@ classdef SigmoidKernel < kernels.BaseKernel
             this.RotationInvariant = true;
         end
         
+        function c = getGlobalLipschitz(this)%#ok
+            error('Not implemented yet!');
+        end
         
         function K = evaluate(this, x, y)
             if nargin == 2

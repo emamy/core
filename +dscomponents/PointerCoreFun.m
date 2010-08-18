@@ -1,18 +1,18 @@
-classdef PointerCoreFun < dscomponents.ICoreFun
+classdef PointerCoreFun < dscomponents.ACoreFun
     %POINTERCOREFUN Allows for core functions provided by function handles.
     %   
     % In many contexts the creation of a specific class implementing
-    % ICoreFun is not necessary due to the simplicity of the core function
+    % ACoreFun is not necessary due to the simplicity of the core function
     % or because no function-specific properties have to be changed or
     % modeled. In this case use this class and pass a function handle to
     % the constructor which will be used as the actual core function.
     %
     % See also: PointerInputConv PointerOutputConv
     %
-    % @Daniel Wirtz, 16.03.2010
+    % @author Daniel Wirtz @date 16.03.2010
     
     properties(Access=private)
-        Target;
+        target;
     end
     
     methods
@@ -23,24 +23,38 @@ classdef PointerCoreFun < dscomponents.ICoreFun
             elseif nargin(funPtr) ~= 3
                 error('funPtr nargin must equal three (= x,t,mu).');
             end
-            this.Target = funPtr;
+            this.target = funPtr;
         end
         
         function updateSimConstants(this)%#ok
             % Nothing to do here.
         end
         
-        function fx = evaluate(this, x, t, mu)
+        function fx = evaluateCoreFun(this, x, t, mu)
             % Evaluates the core function at x,t,mu
-            fx = this.Target(x,t,mu);
+            fx = this.target(x,t,mu);
         end
         
-        function proj = project(this, V)
+%         function c = getGlobalLipschitz(this, t, mu)
+%             c = 1;
+%             warning('temp:id','Feature used that is not yet implemented correctly.');
+%         end
+        
+        function proj = project(this, V, W)
             % Projects the core function into the reduced space.
             % Creates a new PointerCoreFun and computes `\hat{f}(z) =
             % V^tf(Vz)`
-            newfun = @(z,t,mu)V' * this.Target(V*z,t,mu);
+            
+            % no need to call clone here as the only property gets changed
+            % anyways.
+            newfun = @(z,t,mu)W' * this.target(V*z,t,mu);
             proj = dscomponents.PointerCoreFun(newfun);
+        end
+    end
+    
+    methods(Access=protected, Sealed)
+        function copy = clone(this)
+            copy = dscomponents.PointerCoreFun(this.target);
         end
     end
     

@@ -1,6 +1,6 @@
 classdef BaseDynSystem < handle
     %BASEDYNSYSTEM Base class for all KerMor dynamical systems.
-    %   
+    %
     % To setup custom dynamical systems, inherit from this class.
     %
     % Programming convention:
@@ -13,10 +13,12 @@ classdef BaseDynSystem < handle
     % and read settings from that instead.
     % For an example see the models.pcd.PCDSystem and models.pcd.CoreFun.
     %
-    % @Daniel Wirtz, 17.03.2010
-        
+    % @author Daniel Wirtz, 17.03.2010
+    
     properties
         % The core f function from the dynamical system.
+        %
+        % @type dscomponents.ICoreFun
         f;
         
         % The input conversion
@@ -26,8 +28,11 @@ classdef BaseDynSystem < handle
         % Defaults to an StdOutputConv instance, which just forwards the
         % state variables ans supports projection.
         %
-        % See also: StdOutputConv
+        
+        % @sa dscomponents.StdOutputConv::project
         C;
+        
+        % See also: dscomponents.StdOutputConv/project
         
         % The system's possible input functions.
         % A cell array of function handles, each taking a time argument t.
@@ -52,6 +57,7 @@ classdef BaseDynSystem < handle
     properties(Dependent)
         % The number of inputs available.
         InputCount;
+        
         % The number of the system's parameters.
         ParamCount;
     end
@@ -65,7 +71,7 @@ classdef BaseDynSystem < handle
         
         function odefun = getODEFun(this, mu, inputidx)
             % Generates the ODE function for a specific parameter mu and
-            % given input index. 
+            % given input index.
             %
             % Depending on the system mu may be [] and is forwarded to the
             % evaluate function of the system's components.
@@ -100,7 +106,8 @@ classdef BaseDynSystem < handle
         end
         
         function plot(this, model, t, y)
-            % Plots the results of the 
+            % Plots the results of the simulation.
+            % Override in subclasses for a more specific plot if desired.
             figure;
             plot(t,y);
             title(sprintf('Plot for output of model "%s"', model.Name));
@@ -112,7 +119,7 @@ classdef BaseDynSystem < handle
     %% Getter & Setter
     methods
         
-        function addParam(this, name, range, varargin)
+        function addParam(this, name, range, desired)
             % Adds a parameter with the given values to the parameter
             % collection of the current dynamical system.
             %
@@ -124,16 +131,20 @@ classdef BaseDynSystem < handle
             % range: The range of the Parameter. Can be either a scalar or
             % a 1x2 double vector.
             % desired: The desired number of samples for that parameter.
-            % Optional.
+            % Defaults to 1.
             %
             % See also: ModelParam setParam
+            
+            if nargin < 4
+                desired = 1;
+            end
             if ~isempty(this.Params) && ~isempty(find(strcmpi(name,{this.Params(:).Name}),1))
                 error('Parameter with name %s already exists. Use setParam instead.',name);
             end
-            this.Params(end+1) = models.ModelParam(name, range, varargin{:});
+            this.Params(end+1) = models.ModelParam(name, range, desired);
         end
         
-        function setParam(this, name, range, varargin)
+        function setParam(this, name, range, desired)
             % Sets values for a parameter with the name "name".
             % If no such parameter exists a new one is created using the
             % specified name and values.
@@ -143,18 +154,24 @@ classdef BaseDynSystem < handle
             % range: The range of the Parameter. Can be either a scalar or
             % a 1x2 double vector.
             % desired: The desired number of samples for that parameter.
-            % Optional.
+            % Optional; defaults to 1.
             %
             % See also: addParam
-            pidx = find(strcmpi(name,{this.Params(:).Name}),1);
-            if ~isempty(pidx)
-                this.Params(pidx).Range = range;
-                if ~isempty(varargin)
-                    this.Params(pidx).Desired = varargin{1};
-                end
-            else
-                this.addParam(name, range, varargin{:});
+            
+            if nargin < 4
+                desired = 1;
             end
+            if ~isempty(this.Params)
+                pidx = find(strcmpi(name,{this.Params(:).Name}),1);
+                if ~isempty(pidx)
+                    this.Params(pidx).Range = range;
+                    if ~isempty(desired)
+                        this.Params(pidx).Desired = desired;
+                    end
+                    return;
+                end
+            end
+            this.addParam(name, range, desired);
         end
         
         function set.f(this,value)

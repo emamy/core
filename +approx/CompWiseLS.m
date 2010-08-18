@@ -1,88 +1,52 @@
-classdef CompWiseLS < approx.BaseKernelApprox
+classdef CompWiseLS < approx.BaseCompWiseKernelApprox
     %COMPWISELS Summary of this class goes here
     %   Detailed explanation goes here
     
+    %| @docupdate
+    
     properties
-        lambda=1;
+        % The `\lambda` least squares constant. Forwarded to the single
+        % dimension kernel least squares algorithm.
+        %
+        % See also: general.regression.KernelLS
+        Lambda=1;
     end
     
     properties(Access=private)
-        adata;
-        xi;
+        % The used single-dimension kernel least-squares algorithm.
+        %
+        % @type general.regression.KernelLS
+        %
+        % See also: general.regression.KernelLS
+        LS;
     end
     
-    methods
-        function this = CompWiseLS
-            this.CustomProjection = true;
-        end
-    end
-    
-    methods(Access=protected)
+    methods(Access=protected, Sealed)
         
-        function fx = evaluate_approximation(this, x)
-            % Evaluates the approximated function at point x
-            K = this.evaluateKernel(x,this.xi);
-            fdims = size(this.adata,1);
-            fx = zeros(fdims,size(x,2));
-            for fdim = 1:fdims
-                fx(fdim,:) = K * this.adata(fdim,:)';
-            end
+        function prepareApproximationGeneration(this, K)
+            this.LS = general.regression.KernelLS;
+            % Assign Kernel matrix
+            this.LS.K = K;
+            this.LS.lambda = this.Lambda;
         end
         
-        function gen_approximation_data(this, xi, fxi)
-            % Computes the approximation according to the concrete
-            % approximation strategy. 
-            
-            ls = general.regression.KernelLS;
-            ls.lambda = this.lambda;
-            ls.K = this.evaluateKernel(xi);
-            
-            % Make hermetian (no rounding errors)
-            %ls.K = .5*(ls.K'+ls.K);
-            
-            wh = waitbar(0,'Initializing component-wise kernel LS');
-            try
-                fdims = size(fxi,1);
-                this.adata = zeros(fdims, size(xi,2));
-                for fdim = 1:fdims
-                    waitbar(fdim/fdims,wh,sprintf('Performing LS for dimension %d/%d ... %2.0f %%',fdim,fdims,(fdim/fdims)*100));
-                    fx = fxi(fdim,:);
-                    this.adata(fdim,:) = ls.regress(fx);
-                end
-                close(wh);
-            catch ME
-                close(wh);
-                rethrow(ME)
-            end
-            this.xi = xi;
+        function [ai, b, svidx] = calcComponentApproximation(this, fxi)
+            ai = this.LS.regress(fxi);
+            b = 0;
+            svidx = [];
         end
         
-        function copy = customProject(this, V)
-            copy = this.clone;
-            
-            copy.adata = V'*this.adata;
-            
-            if this.RotationInvariantKernel
-                % Extract system part and project into V space
-                [x,t,mu] = this.splitTripleVect(this.xi);
-                x = V' * x;
-                copy.xi = this.compileTripleVect(x,t,mu);
-            end
-        end
-        
-         function target = clone(this)
+        function target = clone(this)
             % Makes a copy of this instance.
             %
             % See also: ICloneable
             
             target = approx.CompWiseLS;
-            % Call superclass clone
-            target = clone@approx.BaseKernelApprox(this, target);
             % Copy local properties
-            target.lambda = this.lambda;
+            target.Lambda = this.Lambda;
             
-            target.adata = this.adata;
-            target.xi = this.xi;
+            % Call superclass clone
+            target = clone@approx.BaseCompWiseKernelApprox(this, target);
         end
     end
     
@@ -106,9 +70,9 @@ classdef CompWiseLS < approx.BaseKernelApprox
             m.Data.Snapshots = x;
             m.Data.fValues = fxi;
             a = approx.CompWiseLS;
-            a.lambda = .1;
+            a.Lambda = .1;
             a.TimeKernel = kernels.LinearKernel;
-            a.SystemKernel = kernels.RBFKernel(5);
+            a.SystemKernel = kernels.GaussKernel(5);
             m.Approx = a;
             m.Approx.approximateCoreFun(m);
             
@@ -146,9 +110,9 @@ classdef CompWiseLS < approx.BaseKernelApprox
             m.Data.Snapshots = x;
             m.Data.fValues = fxi;
             a = approx.CompWiseLS;
-            a.lambda = 1;
+            a.Lambda = 1;
             
-            a.TimeKernel = kernels.RBFKernel;
+            a.TimeKernel = kernels.GaussKernel;
             %a.TimeKernel = kernels.LinearKernel;
             
             c = kernels.CombinationKernel;
@@ -158,7 +122,7 @@ classdef CompWiseLS < approx.BaseKernelApprox
             %c.addKernel(kernels.PolyKernel(4));
             
             a.SystemKernel = c;
-            %a.SystemKernel = kernels.RBFKernel(4);
+            %a.SystemKernel = kernels.GaussKernel(4);
             %a.SystemKernel = kernels.PolyKernel(3);
             
             m.Approx = a;

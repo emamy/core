@@ -5,9 +5,9 @@ classdef IOutputConv < dscomponents.IProjectable
     %   output calculations which require local setup for example subclass
     %   this class and implement the evaluate method.
     %
-    % See also: ICoreFun IInputConv
+    % See also: ACoreFun IInputConv
     %
-    % @DanielWirtz, 17.03.2010
+    % @author Daniel Wirtz @date 17.03.2010
     
     properties(SetAccess=protected)
         % Flag whether the output converter actually depends on a time

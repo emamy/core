@@ -8,7 +8,7 @@ classdef BaseModel < handle
     %   Also a plot wrapper is provided that refers to the plotting methods
     %   within the model's system.
     %
-    % @DanielWirtz, 19.03.2010
+    % @author Daniel Wirtz @date 19.03.2010
     
     properties
         % The actual dynamical system used in the model.
@@ -33,11 +33,27 @@ classdef BaseModel < handle
         dt = .1;
         
         % The solver to use for the ODE.
-        % This property must be a function handle with a signature
-        % equivalent to those of the matlab built-in ode solver functions.
+        % Must be an instance of any solvers.BaseSolver subclass.
         %
-        % See also: ode23 ode45 ode113
-        ODESolver = @ode45;
+        % Default: solvers.MLWrapper(@ode23)
+        %
+        % See also: solvers BaseSolver ode23 ode45 ode113
+        ODESolver;
+        
+        % The custom scalar product matrix
+        %
+        % In some settings the state variables have a special meaning (like
+        % DOF's in FEM simulations) where the pure `L^2`-norm has less
+        % meaning than a custom norm induced by a symmetric positive
+        % definite matrix G. If `d\in\mathbb{N}` is the number of state
+        % variables (i.e. dimensions of `x(t)`), then we must have
+        % `G\in\mathbb{R}^{d\times d}`.
+        %
+        % Leave at `1\in\mathbb{R}` if `G=I_d` should be assumed.
+        %
+        % Default:
+        % 1
+        G = 1;
     end
     
     properties(Dependent)
@@ -45,21 +61,28 @@ classdef BaseModel < handle
         Times;
     end
     
+    properties(Access=protected)
+        % Flag that indicates changes in either T or dt after
+        % offlineGenerations have been performed.
+        TimeDirty;
+    end
+    
     methods
         
         function this = BaseModel
              this.System = models.BaseDynSystem;
+             this.ODESolver = solvers.MLWrapper(@ode23);
         end
         
         function [t,y,sec] = simulate(this, mu, inputidx)
             % Simulates the system and produces the system's output.
             %
+            % Both parameters are optional. (Which to provide will be
+            % determined by the actual system anyways)
+            %
             % Parameters:
             % mu: The concrete mu parameter sample to simulate for.
             % inputidx: The index of the input function to use.
-            %
-            % Both parameters are optional. (Which to provide will be
-            % determined by the actual system anyways)
             %
             % Return values:
             % t: The times at which the model was evaluated
@@ -70,7 +93,7 @@ classdef BaseModel < handle
             
             if nargin < 3
                 if ~isempty(this.System.Inputs)
-                    warning('BaseModel:NoInputSpecified',['You must specify'...
+                    warning('BaseModel:NoInputSpecified',['You must specify '...
                         'an input index if inputs are set up. Using inputidx=1']);
                     inputidx = 1;
                 else
@@ -113,43 +136,28 @@ classdef BaseModel < handle
             sec = toc(starttime);
         end
         
-        function value = get.Times(this)
-            value = 0:this.dt:this.T;
-        end
-    end
-    
-    methods(Sealed)
         function plot(this, t, y)
-            % Forwards a plot request to the current system passing the
-            % instance of the current model.
-            %
-            this.System.plot(this, t, y);
+            % Plots the results of the simulation.
+            % Override in subclasses for a more specific plot if desired.
+            figure;
+            plot(t,y);
+            title(sprintf('Plot for output of model "%s"', this.Name));
+            xlabel('Time'); ylabel('Output functions');
         end
+        
     end
     
-    methods(Access=protected,Sealed)
+    methods
         
         function [t,x] = computeTrajectory(this, mu, inputidx)
             % Computes a solution/trajectory for the given mu and inputidx.
             %
-            % Parameters:
-            % mu: The concrete mu parameter sample to simulate for.
-            % inputidx: The index of the input function to use.
-            %
-            % Leave parameters empty if the system does not have the
-            % according features (it will be ignored anyway)
-            %
             % Return values:
-            % t: The times at which the model was evaluated
+            % t: The times at which the model was evaluated. Will equal
+            % the property Times
             % x: Depending on the existance of an output converter, this
             %    either returns the full trajectory or the processed output
             %    at times t.
-            
-            % Set ODE options
-            opts = [];
-            if ~isempty(this.System.MaxTimestep)
-                opts = odeset('MaxStep',this.System.MaxTimestep, 'InitialStep',.5*this.System.MaxTimestep);
-            end
             
             % Setup simulation-time constant data (if available)
             if isa(this.System,'ISimConstants')
@@ -158,19 +166,42 @@ classdef BaseModel < handle
             if isa(this.System.f,'ISimConstants')
                 this.System.f.updateSimConstants;
             end
-            
+
             % Get target ODE function
+            if isempty(this.System.f)
+                error('No system''s core function specified. ODE function creation impossible; first set "f" property.');
+            end
             odefun = this.System.getODEFun(mu, inputidx);
             
-            % Get initial x
-            x0 = this.System.x0(mu);
+            % Get initial x0
+            x0 = this.getX0(mu);
             
             % Solve ODE
-            [t,x] = this.ODESolver(odefun, this.Times, x0, opts);
-            % Transpose result to match inner data structure
-            x = x';
+            if ~isempty(this.System.MaxTimestep)
+                this.ODESolver.MaxStep = this.System.MaxTimestep;
+                this.ODESolver.InitialStep = .5*this.System.MaxTimestep;
+            end
+            [t,x] = this.ODESolver.solve(odefun, this.Times, x0);
         end
-        
+    end
+    
+    methods(Access=protected)
+        function x0 = getX0(this, mu)
+            % Gets the initial state variable at `t=0`.
+            %
+            % This is exported into an extra function as it gets overridden
+            % in the ReducedModel subclass, where ErrorEstimators possibly
+            % change the x0 dimension.
+            %
+            % Parameters:
+            % mu: The parameter `\mu` to evaluate `x_0(\mu)`. Use [] for
+            % none.
+            x0 = this.System.x0(mu);
+        end
+    end
+    
+    methods(Access=protected,Sealed)
+               
         function checkType(this, obj, type)%#ok
             % Object typechecker.
             % Checks if a given object is of the specified type and throws
@@ -179,6 +210,43 @@ classdef BaseModel < handle
             if ~isempty(obj) && ~isa(obj, type)
                 error(['Wrong type ''' class(obj) ''' for this property. Has to be a ' type]);
             end
+        end
+    end
+    
+    %% Getter & Setter
+    methods
+        function value = get.Times(this)
+            value = 0:this.dt:this.T;
+        end
+        
+        function set.T(this, value)
+            if ~isposrealscalar(value)
+                error('T must be a positive real scalar.');
+            end
+            if this.T ~= value
+                this.T = value;
+                this.TimeDirty = true;%#ok
+            end
+        end
+        
+        function set.dt(this, value)
+            if ~isposrealscalar(value)
+                error('T must be a positive real scalar.');
+            end
+            if this.dt ~= value
+                this.dt = value;
+                this.TimeDirty = true;%#ok
+            end
+        end
+        
+        function set.G(this, value)
+            % @todo check for p.d. and symmetric, -> sparsity?
+            this.G = value;
+        end
+        
+        function set.ODESolver(this, value)
+            this.checkType(value,'solvers.BaseSolver');%#ok
+            this.ODESolver = value;
         end
     end
 end

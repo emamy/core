@@ -5,6 +5,10 @@ classdef BaseKernelApprox < approx.BaseApprox
     % Changing the Kernels AFTER a model's offline simulation but BEFORE
     % the projection process (aka buildReducedModel)
     % a way that the rotation invariance changes may lead to inefficient projection
+    %
+    % @author Daniel Wirtz @date 25.05.2010
+    
+    %| @docupdate
     
     properties
         % The function that combines the sub (time/system/param) kernels.
@@ -14,17 +18,17 @@ classdef BaseKernelApprox < approx.BaseApprox
         % The Kernel to use for time variables
         %
         % See also: SystemKernel ParamKernel
-        TimeKernel = kernels.RBFKernel;
+        TimeKernel;
         
         % The Kernel to use for system variables
         %
         % See also: TimeKernel ParamKernel
-        SystemKernel = kernels.RBFKernel;
+        SystemKernel;
         
         % The Kernel to use for parameter variables
         %
         % See also: TimeKernel SystemKernel
-        ParamKernel = kernels.RBFKernel;
+        ParamKernel;
     end
     
     properties(SetAccess=private, GetAccess=protected, Dependent)
@@ -34,58 +38,122 @@ classdef BaseKernelApprox < approx.BaseApprox
         RotationInvariantKernel;
     end
     
+    properties(Access=private)
+        % Stores the last x vector at which the kernel was evaluated
+        lastX = [];
+        
+        % Stores the last y vector at which the kernel was evaluated
+        lastY = [];
+        
+        % Stores the last evaluation result at vector lastX
+        lastResult = [];
+    end
+    
+    methods
+        function this = BaseKernelApprox
+            % Default constructors. Initializes default kernels.
+            this.TimeKernel = kernels.LinearKernel;
+            this.SystemKernel = kernels.RBFKernel(2);
+            % The default kernel is a neutral (=1) kernel as not all models
+            % have
+            this.ParamKernel = kernels.NoKernel;
+        end
+    end
+    
     methods(Access=protected)
-        function K = evaluateKernel(this, x, y)
+        function K = evaluateKernel(this, x1, t1, mu1, x2, t2, mu2)
             % Evaluates the specified Kernel by using a multiplication
             % kernel (default with weights=1 until application leads to it)
             %
+            % Important:
+            % This function is cached with regards to the input x. If
+            % subsequent calls to evaluateKernel with the same
+            % vector/argument x are made the evaluation results from the
+            % first call will be used to increase speed. (not implemented
+            % at the moment!)
+            %
+            % Parameters:
+            % x1: The first set of state variables
+            % t1: The associated time steps of x1 (if used, take [] else)
+            % mu1: The parameters associated with x1 (if used, take []
+            % else)
+            % x2: The second set of state variables
+            % t2: The associated time steps of x2 (if used, take [] else)
+            % mu2: The parameters associated with x2 (if used, take []
+            % else)
+            %
+            % Note:
+            % If any of the *2 parameters are used, ALL have to be defined.
+            % For speed reasons no check will be performed here but rather
+            % an error from KerMor will be thrown :-)
+            %
             % Argument y is optional, if not given y=x is assumed.
+            %
+            % @todo Cache-Funktion wieder einbauen (feasibility?)
             
-            [t1,x1,mu1] = this.splitTripleVect(x);
-            
-            % NOTE:
-            % The "weird" structure of this code is for speed reasons.
-            % The computation of the kernel matrix will be of a greater
-            % magnitude than some if-clauses; important (can) be the
-            % correct call of the kernels.evaluate methods as they may be
-            % more efficient for x=y
-            
-            if nargin == 3
-                [t2,x2,mu2] = this.splitTripleVect(y);
-            end
-            
-            % Make sure the ParamKernel doesnt destroy the other kernels in
-            % case no parameters are given. so set to 1 per default. Also
-            % for speed, dont bother to call evaluate on param kernels if
-            % empty.
-            pker = 1;
-            if ~isempty(mu1)
-                if nargin == 2
-                    pker = this.ParamKernel.evaluate(mu1);
+            % Cache-function
+%             if isequal(this.lastX,x) && (nargin == 2 || isequal(this.lastY,y))
+%                 K = this.lastResult;
+%             else
+%                 this.lastX = x;
+                
+%                 [x1,t1,mu1] = this.splitTripleVect(x);
+                
+                % NOTE:
+                % The "weird" structure of this code is for speed reasons.
+                % The computation of the kernel matrix will be of a greater
+                % magnitude than some if-clauses; important (can) be the
+                % correct call of the kernels.evaluate methods as they may be
+                % more efficient for x=y
+                
+%                 if nargin == 3
+%                     [x2,t2,mu2] = this.splitTripleVect(y);
+%                 end
+                
+%                 % Make sure the ParamKernel doesnt destroy the other kernels in
+%                 % case no parameters are given. so set to 1 per default. Also
+%                 % for speed, dont bother to call evaluate on param kernels if
+%                 % empty.
+%                 pker = 1;
+%                 if ~isempty(mu1)
+%                     if nargin < 5
+%                         pker = this.ParamKernel.evaluate(mu1);
+%                     else
+%                         pker = this.ParamKernel.evaluate(mu1,mu2);
+%                     end
+%                 end
+                
+                if nargin < 5
+                    K = this.SubKernelCombinationFun(...
+                        this.TimeKernel.evaluate(t1), ...
+                        this.SystemKernel.evaluate(x1), ...
+                        this.ParamKernel.evaluate(mu1));
                 else
-                    pker = this.ParamKernel.evaluate(mu1,mu2);
+                    K = this.SubKernelCombinationFun(...
+                        this.TimeKernel.evaluate(t1,t2), ...
+                        this.SystemKernel.evaluate(x1,x2), ...
+                        this.ParamKernel.evaluate(mu1,mu2));
                 end
-            end
-            % For speed reasons call the reduced version of the kernel if
-            % y=x holds
-            if nargin == 2
-                K = this.SubKernelCombinationFun(...
-                    this.TimeKernel.evaluate(t1), ...
-                    this.SystemKernel.evaluate(x1), ...
-                    pker);
-            else
-                K = this.SubKernelCombinationFun(...
-                    this.TimeKernel.evaluate(t1,t2), ...
-                    this.SystemKernel.evaluate(x1,x2), ...
-                    pker);
-            end
+%                 this.lastResult = K;
+%             end
         end
         
         function target = clone(this, target)
+            % Clones this instance into the specified target (must be
+            % subclass) or creates a new instance.
             if nargin == 1
                 target = BaseKernelApprox;
+            elseif ~isa(target,'approx.BaseKernelApprox')
+                error('Cloning into a non-approx.BaseKernelApprox instance impossible.');
             end
-            clone@approx.BaseApprox(this, 
+            % Call superclass' clone method
+            clone@approx.BaseApprox(this, target);
+            % Copy local values into new object
+            target.SubKernelCombinationFun = this.SubKernelCombinationFun;
+            target.TimeKernel = this.TimeKernel;
+            target.SystemKernel = this.SystemKernel;
+            target.ParamKernel = this.ParamKernel;
+            % @todo Check whether kernels should be deepcopied, too
         end
     end
     
@@ -96,7 +164,7 @@ classdef BaseKernelApprox < approx.BaseApprox
                 this.ParamKernel.RotationInvariant;
         end
         
-        % @TODO: getter & setter
+        % @todo: getter & setter
     end
     
 end

@@ -3,7 +3,7 @@ classdef KernelLS
     %   Since the systems can be considerably large, the pcg solver is used
     %   instead of plain inversion.
     %
-    % @DanielWirtz 21.03.2010
+    % @author Daniel Wirtz 21.03.2010
     
     properties
         % The kernel matrix to use für LS regression

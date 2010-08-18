@@ -5,9 +5,9 @@ classdef IInputConv < dscomponents.IProjectable
     %   input calculations which require local setup for example subclass
     %   this class and implement the evaluate method.
     %
-    % See also: ICoreFun IOutputConv
+    % See also: ACoreFun IOutputConv
     %
-    % @DanielWirtz, 17.03.2010
+    % @author Daniel Wirtz @date 17.03.2010
     
     methods(Abstract)
         C = evaluate(t,mu);

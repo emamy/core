@@ -5,7 +5,7 @@ classdef PODReducer < spacereduction.BaseSpaceReducer
     % Several modes are supported to enable more specific reduced space
     % selection.
     %
-    % @DanielWirtz, 19.03.2010
+    % @author Daniel Wirtz @date 19.03.2010
     
     properties
         % The modus used to generate the reduced space.
@@ -37,7 +37,7 @@ classdef PODReducer < spacereduction.BaseSpaceReducer
     end
     
     methods
-        function V = generateReducedSpace(this, model)
+        function [V,W] = generateReducedSpace(this, model)
             % Implements the abstract method from BaseSpaceReducer
             
             %% Preparation
@@ -89,6 +89,8 @@ classdef PODReducer < spacereduction.BaseSpaceReducer
                 % Case d >> N ("undersampled")
                 V = data * v * diag(s.^-1);
             end
+            % Here W=V!
+            W = V;
         end
         
         function set.Mode(this, value)

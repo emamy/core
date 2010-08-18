@@ -22,6 +22,10 @@ classdef InvMultiquadrics < kernels.BaseKernel
             end
         end
         
+        function c = getGlobalLipschitz(this)%#ok
+            error('Not implemented yet');
+        end
+        
         function K = evaluate(this, x, y)
             % Original source from Bernard Haasdonk / KerMet
             n1sq = sum(x.^2,1);

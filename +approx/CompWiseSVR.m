@@ -1,155 +1,44 @@
-classdef CompWiseSVR < approx.BaseKernelApprox
+classdef CompWiseSVR < approx.BaseCompWiseKernelApprox
     % Performs component-wise support vector regression.
     %
-    % @Daniel Wirtz, 11.03.2010
+    % @author Daniel Wirtz @date 11.03.2010
     
     properties
         % The eps value for the scalar SVR regression
         % Wrapped.
         %
-        % See also: ScalarSVR
+        % See also: general.regression.ScalarSVR
         eps = .05;
         
         % The C value for the scalar SVR regression
         % Wrapped.
         %
-        % See also: ScalarSVR
+        % See also: general.regression.ScalarSVR
         C = 10;
-        
-        % Minimum `\alpha` coefficient value
-        %
-        % At projection, the coefficients for each component approximation
-        % get mixed leading to an enlarged set of support vectors. Thus,
-        % after combination of the coefficients each new one must be
-        % greater than this threshold to be considered a new one.
-        %
-        % See also: ScalarSVR
-        AlphaMinValue = 1e-5;
     end
     
     properties(Access=private)
-        adata;
-        suppvect;
-        fdims = 0;
-    end
-    
-    methods
-        function this = CompWiseSVR
-            % Set CustomProjection to true for compwise SVR
-            this.CustomProjection = true;
-        end
+        % The single dimension SVR regression
+        %
+        % @type general.regression.ScalarSVR
+        %
+        % See also: general.regression.ScalarSVR
+        svr;
     end
     
     methods(Access=protected, Sealed)
         
-        function copy = customProject(this,V)
-            % Performs specific projection computation for component wise
-            % svr.
-            
-            % Create copy to preserve settings in original model
-            copy = this.clone;
-            
-            copy.fdims = size(V,2);
-            
-            copy.adata = struct('ai',{},'b',{},'svidx',{});
-            
-            olddim = length(this.adata);
-            all_ai = zeros(size(this.suppvect,2),olddim);
-            for idx = 1:olddim
-                all_ai(this.adata(idx).svidx,idx) = this.adata(idx).ai;
-            end
-            B(1:olddim) = [this.adata(:).b];
-            
-            % Transform coefficients
-            B = B * V;
-            all_ai = all_ai * V;
-            
-            % Write back into new adata structure
-            for idx = 1:copy.fdims
-                % Compute new ai's
-                newai = all_ai(:,idx);
-                newsvidx = abs(newai) > this.AlphaMinValue;
-                copy.adata(idx).ai = newai(newsvidx);
-                copy.adata(idx).b = B(idx);
-                copy.adata(idx).svidx = newsvidx;
-            end
-            
-            % Project snapshot vectors into reduced space, in case the used
-            % Kernel is rotation invariant (lossless projection, no change
-            % of coefficients necessary)
-            if this.RotationInvariantKernel
-                % Extract system part and project into V space
-                [x,t,mu] = this.splitTripleVect(this.suppvect);
-                x = V' * x;
-                copy.suppvect = this.compileTripleVect(x,t,mu);
-            end
+        function prepareApproximationGeneration(this, K)
+            this.svr = general.regression.ScalarSVR;
+            this.svr.K = K;
+            this.svr.C = this.C;
+            this.svr.eps = this.eps;
         end
         
-        function gen_approximation_data(this, xi, fxi)
-            
-            svr = general.regression.ScalarSVR;
-            svr.C = this.C;
-            svr.eps = this.eps;
-            
-            % Compute kernel matrix (only to be computed once for all regressions)
-            svr.K = this.evaluateKernel(xi);
-            
-            % Approximate each f-dimension
-            this.fdims = size(fxi,1);
-            
-            this.adata = struct('ai',{},'b',{},'svidx',{});
-            svidxsum = [];
-            wh = waitbar(0,'Initializing component-wise SVR');
-            try
-                for idx = 1:this.fdims
-                    waitbar(idx/this.fdims,wh,sprintf('Performing SVR for dimension %d/%d ... %2.0f %%',idx,this.fdims,(idx/this.fdims)*100));
-                    
-                    [ai,b,svidx] = svr.regress(fxi(idx,:));
-                    this.adata(idx).ai = ai;
-                    this.adata(idx).b = b;
-                    this.adata(idx).svidx = svidx;
-                    % collect all used support vector indices
-                    svidxsum = union(svidxsum,svidx);
-                end
-                
-                waitbar(1,wh,'Compiling approximation model data...');
-                
-                % Create transition matrix for index updates
-                trans(svidxsum) = 1:length(svidxsum);
-                % Update the support vector indices to the new index in the reduced support
-                % vector set. Unfortunately can first be done after finishing scalar
-                % approximation (hence second for-loop)
-                for idx = 1:this.fdims
-                    this.adata(idx).svidx = trans(this.adata(idx).svidx);
-                end
-                this.suppvect = xi(:,svidxsum);
-                close(wh);
-                
-            catch ME
-                close(wh);
-                rethrow(ME);
-            end 
+        function [ai,b,svidx] = calcComponentApproximation(this, fxi)
+            [ai,b,svidx] = this.svr.regress(fxi);
         end
-        
-        function fx = evaluate_approximation(this, x)
-            if this.fdims == 0 || isempty(this.suppvect)
-                error('No approximation data available. Forgot to create it?');
-            end
-            
-            fx = zeros(this.fdims,size(x,2));
-            
-            % As we have a scalar svr, we have possibly a different set of
-            % support vectors for each dimension. thus we need a for loop.
-            for idx = 1:this.fdims
-                % Get support vectors for this dimension
-                dimsv = this.suppvect(:,this.adata(idx).svidx);
-                % Compute kernel matrix
-                K = this.evaluateKernel(dimsv,x);
-                % Assign f-value in dimension idx
-                fx(idx,:) = this.adata(idx).ai' * K + this.adata(idx).b;
-            end
-        end
-        
+  
         function target = clone(this)
             % Makes a copy of this instance.
             %
@@ -157,14 +46,10 @@ classdef CompWiseSVR < approx.BaseKernelApprox
             
             target = approx.CompWiseSVR;
             % Call superclass clone
-            target = clone@approx.BaseKernelApprox(this, target);
+            target = clone@approx.BaseCompWiseKernelApprox(this, target);
             % Copy local properties
             target.eps = this.eps;
             target.C = this.C;
-            target.AlphaMinValue = this.AlphaMinValue;
-            target.adata = this.adata;
-            target.suppvect = this.suppvect;
-            target.fdims = this.fdims;
         end
     end
     
@@ -177,7 +62,7 @@ classdef CompWiseSVR < approx.BaseKernelApprox
             clear a a2;
         end
         
-        function test_CombWiseSVR2D2D
+        function test_CompWiseSVR2D2D
             dim = 3;
             [X,Y] = meshgrid(-1:1/dim:1,-1:1/dim:1);
             
@@ -202,8 +87,8 @@ classdef CompWiseSVR < approx.BaseKernelApprox
             a = approx.CompWiseSVR;
             a.eps = .1;
             a.C = 100000;
-            a.TimeKernel = kernels.RBFKernel(4);
-            a.SystemKernel = kernels.RBFKernel(4);
+            a.TimeKernel = kernels.GaussKernel(4);
+            a.SystemKernel = kernels.GaussKernel(4);
             m.Approx = a;
             m.Approx.approximateCoreFun(m);
             fxiap = m.Approx.evaluate(xi,m.Times,[]);
@@ -231,7 +116,7 @@ classdef CompWiseSVR < approx.BaseKernelApprox
             
         end
         
-        function test_CombWiseSVR1D4D
+        function test_CompWiseSVR1D4D
             dim = 10;
             X = -1:1/dim:1;
             
@@ -255,12 +140,12 @@ classdef CompWiseSVR < approx.BaseKernelApprox
             a.eps = .1;
             a.C = 1000;
             c = kernels.CombinationKernel;
-            c.addKernel(kernels.RBFKernel(1));
-            c.addKernel(kernels.RBFKernel(6));
+            c.addKernel(kernels.GaussKernel(1));
+            c.addKernel(kernels.GaussKernel(6));
             c.addKernel(kernels.LinearKernel);
             c.CombOp = @(x,y)x.*y;
             a.SystemKernel = c;
-            a.TimeKernel = kernels.RBFKernel(7);
+            a.TimeKernel = kernels.GaussKernel(7);
             m.Approx = a;
             m.Approx.approximateCoreFun(m);
             fxiap = m.Approx.evaluate(X,m.Times,[]);

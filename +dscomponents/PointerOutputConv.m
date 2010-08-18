@@ -9,7 +9,7 @@ classdef PointerOutputConv < dscomponents.IOutputConv
     %
     % See also: PointerCoreFun PointerInputConv
     %
-    % @Daniel Wirtz, 16.03.2010
+    % @author Daniel Wirtz @date 16.03.2010
     
     properties(Access=private)
         Target;
@@ -40,7 +40,7 @@ classdef PointerOutputConv < dscomponents.IOutputConv
             B = this.Target(t,mu);
         end
         
-        function proj = project(this, V)
+        function proj = project(this, V, W)%#ok
             % Projects the core function into the reduced space.
             % Creates a new PointerOutputConv and computes `C^r(t,\mu) =
             % C(t,\mu)V`

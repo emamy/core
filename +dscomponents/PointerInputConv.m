@@ -9,7 +9,7 @@ classdef PointerInputConv < dscomponents.IInputConv
     %
     % See also: PointerCoreFun PointerOutputConv
     %
-    % @Daniel Wirtz, 16.03.2010
+    % @author Daniel Wirtz @date 16.03.2010
     
     properties(Access=private)
         Target;
@@ -31,11 +31,11 @@ classdef PointerInputConv < dscomponents.IInputConv
             B = this.Target(t,mu);
         end
         
-        function proj = project(this, V)
+        function proj = project(this, V, W)%#ok
             % Projects the core function into the reduced space.
             % Creates a new PointerInputConv and computes `B^r(t,\mu) =
             % V^tB(t,\mu)`
-            newfun = @(t,mu)V' * this.Target(t,mu);
+            newfun = @(t,mu)W' * this.Target(t,mu);
             proj = dscomponents.PointerInputConv(newfun);
         end
     end

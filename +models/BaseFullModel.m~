@@ -10,7 +10,7 @@ classdef BaseFullModel < models.BaseModel
     %
     % See also: models BaseModel BaseDynSystem
     %
-    % @Daniel Wirtz, 16.03.2010
+    % @author Daniel Wirtz @date 16.03.2010
     
     properties
         % The sampling strategy the Model uses
@@ -125,7 +125,7 @@ classdef BaseFullModel < models.BaseModel
                         end
                     end
                 end
-                
+                close(wh);
             catch ME
                 close(wh);
                 rethrow(ME);
@@ -133,23 +133,31 @@ classdef BaseFullModel < models.BaseModel
             
             this.Data.Snapshots = snapshots;
             this.Data.fValues = f_val;
-            
-            if ishandle(wh)
-                close(wh);
-            end
-            
         end
         
         function off3_generateReducedSpace(this)
             % Offline phase 3: Generate state space reduction
+            
+            % Clear before running, so that in case of errors the matrix
+            % from old reductions is unset.
+            this.Data.V = [];
+            this.Data.W = [];
             if ~isempty(this.SpaceReducer)
                 if size(this.Data.Snapshots,2) == 1
                     % Easy case: Source dimension is already one. Just set V = Id.
                     this.Data.V = 1;
+                    this.Data.W = 1;
                     warning('KerMor:spacereduction',['System''s state dimension'...
                         'is already one; no effective reduction.']);
                 end
-                this.Data.V = this.SpaceReducer.generateReducedSpace(this);
+                try
+                    wh = waitbar(.5,'Computing reduced space...');
+                    [this.Data.V this.Data.W] = this.SpaceReducer.generateReducedSpace(this);
+                    close(wh);
+                catch ME
+                    close(wh);
+                    rethrow(ME);
+                end
             end
         end
         
@@ -174,6 +182,10 @@ classdef BaseFullModel < models.BaseModel
             this.off2_generateSnapshots;
             this.off3_generateReducedSpace;
             this.off4_generateApproximation;
+            
+            % Set time dirt flag to false as current snapshots fit the
+            % times used.
+            this.TimeDirty = false;
         end
         
         function reduced = buildReducedModel(this)
@@ -184,55 +196,56 @@ classdef BaseFullModel < models.BaseModel
             % for the reduction process.
             %
             % See also: offlineGenerations
+            % @docupdate
             
-            % Check if a reduction
-            if isempty(this.Approx) && isempty(this.SpaceReducer)
-                warning('KerMor:Reducing:noEffectiveReduction',...
-                    ['Model setup lacks reduction methods.\n'...
-                    'Reduced model will equal the full model (computationally).']);
+            
+            if this.TimeDirty 
+                error(['The T or dt parameters have been changed since the last offline generations.';...
+                       'A call to offlineGenerations is required.']);
+            elseif isempty(this.Data) || isempty(this.Data.Snapshots)
+                error('No Snapshot data available. Forgot to call offlineGenerations before?');
             end
-            
-            %% Reduced Model creation
             reduced = models.ReducedModel(this);
-            sys = this.System;
-            % Get a new handle with all the system's nonfunc-properties
-            rsys = models.ReducedSystem(this.System);
+        end
+        
+        function [t,x] = computeTrajectory(this, mu, inputidx)
+            % Overrides the base method in BaseModel. For speed reasons any
+            % already computed trajectories are returned without being 
+            %
+            % Parameters:
+            % mu: The parameter `\mu` to use. Set [] for none.
+            % inputidx: The input function `u(t)` index to use. Set [] for
+            % none.
+            %
+            % See also: models.BaseModel#computeTrajectory(mu, inputidx);
             
-            % Figure whether preojection was setup for this system
-            if ~isempty(this.SpaceReducer)
-                if isempty(this.Data.V)
-                    error(['Model has a SpaceReducer set but no projection'...
-                        'matrix Data.V set. Forgot to call offlinePhase?']);
-                end
-                % Project input/output
-                if ~isempty(sys.B)
-                    rsys.B = sys.B.project(reduced.V);
-                end
-                % We have a C in each case, mostly StdOutputConv.
-                rsys.C = sys.C.project(reduced.V);
-                
-                % Project the approximated CoreFun of the full model if exists
-                if ~isempty(this.Approx)
-                    rsys.f = this.Approx.project(reduced.V);
-                else
-                    % Otherwise at least try to project the models' full
-                    % function.
-                    rsys.f = this.f.project(reduced.V);
-                end
-                
-                % Project the initial value function
-                rsys.x0 = @(mu)reduced.V'*sys.x0(mu);
-            else
-                % Only use approximated version if set
-                if ~isempty(this.Approx)
-                    rsys.f = this.Approx;
+            if ~isempty(this.Data)
+                x = this.Data.getTrajectory(mu,inputidx);
+                if ~isempty(x)
+                    t = this.Times;
+                    return;
                 end
             end
-            
-            reduced.System = rsys;
+            [t,x] = computeTrajectory@models.BaseModel(mu, inputidx);
+            % @todo
         end
         
     end
+    
+%     methods(Access=protected,Sealed)
+%         function opts = trajectoryCompInit(this, mu, inputidx)%#ok
+%             % Implements the template method from models.BaseModel
+%             %
+%             % Here in the full model nothing is to do yet as only error
+%             % computation for reduced systems is performed so far in
+%             % ReducedModel.
+%             %
+%             % See also: models.BaseModel models.ReducedModel
+%             
+%             % Nothing to do here yet.
+%             opts = [];
+%         end
+%     end
     
     %% Getter & Setter
     methods
@@ -336,6 +349,7 @@ classdef BaseFullModel < models.BaseModel
         function test_LinearModelParams
             ts = testing.testsettings;
             m = ts.m;
+            m.Approx.ParamKernel = ts.ParamKernel;
             s = m.System;
             s.f = dscomponents.PointerCoreFun(ts.flin_p);
             s.x0 = ts.x0_p;
@@ -368,6 +382,7 @@ classdef BaseFullModel < models.BaseModel
         function test_LinearModelParamsInput
             ts = testing.testsettings;
             m = ts.m;
+            m.Approx.ParamKernel = ts.ParamKernel;
             s = m.System;
             s.f = dscomponents.PointerCoreFun(ts.flin_p);
             s.B = dscomponents.PointerInputConv(ts.B_p);
@@ -400,6 +415,7 @@ classdef BaseFullModel < models.BaseModel
         function test_NonlinearModelParams
             ts = testing.testsettings;
             m = ts.m;
+            m.Approx.ParamKernel = ts.ParamKernel;
             s = m.System;
             s.f = dscomponents.PointerCoreFun(ts.fnlin_p);
             s.x0 = ts.x0_p;
@@ -432,6 +448,7 @@ classdef BaseFullModel < models.BaseModel
         function test_NonlinearModelParamsInput
             ts = testing.testsettings;
             m = ts.m;
+            m.Approx.ParamKernel = ts.ParamKernel;
             s = m.System;
             s.f = dscomponents.PointerCoreFun(ts.fnlin_p);
             s.B = dscomponents.PointerInputConv(ts.B_p);

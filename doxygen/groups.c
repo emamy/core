@@ -11,6 +11,24 @@
  Samples from the parameter domain @f$P@f$ are taken using random vectors.
  @sa s_grid
  @ingroup sampling
+
+@defgroup general General functions and algorithms
+ This Module contains general functions that can be used independently of the KerMor framework.
+
+@defgroup interpolation Kernel Interpolation functions
+	Kernel-based function interpolation
+	@ingroup general
+	@sa general
+
+@defgroup snapshot Snapshot generation
+@defgroup reduction Reduced Space Computations
+@defgroup pod POD subspace computation
+	@ingroup reduction
+@defgroup models Contains the base models and dynamical systems.
+	This Module contains all pre-defined models of KerMor.
+@defgroup pcd Programmed Cell Death
+	@ingroup models
+	The programmed cell death models from Markus Daub, IADM
 */
 
 

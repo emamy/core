@@ -11,7 +11,7 @@ classdef MatUtils
             % d1 - region dimension 1
             % d2 - region dimension 2
             %
-            % @Daniel Wirtz, 11.03.2010
+            % @author Daniel Wirtz @date 11.03.2010
             
             m = d1*d2;
             idxmat = zeros(d1,d2);

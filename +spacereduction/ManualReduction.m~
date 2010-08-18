@@ -1,0 +1,32 @@
+classdef ManualReduction < spacereduction.BaseSpaceReducer
+    % Allows manual selection of the projection matrices `V` and `W`.
+    
+    properties(Access=private);
+        V;
+        W;
+    end
+    
+    methods
+        
+        function this = ManualReduction(V,W)
+            % 
+            this.V = V;
+            if nargin == 1
+                if ~isequal(V'*V,eye(size(V,2)))
+                    error('If no W is given, V must be orthogonal!');
+                end
+                this.W = V;
+            end
+            this.W = W;
+        end
+        
+        function [V, W] = generateReducedSpace(this, model)%#ok
+            % Simply returns the manually selected values.
+            V = this.V;
+            W = this.W;
+        end
+        
+    end
+    
+end
+

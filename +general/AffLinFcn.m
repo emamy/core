@@ -1,6 +1,7 @@
 classdef AffLinFcn < handle
     %AFFLINFCN Summary of this class goes here
     %   Detailed explanation goes here
+    % @ingroup general
     
     properties
         Coefficients = cell(1,0);

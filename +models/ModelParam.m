@@ -27,12 +27,16 @@ classdef ModelParam < handle
         function this = ModelParam(name, range, desired)
             % Creates a new model parameter.
             %
-            % Arguments:
+            % Paramters:
             % name: Parameter name
             % range: Can be either a scalar or a 1x2 double vector.
             % desired: The desired number for GridSampling
             %
-            % @TODO: Validity checks
+            % If an argument is specified, all have to be specified. This
+            % is only done to enable creation of empty ModelParam-instances
+            % for cell arrays, for example.
+            %
+            % @todo: Validity checks
             
             if nargin > 0
                 this.Name = name;

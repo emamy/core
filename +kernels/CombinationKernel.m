@@ -36,6 +36,10 @@ classdef CombinationKernel < kernels.BaseKernel
             end
         end
         
+        function c = getGlobalLipschitz(this)%#ok
+            error('Not implemented yet');
+        end
+        
         function this = addKernel(this, kernel, weight)
             if nargin == 2
                 weight = 1;
@@ -52,8 +56,8 @@ classdef CombinationKernel < kernels.BaseKernel
     methods(Static)
         function test_CombinationKernels
             k1 = kernels.CombinationKernel;
-            k1.addKernel(kernels.RBFKernel(1));
-            k1.addKernel(kernels.RBFKernel(8));
+            k1.addKernel(kernels.GaussKernel(1));
+            k1.addKernel(kernels.GaussKernel(8));
             %k1.addKernel(kernels.PolyKernel(3),3);
             k1.addKernel(kernels.PolyKernel(4),2);
             k1.CombOp = @(a,b)a.*b;

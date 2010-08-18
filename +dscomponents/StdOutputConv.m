@@ -5,7 +5,7 @@ classdef StdOutputConv < dscomponents.IOutputConv
     %   If projected, the states are projected back into the original sized
     %   state space.
     %
-    % @Daniel Wirtz, 15.03.2010
+    % @author Daniel Wirtz @date 15.03.2010
     
     properties(Access=private)
         V;
@@ -21,7 +21,7 @@ classdef StdOutputConv < dscomponents.IOutputConv
             this.TimeDependent = false;
         end
         
-        function copy = project(this, V)%#ok
+        function copy = project(this, V, W)%#ok
             % Performs projection for the standard output conversion.
             %
             % Simply creates a new instance (to keep the full model

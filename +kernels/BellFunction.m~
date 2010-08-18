@@ -1,0 +1,198 @@
+classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
+    %BELLFUNCTION Summary of this class goes here
+    %   Detailed explanation goes here
+    
+    properties
+        x0;
+        
+        PenaltyFactor = 2;
+        
+        NewtonTolerance = 1e-7;
+    end
+    
+    %     properties(Dependent)
+    %         xR;
+    %     end
+    
+    methods
+        
+        function c = getGlobalLipschitz(this)
+            % Computes the absolute value of the first derivative at x0
+            % Implements the template method from BaseKernel.
+            c = abs(this.evaluateD1(this.x0));
+        end
+        
+        function ci = getLocalGradientLipschitz(this, di, C, t, mu)
+            case1 = di - this.Cerr - this.x0 > 0;
+            case2 = di + this.Cerr - this.x0 < 0;
+            ci(case1) = this.evaluateD1(di(case1)-C);
+            ci(case2) = this.evaluateD1(di(case2)+C);
+            ci(~case1 & ~case2) = abs(this.evaluateD1(this.x0));
+        end
+        
+        function ci = getLocalSecantLipschitz(this, di, C, t, mu)
+            case1 = di - C - this.x0 > 0;
+            case2 = di + C - this.x0 < 0;
+            ci(case1) = (this.evaluateScalar(di(case1)-C) - this.evaluateScalar(di(case1))) / C;
+            ci(case2) = (this.evaluateScalar(di(case2)) - this.evaluateScalar(di(case2)+C)) / C;
+            ci(~case1 & ~case2) = abs(this.evaluateD1(this.x0));
+        end
+        
+        function ci = getImprovedLocalSecantLipschitz(this, di, C, t, mu)
+            % @todo: use starting point from last iteration if available!
+            xfeat = ones(size(di))*this.x0;
+            update = abs(di-this.x0) < C;
+            xfeat(update) = this.ModifiedNewton(this.x0+.2*sign(this.x0-di(update)),di(update));
+            left = di + C - xfeat < 0;
+            right = di - C - xfeat > 0;
+            center = ~left & ~right;
+            if any(left)
+                ci(left) = (this.evaluateScalar((di(left))) - this.evaluateScalar((di(left)+C))) / C;
+            end
+            if any(right)
+                ci(right) = (this.evaluateScalar((di(right)-C)) - this.evaluateScalar((di(right)))) / C;
+            end
+            if any(center)
+                ci(center) = abs(this.sk.evaluateD1(xfeat(center)));
+            end
+        end
+        
+        %         function value = get.xR(this)
+        %             value = (this.evaluateScalar(0)*this.x0) / (this.evaluateScalar(0)-this.evaluateScalar(this.x0));
+        %         end
+        
+    end
+    
+    methods(Access=private)
+        function xtmp = ModifiedNewton(this, xstart, y)
+            xtmp = xstart+2*this.NewtonTolerance;
+            x = xstart;
+            f = @this.evaluateScalar;
+            df = @this.evaluateD1;
+            ddf = @this.evaluateD2;
+            
+            xr = f(0)*this.x0 / (f(0)-f(this.x0));
+            n0 = df(0) - (f(0)-f(y))./-y;
+            nx0 = df(this.x0) - (f(this.x0)-f(y))./(this.x0-y);
+            nxr = df(xr) - (f(xr)-f(y))./(xr-y);
+            %nxr = df(xr) - (f(this.xR)-f(y))./(this.xR-y);
+            
+            p = this.PenaltyFactor;
+            while any(abs(xtmp-x) > this.NewtonTolerance)
+                
+                [g,dg] = optFun(x,y,f,df,ddf,xr,n0,nx0,nxr,p);
+                
+                xtmp = x;
+                x = x - g./dg;
+            end            
+            
+        end
+        
+        function [g,dg] = optFun(x,y,f,df,ddf,xr,n0,nx0,nxr,p)
+            g = zeros(size(x));
+            dg = g;
+            
+            a = y <= this.x0;
+            std = (a & x < xr & x > this.x0) | (~a & 0 < x & x < this.x0);
+            p1 = a & x <= this.x0 | ~a & x > this.x0;
+            p4 = a & x >= xr;
+            p2 = ~a & x <= 0;
+            
+            % Standard case
+            xs = x(std); ys = y(std);
+            g(std) = df(xs) - (f(xs)-f(ys))./(xs-ys);
+            g(isnan(g)) = 0;
+            dg(std) = ddf(xs) - g(std)./(xs-ys);
+            if any(isnan(dg))
+                dg(isnan(dg)) = eps%#ok
+            end
+            
+            if any(p1)
+                g(p1) = nx0(p1) - p*(x(p1)-this.x0).^2;
+                dg(p1) = -2*p*(x(p1)-this.x0);
+            end
+            if any(p2)
+                g(p2) = n0(p2) + p*x(p2).^2;
+                dg(p2) = 2*p*x(p2);
+            end
+            if any(p4)
+                g(p4) = nxr(p4) + p*(x(p4)-xr).^2;
+                dg(p4) = 2*p*(x(p4)-xr);
+            end
+        end
+    end
+    
+    methods(Abstract)
+        % Method for first derivative evaluation
+        dx = evaluateD1(x);
+        
+        % Method for second derivative evaluation
+        ddx = evaluateD2(x);
+    end
+    
+    methods(Static)
+        function xFeatDemo(Gamma)
+            if nargin == 0
+                Gamma = 2;
+            end
+            
+            bell = kernels.GaussKernel(Gamma);
+            
+            h = figure(1);
+            
+            maxX = Gamma*3;
+            x = linspace(0,maxX,100);
+            
+            %xstart = x0*(1+.5*sign(x0-x));
+            xstart = repmat(this.x0/2,1,size(x,2));
+            
+            xfeats = f.ModifiedNewton(xstart,x);
+            
+            %showNewton(x,x0,c,f,df,ddf);
+            
+            for k=1:length(x)
+                y = x(k);
+                % Get precomputed values
+                dxf = df(xfeats);
+                
+                %showNewton(x,x0,y,c,f,df,ddf);
+                
+                % Get optimization function
+                opt = optFun(x,repmat(y,1,size(x,2)),x0,c,f,df,ddf);
+                
+                % Bound plot
+                hlp = (maxX-y)*dxf(k); % also used in plot of tangent!
+                opt(opt < hlp) = hlp;
+                hlp2 = max(1.5,max(df(x)));
+                opt(opt > hlp2) = hlp2;
+                
+                % Plot!
+                plot(x,f(x),'r',x,opt,'b',x,abs(df(x)),'m',x,abs(dxf),'g',[0 y maxX],f(y) + [-y*dxf(k) 0 hlp],...
+                    'g--',y,f(y),'r.',[xfeats(k) xfeats(k) y],[f(xfeats(k)) abs(dxf(k)) abs(dxf(k))],'blackx',x,0,'black');
+                legend('Gaussian','Opt. target','Absolute Gaussian derivative','Max local derivatives','Max local gradient around x0','x0','xfeat (correlation)');
+                pause;
+            end
+            
+        end
+        
+        %         function showNewton(x, x0, ybase, c, f, df, ddf)
+        %             % Fix an identical y for all iterations
+        %             y = repmat(ybase,1,size(x,2));
+        %             gs = optFun(x,y,x0,c,f,df,ddf);
+        %             xs = x;
+        %             for i=1:2
+        %                 [g,dg] = optFun(x,y,x0,c,f,df,ddf);
+        %                 xtmp = x;
+        %                 x = x - g./dg;
+        %                 plot(xs,gs,'r','LineWidth',2);
+        %                 hold on;
+        %                 plot([xtmp; x],[g; zeros(size(g))],x,0,'rx');
+        %                 hold off;
+        %                 title(sprintf('ybase=%f',ybase));
+        %                 %axis([min(xs) max(xs) min(gs)*1.5 max(gs)*1.5]);
+        %                 pause;
+        %             end
+        %         end
+    end
+end
+

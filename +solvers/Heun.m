@@ -1,0 +1,54 @@
+classdef Heun < solvers.BaseSolver
+    % ODE solver implementing the method of heun
+    %
+    % Method description:
+    % `` x_{i+1} = x_i + \frac{\Delta t}{2}f(t_i,x_i) + \frac{\Delta
+    % t}{2}f(t_{i+1},\nu)``
+    % `` \nu = x_i + \Delta t f(t_i,x_i) ``
+    %
+    % See also: solvers BaseSolver ExplEuler
+        
+    methods
+        
+        function this = Heun(dt)
+            % Constructor for the explicit euler solver.
+            %
+            % Specifying the dt parameter is optional, though not
+            % specifying will generate a warning that it should be set
+            % manually for each case.
+            %
+            % Parameters:
+            % dt: the time step to use for each step.
+            this.Name = 'Explicit Heun''s method';
+            if nargin == 0
+                warning('solvers:Heun:No_dt_given','Explicit solvers should get a time stepsize. Using dt=0.05');
+                this.MaxStep = 0.05;
+            else
+                this.MaxStep = dt;
+            end
+        end
+        
+        function [tout,y] = solve(this, odefun, t, x0)
+            % Get computation times
+            [times, tout, outputtimes] = this.getCompTimes(t, this.MaxStep);
+            % Initialize result
+            y = zeros(size(x0,1),length(tout));
+            % Set start values
+            y(:,1) = x0;
+            cur = x0; outidx = 2;
+            steps = length(times);
+            % Solve for each time step
+            for idx = 2:steps;
+                f = odefun(times(idx-1),cur);
+                hlp = cur + this.MaxStep*f;
+                cur = cur + (this.MaxStep/2)*(f + odefun(times(idx),hlp));
+                if outputtimes(idx)
+                    y(:,outidx) = cur;
+                    outidx = outidx+1;
+                end
+            end            
+        end
+    end
+    
+end
+

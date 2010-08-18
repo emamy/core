@@ -1,0 +1,33 @@
+classdef Heun < solvers.BaseSolver
+    %HEUN Summary of this class goes here
+    %   Detailed explanation goes here
+    
+    properties
+        % Default timestep size
+        dt = 0.05;
+    end
+    
+    methods
+        function [tout,y] = solve(this, odefun, t, x0)
+            % Create discrete times if
+            [times, tout, outputtimes] = this.getCompTimes(this, t, this.dt);
+            
+            y = zeros(size(x0,1),length(tout));
+            y(:,1) = x0;
+            cur = x0; outidx = 2;
+            steps = length(times);
+            for idx = 2:steps;
+                feval1 = odefun(times(idx-1),cur);
+                hlp = cur + this.dt*feval1;
+                cur = cur + this.dt/2
+                if outputtimes(idx)
+                    y(:,outidx) = cur;
+                    outidx = outidx+1;
+                end
+                %y(idx,:) = y(idx-1,:) + this.dt*odefun(times(idx-1), y(idx-1,:));
+            end            
+        end
+    end
+    
+end
+

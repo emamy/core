@@ -1,0 +1,53 @@
+classdef ExplEuler < solvers.BaseSolver
+    % Explicit forward euler ODE solver
+    %
+    % This solver uses the MaxStep property as timestep to be most
+    % efficient. Set small enough for precision.
+    %
+    % Method description:
+    % `` x_{i+1} = x_i + \Delta t f(t_i,x_i)``
+    %
+    % See also: solvers BaseSolver Heun
+    
+    methods
+        
+        function this = ExplEuler(dt)
+            % Constructor for the explicit euler solver.
+            %
+            % Specifying the dt parameter is optional, though not
+            % specifying will generate a warning that it should be set
+            % manually for each case.
+            %
+            % Parameters:
+            % dt: the time step to use for each step.
+            this.Name = 'Explicit forward euler';
+            if nargin == 0
+                warning('solvers:ExplEuler:No_dt_given','Explicit solvers should get a time stepsize');
+                this.MaxStep = 0.05;
+            else
+                this.MaxStep = dt;
+            end
+        end
+        
+        function [tout,y] = solve(this, odefun, t, x0)
+            % Get computation times
+            [times, tout, outputtimes] = this.getCompTimes(t, this.MaxStep);
+            % Initialize result
+            y = zeros(size(x0,1),length(tout));
+            % Set start values
+            y(:,1) = x0;
+            cur = x0; outidx = 2;
+            steps = length(times);
+            % Solve for each time step
+            for idx = 2:steps;
+                cur = cur + this.MaxStep*odefun(times(idx-1),cur);
+                if outputtimes(idx)
+                    y(:,outidx) = cur;
+                    outidx = outidx+1;
+                end
+            end            
+        end
+    end
+    
+end
+

@@ -29,10 +29,10 @@ classdef ICloneable < handle
     % -# Properties
     %   Only copy properties that are declared within that very same class!
     %
-    % @Daniel Wirtz, 15.03.2010
+    % @author Daniel Wirtz @date 15.03.2010
     
     methods(Access=protected, Abstract)
-        copy = clone(target);
+        copy = clone(this, target);
     end
     
 end

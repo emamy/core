@@ -16,7 +16,7 @@ classdef MUnit
     %
     % See also: TestFunctionPrefix
     %
-    % @Daniel Wirtz, 12.03.2010
+    % @author Daniel Wirtz @date 12.03.2010
     
     properties(Constant)
         % The prefix for any function that will be detected in the MUnit
@@ -131,6 +131,7 @@ classdef MUnit
                                     f = f+1;
                                     cprintf('Red','Failure due to Exception!\n');
                                     disp(getReport(ME));
+                                    %rethrow(ME);
                                 end
                             else
                                 warning('MUnit:NonstaticTest',...

@@ -19,14 +19,18 @@ classdef IProjectable < handle
     %
     % See also: approx BaseApprox
     %
-    % @DanielWirtz, 17.03.2010
-    
+    % @author Daniel Wirtz @date 17.03.2010
+    % @docupdate
+        
     methods(Abstract)
         % Returns a NEW INSTANCE of the projected object that does not rely
         % on data of the old one via references (everything must be copied
         % to ensure separability of reduced(=projected) versions and full
         % versions.
-        projected = project(V);
+        % Parameters:
+        % target: Optional (the target instance)
+        %@docupdate
+        projected = project(this, V, W, target);
     end
     
 end

@@ -9,16 +9,16 @@ classdef BaseDynSystem < handle
     % function f (e.g. for space-discretized systems and thus all
     % space-discretization relevant settings). In order to have all
     % settings combined at one class one should rather pass the custom
-    % system's instance to the ICoreFun implementing classes' constructor
+    % system's instance to the ACoreFun implementing classes' constructor
     % and read settings from that instead.
     % For an example see the models.pcd.PCDSystem and models.pcd.CoreFun.
     %
-    % @Daniel Wirtz, 17.03.2010
+    % @author Daniel Wirtz @date 17.03.2010
     
     properties
         % The core f function from the dynamical system.
         %
-        % @type dscomponents.ICoreFun
+        % @type dscomponents.ACoreFun
         f;
         
         % The input conversion
@@ -28,8 +28,12 @@ classdef BaseDynSystem < handle
         % Defaults to an StdOutputConv instance, which just forwards the
         % state variables ans supports projection.
         %
-        % See also: StdOutputConv
+        % @sa StdOutputConv::project(V)
+        % @sa dscomponents.StdOutputConv::project(matlabtypesubstitute, matlabtypesubstitute)
+        % @sa dscomponents.StdOutputConv::project(matlabtypesubstitute)
         C;
+        
+        % See also: dscomponents.StdOutputConv/project
         
         % The system's possible input functions.
         % A cell array of function handles, each taking a time argument t.
@@ -62,8 +66,8 @@ classdef BaseDynSystem < handle
     methods
         
         function this = BaseDynSystem
-            this.x0 = @(mu)0;
             this.C = dscomponents.StdOutputConv;
+            this.x0 = @(mu)0;
         end
         
         function odefun = getODEFun(this, mu, inputidx)
@@ -76,9 +80,7 @@ classdef BaseDynSystem < handle
             % system's input; however, if no inputconv component is set
             % this is ignored in any case.
             
-            if isempty(this.f)
-                error('No system''s core function specified. ODE function creation impossible; first set "f" property.');
-            end
+
             
             % System without inputs
             if isempty(inputidx) || isempty(this.Inputs) || isempty(this.B)
@@ -102,21 +104,12 @@ classdef BaseDynSystem < handle
             end
         end
         
-        function plot(this, model, t, y)
-            % Plots the results of the simulation.
-            % Override in subclasses for a more specific plot if desired.
-            figure;
-            plot(t,y);
-            title(sprintf('Plot for output of model "%s"', model.Name));
-            xlabel('Time'); ylabel('Output functions');
-        end
-        
     end
     
     %% Getter & Setter
     methods
         
-        function addParam(this, name, range, varargin)
+        function addParam(this, name, range, desired)
             % Adds a parameter with the given values to the parameter
             % collection of the current dynamical system.
             %
@@ -128,16 +121,20 @@ classdef BaseDynSystem < handle
             % range: The range of the Parameter. Can be either a scalar or
             % a 1x2 double vector.
             % desired: The desired number of samples for that parameter.
-            % Optional.
+            % Defaults to 1.
             %
             % See also: ModelParam setParam
+            
+            if nargin < 4
+                desired = 1;
+            end
             if ~isempty(this.Params) && ~isempty(find(strcmpi(name,{this.Params(:).Name}),1))
                 error('Parameter with name %s already exists. Use setParam instead.',name);
             end
-            this.Params(end+1) = models.ModelParam(name, range, varargin{:});
+            this.Params(end+1) = models.ModelParam(name, range, desired);
         end
         
-        function setParam(this, name, range, varargin)
+        function setParam(this, name, range, desired)
             % Sets values for a parameter with the name "name".
             % If no such parameter exists a new one is created using the
             % specified name and values.
@@ -147,25 +144,29 @@ classdef BaseDynSystem < handle
             % range: The range of the Parameter. Can be either a scalar or
             % a 1x2 double vector.
             % desired: The desired number of samples for that parameter.
-            % Optional.
+            % Optional; defaults to 1.
             %
             % See also: addParam
+            
+            if nargin < 4
+                desired = 1;
+            end
             if ~isempty(this.Params)
                 pidx = find(strcmpi(name,{this.Params(:).Name}),1);
                 if ~isempty(pidx)
                     this.Params(pidx).Range = range;
-                    if ~isempty(varargin)
-                        this.Params(pidx).Desired = varargin{1};
+                    if ~isempty(desired)
+                        this.Params(pidx).Desired = desired;
                     end
                     return;
                 end
             end
-            this.addParam(name, range, varargin{:});
+            this.addParam(name, range, desired);
         end
         
         function set.f(this,value)
-            if ~isempty(value) && ~isa(value, 'dscomponents.ICoreFun')
-                error('The property "f" has to be a class implementing dscomponents.ICoreFun');
+            if ~isempty(value) && ~isa(value, 'dscomponents.ACoreFun')
+                error('The property "f" has to be a class implementing dscomponents.ACoreFun');
             end
             this.f = value;
         end

@@ -1,6 +1,11 @@
 classdef KernelInterpol
-    %KERNELINTERPOL Summary of this class goes here
-    %   Detailed explanation goes here
+    %KERNELINTERPOL This is the class summary.
+    % Some detailed information!
+    % Yeay a texty text. Again, a texty text.
+    %
+    % @ingroup general_interpolation
+    %
+    % @author Daniel Wirtz
     
     properties
         K;
@@ -8,12 +13,13 @@ classdef KernelInterpol
     
     methods
         function a = interpolate(this, fxi)
+            % Interpolates the 
             a = this.K\(fxi');
         end
     end
     
     methods(Static)
-        function test_KernelInterpolation
+        function test_KernelInterpolation()
             % Performs a test of this class
             
             x = -5:.05:5;
@@ -22,7 +28,7 @@ classdef KernelInterpol
             n = length(x);
             samp = 1:15:n;
             
-            k = kernels.RBFKernel(1);
+            k = kernels.GaussKernel(1);
             internal_test(x,fx,samp,k,10);
             
             k = kernels.InvMultiquadrics(-1.4,2);
@@ -63,7 +69,7 @@ classdef KernelInterpol
             realprec = 20;
             range = [-4 4];
             
-            kernel = kernels.RBFKernel(2);
+            kernel = kernels.GaussKernel(2);
             testfun = @(x)sinc(x) * 2 .*sin(3*x);
 %             kernel = kernels.InvMultiquadrics(-1,1);
 %             testfun = @(x)x.^3+2*x.^2-3*x;

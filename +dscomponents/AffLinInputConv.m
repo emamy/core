@@ -4,7 +4,7 @@ classdef AffLinInputConv < general.AffLinFcn & dscomponents.IInputConv
     
     methods
         
-        function res = project(this, V)
+        function res = project(this, V, W)%#ok
             res = dscomponents.AffLinInputConv;
             res.Coefficients = this.Coefficients;
             n = length(this.Matrices);
@@ -12,7 +12,7 @@ classdef AffLinInputConv < general.AffLinFcn & dscomponents.IInputConv
             
             % LHS multiplication of the matrices for correct conversion.
             for idx=1:n
-                res.Matrices{idx} = V'*this.Matrices{idx};
+                res.Matrices{idx} = W'*this.Matrices{idx};
             end
         end
         

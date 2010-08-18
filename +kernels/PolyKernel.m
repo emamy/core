@@ -1,7 +1,7 @@
 classdef PolyKernel < kernels.BaseKernel
     %POLYKERNEL Basic polynomial kernel
     %
-    % @Daniel Wirtz, 12.03.2010
+    % @author Daniel Wirtz @date 12.03.2010
     
     properties
         % The degree of the polynomial kernel.
@@ -18,6 +18,10 @@ classdef PolyKernel < kernels.BaseKernel
                 this.Degree = deg;
             end
             this.RotationInvariant = true;
+        end
+        
+        function c = getGlobalLipschitz(this)
+            error('Not implemented yet!');
         end
         
         function K = evaluate(this, x, y)

@@ -1,6 +1,6 @@
 classdef ModelData < handle
     %MODELDATA Class that contains a model's large data
-    %   Detailed explanation goes here
+    %   @todo setter for matrices V,W with checks for norm one etc
     
     properties
         % A Model's parameter samples
@@ -12,8 +12,12 @@ classdef ModelData < handle
         % A Model's f (nonlinearity) - values at the snapshot points
         fValues = [];
         
-        % The orthogonal projection matrix for the reduced subspace
+        % The projection matrix for the reduced subspace.
+        % All columns must have norm one.
         V;
+        
+        % The V-biorthogonal matrix for the reduced subspace (`W^tV=I_d`)
+        W;
     end
     
     properties(Dependent)
@@ -27,9 +31,6 @@ classdef ModelData < handle
         % abstracts from possibly associated parameters or inputs used for
         % generation.
         PlainSnapshotArray;
-        
-        % A 
-        SnapshotTripleVect;
     end
     
     methods
@@ -40,10 +41,15 @@ classdef ModelData < handle
             % 
             % See also: ModelData/getTrajectory
             idx = [];
-            ps = this.ParamSamples;
-            if ~isempty(ps)
-                idx = find(sum(repmat(mu,1,this.SampleCount) == ps,1) == size(ps,1));
+            for n=1:this.SampleCount
+                if isequal(this.ParamSamples(:,n),mu)
+                    idx = n;
+                    return;
+                end
             end
+%             if ~isempty(ps)
+%                 idx = find(sum(repmat(mu,1,this.SampleCount) == ps,1) == size(ps,1));
+%             end
         end
         
         function x = getTrajectory(this, mu, inputidx)
@@ -56,8 +62,9 @@ classdef ModelData < handle
             if nargin == 2 || isempty(inputidx)
                 inputidx = 1;
             end
-            pidx = this.getSampleIndex(mu);
-            if ~isempty(pidx)
+            % Ensure that data for the given inputidx is available
+            if size(this.Snapshots,4) >= inputidx
+                pidx = this.getSampleIndex(mu);
                 x = this.Snapshots(:,:,pidx,inputidx);
             end
         end
@@ -66,7 +73,7 @@ classdef ModelData < handle
     %% Getter & Setter
     methods
         function set.ParamSamples(this, value)
-            % @TODO: Getter & setter / validation
+            % @todo Getter & setter / validation
             this.ParamSamples = value;
         end
         
@@ -78,12 +85,12 @@ classdef ModelData < handle
             this.fValues = value;
         end
         
-        function set.V(this, value)
-            if ~all(round(value' * value) == diag(ones(size(value,2),1)))
-                warning('KerMor:ModelData:Vortho','V matrix may not be orthogonal!');
-            end
-            this.V = value;
-        end
+%         function set.V(this, value)
+%             if ~all(round(value' * value) == diag(ones(size(value,2),1)))
+%                 warning('KerMor:ModelData:Vortho','V matrix may not be orthogonal!');
+%             end
+%             this.V = value;
+%         end
         
         function value = get.SampleCount(this)
             value = size(this.ParamSamples,2);

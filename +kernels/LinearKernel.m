@@ -8,8 +8,11 @@ classdef LinearKernel < kernels.BaseKernel
             this.RotationInvariant = true;
         end
         
+        function c = getGlobalLipschitz(this)%#ok
+            c = 1;
+        end
         
-        function K = evaluate(this, x, y)
+        function K = evaluate(this, x, y)%#ok
             if nargin == 2
                 y = x;
             end

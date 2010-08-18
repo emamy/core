@@ -4,7 +4,7 @@ classdef AffLinOutputConv < general.AffLinFcn & dscomponents.IOutputConv
     
     methods
         
-        function res = project(this, V)
+        function res = project(this, V, W)%#ok
             res = dscomponents.AffLinInputConv;
             res.Coefficients = this.Coefficients;
             n = length(this.Matrices);

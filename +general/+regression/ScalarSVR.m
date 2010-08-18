@@ -4,7 +4,7 @@ classdef ScalarSVR < handle
     %  See B. Schölkopf & A. Smola's "Learning with Kernels" for
     %  implementation details.
     %
-    % @Daniel Wirtz, 11.03.2010
+    % @author Daniel Wirtz @date 11.03.2010
     
     properties
         % The kernel matrix to use.
@@ -182,7 +182,7 @@ classdef ScalarSVR < handle
             svr.C = 10;
             %kernel = kernels.PolyKernel(2);
             %kernel = kernels.LinearKernel;
-            kernel = kernels.RBFKernel(1);
+            kernel = kernels.GaussKernel(1);
             svr.K = kernel.evaluate(x,x);
             
             figure(1);
@@ -214,7 +214,7 @@ classdef ScalarSVR < handle
             svr = general.regression.ScalarSVR;
             svr.eps = 0.5;
             svr.C = 10;
-            kernel = kernels.RBFKernel(1);
+            kernel = kernels.GaussKernel(1);
             svr.K = kernel.evaluate(x,x);
             
             figure(1);
