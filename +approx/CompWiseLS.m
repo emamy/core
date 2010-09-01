@@ -67,7 +67,7 @@ classdef CompWiseLS < approx.BaseCompWiseKernelApprox
             m = models.BaseFullModel;
             m.T = size(x,2)-1;
             m.dt = 1;
-            m.Data.Snapshots = x;
+            m.Data.Snapshots = [zeros(2,size(x,2)); m.Times; x];
             m.Data.fValues = fxi;
             a = approx.CompWiseLS;
             a.Lambda = .1;
@@ -107,7 +107,7 @@ classdef CompWiseLS < approx.BaseCompWiseKernelApprox
             m = models.BaseFullModel;
             m.T = length(x)-1;
             m.dt = 1;
-            m.Data.Snapshots = x;
+            m.Data.Snapshots = [zeros(2,size(x,2)); m.Times; x];
             m.Data.fValues = fxi;
             a = approx.CompWiseLS;
             a.Lambda = 1;

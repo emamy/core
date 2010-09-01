@@ -41,20 +41,28 @@
 % laufen lassen, nur größten snapshot-x_i hinzufügen
 % @todo LaGrange-koeffizientenfunktionen bei kerninterpolation berechnen!
 % ist insgesamt billiger falls `N<<n` 
-% @todo: test für 
+% @todo: test für newton-iteration!
+%
+% @todo Implementierung Balanced Truncation (mit base class) für
+% LinearCoreFuns, dann implementierung bala
 
 % preferences
 setpref('Internet','SMTP_Server','localhost');
-
-% For PCAfixspace
-addpath('/afs/.mathe/project/agh/home/dwirtz/rbmatlab/general/vecmat');
 
 % get current directory;
 disp('Starting up KerMor in directory:');
 p = fileparts( which('startup_kermor'));
 disp(p);
+
+% Environment
+setenv('KERMORTEMP','/datastore');
+setenv('KERMORHOME',p);
+
+% For PCAfixspace
+addpath('/afs/.mathe/project/agh/home/dwirtz/rbmatlab/general/vecmat');
+
 % add further paths to MATLABPATH
 addpath(p);
 cd(p);
-addpath('examples');
+addpath(fullfile(p,'examples'));
 clear('p');

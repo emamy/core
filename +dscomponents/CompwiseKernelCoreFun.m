@@ -1,6 +1,8 @@
 classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & dscomponents.IGlobalLipschitz
     %COMPWISEKERNELCOREFUN Summary of this class goes here
     %   Detailed explanation goes here
+    %
+    % @todo IMPORTANT: Allow different kernels for different centers!
     
     properties
         % The coefficient data for each dimension.
@@ -39,6 +41,11 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & dscomponents.IGlo
             %k = abs(this.TimeKernel.evaluate(this.snData.ti,t).*this.ParamKernel.evaluate(this.snData.mui,mu));
             c = sum(this.Ma_norms) * this.SystemKernel.getGlobalLipschitz;
             %warning('some:id','not yet implemented/validated correctly!');
+        end
+        
+        function set.Ma(this, value)
+            this.Ma_norms = sqrt(sum(value.^2));%#ok
+            this.Ma = value;
         end
     end
     

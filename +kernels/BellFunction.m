@@ -20,6 +20,15 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
     
     methods
         
+        function fcn = getLipschitzFunction(this)
+            % Overrides the method from the base class kernels.BaseKernel
+            % as for this type of kernels a better local Lipschitz constant
+            % estimation is available.
+            %
+            % See also: kernels.BaseKernel#getLipschitzFunction
+            fcn = @this.getImprovedLocalSecantLipschitz;
+        end
+        
         function c = getGlobalLipschitz(this)
             % Computes the absolute value of the first derivative at x0
             % Implements the template method from BaseKernel.
@@ -27,53 +36,77 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
         end
         
         function ci = getLocalGradientLipschitz(this, di, C, t, mu)
-            case1 = di - C - this.x0 > 0;
-            case2 = di + C - this.x0 < 0;
-            ci(case1) = this.evaluateD1(di(case1)-C);
-            ci(case2) = this.evaluateD1(di(case2)+C);
-            ci(~case1 & ~case2) = abs(this.evaluateD1(this.x0));
+            
+            % Consider C=Inf case separately for speed reasons
+            if isinf(C)
+                ci = ones(size(di))*abs(this.evaluateD1(this.x0));
+            else
+                case1 = di - C - this.x0 > 0;
+                case2 = di + C - this.x0 < 0;
+                ci(case1) = abs(this.evaluateD1(di(case1)-C));
+                ci(case2) = abs(this.evaluateD1(di(case2)+C));
+                ci(~case1 & ~case2) = abs(this.evaluateD1(this.x0));
+            end
         end
         
         function ci = getLocalSecantLipschitz(this, di, C, t, mu)
-            case1 = di - C - this.x0 > 0;
-            case2 = di + C - this.x0 < 0;
-            ci(case1) = (this.evaluateScalar(di(case1)-C) - this.evaluateScalar(di(case1))) / C;
-            ci(case2) = (this.evaluateScalar(di(case2)) - this.evaluateScalar(di(case2)+C)) / C;
-            ci(~case1 & ~case2) = abs(this.evaluateD1(this.x0));
+            
+            % Consider C=Inf case separately for speed reasons
+            if isinf(C)
+                ci = ones(size(di))*abs(this.evaluateD1(this.x0));
+            else
+                case1 = di - C - this.x0 > 0;
+                case2 = di + C - this.x0 < 0;
+                
+                % If C is too small we just take the derivative at this
+                % point.
+                if C < sqrt(eps)
+                    ci(case1 | case2) = abs(this.evaluateD1(di(case1 | case2)));
+                else
+                    ci(case1) = (this.evaluateScalar(di(case1)-C) - this.evaluateScalar(di(case1))) / C;
+                    ci(case2) = (this.evaluateScalar(di(case2)) - this.evaluateScalar(di(case2)+C)) / C;
+                end
+                ci(~case1 & ~case2) = abs(this.evaluateD1(this.x0));
+            end
         end
         
         function ci = getImprovedLocalSecantLipschitz(this, di, C, t, mu)
-            % @todo: use starting point from last iteration if available!
-            xfeat = ones(size(di))*this.x0;
-            update = abs(di-this.x0) < C;
-            % Choose suitable starting conditions if no old xfeat vectors
-            % are available
-            if isempty(this.oldxfeat)
-                this.oldxfeat = this.x0+.2*sign(this.x0-di(update));
+            if isempty(this.oldxfeat) || any(isnan(this.oldxfeat))
+                this.oldxfeat = this.x0+.2*sign(this.x0-di);
             end
-            xfeat(update) = this.ModifiedNewton(this.oldxfeat,di(update));
-            this.oldxfeat = xfeat;
-            left = di + C - xfeat < 0;
-            right = di - C - xfeat > 0;
-            center = ~left & ~right;
-            if any(left)
-                ci(left) = (this.evaluateScalar((di(left))) - this.evaluateScalar((di(left)+C))) / C;
-            end
-            if any(right)
-                ci(right) = (this.evaluateScalar((di(right)-C)) - this.evaluateScalar((di(right)))) / C;
-            end
-            if any(center)
+            
+            % Consider C=Inf case separately for speed reasons
+            if isinf(C)
+                xfeat = this.ModifiedNewton(this.oldxfeat,di);
+                ci = abs(this.evaluateD1(xfeat));
+                this.oldxfeat = xfeat;
+            else
+                xfeat = ones(size(di))*this.x0;
+                update = abs(di-this.x0) < C;
+                % Choose suitable starting conditions if no old xfeat vectors
+                % are available
+                if any(update)
+                    xfeat(update) = this.ModifiedNewton(this.oldxfeat(update),di(update));
+                    this.oldxfeat(update) = xfeat(update);
+                end
+                left = di + C - xfeat < 0;
+                right = di - C - xfeat > 0;
+                center = ~left & ~right;
+                % If C is too small we just take the derivative at this
+                % spot
+                if C < sqrt(eps)
+                    ci(left | right) = abs(this.evaluateD1(di(left | right)));
+                else
+                    ci(left) = (this.evaluateScalar((di(left))) - this.evaluateScalar((di(left)+C))) / C;
+                    ci(right) = (this.evaluateScalar((di(right)-C)) - this.evaluateScalar((di(right)))) / C;
+                end
                 ci(center) = abs(this.evaluateD1(xfeat(center)));
             end
         end
-        
-        %         function value = get.xR(this)
-        %             value = (this.evaluateScalar(0)*this.x0) / (this.evaluateScalar(0)-this.evaluateScalar(this.x0));
-        %         end
-        
     end
     
     methods(Access=private)
+        
         function xtmp = ModifiedNewton(this, xstart, y)
             xtmp = xstart+2*this.NewtonTolerance;
             x = xstart;
@@ -84,8 +117,9 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
             xr = f(0)*this.x0 / (f(0)-f(this.x0));
             n0 = df(0) - (f(0)-f(y))./-y;
             nx0 = df(this.x0) - (f(this.x0)-f(y))./(this.x0-y);
+            % Numerical fix: Sometimes y equals x0, in that case nx0 = 0.
+            nx0(isnan(nx0)) = 0;
             nxr = df(xr) - (f(xr)-f(y))./(xr-y);
-            %nxr = df(xr) - (f(this.xR)-f(y))./(this.xR-y);
             
             p = this.PenaltyFactor;
             while any(abs(xtmp-x) > this.NewtonTolerance)
@@ -130,7 +164,6 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
             end
             
         end
-        
         
     end
     

@@ -145,9 +145,15 @@ classdef BaseModel < handle
             xlabel('Time'); ylabel('Output functions');
         end
         
-    end
-    
-    methods
+        function cfg = getConfigStr(this)
+            % Returns a string that contains all available class and
+            % subclass information about the current model.
+            
+            %res = ['Configuration of model ''' this.Name '''' this.getObjectConfig(this, 0, 20)];
+            %cfg = res;
+            %cfg = sprintf(res);
+            cfg = sprintf(['Configuration of model ''' this.Name '''' this.getObjectConfig(this, 0, 20)]);
+        end
         
         function [t,x] = computeTrajectory(this, mu, inputidx)
             % Computes a solution/trajectory for the given mu and inputidx.
@@ -247,6 +253,66 @@ classdef BaseModel < handle
         function set.ODESolver(this, value)
             this.checkType(value,'solvers.BaseSolver');%#ok
             this.ODESolver = value;
+        end
+    end
+    
+    methods(Access=private)
+        function str = getObjectConfig(this, obj, numtabs, depth)
+            str = '';
+            if depth == 0
+                warning('Un:important','Exceeded the maximal recursion depth. Ignoring deeper objects.');
+                return;
+            end
+            mc = metaclass(obj);
+            if isfield(obj,'Name')
+                name = obj.Name;
+            else
+                name = mc.Name;
+            end
+            str = [str ': ' name '\n'];
+            for idx = 1:length(mc.Properties)
+                p = mc.Properties{idx};
+                if strcmp(p.GetAccess,'public')
+                    str = [str repmat('\t',1,numtabs)];%#ok
+                    pobj = obj.(p.Name);
+                    if ~isempty(pobj) && ~isequal(obj,pobj)
+                        if isobject(pobj)
+                            str = [str p.Name this.getObjectConfig(pobj, numtabs+1, depth-1)];%#ok
+                        elseif isnumeric(pobj)
+                            if numel(pobj) > 20
+                                str = [str p.Name ': [' num2str(size(pobj)) '] ' class(pobj)];%#ok
+                            else
+                                pobj = reshape(pobj,1,[]);
+                                str = [str p.Name ': ' num2str(pobj)];%#ok
+                            end
+                        elseif isstruct(pobj)
+                            if any(size(pobj) > 1)
+                                str = [str p.Name ' (struct, [' num2str(size(pobj)) ']), fields: '];%#ok
+                            else
+                                str = [str p.Name ' (struct), fields: '];%#ok
+                            end
+                            fn = fieldnames(pobj);
+                            for fnidx = 1:length(fn)
+                                %str = [str fn{fnidx} this.getObjectConfig(pobj, numtabs+1, depth-1)];%#ok
+                                str = [str fn{fnidx} ','];%#ok
+                            end
+                            str = str(1:end-1);
+                        elseif isa(pobj,'function_handle')
+                            str = [str p.Name ' (f-handle): ' func2str(pobj)];%#ok
+                        end
+                    else
+                        if isequal(obj,pobj)
+                            str = [str p.Name ': self-reference'];%#ok
+                        else
+                            str = [str p.Name ': empty'];%#ok
+                        end
+                    end
+                    str = [str '\n'];%#ok
+                    %str = strcat(str,'\n');
+                end
+            end
+            % Take away the last \n
+            str = str(1:end-2);
         end
     end
 end

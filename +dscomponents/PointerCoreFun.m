@@ -34,12 +34,7 @@ classdef PointerCoreFun < dscomponents.ACoreFun
             % Evaluates the core function at x,t,mu
             fx = this.target(x,t,mu);
         end
-        
-%         function c = getGlobalLipschitz(this, t, mu)
-%             c = 1;
-%             warning('temp:id','Feature used that is not yet implemented correctly.');
-%         end
-        
+                
         function proj = project(this, V, W)
             % Projects the core function into the reduced space.
             % Creates a new PointerCoreFun and computes `\hat{f}(z) =

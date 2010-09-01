@@ -13,65 +13,7 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & dscomponents.CompwiseKer
     % computation!)
     %
     % See also: BaseKernelApprox
-    
-%     properties
-%         % Minimum `\alpha` coefficient value after projection
-%         %
-%         % At projection, the coefficients for each component approximation
-%         % get mixed leading to an enlarged set of support vectors. Thus,
-%         % after combination of the coefficients each new one must be
-%         % greater than this threshold to be considered a new one.
-%         AlphaMinValue = 1e-5;
-%     end
-    
-%     properties(SetAccess=protected)
-%         % The coefficient data for each dimension.
-%         Ma;
-%     end
-%     
-%     properties(Access=protected)
-%         % The state variable Snapshots used in the approximation.
-%         %
-%         % This is the union of all snData used within the approximation.
-%         snData;
-%         
-%         % The `b_k` offsets for each dimension.
-%         %
-%         % Set to empty if no off are used. This property is
-%         % preinitialized to [].
-%         off = [];
-%     end
-    
-    methods
-        
-%         function this = BaseCompWiseKernelApprox
-%             % Class constructor.
-%             %
-%             % Sets the CustomProjection property from BaseApprox to true as
-%             % component-wise approximations implement their own projection.
-%             this.CustomProjection = true;
-%         end
-        
-%         function phi = getPhi(this, zs, t, mu)
-%             % Gets the phi(Vz(s),t,mu) value used in error estimations.
-%             % @docupdate
-%             phi = this.evaluateAtCenters(this.snData.xi, this.snData.ti, this.snData.mui, zs, t, mu);
-%         end
-        
-%         function c = getGlobalLipschitz(this, t, mu)
-%             % @todo validate computation
-% %             [x,ti,mui] = this.splitTripleVect(this.snData);
-%             k = abs(this.TimeKernel.evaluate(this.snData.ti,t).*this.ParamKernel.evaluate(this.snData.mui,mu));
-%             c = 0;
-%             for idx = 1:size(this.Ma,2)
-%                 c = c + k(idx)*norm(this.Ma(:,idx));
-%             end
-%             c = this.sk.getGlobalLipschitz * c;
-%             warning('some:id','not yet implemented/validated correctly!');
-%         end
-        
-    end
-    
+       
     methods(Access=protected)
         
         function gen_approximation_data(this, xi, ti, mui, fxi)
@@ -149,38 +91,6 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & dscomponents.CompwiseKer
             end
             
         end
-        
-%         function fx = evaluate_approximation(this, x, t, mu)
-%             d=this.snData;
-%             if ~isempty(this.off)
-%                 fx = this.Ma * this.evaluateAtCenters(d.xi, d.ti, d.mui, x, t, mu) + repmat(this.off,1,size(x,2));
-%             else
-%                 fx = this.Ma * this.evaluateAtCenters(d.xi, d.ti, d.mui, x, t, mu);
-%             end
-%         end
-    
-%         function copy = customProject(this, V, W)
-%             % Performs specific projection computation for component wise
-%             % svr.
-%             
-%             % Create copy to preserve settings in original model
-%             copy = this.clone;
-%             
-%             copy.Ma = W' * this.Ma;
-%             if ~isempty(this.off)
-%                 copy.off = W' * this.off;
-%             end
-% 
-%             % Project snapshot vectors into reduced space, in case the used
-%             % Kernel is rotation invariant (lossless projection, no change
-%             % of coefficients necessary)
-%             if this.RotationInvariantKernel
-%                 % Extract system part and project into V space
-% %                 [x,t,mu] = this.splitTripleVect(this.snData);
-%                 copy.snData.xi = W' * this.snData.xi;
-% %                 copy.snData = this.compileTripleVect(x,t,mu);
-%             end
-%         end
         
         function target = clone(this, target)
             % Clones the instance.

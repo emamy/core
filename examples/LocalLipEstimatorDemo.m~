@@ -1,131 +1,333 @@
-function LocalLipEstimatorDemo( dims )
-%LOCALLIPESTIMATORDEMO Summary of this function goes here
-%   Detailed explanation goes here
-
-%% Global settings
-if nargin < 1
-    dims = 1000;
-end
-% Number of support vectors
-svNum = 10;
-% Strictly positive kernel expansion?
-pos_flag = false;
-% Uniform expansion or comp-wise separate?
-uniform = true;
-
-%% Model settings
-fm = models.BaseFullModel;
-fm.Verbose = 0;
-fm.Name = 'Synthetic kernel based test model 1';
-
-fm.T = 5;
-fm.dt = .05;
-
-fm.Approx = [];
-fm.Sampler = [];
-
-s = spacereduction.PODReducer;
-s.Mode = 'abs';
-s.Value = 1;
-fm.SpaceReducer = s;
-
-%this.ODESolver = solvers.MLWrapper(@ode45);
-fm.ODESolver = solvers.ExplEuler;
-
-%% Core function
-cf = dscomponents.CompwiseKernelCoreFun;
-cf.SystemKernel = kernels.GaussKernel(dims*100);
-cf.TimeKernel = kernels.NoKernel;
-cf.ParamKernel = kernels.NoKernel;
-cf.snData.xi = repmat(linspace(-20,20,svNum),dims,1);
-cf.snData.ti = [];
-cf.snData.mui = [];
-
-% Function coefficients
-offset = .5;
-if pos_flag
-    offset = 0;
-end
-% Create coefficients
-if uniform
-    ai = (rand(1,svNum)-offset);
-    cf.Ma = repmat(ai,dims,1);
-else
-    cf.Ma = (rand(dims,svNum)-offset);
-end
-
-%% System settings
-s = models.BaseDynSystem;
-
-s.x0 = @(mu)ones(dims,1)*.5;
-
-s.f = cf;
-
-%s.Inputs{1} = @(t)0;
-
-fm.System = s;
-
-%% Generation
-fm.offlineGenerations;
-r = fm.buildReducedModel;
-
-%% Error estimators
-est = struct;
-est(1).Name = 'Default estimator';
-est(1).Estimator = error.DefaultEstimator(r);
-est(1).Estimator.Enabled = true;
-est(2).Name = 'Global Lipschitz estimator';
-est(2).Estimator = error.GlobalLipKernelEstimator(r);
-est(3).Name = 'Local Lipschitz estimator: getLocalGradientLipschitz';
-est(3).Estimator = error.LocalLipKernelEstimator(r);
-k = cf.SystemKernel;
-est(3).Estimator.KernelLipschitzFcn = @k.getLocalGradientLipschitz;
-est(4).Name = 'Local Lipschitz estimator: getLocalSecantLipschitz';
-est(4).Estimator = error.LocalLipKernelEstimator(r);
-est(4).Estimator.KernelLipschitzFcn = @k.getLocalSecantLipschitz;
-est(5).Name = 'Local Lipschitz estimator: getImprovedLocalSecantLipschitz';
-est(5).Estimator = error.LocalLipKernelEstimator(r);
-est(5).Estimator.KernelLipschitzFcn = @k.getImprovedLocalSecantLipschitz;
-
-%% Simulations
-num = 5;
-times = zeros(num,1);
-errs = zeros(num,length(fm.Times));
-figure;
-hold on;
-for idx = 1:num
-    r.ErrorEstimator = est(idx).Estimator;
-    [t,y,time] = r.simulate;
-    err = r.ErrorEstimator.LastError;
-    times(idx) = time;
-    errs(idx,:) = err;
-end
-%T = repmat(t,num,1) ./ repmat(times,1,length(fm.Times));
-%% Plot
-figure(1);
-a = cell(1,5);
-[a{:}] = est(:).Name;
-
-subplot(1,2,1);
-plot(fm.Times,errs);
-xlabel('Time');
-ylabel('Error');
-legend(a);
-
-subplot(1,2,2);
-% plot(times(1),errs(1,end),'o',...
-%     times(2),errs(2,end),'o',...
-%     times(3),errs(3,end),'o',...
-%     times(4),errs(4,end),'o',...
-%     times(5),errs(5,end),'o',...
-%     'MarkerSize',6);
-plot(times',errs(:,end)','o',...
-'MarkerFaceColor','red'
-xlabel('e(T)');
-ylabel('Comp. time');
-legend(a);
-%pause;
-%close(h);
-
+classdef LocalLipEstimatorDemo < handle
+    % Demo class for the error estimators.
+    %
+    % The constructor either takes an existing model and uses this for the
+    % error estimator demo or the input argument is a dimension number for
+    % the standard model used.
+    
+    properties
+        % System dimension
+        Dims = 500;
+        
+        % Number of centers used in kernel expansion
+        NumCenters = 10;
+        
+        % Strictly positive kernel expansion?
+        PositiveExpansion = false;
+        
+        % Uniform expansion or comp-wise separate?
+        UniformExpansion = false;
+        
+        % The used model
+        Model;
+        
+        % Reduced model
+        r;
+    end
+    
+    properties(Access=private)
+        % estimator struct
+        Est;
+    end
+    
+    methods
+        
+        function this = LocalLipEstimatorDemo(inarg)
+            % Creates a new estimator demo.
+            %
+            % Parameters:
+            % inarg: Is either a models.BaseFullModel subclass that
+            % determines the model to use OR a scalar defining the
+            % dimensions if the default test model. Calling the constructor
+            % with no arguments causes the Demo to use the default demo
+            % model with the default dimension size (500).
+            
+            % Catch the model argument case
+            if nargin == 1 && isa(inarg,'models.BaseFullModel')
+                this.setModel(inarg);
+                return;
+            end
+            
+            %% Model settings
+            fm = models.BaseFullModel;
+            fm.Verbose = 0;
+            fm.Name = 'Estimator Demo Model';
+            
+            fm.T = 1;
+            fm.dt = .025;
+            
+            fm.Approx = [];
+            fm.Sampler = [];
+            
+            %this.ODESolver = solvers.MLWrapper(@ode45);
+            fm.ODESolver = solvers.ExplEuler(fm.dt);
+            %fm.ODESolver = solvers.Heun(fm.dt);
+            
+            %% Core function
+            cf = dscomponents.CompwiseKernelCoreFun;
+            cf.TimeKernel = kernels.NoKernel;
+            cf.ParamKernel = kernels.NoKernel;
+            cf.snData.ti = [];
+            cf.snData.mui = [];
+            
+            %% System settings
+            fm.System = models.BaseDynSystem;
+            fm.System.f = cf;
+            this.Model = fm;
+            
+            if nargin == 1
+                this.Dims = inarg;
+            else
+                this.newCoeffs;
+                this.setup;
+            end
+        end
+        
+        function setup(this)
+            this.Model.System.f.SystemKernel = kernels.GaussKernel(10);
+            x0 = rand(this.Dims,1);
+            if this.PositiveExpansion
+                base = linspace(0, 40, this.NumCenters);
+                this.Model.System.x0 = @(mu)x0;
+            else
+                base = linspace(-20, 20, this.NumCenters);
+                this.Model.System.x0 = @(mu)x0-.5;
+            end
+            this.Model.System.f.snData.xi = repmat(base,this.Dims,1);
+            
+            if  this.UniformExpansion
+                V = ones(this.Dims,1)*sqrt(1/this.Dims);
+                s = spacereduction.ManualReduction(V,V);
+            else
+                s = spacereduction.PODReducer;
+                s.Mode = 'abs';
+                s.Value = 1;
+            end
+            this.Model.SpaceReducer = s;
+            
+            %% Generation
+            this.Model.offlineGenerations;
+            this.r = this.Model.buildReducedModel;
+            
+            this.buildEstimatorStruct(this.r);
+        end
+        
+        function newCoeffs(this)
+            % Function coefficients
+            offset = .5;
+            if this.PositiveExpansion
+                offset = 0;
+            end
+            % Create coefficients
+            if this.UniformExpansion
+                ai = (rand(1,this.NumCenters)-offset);
+                this.Model.System.f.Ma = repmat(ai,this.Dims,1);
+            else
+                this.Model.System.f.Ma = rand(this.Dims,this.NumCenters)-offset;
+            end
+        end
+        
+        function setModel(this, model)
+            this.Model = model;
+            
+            model.offlineGenerations;
+            this.r = model.buildReducedModel;
+            
+            this.buildEstimatorStruct(this.r);
+        end
+        
+        function [times,errs] = Run(this, mu, inputidx)
+            % Runs the demo with the current settings.
+            
+            num = length(this.Est);
+            times = zeros(num,1);
+            errs = zeros(num,length(this.Model.Times));
+            
+            % Plotting preparations
+            str = '';
+            h = waitbar(0,'');
+            for idx = 1:num
+                % Set estimator and run
+                this.r.ErrorEstimator = this.Est(idx).Estimator;
+                
+                waitbar(idx/num,h,sprintf('Performing estimation %d of %d: %s',idx,num,this.Est(idx).Name));
+                [t,y,times(idx)] = this.r.simulate([],1);
+                errs(idx,:) = this.r.ErrorEstimator.LastError;
+                
+                % Plotting preparations
+                str = [str sprintf('errs(%d,end),times(%d),''%s'',',idx,idx,this.Est(idx).MarkerStyle)];%#ok
+            end
+            close(h);
+            
+            % Cut global estimation error
+%             tmp = errs(2,:);
+%             tmp(tmp > errs(3,end)) = errs(3,end);
+%             errs(2,:) = tmp;
+            
+            %% Plot
+            h = figure;
+            pos = get(0,'MonitorPosition');
+            set(h,'OuterPosition',pos(1,:));
+            a = cell(1,num);
+            [a{:}] = this.Est(:).Name;
+            
+            subplot(1,2,1);
+            ph = plot(this.Model.Times,errs);
+            set(ph(1),'LineWidth',2);
+            for idx=1:length(this.Est)
+                set(ph(idx),'LineStyle',this.Est(idx).LineStyle);
+            end
+            xlabel('Time');
+            ylabel('Error');
+            legend(a,'Location','NorthWest');
+            
+            subplot(1,2,2);
+            eval(['ph = plot(' str '''MarkerSize'',7);']);
+            %set(ph(6:9),'Marker','+');
+            %set(ph(10:11),'Marker','*');
+            
+            % Add line for minimum error!
+            hold on;
+            plot([errs(1,end) errs(1,end)],[min(times) max(times)],'black');
+            hold off;
+            
+            %txt = [repmat('(',num,1) num2str(times) repmat(', ',num,1) num2str(errs(:,end)) repmat('s)',num,1)];
+            %text(times,errs(:,end),txt);
+            xlabel('e(T)');
+            ylabel('Comp. time');
+            legend(a);
+            
+            title(['Error estimator demo for model: ' this.Model.Name]);
+            disp('Computation times:');
+            disp(times');
+            disp('e(T):');
+            disp(errs(:,end)');
+            
+            disp('Best five estimations:');
+            [v,idx] = sort(errs(:,end));
+            for id = 1:5
+                fprintf('%s: e(T)=%f, %2.2fsec\n',this.Est(idx(id)).Name,errs(idx(id),end),times(idx(id)));
+            end
+        end
+        
+        function set.Dims(this, value)
+            this.Dims = value;
+            this.newCoeffs; %#ok
+            this.setup; %#ok
+        end
+        
+        function set.NumCenters(this, value)
+            this.NumCenters = value;
+            this.newCoeffs; %#ok
+            this.setup; %#ok
+        end
+        
+        function set.PositiveExpansion(this, value)
+            this.PositiveExpansion = value;
+            this.setup; %#ok
+            this.newCoeffs; %#ok
+        end
+        
+        function set.UniformExpansion(this, value)
+            this.UniformExpansion = value;
+            this.newCoeffs; %#ok
+            this.setup; %#ok
+        end
+        
+    end
+    
+    methods(Access=private)
+        function buildEstimatorStruct(this, r)
+            % Error estimators
+            if ~isempty(this.Model.Approx)
+                k = this.Model.Approx.SystemKernel;
+            else
+                k = this.Model.System.f.SystemKernel;
+            end
+            est = struct.empty;
+            
+            est(end+1).Name = 'Full error';
+            est(end).Estimator = error.DefaultEstimator(r);
+            est(end).Estimator.Enabled = true;
+            est(end).MarkerStyle = 'o';
+            est(end).LineStyle = '-';
+            
+%             msg = error.GlobalLipKernelEstimator.validModelForEstimator(r);
+%             if isempty(msg)
+%                 est(end+1).Name = 'GLE';
+%                 est(end).Estimator = error.GlobalLipKernelEstimator(r);
+%                 est(end).MarkerStyle = 'x';
+%                 est(end).LineStyle = '-';
+%             else
+%                 fprintf('Cannot use the GlobalLipKernelEstimator for model %s:\n%s\n',r.Name,msg);
+%             end
+            
+            msg = error.LocalLipKernelEstimator.validModelForEstimator(r);
+            if isempty(msg)
+                reps = [1 2 5];
+                est(end+1).Name = 'LLE: LGL';
+                est(end).Estimator = error.LocalLipKernelEstimator(r);
+                est(end).Estimator.KernelLipschitzFcn = @k.getLocalGradientLipschitz;
+                est(end).MarkerStyle = 's';
+                est(end).LineStyle = '-';
+                for it = reps
+                    eval(sprintf(['est(end+1).Name = ''LLE: LGL, %d It'';'...
+                        'est(end).Estimator = error.LocalLipKernelEstimator(r);'...
+                        'est(end).Estimator.KernelLipschitzFcn = @k.getLocalGradientLipschitz;'...
+                        'est(end).Estimator.Iterations = %d;'...
+                        'est(end).MarkerStyle = ''s'';'...
+                        'est(end).LineStyle = '':'';'],it,it));
+                end
+                
+                est(end+1).Name = 'LLE: LSL';
+                est(end).Estimator = error.LocalLipKernelEstimator(r);
+                est(end).Estimator.KernelLipschitzFcn = @k.getLocalSecantLipschitz;
+                est(end).MarkerStyle = '*';
+                est(end).LineStyle = '-';
+                for it = reps
+                    eval(sprintf(['est(end+1).Name = ''LLE: LSL, %d It'';'...
+                        'est(end).Estimator = error.LocalLipKernelEstimator(r);'...
+                        'est(end).Estimator.KernelLipschitzFcn = @k.getLocalSecantLipschitz;'...
+                        'est(end).Estimator.Iterations = %d;'...
+                        'est(end).MarkerStyle = ''*'';'...
+                        'est(end).LineStyle = ''-.'';'],it,it));
+                end
+                
+                est(end+1).Name = 'LLE: ILSL';
+                est(end).Estimator = error.LocalLipKernelEstimator(r);
+                est(end).Estimator.KernelLipschitzFcn = @k.getImprovedLocalSecantLipschitz;
+                est(end).MarkerStyle = '+';
+                est(end).LineStyle = '-';
+                for it = reps
+                    eval(sprintf(['est(end+1).Name = ''LLE: ILSL, %d It'';'...
+                        'est(end).Estimator = error.LocalLipKernelEstimator(r);'...
+                        'est(end).Estimator.KernelLipschitzFcn = @k.getImprovedLocalSecantLipschitz;'...
+                        'est(end).Estimator.Iterations = %d;'...
+                        'est(end).MarkerStyle = ''+'';'...
+                        'est(end).LineStyle = ''--'';'],it,it));
+                end
+                
+                est(end+1).Name = 'LLE: ILSL TD';
+                est(end).Estimator = error.LocalLipKernelEstimator(r);
+                est(end).Estimator.KernelLipschitzFcn = @k.getImprovedLocalSecantLipschitz;
+                est(end).Estimator.UseTimeDiscreteC = true;
+                est(end).MarkerStyle = '<';
+                est(end).LineStyle = '-';
+                for it = 1
+                    eval(sprintf(['est(end+1).Name = ''LLE: ILSL TD, %d It'';'...
+                        'est(end).Estimator = error.LocalLipKernelEstimator(r);'...
+                        'est(end).Estimator.KernelLipschitzFcn = @k.getImprovedLocalSecantLipschitz;'...
+                        'est(end).Estimator.UseTimeDiscreteC = true;'...
+                        'est(end).Estimator.Iterations = %d;'...
+                        'est(end).MarkerStyle = ''<'';'...
+                        'est(end).LineStyle = ''--'';'],it,it));
+                end
+            else
+                fprintf('Cannot use the LocalLipKernelEstimator for model %s:\n%s\n',r.Name,msg);
+            end
+            
+            this.Est = est;
+        end
+    end
 end
 

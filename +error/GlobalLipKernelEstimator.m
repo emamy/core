@@ -80,6 +80,7 @@ classdef GlobalLipKernelEstimator < error.BaseEstimator
         end
         
         function process(this, t, x, mu, inputidx)%#ok
+            % @todo also take into account FullModel.Approx at cf computation!
             eint = x(end-this.ExtraODEDims+1:end,:);
             if all(eint == 0)
                 warning('CompWiseErrorEstimator:process','Integral part is all zero. Attention!');

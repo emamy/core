@@ -1,4 +1,4 @@
-% @todo getConfig-methode: string-ausgabe aller einstellungen (sofern
+% DONE getConfig-methode: string-ausgabe aller einstellungen (sofern
 % textuell sinnvoll möglich!) eines Modells
 % @todo message-system über alle berechnungen hinaus (ungewöhliche dinge
 % berichten, exit flags etc)
@@ -37,24 +37,34 @@
 % DONE Allgemeineres Skalarprodukt def. über `<x,y>_G = x^tGy`, default Id
 % DONE Allgemeinere Projektion mit `V,W` und nicht mit `V,V^t`
 % DONE fehler in ODE mit reinformulieren! 
-% @todo POD-greedy für snapshotgenerierung -> nach trajektoriencomp POD
+% DONE POD-greedy für snapshotgenerierung -> nach trajektoriencomp POD
 % laufen lassen, nur größten snapshot-x_i hinzufügen
 % @todo LaGrange-koeffizientenfunktionen bei kerninterpolation berechnen!
 % ist insgesamt billiger falls `N<<n` 
 % @todo: test für newton-iteration!
+%
+% @todo Implementierung Balanced Truncation (mit base class) für
+% LinearCoreFuns, dann implementierung balanced truncation für empirical
+% gramians nach paper Lall et al. -> neue subspace reduction method für
+% nonlin-systems mit inputs! (geht ggf. auch für systeme ohne inputs? probieren!)
 
 % preferences
 setpref('Internet','SMTP_Server','localhost');
-
-% For PCAfixspace
-addpath('/afs/.mathe/project/agh/home/dwirtz/rbmatlab/general/vecmat');
 
 % get current directory;
 disp('Starting up KerMor in directory:');
 p = fileparts( which('startup_kermor'));
 disp(p);
+
+% Environment
+setenv('KERMORTEMP','/datastore');
+setenv('KERMORHOME',p);
+
+% For PCAfixspace
+addpath('/afs/.mathe/project/agh/home/dwirtz/rbmatlab/general/vecmat');
+
 % add further paths to MATLABPATH
 addpath(p);
 cd(p);
-addpath('examples');
+addpath(fullfile(p,'examples'));
 clear('p');

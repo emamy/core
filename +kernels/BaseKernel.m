@@ -16,6 +16,20 @@ classdef BaseKernel < handle
         function this = BaseKernel
             this.RotationInvariant = isa(this, 'kernels.IRotationInvariant');
         end
+        
+        function fcn = getLipschitzFunction(this)
+            % Method that allows error estimators to obtain a lipschitz
+            % constant estimation function from this kernel.
+            % 
+            % The default is simply each kernel's global lipschitz constant
+            % function. However, subclasses may override this method in
+            % order to return a better (maybe local) lipschitz constant
+            % estimation function. See the BellFunction implementation, for
+            % example.
+            %
+            % See also: kernels.BellFunction error.BaseEstimator
+            fcn = @this.getGlobalLipschitz;
+        end
     end
         
     methods(Abstract)

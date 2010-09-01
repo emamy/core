@@ -17,14 +17,15 @@ s.testdim = 4;
 
 % How many params? (to use from the ones defined below)
 s.testparams = 2;
-s.testinputs = 2;
+s.testinputs = 1;
 
 %% Model settings
 s.m = models.BaseFullModel;
-s.m.T = 1;
-s.m.dt = .3;
+s.m.T = 3;
+s.m.dt = .2;
 s.m.Sampler = sampling.RandomSampler;
 s.m.Sampler.Samples = 10;
+s.m.ODESolver = solvers.ExplEuler;
 
 a = approx.CompWiseSVR;
 %a = approx.CompWiseLS;
@@ -35,9 +36,17 @@ s.SystemKernel = kernels.GaussKernel(2);
 s.ParamKernel = kernels.GaussKernel(2);
 s.m.Approx = a;
 
+% If no params are used, pick 75% of the snapshot values in PODFixspace.
+if s.testparams == 0
+%     s.m.PODFix.Mode = 'abs';
+%     s.m.PODFix.Value = length(s.m.Times);
+     s.m.PODFix.Mode = 'rel';
+     s.m.PODFix.Value = .75;
+     s.ParamKernel = kernels.NoKernel;
+end
+
 
 %% Dynamical System settings/functions
-
 s.Inputs{1} = @(t)1; % Function 1: Constant 1
 s.Inputs{2} = @(t)sin(4*t); % Function 2: some sin(t)
 s.Inputs = s.Inputs(1:s.testinputs);

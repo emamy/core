@@ -29,6 +29,7 @@ classdef MLWrapper < solvers.BaseSolver
             end
             [t,y] = this.MLSolver(odefun, t, x0, opts);
             y = y';
+            t = t';
         end
         
         function set.MLSolver(this, value)

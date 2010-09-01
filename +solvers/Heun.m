@@ -10,7 +10,7 @@ classdef Heun < solvers.BaseSolver
         
     methods
         
-        function this = Heun(dt)
+        function this = Heun(MaxStep)
             % Constructor for the explicit euler solver.
             %
             % Specifying the dt parameter is optional, though not
@@ -18,35 +18,46 @@ classdef Heun < solvers.BaseSolver
             % manually for each case.
             %
             % Parameters:
-            % dt: the time step to use for each step.
+            % MaxStep: Maximum time step. Optional.
             this.Name = 'Explicit Heun''s method';
-            if nargin == 0
-                warning('solvers:Heun:No_dt_given','Explicit solvers should get a time stepsize. Using dt=0.05');
-                this.MaxStep = 0.05;
-            else
-                this.MaxStep = dt;
+            if nargin == 1
+                this.MaxStep = MaxStep;
             end
+%             if nargin == 0
+%                 warning('solvers:Heun:No_dt_given','Explicit solvers should get a time stepsize. Using dt=0.05');
+%                 this.MaxStep = 0.05;
+%             else
+%                 this.MaxStep = dt;
+%             end
         end
         
         function [tout,y] = solve(this, odefun, t, x0)
             % Get computation times
-            [times, tout, outputtimes] = this.getCompTimes(t, this.MaxStep);
+            [times, tout, outputtimes] = this.getCompTimes(t);
             % Initialize result
-            y = zeros(size(x0,1),length(tout));
-            % Set start values
-            y(:,1) = x0;
-            cur = x0; outidx = 2;
             steps = length(times);
+            y = [x0 zeros(size(x0,1),steps-1)];
+            dt = times(2:end)-times(1:end-1);
             % Solve for each time step
             for idx = 2:steps;
-                f = odefun(times(idx-1),cur);
-                hlp = cur + this.MaxStep*f;
-                cur = cur + (this.MaxStep/2)*(f + odefun(times(idx),hlp));
-                if outputtimes(idx)
-                    y(:,outidx) = cur;
-                    outidx = outidx+1;
-                end
-            end            
+                f = odefun(times(idx-1),y(:,idx-1));
+                hlp = y(:,idx-1) + dt(idx-1)*f;
+                y(:,idx) = y(:,idx-1) + (dt(idx-1)/2)*(f + odefun(times(idx),hlp));
+            end
+            y = y(:,outputtimes);
+            
+%             cur = x0; outidx = 2;
+%             steps = length(times);
+%             % Solve for each time step
+%             for idx = 2:steps;
+%                 f = odefun(times(idx-1),cur);
+%                 hlp = cur + this.MaxStep*f;
+%                 cur = cur + (this.MaxStep/2)*(f + odefun(times(idx),hlp));
+%                 if outputtimes(idx)
+%                     y(:,outidx) = cur;
+%                     outidx = outidx+1;
+%                 end
+%             end            
         end
     end
     

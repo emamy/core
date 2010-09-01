@@ -38,6 +38,9 @@ classdef ReducedModel < models.BaseModel
         % reduced model.
         ParamSamples;
         
+    end
+    
+    properties
         % The error estimator for the reduced model
         %
         %
@@ -63,7 +66,7 @@ classdef ReducedModel < models.BaseModel
                     'Reduced model will equal the full model (computationally).']);
             end
             
-            
+            disp('Start building reduced model...');
             % IMPORTANT: Assign any model properties that are used during
             % the creation of the reduced system! (i.e. V,W are used in the
             % constructor of the reduced System)
@@ -96,6 +99,11 @@ classdef ReducedModel < models.BaseModel
         function [t,x] = computeTrajectory(this, mu, inputidx)
             % Call parent method for actual work
             % @docupdate
+            
+            % Clear possibly old data in error estimators
+            this.ErrorEstimator.clear;
+            
+            % Call inherited method (actual work)
             [t,xtmp] = computeTrajectory@models.BaseModel(this, mu, inputidx);
             
             % Split up results; the last row of the ode solution contains
@@ -120,42 +128,6 @@ classdef ReducedModel < models.BaseModel
                 exo = 0;
             end
         end
-        
-        
-%         function getReductionErrorsParamWise(this)
-%             % Gets the reduced model's errors per parameter.
-%             %
-%             % @todo possibly move into BaseEstimator?
-%             numparams = this.System.ParamCount;
-%             figure(1);
-%             plotcnt = 1;
-%             for pidx = 1:numparams
-%                 p = this.System.Params(pidx);
-%                 % Only bother to compute error along parameter if
-%                 if p.HasRange
-%                     [vals, repmu] = this.getSamplesForParam(pidx);
-%                     
-%                     % Add up some more parameter values
-%                     news = linspace(p.MinVal,p.MaxVal,2*p.Desired-1);
-%                     vals = sort(union(vals,news));
-%                     musam = repmat(repmu,1,length(vals));
-%                     musam(pidx,:) = vals;
-%                     
-%                     e = zeros(length(vals),length(this.Times));
-%                     for sidx = 1:size(musam,2)
-%                         [t,et] = this.getError(musam(:,sidx),1);
-%                         e(sidx,:) = et;
-%                     end
-%                     % Plot it!
-%                     subplot(1,plotcnt,plotcnt);
-%                     mesh(this.Times,vals,e);
-%                     xlabel('Time');
-%                     ylabel(sprintf('Range for %s',p.Name));
-%                     title(sprintf('Errors for ''%s'', parameter %s',this.Name,p.Name));
-%                     plotcnt = plotcnt+1;
-%                 end
-%             end
-%         end
         
         function [t,e,est] = getError(this, varargin)
             % Gets the reduced model's error for a specified parameter and
@@ -197,13 +169,14 @@ classdef ReducedModel < models.BaseModel
             
             % System plot
             h = figure;
-            set(h,'OuterPosition',get(h
+            pos = get(0,'MonitorPosition');
+            set(h,'OuterPosition',pos(1,:));
             subplot(2,3,1);
             plot(t,x);
             xlabel('t');
             title(sprintf('The full system (d=%d,time=%.3f)',size(x,1),time));
             subplot(2,3,2);
-            plot(t,x);
+            plot(t,xr);
             xlabel('t');
             title(sprintf('The reduced system (r=%d,self time:%.3f, time with err est:%.3f)',size(this.V,2),timer_noerr,timer));
             
@@ -226,36 +199,46 @@ classdef ReducedModel < models.BaseModel
             plot(t,erel,'r',t,estrel,'b');
             xlabel('t');
             title(sprintf(['The state variable relative errors (comp. to '...
-                           'full solution)\nmean(e_{rel})=%g, mean(est_{rel})=%g'],...
-                           mean(erel),mean(estrel)));
+                'full solution)\nmean(e_{rel})=%g, mean(est_{rel})=%g'],...
+                mean(erel),mean(estrel)));
             legend('True error','Estimated error');%,'Location','Best');
             
             subplot(2,3,6);
             plot(t,erelr,'r',t,estrelr,'b');
             xlabel('t');
             title(sprintf(['The state variable relative errors (comp. to '...
-                           'reduced solution)\nmean(ered_{rel})=%g, mean(estred_{rel})=%g'],...
-                           mean(erelr),mean(estrelr)));
+                'reduced solution)\nmean(ered_{rel})=%g, mean(estred_{rel})=%g'],...
+                mean(erelr),mean(estrelr)));
             legend('True error','Estimated error');%,'Location','Best');
         end
         
-%         function compareTargetFcn(this)
-%             if ~isempty(this.FullModel.Data)
-%                 md = this.FullModel.Data;
-%                 sn = md.Snapshots;
-%                 fVal = md.fValues;
-%                 
-%                 for pidx = 1:size(sn,3)
-%                     for inidx=1:size(sn,4)
-%                         x = sn(:,:,pidx,inidx);
-%                         orig_f = fVal(:,:,pidx,inidx);
-%                         mu = md.ParamSamples(:,pidx);
-%                         approx_f = this.System.f.evaluate(x,this.Times,mu);
-%                         plot(1:sntotal,orig_f,'r',1:sntotal,approx_f,'b');
-%                     end
-%                 end
-%             end
-%         end
+        function compareCore_Approx(this)
+            num = 10;
+            d = this.FullModel.Data;
+            
+            sn = d.PlainSnapshotArray;
+            xi = sn(2:end,:);
+            ti = sn(1,:);
+            
+            idx = reshape(repmat(1:size(d.ParamSamples,2),size(d.Snapshots,2),1),1,[]);
+            mui = d.ParamSamples(:,idx);
+            
+            afx = this.FullModel.Approx.evaluate(xi,ti,mui);
+            %afx = afx(1:num,:);
+            len = size(afx,2);
+            for idx = 1:num
+                %sn(idx,:) = %reshape(this.FullModel.Data.Snapshots(idx,:,:,:),1,[]);
+                %fx(idx,:) = reshape(d.fValues(idx,:,:,:),1,[]);
+                fx = reshape(d.fValues(idx,:,:,:),1,[]);
+                plot(1:len,fx,1:len,afx(idx,:));
+                pause;
+            end
+            
+            %plot(1:len,fx,1:len,afx,'--');
+            
+            arfx = this.System.f.evaluate(d.V'*xi,ti,mui);
+            rfx = d.V'*d.fValues(:,:);
+        end
         
         function save(this, matfile)
             % Saves the reduced model to disk.
@@ -302,9 +285,11 @@ classdef ReducedModel < models.BaseModel
         end
     end
     
-    methods(Access=private)
+    methods
         
         function [t,x,xr,time,timer,t_noerr] = getTrajectories(this, mu, inputidx)
+            % Debug Method. Computes the trajectories of the full, reduced
+            % and reduced without error estimation systems.
             if nargin < 3
                 inputidx=[];
                 if nargin < 2
@@ -328,45 +313,57 @@ classdef ReducedModel < models.BaseModel
             timer = toc;
         end
         
-%         function [vals, repmu] = getSamplesForParam(this, pidx)
-%             % Gets the samples from the ParamSamples that are equal in all
-%             % other params but the one given through pidx.
-%             %
-%             % Return values:
-%             % vals: The sorted, unique values for parameter pidx in
-%             % ParamSamples.
-%             % repmu: The representative parameter vector that contains the
-%             % param values for all others but the pidx' parameter.
-%             %
-%             % Note: Since there may be more values of the pidx' param but
-%             % some having different parameter vectors here the vector of
-%             % the first smallest pidx' param is taken as representative
-%             % vector.
-%             ps = this.ParamSamples;
-%             numparams = this.System.ParamCount;
-%             numsamples = size(ps,2);
-%             paridx = 1:numparams;
-%             
-%             % Sort values of current param
-%             [tmp, idx] = sort(ps(pidx,:));
-%             % Get index of lowest value to have something to start
-%             % with
-%             first = idx(1);
-%             % figure out the leftover indices
-%             restpar = paridx;
-%             restpar(pidx) = [];
-%             
-%             % get comparing vector (whole column but the current
-%             % parameter's index)
-%             cmp = ps(restpar,first);
-%             % find columns that are equal to cmp in the whole
-%             % column but at the current param's index
-%             all = sum(repmat(cmp,1,numsamples) == ps(restpar,:),1) == (numparams-1);
-%             
-%             vals = sort(unique(ps(pidx,all)));
-%             repmu = ps(:,first);
-%         end
+        function set.ErrorEstimator(this, value)
+            if ~isa(value,'error.BaseEstimator')
+                error('The ErrorEstimator property must be a subclass of the error.BaseEstimator class.');
+            end
+            msg = value.validModelForEstimator(this);
+            if ~isempty(msg)
+                error(msg);
+            end
+            this.ErrorEstimator = value;
+        end
     end
+    
+    %         function [vals, repmu] = getSamplesForParam(this, pidx)
+    %             % Gets the samples from the ParamSamples that are equal in all
+    %             % other params but the one given through pidx.
+    %             %
+    %             % Return values:
+    %             % vals: The sorted, unique values for parameter pidx in
+    %             % ParamSamples.
+    %             % repmu: The representative parameter vector that contains the
+    %             % param values for all others but the pidx' parameter.
+    %             %
+    %             % Note: Since there may be more values of the pidx' param but
+    %             % some having different parameter vectors here the vector of
+    %             % the first smallest pidx' param is taken as representative
+    %             % vector.
+    %             ps = this.ParamSamples;
+    %             numparams = this.System.ParamCount;
+    %             numsamples = size(ps,2);
+    %             paridx = 1:numparams;
+    %
+    %             % Sort values of current param
+    %             [tmp, idx] = sort(ps(pidx,:));
+    %             % Get index of lowest value to have something to start
+    %             % with
+    %             first = idx(1);
+    %             % figure out the leftover indices
+    %             restpar = paridx;
+    %             restpar(pidx) = [];
+    %
+    %             % get comparing vector (whole column but the current
+    %             % parameter's index)
+    %             cmp = ps(restpar,first);
+    %             % find columns that are equal to cmp in the whole
+    %             % column but at the current param's index
+    %             all = sum(repmat(cmp,1,numsamples) == ps(restpar,:),1) == (numparams-1);
+    %
+    %             vals = sort(unique(ps(pidx,all)));
+    %             repmu = ps(:,first);
+    %         end
+    
     
     %% Save & Load
     %     methods

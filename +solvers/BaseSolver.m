@@ -26,9 +26,10 @@ classdef BaseSolver < handle
     end
     
     methods(Access=protected)
-        function [times, tout, outputtimes] = getCompTimes(this, t, dt)
+        function [times, tout, outputtimes] = getCompTimes(this, t)
             % Computes the computation and effective output times for a
             % given input time vector t and the desired timestep dt.
+            % This method returns the given values of MaxStep is empty.
             %
             % Parameters:
             % t: The desired times t. Either a two element vector
@@ -43,25 +44,54 @@ classdef BaseSolver < handle
             % outputtimes: A logical row vector of the size of times that
             % indicates which element from the times vector also belongs to
             % the tout vector.
+            %
+            % @todo InitialStep mit einbauen!
             
-            if numel(t) == 2
-                times = t(1):dt:t(2);
-                outputtimes = true(1,length(times));
-                tout = times;
-            else
-                % Else: Mix together full detailed times with
-                full = t(1):dt:t(end);
-                times = union(t,full);
-                outputtimes = false(1,length(times));
-                [xx,tidx,xxx] = intersect(times,t);%#ok
-                outputtimes(tidx) = true;
-                tout = t;
+            % Validity checks
+            if any(abs(sort(t) - t) > 100*eps)
+                error('The time vector must be strictly monotoneously increasing.');
+            end
+            
+            % Default values
+            outputtimes = true(1,length(t));
+            times = t;
+            tout = t;
+            if ~isempty(this.MaxStep)
+                if numel(t) == 2
+                    times = t(1):this.MaxStep:t(2);
+                    outputtimes = true(1,length(times));
+                    tout = times;
+                else    
+                    % Find refinement indices
+                    idx = fliplr(find(abs(t(2:end)-t(1:end-1)-this.MaxStep)>100*eps));
+                    % If any "gaps" are present, fill up with MaxStep's
+                    if ~isempty(idx)
+                        for i=idx
+                            add = times(i):this.MaxStep:times(i+1);
+                            times = [times(1:i-1) add times(i+1:end)];
+                            outputtimes = [outputtimes(1:i) false(1,length(add)-1) outputtimes(i+1:end)];
+                        end
+                        tout = times(outputtimes);
+                        if numel(tout) ~= numel(t) || any(abs(tout - t) > 100*eps)
+                            error('Unexpected error: Computed time vector differs from the desired one.');
+                            t%#ok
+                            tout
+                        end
+                    end
+                end
             end
         end
     end
     
     methods(Abstract)
         % The abstract solve function for the ODE solver.
+        %
+        % Parameters:
+        % t: Either a two dimensional vector with t(1) < t(2) specifiying
+        % the start and end time, or a greater or equal to three
+        % dimensional, strictly monotoneously increasing vector explicitly
+        % setting the desired output times. Depending on the MaxStep
+        % property, the solver can work with a finer time step internally.
         [t,y] = solve(odefun, t, x0, opts);
     end
     
@@ -88,9 +118,8 @@ classdef BaseSolver < handle
     
     methods(Static)
         
-        function res = testSolverSpeedTest
-            m = models.synth.KernelTest1(1400);
-            
+        function res = test_SolverSpeedTest
+            m = models.synth.KernelTest(200);
             perform(solvers.MLWrapper(@ode23));
             perform(solvers.MLWrapper(@ode45));
             perform(solvers.ExplEuler);
@@ -103,6 +132,7 @@ classdef BaseSolver < handle
                 tic;
                 m.offlineGenerations;
                 r = m.buildReducedModel;
+                r.ErrorEstimator.Iterations = 0;
                 t = toc;
                 fprintf('Using solver %s\n',m.ODESolver.Name);
                 fprintf('Offline generations time: %f\n',t);

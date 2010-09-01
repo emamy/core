@@ -8,6 +8,8 @@ classdef Krylov < spacereduction.BaseSpaceReducer
     methods
         function [V,W] = generateReducedSpace(this, model)
             
+            model.System.f.evaluate(x,t,mu)
+            
         end
     end
     

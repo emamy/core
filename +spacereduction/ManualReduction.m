@@ -1,7 +1,7 @@
 classdef ManualReduction < spacereduction.BaseSpaceReducer
     % Allows manual selection of the projection matrices `V` and `W`.
     
-    properties(Access=private);
+    properties(Access=private)
         V;
         W;
     end

@@ -24,6 +24,15 @@ classdef BaseFullModel < models.BaseModel
         % See also: ModelData
         Data;
         
+        % The general.PODFixspace instance used to compute the new snapshot
+        % vectors for a given trajectory.
+        %
+        % The default is to use the mode 'abs' and value '1' for a new
+        % snaphsot from a given trajectory.
+        %
+        % See also: general.POD general.Orthonormalizer
+        PODFix;
+        
         % The reduction algorithm for subspaces
         %
         % See also: spacereduction BaseSpaceReducer
@@ -52,6 +61,10 @@ classdef BaseFullModel < models.BaseModel
             % Setup default values for the full model's components
             this.Sampler = sampling.RandomSampler;
             this.SpaceReducer = spacereduction.PODReducer;
+            p = general.PODFixspace;
+            p.Mode = 'abs';
+            p.Value = 1;
+            this.PODFix = p;
             this.Approx = approx.CompWiseSVR;
             this.Data = models.ModelData;
         end
@@ -67,62 +80,100 @@ classdef BaseFullModel < models.BaseModel
         
         function off2_generateSnapshots(this)
             % Offline phase 2: Snapshot generation.
+            %
+            % @todo Optimize snapshot array augmentation by preallocation
+            % (later will be some storage class)
             
-            ps = this.Data.ParamSamples;
-            
-            % Need minimum "one" for loops.
-            num_samples = max(1,this.Data.SampleCount);
-            num_inputs = max(1,this.System.InputCount);
-            num_times = length(this.Times);
+            num_samples = this.Data.SampleCount;
+            num_inputs = this.System.InputCount;
             
             % Compute system dimension using x0.
             mu = [];
-            if this.System.ParamCount > 0
+            if num_samples > 0
                 mu = zeros(this.System.ParamCount,1);
             end
             dims = length(this.System.x0(mu));
             
-            % Initialize snapshot array
-            snapshots = zeros(dims, length(this.Times), num_samples, num_inputs);
-            f_val = zeros(dims, length(this.Times), num_samples, num_inputs);
+            if num_samples == 0 && ~(strcmp(this.PODFix.Mode,'abs') && this.PODFix.Value == length(this.Times))
+                disp('Note: No parameters are used but PODFixspace may only return one snapshot. Using mode ''abs'' and value=length(model.Times)');
+                this.PODFix.Mode = 'abs';
+                this.PODFix.Value = length(this.Times);
+            end
+            
+            % Dim 1: [t, x]
+            % Dim 2: Basis vectors per parameter sample (1 default)
+            % Dim 3: Index of Parameter sample used
+            % Dim 4: Index of Input function used
+            snapshots = zeros(dims+1, 1, num_samples, num_inputs);
+            % Dim 1: x
+            % Dim 2: Basis vectors per parameter sample (1 default)
+            % Dim 3: Index of Parameter sample used
+            % Dim 4: Index of Input function used
+            f_val = zeros(dims, 1, num_samples, num_inputs);
             
             try
                 wh = waitbar(0,'Initializing snapshot generation...');
-                cnt = 1;
+                cnt = 0;
+                fixvec = zeros(dims+1,0);
                 % Iterate through all input functions
-                for inidx = 1:num_inputs
+                for inidx = 1:max(1,num_inputs)
                     % Iterate through all parameter samples
-                    for pidx = 1:num_samples
+                    for pidx = 1:max(1,num_samples)
                         
                         % Check for no parameters
-                        if isempty(ps)
+                        if num_samples == 0
                             mu = [];
+                            munum = 0;
                         else
-                            mu = ps(:,pidx);
+                            mu = this.Data.ParamSamples(:,pidx);
+                            munum = pidx;
                         end
                         % Check for no inputs
-                        if this.System.InputCount == 0
+                        if num_inputs == 0
                             inputidx = [];
+                            innum = 0;
                         else
                             inputidx = inidx;
+                            innum = inidx;
                         end
                         
                         % Display
-                        perc = cnt/(num_inputs*num_samples);
+                        perc = cnt/((num_inputs+1)*(num_samples+1));
                         waitbar(perc,wh,sprintf('Generating snapshots ... %2.0f %%',perc*100));
-                        cnt=cnt+1;
+                        
                         
                         %% Get ODE function (general function)
-                        [t,x] = this.computeTrajectory(mu, inputidx);
+                        [t, x] = this.computeTrajectory(mu, inputidx);
                         
-                        % Assign snapshot value
-                        snapshots(:,:,pidx,inidx) = x;
+                        newx = this.PODFix.computePODFixspace([t; x], fixvec);
+                        
+                        % Catch special case where no parameters or inputs
+                        % are used
+                        if num_samples + num_inputs == 0
+                            % If the PODFixspace returns just one
+                            % dimension, approximation etc. does not make
+                            % sense.
+                            if size(newx,2) == 1
+                            elseif size(newx,2) < .4*numel(this.Times)
+                                warning('');
+                            end
+                        end
+                        
+                        fixvec = [fixvec newx];%#ok
+                        
+                        newlen = size(newx,2);
+                        muIndices = ones(1,newlen)*munum;
+                        inIndices = ones(1,newlen)*innum;
+                        % Assign snapshot values
+                        snapshots = [snapshots [muIndices; inIndices; newx]];%#ok
                         
                         %% Evaluate f at those points
-                        for tidx=1:num_times
-                            fx = this.System.f.evaluate(x(:,tidx),this.Times(tidx),mu);
-                            f_val(:,tidx,pidx,inidx) = fx;
+                        for sidx=1:newlen
+                            fx = this.System.f.evaluate(newx(2:end,sidx),newx(1,sidx),mu);
+                            f_val(:,sidx,pidx,inidx) = fx;
                         end
+                        
+                        cnt=cnt+1;
                     end
                 end
                 close(wh);
@@ -198,9 +249,8 @@ classdef BaseFullModel < models.BaseModel
             % See also: offlineGenerations
             % @docupdate
             
-            
             if this.TimeDirty 
-                error(['The T or dt parameters have been changed since the last offline generations.';...
+                warning(['The T or dt parameters have been changed since the last offline generations.\n'...
                        'A call to offlineGenerations is required.']);
             elseif isempty(this.Data) || isempty(this.Data.Snapshots)
                 error('No Snapshot data available. Forgot to call offlineGenerations before?');
@@ -218,16 +268,20 @@ classdef BaseFullModel < models.BaseModel
             % none.
             %
             % See also: models.BaseModel#computeTrajectory(mu, inputidx);
+            %
+            % @todo Possibly save the later computed trajectories in the
+            % ModelData class?
             
-            if ~isempty(this.Data)
+            if ~isempty(this.Data) && ~isempty(this.Data.Snapshots)
                 x = this.Data.getTrajectory(mu,inputidx);
                 if ~isempty(x)
                     t = this.Times;
                     return;
                 end
             end
-            [t,x] = computeTrajectory@models.BaseModel(mu, inputidx);
-            % @todo
+            [t,x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
+            
+            % HERE: Save new trajectory in ModelData!
         end
         
     end
@@ -472,6 +526,10 @@ classdef BaseFullModel < models.BaseModel
             s.f = dscomponents.PointerCoreFun(ts.flin);
             s.x0 = ts.x0;
             s.C = dscomponents.PointerOutputConv(@(t,mu)t,true);
+            for idx = 1:length(ts.params)
+                p = ts.params(idx);
+                s.addParam(p.Name, [p.MinVal p.MaxVal], p.Desired);
+            end
             m.simulate();
             m.offlineGenerations;
             r = m.buildReducedModel;

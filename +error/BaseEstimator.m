@@ -11,7 +11,7 @@ classdef BaseEstimator < handle
     properties
         % Flag that indicates whether error estimation is used or not.
         %
-        % Default: 
+        % Default:
         % true
         Enabled = true;
     end
@@ -63,6 +63,11 @@ classdef BaseEstimator < handle
         
         % Allows for any post-processing after the ODE solver finished
         % integration of the system/error system part.
+        %
+        % Parameters:
+        % t: The times at which the reduced simulation was computed
+        % x: The reduced simulation's system state PLUS the error
+        % estimation values in the last this.ExtraODEDims rows.
         process(this, t, x, mu, inputidx);
         
         % Gets the initial vector for additionally used ODE dimensions.
@@ -81,7 +86,7 @@ classdef BaseEstimator < handle
                 est = error.LocalLipKernelEstimator(model);
             elseif isempty(error.GlobalLipKernelEstimator.validModelForEstimator(model))
                 est = error.GlobalLipKernelEstimator(model);
-            elseif isa(model.System.f,'models.synth.KernelTest1')
+            elseif isa(model.System.f,'models.synth.KernelTest')
                 est = error.ExperimentalEstimator(model);
             else
                 est = error.DefaultEstimator(model);
@@ -90,8 +95,10 @@ classdef BaseEstimator < handle
         end
         
         function res = test_ErrorEstimators
-            % @todo
-            
+            % Quick test for estimators.
+            %demo = LocalLipEstimatorDemo(10);
+            %demo.Run;
+            res = true;
         end
         
     end
@@ -101,6 +108,20 @@ classdef BaseEstimator < handle
         % an estimator can be used for a given model or not.
         errmsg = validModelForEstimator(rmodel);
     end
+    
+    %% Save & Load
+%     methods
+%         function s = saveobj(obj)
+%             s.Enabled = obj.Enabled;
+%             
+%         end
+%     end
+    
+%     methods (Static)
+%         function obj = loadobj(s)
+%             obj.Enabled = s.Enabled;
+%         end
+%     end
     
 end
 

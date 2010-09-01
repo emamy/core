@@ -26,5 +26,15 @@
 % ein hinweis + link auf originalmethode..
 % @todo \@default-Tag für properties einführen
 % @todo mtoc.conf -> möglichkeit für add(returns) wie add(params)?
+% @todo Bug: kommentare zwischen zwei funktionen in method-blöcken geben
+% nen parse error!
+% @todo Scheinbar kann der parser zwar mehrfachvererbung, aber nur 2
+% klassen (ein "&" zeichen). Das können aber mehrere sein!
+% dinge wie "properties(Access=private);" mit ";" am ende geben nen parse
+% error; matlab selbst juckts aber nicht. vielleicht einen hinweis einbauen
+% oder am besten gleich ignorieren?
+% @todo thismatlabtypesubstitute -> wird falls vorhanden wohl als typ für
+% alle parameter angenommen! einfacher: den parameter einfach verschwinden
+% lassen.
 
 somevar = 1;

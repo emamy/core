@@ -24,6 +24,15 @@ classdef BaseFullModel < models.BaseModel
         % See also: ModelData
         Data;
         
+        % The general.PODFixspace instance used to compute the new snapshot
+        % vectors for a given trajectory.
+        %
+        % The default is to use the mode 'abs' and value '1' for a new
+        % snaphsot from a given trajectory.
+        %
+        % See also: general.POD general.Orthonormalizer
+        PODFix;
+        
         % The reduction algorithm for subspaces
         %
         % See also: spacereduction BaseSpaceReducer
@@ -52,8 +61,13 @@ classdef BaseFullModel < models.BaseModel
             % Setup default values for the full model's components
             this.Sampler = sampling.RandomSampler;
             this.SpaceReducer = spacereduction.PODReducer;
+            p = general.PODFixspace;
+            p.Mode = 'abs';
+            p.Value = 1;
+            this.PODFix = p;
             this.Approx = approx.CompWiseSVR;
             this.Data = models.ModelData;
+            this.System = models.BaseDynSystem;
         end
         
         function off1_generateSamples(this)
@@ -67,62 +81,92 @@ classdef BaseFullModel < models.BaseModel
         
         function off2_generateSnapshots(this)
             % Offline phase 2: Snapshot generation.
+            %
+            % @todo Optimize snapshot array augmentation by preallocation
+            % (later will be some storage class)
             
-            ps = this.Data.ParamSamples;
-            
-            % Need minimum "one" for loops.
-            num_samples = max(1,this.Data.SampleCount);
-            num_inputs = max(1,this.System.InputCount);
-            num_times = length(this.Times);
+            num_samples = this.Data.SampleCount;
+            num_inputs = this.System.InputCount;
             
             % Compute system dimension using x0.
             mu = [];
-            if this.System.ParamCount > 0
+            if num_samples > 0
                 mu = zeros(this.System.ParamCount,1);
             end
             dims = length(this.System.x0(mu));
             
-            % Initialize snapshot array
-            snapshots = zeros(dims, length(this.Times), num_samples, num_inputs);
-            f_val = zeros(dims, length(this.Times), num_samples, num_inputs);
+            snapshots = zeros(dims+3,0);
+            f_vals = zeros(dims,0);
             
             try
                 wh = waitbar(0,'Initializing snapshot generation...');
-                cnt = 1;
+                cnt = 0;
+                fixvec = zeros(dims+1,0);
+                
+                % Assume no parameters or inputs
+                mu = [];
+                munum = 0;
+                inputidx = [];
+                innum = 0;
+                
                 % Iterate through all input functions
-                for inidx = 1:num_inputs
+                for inidx = 1:max(1,num_inputs)
                     % Iterate through all parameter samples
-                    for pidx = 1:num_samples
-                        
-                        % Check for no parameters
-                        if isempty(ps)
-                            mu = [];
-                        else
-                            mu = ps(:,pidx);
-                        end
-                        % Check for no inputs
-                        if this.System.InputCount == 0
-                            inputidx = [];
-                        else
-                            inputidx = inidx;
-                        end
+                    for pidx = 1:max(1,num_samples)
                         
                         % Display
-                        perc = cnt/(num_inputs*num_samples);
+                        perc = cnt/((num_inputs+1)*(num_samples+1));
                         waitbar(perc,wh,sprintf('Generating snapshots ... %2.0f %%',perc*100));
-                        cnt=cnt+1;
                         
-                        %% Get ODE function (general function)
-                        [t,x] = this.computeTrajectory(mu, inputidx);
+                        % Check for parameters
+                        if num_samples > 0
+                            mu = this.Data.ParamSamples(:,pidx);
+                            munum = pidx;
+                        end
+                        % Check for inputs
+                        if num_inputs > 0
+                            inputidx = inidx;
+                            innum = inidx;
+                        end
                         
-                        % Assign snapshot value
-                        snapshots(:,:,pidx,inidx) = x;
+                        % Get trajectory
+                        [t, x] = this.computeTrajectory(mu, inputidx);
+                        
+                        % Compute basis extension
+                        newx = this.PODFix.computePODFixspace([t; x], fixvec);
+                        
+                        % Catch special case where no parameters or inputs
+                        % are used
+                        if num_samples + num_inputs <= 1
+                            % If the PODFixspace returns just one
+                            % dimension, approximation etc. does not make
+                            % sense.
+                            if size(newx,2) == 1
+                                maxlen = min(size(x,1)+1,length(this.Times));
+                                fprintf('Note: No parameters or inputs are used and PODFixspace generated just one snapshot.\n Changing PODFixspace and recomputing using Mode=''abs'' and Value=%d\n',maxlen);
+                                this.PODFix.Mode = 'abs';
+                                this.PODFix.Value = maxlen;
+                                newx = this.PODFix.computePODFixspace([t; x], fixvec);
+                            elseif size(newx,2) < .4*numel(this.Times)
+                                warning('BaseFullModel:SmallBase','Snapshot base is very small, refine time steps or adjust PODFixspace.');
+                            end
+                        end
+                        
+                        fixvec = [fixvec newx];%#ok
+                        
+                        newlen = size(newx,2);
+                        % Assign snapshot values
+                        snapshots = [snapshots [ones(1,newlen)*munum;...
+                                                ones(1,newlen)*innum;...
+                                                newx]];%#ok
                         
                         %% Evaluate f at those points
-                        for tidx=1:num_times
-                            fx = this.System.f.evaluate(x(:,tidx),this.Times(tidx),mu);
-                            f_val(:,tidx,pidx,inidx) = fx;
+                        for sidx=1:newlen
+                            fx = this.System.f.evaluate(newx(2:end,sidx),newx(1,sidx),mu);
+                            f_vals(:,end+1) = fx;%#ok
                         end
+                        
+                        cnt=cnt+1;
                     end
                 end
                 close(wh);
@@ -132,7 +176,7 @@ classdef BaseFullModel < models.BaseModel
             end
             
             this.Data.Snapshots = snapshots;
-            this.Data.fValues = f_val;
+            this.Data.fValues = f_vals;
         end
         
         function off3_generateReducedSpace(this)
@@ -199,39 +243,41 @@ classdef BaseFullModel < models.BaseModel
             % @docupdate
             
             if this.TimeDirty 
-                error(['The T or dt parameters have been changed since the last offline generations.\n'...
+                warning(['The T or dt parameters have been changed since the last offline generations.\n'...
                        'A call to offlineGenerations is required.']);
             elseif isempty(this.Data) || isempty(this.Data.Snapshots)
                 error('No Snapshot data available. Forgot to call offlineGenerations before?');
             end
             reduced = models.ReducedModel(this);
         end
-        
-        function [t,x] = computeTrajectory(this, mu, inputidx)
-            % Overrides the base method in BaseModel. For speed reasons any
-            % already computed trajectories are returned without being 
-            %
-            % Parameters:
-            % mu: The parameter `\mu` to use. Set [] for none.
-            % inputidx: The input function `u(t)` index to use. Set [] for
-            % none.
-            %
-            % See also: models.BaseModel#computeTrajectory(mu, inputidx);
-            %
-            % @todo Possibly save the later computed trajectories in the
-            % ModelData class?
-            
-            if ~isempty(this.Data) && ~isempty(this.Data.Snapshots)
-                x = this.Data.getTrajectory(mu,inputidx);
-                if ~isempty(x)
-                    t = this.Times;
-                    return;
-                end
-            end
-            [t,x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
-            
-            % HERE: Save new trajectory in ModelData!
-        end
+
+        % Not longer used as complete trajectories aren't stored in the
+        % Data.Snapshot array 
+%         function [t,x] = computeTrajectory(this, mu, inputidx)
+%             % Overrides the base method in BaseModel. For speed reasons any
+%             % already computed trajectories are returned without being 
+%             %
+%             % Parameters:
+%             % mu: The parameter `\mu` to use. Set [] for none.
+%             % inputidx: The input function `u(t)` index to use. Set [] for
+%             % none.
+%             %
+%             % See also: models.BaseModel#computeTrajectory(mu, inputidx);
+%             %
+%             % @todo Possibly save the later computed trajectories in the
+%             % ModelData class?
+%             
+%             if ~isempty(this.Data) && ~isempty(this.Data.Snapshots)
+%                 x = this.Data.getTrajectory(mu,inputidx);
+%                 if ~isempty(x)
+%                     t = this.Times;
+%                     return;
+%                 end
+%             end
+%             [t,x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
+%             
+%             % HERE: Save new trajectory in ModelData!
+%         end
         
     end
     

@@ -139,8 +139,9 @@ classdef ScalarSVR < handle
                     val = fxi' - ai'*this.K(svidx,:);
                     [tmp,i] = max(abs(val));
                     b = val(i);
-                    warning('KerMor:svr:noSkippedSupport',['No skipped source'...
-                        'vectors found. Setting b to max abs distance (=%f).'],b);
+                    fprintf('ScalarSVR warning: no skipped source vectors found.\nSetting b to max abs distance (=%f)\n',b);
+                    %warning('KerMor:svr:noSkippedSupport',['No skipped source'...
+                    %    'vectors found. Setting b to max abs distance (=%f).'],b);
                 end
             else
                 % Exact computation of b is possible due to the existance of an alpha_i
