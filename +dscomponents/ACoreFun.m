@@ -11,18 +11,25 @@ classdef ACoreFun < dscomponents.IProjectable & ICloneable
         CustomProjection = false;
     end
     
-    properties(Access=private)
+    properties(SetAccess=private, GetAccess=protected)
         V;
         W;
     end
 
     methods
         
-        function projected = project(this, V, W)
-            % @todo: check if both matrices are set!
-            projected = this.clone;
-            projected.V = V;
-            projected.W = W;
+        function target = project(this, V, W, target)%#ok
+            % Sets the protected V,W matrices that can be utilized on core
+            % function evaluations after projection.
+%             if nargin == 4
+%                 projected = target;
+%             else
+%                 projected = this.clone;
+%             end
+%             projected.V = V;
+%             projected.W = W;
+            target.V = V;
+            target.W = W;
         end
         
         function fx = evaluate(this, x, t, mu)

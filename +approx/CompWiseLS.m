@@ -42,8 +42,16 @@ classdef CompWiseLS < approx.BaseCompWiseKernelApprox
             % See also: ICloneable
             
             target = approx.CompWiseLS;
+            
             % Copy local properties
             target.Lambda = this.Lambda;
+            % Clone KernelLS instance
+            ls = general.regression.KernelLS;
+            ls.lambda = this.LS.lambda;
+            ls.CGMaxIt = this.LS.CGMaxIt;
+            ls.CGTol = this.LS.CGTol;
+            ls.MaxStraightInvDim = this.LS.MaxStraightInvDim;
+            target.LS = ls;
             
             % Call superclass clone
             target = clone@approx.BaseCompWiseKernelApprox(this, target);
@@ -67,8 +75,8 @@ classdef CompWiseLS < approx.BaseCompWiseKernelApprox
             m = models.BaseFullModel;
             m.T = size(x,2)-1;
             m.dt = 1;
-            m.Data.Snapshots = [zeros(2,size(x,2)); m.Times; x];
-            m.Data.fValues = fxi;
+            m.Data.ApproxTrainData = [zeros(2,size(x,2)); m.Times; x];
+            m.Data.ApproxfValues = fxi;
             a = approx.CompWiseLS;
             a.Lambda = .1;
             a.TimeKernel = kernels.LinearKernel;
@@ -107,8 +115,8 @@ classdef CompWiseLS < approx.BaseCompWiseKernelApprox
             m = models.BaseFullModel;
             m.T = length(x)-1;
             m.dt = 1;
-            m.Data.Snapshots = [zeros(2,size(x,2)); m.Times; x];
-            m.Data.fValues = fxi;
+            m.Data.ApproxTrainData = [zeros(2,size(x,2)); m.Times; x];
+            m.Data.ApproxfValues = fxi;
             a = approx.CompWiseLS;
             a.Lambda = 1;
             

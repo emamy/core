@@ -212,37 +212,72 @@ classdef ReducedModel < models.BaseModel
             legend('True error','Estimated error');%,'Location','Best');
         end
         
-%         function compareCoreVsApprox(this)
-%             num = 10;
-%             d = this.FullModel.Data;
-%             
-%             sn = d.PlainSnapshotArray;
-%             xi = sn(2:end,:);
-%             ti = sn(1,:);
-%             
-%             idx = reshape(repmat(1:size(d.ParamSamples,2),size(d.Snapshots,2),1),1,[]);
-%             mui = d.ParamSamples(:,idx);
-%             
-%             afx = this.FullModel.Approx.evaluate(xi,ti,mui);
-%             %afx = afx(1:num,:);
-%             len = size(afx,2);
-%             for idx = 1:num
-%                 %sn(idx,:) = %reshape(this.FullModel.Data.Snapshots(idx,:,:,:),1,[]);
-%                 %fx(idx,:) = reshape(d.fValues(idx,:,:,:),1,[]);
-%                 fx = reshape(d.fValues(idx,:,:,:),1,[]);
-%                 plot(1:len,fx,1:len,afx(idx,:));
-%                 pause;
-%             end
-%             
-%             %plot(1:len,fx,1:len,afx,'--');
-%             
+        function compareCoreVsApprox(this)
+            num = 10;
+            d = this.FullModel.Data;
+            
+            % Get data
+            sn = d.ApproxTrainData;
+            
+            factor = 4;
+            % Extend data
+            nz = factor*size(sn,2);
+            oldidx = 1:factor:nz;
+            
+            xi = sn(4:end,:);
+            XI(:,oldidx) = xi;
+            di = (xi(:,2:end)-xi(:,1:end-1))/factor;
+            di(:,end+1) = 0;
+            ti = sn(3,:);
+            TI(oldidx) = ti;
+            dti = (ti(2:end)-ti(1:end-1))/factor;
+            dti(end+1) = 0;
+            mui(oldidx) = sn(1,:);
+            %fx = zeros(size(d.ApproxfValues,1),size(d.ApproxfValues,2)*factor);
+            fx(:,oldidx) = d.ApproxfValues;
+            for fac = 1:factor-1
+                newidx = oldidx+fac;
+                % xi
+                XI(:,newidx) = xi+di*(fac/(factor-1));
+                % ti
+                TI(newidx) = ti+dti*(fac/(factor-1));
+                % mui
+                mui(newidx) = sn(1,:);
+                
+                % Evaluate original function at middle points
+                for idx=newidx
+                    fx(:,idx) = this.FullModel.System.f.evaluate(XI(:,idx),TI(idx),d.getParams(mui(idx)));
+                end
+            end
+            MUI = d.getParams(mui);
+            
+            afx = this.FullModel.Approx.evaluate(XI,TI,MUI);
+            
+            err = sqrt(sum((fx-afx).^2));
+            total_err = sqrt(sum(err.^2))
+            
+            % Plotting
+            len = size(afx,2);
+            muvals = (mui / max(mui));
+            for idx = 1:num
+                fxp = fx(idx,:);
+                afxp = afx(idx,:);
+                subplot(1,2,1);
+                plot(1:len,fxp,'r',1:len,afxp,'b--',1:len,muvals*(max(fxp)-min(fxp)),'green',[oldidx; oldidx + eps],[0 0],'black+');
+                subplot(1,2,2);
+                plot(1:len,err,'r',1:len,muvals*(max(err)-min(err)),'green',[oldidx; oldidx + eps],[0 0],'black+');
+                pause;
+            end
+            
+            %plot(1:len,fx,1:len,afx,'--');
+            
 %             arfx = this.System.f.evaluate(d.V'*xi,ti,mui);
-%             rfx = d.V'*d.fValues(:,:);
+%             rfx = d.V'*d.ApproxfValues(:,:);
 %             for idx = 1:num
 %                 plot(1:len,rfx(idx,:),1:len,arfx(idx,:));
 %                 pause;
 %             end
-%         end
+        end
         
         function save(this, matfile)
             % Saves the reduced model to disk.

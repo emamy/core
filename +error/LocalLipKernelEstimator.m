@@ -220,7 +220,11 @@ classdef LocalLipKernelEstimator < error.BaseEstimator
             % Iteration stuff
             if this.Iterations > 0
                 this.times(end+1) = t(end);
-                this.performIterations(t, mu);
+                if this.UseTimeDiscreteC
+                    warning('error:LocalLipErrorEstimator','Using Iterations together with TimeDiscreteC will yield no improvement. Not performing iterations.');
+                else
+                    this.performIterations(t, mu);
+                end
             end
         end
         

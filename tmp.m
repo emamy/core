@@ -74,7 +74,7 @@ function tmp
 kNum = 4;
 dt = .2;
 area = [-10 10];
-gamma = 4;
+gamma = 5;
 epsi = .05;
 rnd = false;
 % rnd = true;
@@ -100,14 +100,12 @@ if rnd
     %c = (rand(1,kNum)-.5)*5;
     c = (rand(1,kNum))*5;
 else
-    c = [-3 2 3 2 15];
+    c = [1 2 3 2 15];
     c = c(1:kNum);
 end
 
 %% Automatic
 k = kernels.GaussKernel(gamma);
-% Gauss-Abhängig!
-nullrad = sqrt(-gamma*log(epsi));
 
 %r = area(2)-area(1);
 range = area(1):dt:area(2);
@@ -124,11 +122,19 @@ Z = sum(vals,3);
 % Distance matrix
 D = getDistanceMat(xP,yP);
 % Set large distances to zero
-W = 1-D/nullrad;
-W(W<0)=0;
+
+nullrad = sqrt(-gamma*log(epsi./abs(c)));
+
+nullrad = repmat(nullrad,kNum,1);
+F = k.evaluateScalar(D);
+%W = D./nullrad;
+W = 1-D./nullrad;
+W(W<0)=epsi;
 nullrad
 D
 W
+F
+%W = ones(size(D));
 
 % Angle matrix
 %A = getAngleMat(xP,yP)
@@ -187,7 +193,7 @@ shading interp
 %grid off;
 hidden off;
 %lighting gouraud;
-colormap winter;
+colormap hot;
 axis equal;
 hold on;
 
@@ -227,13 +233,53 @@ updatePlot(xp,yp);
         hlp = Z(xi,yi) + sign(Z(xm,ym)-Z(xi,yi)) * estMax * dist;
         lineobj{end+1} = plot3([xp X(xm,ym)],[yp Y(xm,ym)], [Z(xi,yi) hlp],'r','LineWidth',2);
         
-        % Experiment 1
+        % Estimate function secants roughly
+        estbase = [xP; yP];
+        y = [xp; yp];
+        inner = di < k.x0;
+        theta = k.xR ./ di(inner);
+        t1 = repmat(theta,2,1);
+        yvec = repmat(y,1,size(estbase(:,inner),2));
+        estbase(:,inner) = (1-t1).*estbase(:,inner) + t1.*yvec;
+        fxi = c * k.evaluate(estbase,estbase)';
+        xisec = (fxi - k.evaluateScalar(norm(y))) ./  di
+        
         hlp = c .* lip;
         posi = max(hlp,0);
-        neg = min(hlp,0);
-        [maxp, idp] = max(posi);
-        [maxm, idm] = min(neg);
-        experi = maxp + abs(maxm);
+        [maxp, idp] = max(xisec);
+        neg = 0;
+        idm = 1;
+        %neg = min(hlp,0);
+        %[maxm, idm] = min(neg);
+        
+%         posidx = hlp >=0;
+%         negidx = hlp < 0;
+%         posnum = sum(posidx);
+%         negnum = sum(negidx);
+%         e1 = zeros(posnum,negnum);
+%         e2 = zeros(posnum,negnum);
+%         for pidx = 1:max(1,posnum)
+%             for nidx = 1:max(1,negnum)
+%                 e1(pidx,nidx) = sum( (posi .* F(pidx,:) + abs(neg) .* F(nidx,:)));
+%                 e2(pidx,nidx) = sum( (posi .* W(pidx,:) + abs(neg) .* W(nidx,:)));
+%             end
+%         end
+%          if all(e1(:) < abs(effMax))
+%             e1/abs(effMax)
+%             disp(round(e1/abs(effMax)*100));
+%             fprintf('e1 all too low: ');
+%             fprintf('%2.2f%%, ',round(e1/abs(effMax)*100));
+%             fprintf('\n');
+%          end
+%         if all(e2(:) < abs(effMax))
+              %disp(round(e2/abs(effMax)*100));
+%             fprintf('e2 all too low: ');
+%             fprintf('%2.2f%%, ',round(e2/abs(effMax)*100));
+%             fprintf('\n');
+%         end
+
+        %experi = maxp + abs(maxm);
+        experi = sum( (posi .* F(idp,:) + abs(neg) .* F(idm,:)));
         
         % Plot Exp1
         hlp = Z(xi,yi) + sign(Z(xm,ym)-Z(xi,yi)) * experi * dist;

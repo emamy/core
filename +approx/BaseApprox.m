@@ -1,11 +1,6 @@
 classdef BaseApprox < dscomponents.ACoreFun
     %BASEAPPROX Abstract base class for all core function approximations
     %
-    %   In the approximation context, the triple of x,t and mu is put
-    %   together to a column vector when evaluated. This central class
-    %   manages the combination/splitting process, no other subclass should
-    %   (have to) know about the actual combination choice.
-    %   See  evaluate and splitTripleVect for details.
     %
     % @author Daniel Wirtz @date 11.03.2010
     
@@ -13,7 +8,7 @@ classdef BaseApprox < dscomponents.ACoreFun
         function approximateCoreFun(this, model)
             
             % Load snapshots
-            sn = model.Data.Snapshots;
+            sn = model.Data.ApproxTrainData;
             
             % Compile necessary data
             xi = sn(4:end,:);
@@ -26,7 +21,7 @@ classdef BaseApprox < dscomponents.ACoreFun
             end
             
             % Call template method
-            this.gen_approximation_data(xi, ti, mui, model.Data.fValues);
+            this.gen_approximation_data(xi, ti, mui, model.Data.ApproxfValues);
         end
     end
     
@@ -60,7 +55,7 @@ classdef BaseApprox < dscomponents.ACoreFun
             fx = ts.fnlin(x,repmat(1:samples,ts.testdim,1));
             
             model = models.BaseFullModel;
-            model.Data.Snapshots = x;
+            model.Data.ProjTrainData = x;
             r = spacereduction.PODReducer;
             v = r.generateReducedSpace(model);
             

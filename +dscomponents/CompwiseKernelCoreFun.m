@@ -86,14 +86,15 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & dscomponents.IGlo
             % Create copy
             copy = this.clone;
             
+            % Call superclass project with new instance
+            copy = project@dscomponents.AKernelCoreFun(this, V, W, copy);
+            
             % Project coefficients & offsets
             copy.Ma = W' * this.Ma;
             if ~isempty(this.off)
                 copy.off = W' * this.off;
             end
             
-            % Call superclass project with new instance
-            copy = project@dscomponents.AKernelCoreFun(this, V, W, copy);
         end
     end
     

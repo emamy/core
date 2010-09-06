@@ -34,7 +34,9 @@ classdef ScalarSVR < handle
         
         % Minimum value for any alpha to be considered a support vector
         % coefficient
-        AlphaMinValue = 1e-10;
+        %
+        % Default: 10*eps
+        AlphaMinValue = 10*eps;
         
         % Maximum number of iterations for automatic b-computation in case
         % all alpha_i's are bounded by C/m
@@ -56,6 +58,15 @@ classdef ScalarSVR < handle
             % "Bugfix" for epsilons that are set larger than the range of
             % the function values to approximate.
             fxirange = max(fxi)-min(fxi);
+            
+            % Catch special case of zero function
+            if fxirange == 0
+                ai = 0;
+                b = 0;
+                svidx = 1;
+                return;
+            end
+            
             oldeps = [];
             if 2*this.eps >= fxirange
                 oldeps = this.eps;

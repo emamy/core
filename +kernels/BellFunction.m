@@ -10,13 +10,18 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
         NewtonTolerance = 1e-7;
     end
     
+    properties(Dependent)
+        % The maximum ("right") value for any `x_y`.
+        xR;
+    end
+    
     properties(Access=private)
         oldxfeat = [];
     end
     
-    %     properties(Dependent)
-    %         xR;
-    %     end
+    properties(Access=private, Transient)
+        priv_xr = [];
+    end
     
     methods
         
@@ -103,6 +108,14 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
                 ci(center) = abs(this.evaluateD1(xfeat(center)));
             end
         end
+        
+        function value = get.xR(this)
+            if isempty(this.priv_xr)
+                this.priv_xr = this.evaluateScalar(0)*this.x0 /...
+                    (this.evaluateScalar(0)-this.evaluateScalar(this.x0));
+            end
+            value = this.priv_xr;
+        end
     end
     
     methods(Access=private)
@@ -114,12 +127,11 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
             df = @(x)this.evaluateD1(x);
             ddf = @(x)this.evaluateD2(x);
             
-            xr = f(0)*this.x0 / (f(0)-f(this.x0));
             n0 = df(0) - (f(0)-f(y))./-y;
             nx0 = df(this.x0) - (f(this.x0)-f(y))./(this.x0-y);
             % Numerical fix: Sometimes y equals x0, in that case nx0 = 0.
             nx0(isnan(nx0)) = 0;
-            nxr = df(xr) - (f(xr)-f(y))./(xr-y);
+            nxr = df(this.xR) - (f(this.xR)-f(y))./(this.xR-y);
             
             p = this.PenaltyFactor;
             while any(abs(xtmp-x) > this.NewtonTolerance)
@@ -135,9 +147,9 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
                 dg = g;
                 
                 a = y <= this.x0;
-                std = (a & x < xr & x > this.x0) | (~a & 0 < x & x < this.x0);
+                std = (a & x < this.xR & x > this.x0) | (~a & 0 < x & x < this.x0);
                 p1 = a & x <= this.x0 | ~a & x > this.x0;
-                p4 = a & x >= xr;
+                p4 = a & x >= this.xR;
                 p2 = ~a & x <= 0;
                 
                 % Standard case
@@ -158,8 +170,8 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
                     dg(p2) = 2*p*x(p2);
                 end
                 if any(p4)
-                    g(p4) = nxr(p4) + p*(x(p4)-xr).^2;
-                    dg(p4) = 2*p*(x(p4)-xr);
+                    g(p4) = nxr(p4) + p*(x(p4)-this.xR).^2;
+                    dg(p4) = 2*p*(x(p4)-this.xR);
                 end
             end
             

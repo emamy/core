@@ -71,13 +71,13 @@
 function tmp
 
 %% Presettings
-kNum = 1;
+kNum = 4;
 dt = .2;
 area = [-10 10];
-gamma = 4;
-epsi = .005;
-% rnd = false;
-rnd = true;
+gamma = 5;
+epsi = .05;
+rnd = false;
+% rnd = true;
 xp = 3;
 yp = 2;
 
@@ -90,23 +90,22 @@ if rnd
         yP(cnt) = area(1) + rand * (area(2)-area(1));
     end
 else
-    xP = [0 .2 2 3 8];
-    yP = [-5 .2 1 -2 5];
+    xP = [0 .2 .2 .2 8];
+    yP = [-2.5 .2 1 .5 5];
     xP = xP(1:kNum);
     yP = yP(1:kNum);
 end
 % Coefficients
 if rnd
-    c = (rand(1,kNum)-.5)*5;
+    %c = (rand(1,kNum)-.5)*5;
+    c = (rand(1,kNum))*5;
 else
-    c = [-3 2 3 -3 15];
+    c = [1 2 3 2 15];
     c = c(1:kNum);
 end
 
 %% Automatic
 k = kernels.GaussKernel(gamma);
-% Gauss-Abhängig!
-nullrad = sqrt(-gamma*log(epsi));
 
 %r = area(2)-area(1);
 range = area(1):dt:area(2);
@@ -123,11 +122,18 @@ Z = sum(vals,3);
 % Distance matrix
 D = getDistanceMat(xP,yP);
 % Set large distances to zero
-W = 1-D/nullrad;
-W(W<0)=0;
+
+nullrad = sqrt(-gamma*log(epsi./abs(c)));
+
+nullrad = repmat(nullrad,kNum,1);
+F = k.evaluateScalar(D);
+%W = D./nullrad;
+W = 1-D./nullrad;
+W(W<0)=epsi;
 nullrad
 D
 W
+F
 
 % Angle matrix
 %A = getAngleMat(xP,yP)
@@ -186,7 +192,8 @@ shading interp
 %grid off;
 hidden off;
 %lighting gouraud;
-colormap winter;
+colormap hot;
+axis equal;
 hold on;
 
 lineobj = cell.empty(1,0);
@@ -225,21 +232,79 @@ updatePlot(xp,yp);
         hlp = Z(xi,yi) + sign(Z(xm,ym)-Z(xi,yi)) * estMax * dist;
         lineobj{end+1} = plot3([xp X(xm,ym)],[yp Y(xm,ym)], [Z(xi,yi) hlp],'r','LineWidth',2);
         
-        % Experiment 1
+        
         hlp = c .* lip;
         posi = max(hlp,0);
         neg = min(hlp,0);
         [maxp, idp] = max(posi);
         [maxm, idm] = min(neg);
-        experi = maxp + abs(maxm);
+        
+        k.x0
+        %xipos = sqrt(sum([xP; yP].^2));
+        XI = [xP; yP];
+        y = [xp; yp];
+        ynosq = y(1)^2+y(2)^2;
+        
+        fxi = c * k.evaluate(XI,XI)';
+        xisec = (fxi - k.evaluateScalar(sqrt(ynosq))) ./  di;
+        
+        % xR-Testing
+        XInosq = sum(XI.^2);
+        xisp = y' * XI;
+        p = -1-(ynosq-XInosq)./(2*xisp);
+        q = -(XInosq-k.xR)./(2*xisp);
+        theta(1,:) = -p/2 + sqrt(p.^2/4-q);
+        theta(2,:) = -p/2 - sqrt(p.^2/4-q);
+        t1 = repmat(theta(1,:),2,1);
+        t2 = repmat(theta(2,:),2,1);
+        yvec = repmat(y,1,size(XI,2));
+        xRi1 = (1-t1).*XI + t1.*yvec;
+        xRi2 = (1-t2).*XI + t2.*repmat(y,1,size(XI,2));
+        l1 = sqrt(sum(xRi1.^2))
+        l2 = sqrt(sum(xRi2.^2))
+        
+        
+%         posidx = hlp >=0;
+%         negidx = hlp < 0;
+%         posnum = sum(posidx);
+%         negnum = sum(negidx);
+%         e1 = zeros(posnum,negnum);
+%         e2 = zeros(posnum,negnum);
+%         for pidx = 1:max(1,posnum)
+%             for nidx = 1:max(1,negnum)
+%                 e1(pidx,nidx) = sum( (posi .* F(pidx,:) + abs(neg) .* F(nidx,:)));
+%                 e2(pidx,nidx) = sum( (posi .* W(pidx,:) + abs(neg) .* W(nidx,:)));
+%             end
+%         end
+%          if all(e1(:) < abs(effMax))
+%             e1/abs(effMax)
+%             disp(round(e1/abs(effMax)*100));
+%             fprintf('e1 all too low: ');
+%             fprintf('%2.2f%%, ',round(e1/abs(effMax)*100));
+%             fprintf('\n');
+%          end
+%         if all(e2(:) < abs(effMax))
+              %disp(round(e2/abs(effMax)*100));
+%             fprintf('e2 all too low: ');
+%             fprintf('%2.2f%%, ',round(e2/abs(effMax)*100));
+%             fprintf('\n');
+%         end
+        
+        
+        
+        
+        
+        
+        %experi = maxp + abs(maxm);
+        experi = sum( (posi .* F(idp,:) + abs(neg) .* F(idm,:)));
         
         % Plot Exp1
         hlp = Z(xi,yi) + sign(Z(xm,ym)-Z(xi,yi)) * experi * dist;
         lineobj{end+1} = plot3([xp X(xm,ym)],[yp Y(xm,ym)], [Z(xi,yi) hlp],'m','LineWidth',2);
         
         % Experiment 2
-        acoeff = 1-getAngle([xp; yp],xP,yP)/pi;
-        experi2 = sum( (posi .* W(idp,:) + abs(neg) .* W(idm,:)) .* acoeff');
+        %acoeff = 1-getAngle([xp; yp],xP,yP)/pi;
+        experi2 = sum( (posi .* W(idp,:) + abs(neg) .* W(idm,:)));
         
         % Plot Exp2
         hlp = Z(xi,yi) + sign(Z(xm,ym)-Z(xi,yi)) * experi2 * dist;
@@ -292,8 +357,12 @@ updatePlot(xp,yp);
     end
 
     function D = getDistanceMat(xP,yP)
-        [mx,my] = meshgrid(xP,yP);
-        D = sqrt((mx-mx').^2+(my-my').^2);
+        %[mx,my] = meshgrid(xP,yP);
+        %D = sqrt((mx-mx').^2+(my-my').^2);
+        vec = [xP;yP];
+        nsq = sum(vec.^2,1);
+        n = size(vec,2);
+        D = sqrt((ones(n,1)*nsq)' + ones(n,1)*nsq - 2*(vec'*vec));
     end
 
     function A = getAngleMat(xP,yP)

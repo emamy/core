@@ -6,21 +6,33 @@ classdef ModelData < handle
         % A Model's parameter samples
         ParamSamples = [];
         
-        % A Model's Snapshots. Each column represents a
-        % snapshot/basis/center vector composed of
+        % A model's snapshots for each parameter sample. This data is the
+        % base for subspace computation algorithms located in package
+        % spacereduction.
+        % Each column represents a snapshot vector composed of
         % - Dim1: The index of the parameter in ParamSamples used to
         % compute this snapshot. Zero if no parameters are used.
         % - Dim2: The index of the input function used to compute this
         % snapshot. Zero if no inputs are used.
         % - Dim3: The time `t` that corresponds to the snapshot's time.
         % - Dim4-end: The system's state variable for the snapshot.
-        Snapshots = [];
+        ProjTrainData = [];
+        
+        % Training data for the core function approximation.
+        % Each vector is composed of
+        % - Dim1: The index of the parameter in ParamSamples used to
+        % compute this vector. Zero if no parameters are used.
+        % - Dim2: The index of the input function used to compute this
+        % vector. Zero if no inputs are used.
+        % - Dim3: The time `t` that corresponds to `x(t)`.
+        % - Dim4-end: The system's state variable for the vector, namely
+        % `x(t)`.
+        ApproxTrainData = [];
         
         % A Model's f (nonlinearity) - values at the snapshot points
-        fValues = [];
+        ApproxfValues = [];
         
         % The projection matrix for the reduced subspace.
-        % All columns must have norm one.
         V;
         
         % The V-biorthogonal matrix for the reduced subspace (`W^tV=I_d`)
@@ -41,20 +53,32 @@ classdef ModelData < handle
     end
     
     methods
-        function idx = getSampleIndex(this, mu)
-            % Finds the column index of the given parameter vector `\mu`
-            % within the Data's ParamSamples matrix. Returns [] if `\mu` is
-            % not found.
-            % 
-            % See also: ModelData/getTrajectory
-            idx = [];
-            for n=1:this.SampleCount
-                if all(abs(this.ParamSamples(:,n) - mu) < sqrt(eps))
-                    idx = n;
-                    return;
-                end
+        
+        function mu = getParams(this, idx)
+            % Returns the parameter `mu` for the given indices idx. Returns
+            % [] if any index is invalid or idx==[].
+            mu = [];
+            if ~isempty(idx) && all(idx > 0) && all(idx < size(this.ParamSamples,2)+1)
+                mu = this.ParamSamples(:,idx);
+            else
+                %warning('models:ModelData','No parameter found for idx %d',idx);
             end
         end
+        
+%         function idx = getSampleIndex(this, mu)
+%             % Finds the column index of the given parameter vector `\mu`
+%             % within the Data's ParamSamples matrix. Returns [] if `\mu` is
+%             % not found.
+%             % 
+%             % See also: ModelData/getTrajectory
+%             idx = [];
+%             for n=1:this.SampleCount
+%                 if all(abs(this.ParamSamples(:,n) - mu) < sqrt(eps))
+%                     idx = n;
+%                     return;
+%                 end
+%             end
+%         end
         
         % Not longer required as trajectories aren't stored completely.
 %         function x = getTrajectory(this, mu, inputidx)
@@ -77,18 +101,18 @@ classdef ModelData < handle
     
     %% Getter & Setter
     methods
-        function set.ParamSamples(this, value)
-            % @todo Getter & setter / validation
-            this.ParamSamples = value;
-        end
-        
-        function set.Snapshots(this, value)
-            this.Snapshots = value;
-        end
-        
-        function set.fValues(this, value)
-            this.fValues = value;
-        end
+%         function set.ParamSamples(this, value)
+%             % @todo Getter & setter / validation
+%             this.ParamSamples = value;
+%         end
+%         
+%         function set.ProjTrainData(this, value)
+%             this.ProjTrainData = value;
+%         end
+%         
+%         function set.ApproxfValues(this, value)
+%             this.ApproxfValues = value;
+%         end
                 
         function value = get.SampleCount(this)
             value = size(this.ParamSamples,2);
@@ -106,16 +130,6 @@ classdef ModelData < handle
     %             end
     %             this.V = value;
     %         end
-    
-%     methods(Static)
-%         function res = test_getTrajectory
-%             
-%         end
-%         
-%         function res = test_getSampleIndex
-%             
-%         end
-%     end
     
 end
 

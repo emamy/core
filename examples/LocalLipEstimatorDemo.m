@@ -172,13 +172,16 @@ classdef LocalLipEstimatorDemo < handle
 %             errs(2,:) = tmp;
             
             %% Plot
+            singlefigures = true;
+            
             h = figure;
-            pos = get(0,'MonitorPosition');
-            set(h,'OuterPosition',pos(1,:));
             a = cell(1,num);
             [a{:}] = this.Est(:).Name;
-            
-            subplot(1,2,1);
+            if ~singlefigures
+                pos = get(0,'MonitorPosition');
+                set(h,'OuterPosition',pos(1,:));
+                subplot(1,2,1);
+            end
             ph = plot(this.Model.Times,errs);
             set(ph(1),'LineWidth',2);
             for idx=1:length(this.Est)
@@ -187,8 +190,15 @@ classdef LocalLipEstimatorDemo < handle
             xlabel('Time');
             ylabel('Error');
             legend(a,'Location','NorthWest');
+            title(['Error estimator demo for model: ' this.Model.Name]);
+            axis tight;
             
-            subplot(1,2,2);
+            if ~singlefigures
+                subplot(1,2,2);
+            else
+                h2 = figure;
+                title(['Error estimator demo for model: ' this.Model.Name]);
+            end
             eval(['ph = plot(' str '''MarkerSize'',7);']);
             %set(ph(6:9),'Marker','+');
             %set(ph(10:11),'Marker','*');
@@ -200,20 +210,21 @@ classdef LocalLipEstimatorDemo < handle
             
             %txt = [repmat('(',num,1) num2str(times) repmat(', ',num,1) num2str(errs(:,end)) repmat('s)',num,1)];
             %text(times,errs(:,end),txt);
-            xlabel('e(T)');
+            xlabel('\Delta(T)');
             ylabel('Comp. time');
             legend(a);
+            axis tight;
             
             title(['Error estimator demo for model: ' this.Model.Name]);
             disp('Computation times:');
             disp(times');
-            disp('e(T):');
+            disp('\Delta(T):');
             disp(errs(:,end)');
             
-            disp('Best five estimations:');
-            [v,idx] = sort(errs(:,end));
-            for id = 1:5
-                fprintf('%s: e(T)=%f, %2.2fsec\n',this.Est(idx(id)).Name,errs(idx(id),end),times(idx(id)));
+            disp('Estimator hierarchy (error*time product):');
+            [v,idx] = sort(errs(:,end).*times);
+            for id = 1:length(this.Est)
+                fprintf('%s:\tdelta(T)=%f\t%2.2fsec\n',this.Est(idx(id)).Name,errs(idx(id),end),times(idx(id)));
             end
         end
         
@@ -259,15 +270,15 @@ classdef LocalLipEstimatorDemo < handle
             est(end).MarkerStyle = 'o';
             est(end).LineStyle = '-';
             
-%             msg = error.GlobalLipKernelEstimator.validModelForEstimator(r);
-%             if isempty(msg)
-%                 est(end+1).Name = 'GLE';
-%                 est(end).Estimator = error.GlobalLipKernelEstimator(r);
-%                 est(end).MarkerStyle = 'x';
-%                 est(end).LineStyle = '-';
-%             else
-%                 fprintf('Cannot use the GlobalLipKernelEstimator for model %s:\n%s\n',r.Name,msg);
-%             end
+            msg = error.GlobalLipKernelEstimator.validModelForEstimator(r);
+            if isempty(msg)
+                est(end+1).Name = 'GLE';
+                est(end).Estimator = error.GlobalLipKernelEstimator(r);
+                est(end).MarkerStyle = 'x';
+                est(end).LineStyle = '-';
+            else
+                fprintf('Cannot use the GlobalLipKernelEstimator for model %s:\n%s\n',r.Name,msg);
+            end
             
             msg = error.LocalLipKernelEstimator.validModelForEstimator(r);
             if isempty(msg)
@@ -275,6 +286,7 @@ classdef LocalLipEstimatorDemo < handle
                 est(end+1).Name = 'LLE: LGL';
                 est(end).Estimator = error.LocalLipKernelEstimator(r);
                 est(end).Estimator.KernelLipschitzFcn = @k.getLocalGradientLipschitz;
+                est(end).Estimator.UseTimeDiscreteC = false;
                 est(end).MarkerStyle = 's';
                 est(end).LineStyle = '-';
                 for it = reps
@@ -282,6 +294,7 @@ classdef LocalLipEstimatorDemo < handle
                         'est(end).Estimator = error.LocalLipKernelEstimator(r);'...
                         'est(end).Estimator.KernelLipschitzFcn = @k.getLocalGradientLipschitz;'...
                         'est(end).Estimator.Iterations = %d;'...
+                        'est(end).Estimator.UseTimeDiscreteC = false;'...
                         'est(end).MarkerStyle = ''s'';'...
                         'est(end).LineStyle = '':'';'],it,it));
                 end
@@ -289,6 +302,7 @@ classdef LocalLipEstimatorDemo < handle
                 est(end+1).Name = 'LLE: LSL';
                 est(end).Estimator = error.LocalLipKernelEstimator(r);
                 est(end).Estimator.KernelLipschitzFcn = @k.getLocalSecantLipschitz;
+                est(end).Estimator.UseTimeDiscreteC = false;
                 est(end).MarkerStyle = '*';
                 est(end).LineStyle = '-';
                 for it = reps
@@ -296,6 +310,7 @@ classdef LocalLipEstimatorDemo < handle
                         'est(end).Estimator = error.LocalLipKernelEstimator(r);'...
                         'est(end).Estimator.KernelLipschitzFcn = @k.getLocalSecantLipschitz;'...
                         'est(end).Estimator.Iterations = %d;'...
+                        'est(end).Estimator.UseTimeDiscreteC = false;'...
                         'est(end).MarkerStyle = ''*'';'...
                         'est(end).LineStyle = ''-.'';'],it,it));
                 end
@@ -303,6 +318,7 @@ classdef LocalLipEstimatorDemo < handle
                 est(end+1).Name = 'LLE: ILSL';
                 est(end).Estimator = error.LocalLipKernelEstimator(r);
                 est(end).Estimator.KernelLipschitzFcn = @k.getImprovedLocalSecantLipschitz;
+                est(end).Estimator.UseTimeDiscreteC = false;
                 est(end).MarkerStyle = '+';
                 est(end).LineStyle = '-';
                 for it = reps
@@ -310,6 +326,7 @@ classdef LocalLipEstimatorDemo < handle
                         'est(end).Estimator = error.LocalLipKernelEstimator(r);'...
                         'est(end).Estimator.KernelLipschitzFcn = @k.getImprovedLocalSecantLipschitz;'...
                         'est(end).Estimator.Iterations = %d;'...
+                        'est(end).Estimator.UseTimeDiscreteC = false;'...
                         'est(end).MarkerStyle = ''+'';'...
                         'est(end).LineStyle = ''--'';'],it,it));
                 end

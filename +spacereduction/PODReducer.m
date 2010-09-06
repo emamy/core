@@ -13,7 +13,7 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD
         function [V,W] = generateReducedSpace(this, model)
             % Implements the abstract method from BaseSpaceReducer
             
-            data = model.Data.Snapshots;   
+            data = model.Data.ProjTrainData;   
             
             % Perform POD on state variable part of the snapshots!
             V = this.computePOD(data(4:end,:));

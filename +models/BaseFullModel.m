@@ -31,7 +31,12 @@ classdef BaseFullModel < models.BaseModel
         % snaphsot from a given trajectory.
         %
         % See also: general.POD general.Orthonormalizer
-        PODFix;
+        %PODFix;
+        
+        % The number of projection training data snapshots used to compile
+        % the approximation training data set. So far, simply uses linspace
+        % to select a subset.
+        ApproxExpansionSize = 40;
         
         % The reduction algorithm for subspaces
         %
@@ -61,16 +66,16 @@ classdef BaseFullModel < models.BaseModel
             % Setup default values for the full model's components
             this.Sampler = sampling.RandomSampler;
             this.SpaceReducer = spacereduction.PODReducer;
-            p = general.PODFixspace;
-            p.Mode = 'abs';
-            p.Value = 1;
-            this.PODFix = p;
-            this.Approx = approx.CompWiseSVR;
+            %             p = general.PODFixspace;
+            %             p.Mode = 'abs';
+            %             p.Value = 1;
+            %             this.PODFix = p;
+            this.Approx = approx.CompWiseInt;
             this.Data = models.ModelData;
             this.System = models.BaseDynSystem;
         end
         
-        function off1_generateSamples(this)
+        function off1_createParamSamples(this)
             % Offline phase 1: Sample generation.
             
             % Sampling
@@ -79,29 +84,24 @@ classdef BaseFullModel < models.BaseModel
             end
         end
         
-        function off2_generateSnapshots(this)
-            % Offline phase 2: Snapshot generation.
+        function off2_genProjectionTrainData(this)
+            % Offline phase 2: Snapshot generation for subspace computation
             %
             % @todo Optimize snapshot array augmentation by preallocation
             % (later will be some storage class)
             
-            num_samples = this.Data.SampleCount;
-            num_inputs = this.System.InputCount;
+            num_s = max(1,this.Data.SampleCount);
+            num_in = max(1,this.System.InputCount);
             
             % Compute system dimension using x0.
-            mu = [];
-            if num_samples > 0
-                mu = zeros(this.System.ParamCount,1);
-            end
+            mu = this.Data.getParams(1);
             dims = length(this.System.x0(mu));
             
-            snapshots = zeros(dims+3,0);
-            f_vals = zeros(dims,0);
+            trajlen = length(this.Times);
+            sn = zeros(dims+3,trajlen*num_s*num_in);
             
             try
-                wh = waitbar(0,'Initializing snapshot generation...');
-                cnt = 0;
-                fixvec = zeros(dims+1,0);
+                wh = waitbar(0,'Initializing...');
                 
                 % Assume no parameters or inputs
                 mu = [];
@@ -109,22 +109,23 @@ classdef BaseFullModel < models.BaseModel
                 inputidx = [];
                 innum = 0;
                 
+                cnt = 0;
                 % Iterate through all input functions
-                for inidx = 1:max(1,num_inputs)
+                for inidx = 1:num_in
                     % Iterate through all parameter samples
-                    for pidx = 1:max(1,num_samples)
+                    for pidx = 1:num_s
                         
                         % Display
-                        perc = cnt/((num_inputs+1)*(num_samples+1));
-                        waitbar(perc,wh,sprintf('Generating snapshots ... %2.0f %%',perc*100));
+                        perc = cnt/(num_in*num_s);
+                        waitbar(perc,wh,sprintf('Generating projection training data... %2.0f%%',round(perc*100)));
                         
                         % Check for parameters
-                        if num_samples > 0
-                            mu = this.Data.ParamSamples(:,pidx);
+                        if this.Data.SampleCount > 0
+                            mu = this.Data.getParams(pidx);
                             munum = pidx;
                         end
                         % Check for inputs
-                        if num_inputs > 0
+                        if this.System.InputCount > 0
                             inputidx = inidx;
                             innum = inidx;
                         end
@@ -132,39 +133,10 @@ classdef BaseFullModel < models.BaseModel
                         % Get trajectory
                         [t, x] = this.computeTrajectory(mu, inputidx);
                         
-                        % Compute basis extension
-                        newx = this.PODFix.computePODFixspace([t; x], fixvec);
-                        
-                        % Catch special case where no parameters or inputs
-                        % are used
-                        if num_samples + num_inputs <= 1
-                            % If the PODFixspace returns just one
-                            % dimension, approximation etc. does not make
-                            % sense.
-                            if size(newx,2) == 1
-                                maxlen = min(size(x,1)+1,length(this.Times));
-                                fprintf('Note: No parameters or inputs are used and PODFixspace generated just one snapshot.\n Changing PODFixspace and recomputing using Mode=''abs'' and Value=%d\n',maxlen);
-                                this.PODFix.Mode = 'abs';
-                                this.PODFix.Value = maxlen;
-                                newx = this.PODFix.computePODFixspace([t; x], fixvec);
-                            elseif size(newx,2) < .4*numel(this.Times)
-                                warning('BaseFullModel:SmallBase','Snapshot base is very small, refine time steps or adjust PODFixspace.');
-                            end
-                        end
-                        
-                        fixvec = [fixvec newx];%#ok
-                        
-                        newlen = size(newx,2);
                         % Assign snapshot values
-                        snapshots = [snapshots [ones(1,newlen)*munum;...
-                                                ones(1,newlen)*innum;...
-                                                newx]];%#ok
-                        
-                        %% Evaluate f at those points
-                        for sidx=1:newlen
-                            fx = this.System.f.evaluate(newx(2:end,sidx),newx(1,sidx),mu);
-                            f_vals(:,end+1) = fx;%#ok
-                        end
+                        curpos = cnt*trajlen+1;
+                        sn(:,curpos:curpos+trajlen-1) = ...
+                            [ones(1,trajlen)*munum; ones(1,trajlen)*innum; t; x];
                         
                         cnt=cnt+1;
                     end
@@ -175,11 +147,10 @@ classdef BaseFullModel < models.BaseModel
                 rethrow(ME);
             end
             
-            this.Data.Snapshots = snapshots;
-            this.Data.fValues = f_vals;
+            this.Data.ProjTrainData = sn;
         end
         
-        function off3_generateReducedSpace(this)
+        function off3_computeReducedSpace(this)
             % Offline phase 3: Generate state space reduction
             
             % Clear before running, so that in case of errors the matrix
@@ -187,7 +158,7 @@ classdef BaseFullModel < models.BaseModel
             this.Data.V = [];
             this.Data.W = [];
             if ~isempty(this.SpaceReducer)
-                if size(this.Data.Snapshots,2) == 1
+                if size(this.Data.ProjTrainData,2) == 1
                     % Easy case: Source dimension is already one. Just set V = Id.
                     this.Data.V = 1;
                     this.Data.W = 1;
@@ -205,9 +176,35 @@ classdef BaseFullModel < models.BaseModel
             end
         end
         
-        function off4_generateApproximation(this)
-            % Offline phase 4: Core function approximation
+        function off4_computeApproximation(this)
+            % Offline phase 5: Core function approximation
+            %
+            % @todo proper subset selection algorithm/method
+            
             if ~isempty(this.Approx)
+                % Select subset of projection training data
+                sn = this.Data.ProjTrainData;
+                selection = round(linspace(1,size(sn,2),...
+                    min(this.ApproxExpansionSize,size(sn,2))));
+                
+                atd = sn(:,selection);
+                % If projection is used, train approximating function in
+                % centers projected into the subspace.
+                if ~isempty(this.SpaceReducer)
+                    atd(4:end,:) = (this.Data.V*this.Data.W')*atd(4:end,:);
+                end
+                this.Data.ApproxTrainData = atd;
+                
+                % Compute f-Values at training data
+                this.Data.ApproxfValues = zeros(size(sn,1)-3,size(atd,2));
+                for sidx=1:size(atd,2)
+                    this.Data.ApproxfValues(:,sidx) = ...
+                        this.System.f.evaluate(atd(4:end,sidx),... % x
+                            atd(3,sidx),... % t
+                            this.Data.getParams(atd(1,sidx))); % mu
+                end
+                
+                % Approximate core function
                 this.Approx.approximateCoreFun(this);
             end
         end
@@ -222,12 +219,12 @@ classdef BaseFullModel < models.BaseModel
             %
             % See also: buildReducedModel
             
-            this.off1_generateSamples;
-            this.off2_generateSnapshots;
-            this.off3_generateReducedSpace;
-            this.off4_generateApproximation;
+            this.off1_createParamSamples;
+            this.off2_genProjectionTrainData;
+            this.off3_computeReducedSpace;
+            this.off4_computeApproximation;
             
-            % Set time dirt flag to false as current snapshots fit the
+            % Set time dirt flag to false as current sn fit the
             % times used.
             this.TimeDirty = false;
         end
@@ -242,59 +239,59 @@ classdef BaseFullModel < models.BaseModel
             % See also: offlineGenerations
             % @docupdate
             
-            if this.TimeDirty 
+            if this.TimeDirty
                 warning(['The T or dt parameters have been changed since the last offline generations.\n'...
-                       'A call to offlineGenerations is required.']);
-            elseif isempty(this.Data) || isempty(this.Data.Snapshots)
+                    'A call to offlineGenerations is required.']);
+            elseif isempty(this.Data) || isempty(this.Data.ProjTrainData)
                 error('No Snapshot data available. Forgot to call offlineGenerations before?');
             end
             reduced = models.ReducedModel(this);
         end
-
+        
         % Not longer used as complete trajectories aren't stored in the
-        % Data.Snapshot array 
-%         function [t,x] = computeTrajectory(this, mu, inputidx)
-%             % Overrides the base method in BaseModel. For speed reasons any
-%             % already computed trajectories are returned without being 
-%             %
-%             % Parameters:
-%             % mu: The parameter `\mu` to use. Set [] for none.
-%             % inputidx: The input function `u(t)` index to use. Set [] for
-%             % none.
-%             %
-%             % See also: models.BaseModel#computeTrajectory(mu, inputidx);
-%             %
-%             % @todo Possibly save the later computed trajectories in the
-%             % ModelData class?
-%             
-%             if ~isempty(this.Data) && ~isempty(this.Data.Snapshots)
-%                 x = this.Data.getTrajectory(mu,inputidx);
-%                 if ~isempty(x)
-%                     t = this.Times;
-%                     return;
-%                 end
-%             end
-%             [t,x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
-%             
-%             % HERE: Save new trajectory in ModelData!
-%         end
+        % Data.Snapshot array
+        %         function [t,x] = computeTrajectory(this, mu, inputidx)
+        %             % Overrides the base method in BaseModel. For speed reasons any
+        %             % already computed trajectories are returned without being
+        %             %
+        %             % Parameters:
+        %             % mu: The parameter `\mu` to use. Set [] for none.
+        %             % inputidx: The input function `u(t)` index to use. Set [] for
+        %             % none.
+        %             %
+        %             % See also: models.BaseModel#computeTrajectory(mu, inputidx);
+        %             %
+        %             % @todo Possibly save the later computed trajectories in the
+        %             % ModelData class?
+        %
+        %             if ~isempty(this.Data) && ~isempty(this.Data.ProjTrainData)
+        %                 x = this.Data.getTrajectory(mu,inputidx);
+        %                 if ~isempty(x)
+        %                     t = this.Times;
+        %                     return;
+        %                 end
+        %             end
+        %             [t,x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
+        %
+        %             % HERE: Save new trajectory in ModelData!
+        %         end
         
     end
     
-%     methods(Access=protected,Sealed)
-%         function opts = trajectoryCompInit(this, mu, inputidx)%#ok
-%             % Implements the template method from models.BaseModel
-%             %
-%             % Here in the full model nothing is to do yet as only error
-%             % computation for reduced systems is performed so far in
-%             % ReducedModel.
-%             %
-%             % See also: models.BaseModel models.ReducedModel
-%             
-%             % Nothing to do here yet.
-%             opts = [];
-%         end
-%     end
+    %     methods(Access=protected,Sealed)
+    %         function opts = trajectoryCompInit(this, mu, inputidx)%#ok
+    %             % Implements the template method from models.BaseModel
+    %             %
+    %             % Here in the full model nothing is to do yet as only error
+    %             % computation for reduced systems is performed so far in
+    %             % ReducedModel.
+    %             %
+    %             % See also: models.BaseModel models.ReducedModel
+    %
+    %             % Nothing to do here yet.
+    %             opts = [];
+    %         end
+    %     end
     
     %% Getter & Setter
     methods

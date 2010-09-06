@@ -82,8 +82,8 @@ classdef CompWiseSVR < approx.BaseCompWiseKernelApprox
             m = models.BaseFullModel;
             m.T = size(xi,2)-1;
             m.dt = 1;
-            m.Data.Snapshots = [zeros(2,size(xi,2)); m.Times; xi];
-            m.Data.fValues = fxi;
+            m.Data.ApproxTrainData = [zeros(2,size(xi,2)); m.Times; xi];
+            m.Data.ApproxfValues = fxi;
             a = approx.CompWiseSVR;
             a.eps = .1;
             a.C = 100000;
@@ -134,8 +134,8 @@ classdef CompWiseSVR < approx.BaseCompWiseKernelApprox
             m = models.BaseFullModel;
             m.T = size(X,2)-1;
             m.dt = 1;
-            m.Data.Snapshots = [zeros(2,size(X,2)); m.Times;X];
-            m.Data.fValues = fxi;
+            m.Data.ApproxTrainData = [zeros(2,size(X,2)); m.Times;X];
+            m.Data.ApproxfValues = fxi;
             a = approx.CompWiseSVR;
             a.eps = .1;
             a.C = 1000;

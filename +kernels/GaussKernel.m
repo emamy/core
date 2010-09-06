@@ -51,6 +51,7 @@ classdef GaussKernel < kernels.BellFunction
         
         function set.Gamma(this, value)
             if ~isposrealscalar(value)
+                error('Only positive scalar values allowed for Gamma.');
             end
             this.Gamma = value;
             this.x0 = sqrt(value/2); %#ok
