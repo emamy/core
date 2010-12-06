@@ -1,0 +1,1 @@
+/home/dwirtz/agh/shared_software/sourcecodes/qpOASES-2.0/INTERFACES/MATLAB/qpOASES_sequenceVM.m

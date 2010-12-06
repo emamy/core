@@ -31,7 +31,7 @@ classdef ICloneable < handle
     %
     % @author Daniel Wirtz @date 15.03.2010
     
-    methods(Access=protected, Abstract)
+    methods(Abstract)
         copy = clone(this, target);
     end
     

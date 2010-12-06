@@ -54,6 +54,7 @@ classdef GaussKernel < kernels.BellFunction
                 error('Only positive scalar values allowed for Gamma.');
             end
             this.Gamma = value;
+            % Adjust the BellFunctions' x0 value
             this.x0 = sqrt(value/2); %#ok
             this.PenaltyFactor = 1/value; %#ok
         end

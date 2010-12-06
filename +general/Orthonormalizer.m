@@ -41,7 +41,7 @@ classdef Orthonormalizer < handle
             if isempty(vec)
                 onvec = zeros(size(vec));
                 return;
-            end;
+            end
             
             % Check on identity of vectors
             for i=1:(size(vec,2)-1)
@@ -50,7 +50,7 @@ classdef Orthonormalizer < handle
                         vec(:,j) = 0;
                     end;
                 end;
-            end;
+            end
             
             if strcmp(this.Algorithm,'gs')
                 onvec = this.ortho_gs(vec);
@@ -85,7 +85,7 @@ classdef Orthonormalizer < handle
                     onvec(:,i) = 0;
                 else
                     onvec(:,i) = onvec(:,i)/n;
-                end;
+                end
                 
                 % orthogonalize remaining vectors wrt this one:
                 A_mult_onvec_i = this.G*onvec(:,i);
@@ -98,7 +98,7 @@ classdef Orthonormalizer < handle
                 
                 % perform orthogonalization
                 onvec(:,i+1:end) = onvec(:,i+1:end) - coeffmat;
-            end;
+            end
             
             % eliminate zero-columns
             nsqr = sum(onvec.^2);

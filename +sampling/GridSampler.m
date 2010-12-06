@@ -6,7 +6,7 @@ classdef GridSampler < sampling.BaseSampler
     end
     
     methods
-        function samples = performSampling(this, model)
+        function samples = performSampling(this, model)%#ok
             % Uses the given model and generates a training set by creating
             % a regular grid in joint time/parameter space
             % @ingroup s_grid
@@ -25,7 +25,12 @@ classdef GridSampler < sampling.BaseSampler
                 end
             end
             
-            samples = this.createCombinations(ranges);
+            % Return first range if only one available.
+            if sys.ParamCount == 1
+                samples = ranges{1};
+            else
+                samples = general.Utils.createCombinations(ranges);
+            end
         end
     end
     

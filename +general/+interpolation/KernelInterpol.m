@@ -1,20 +1,24 @@
 classdef KernelInterpol
-    %KERNELINTERPOL This is the class summary.
-    % Some detailed information!
-    % Yeay a texty text. Again, a texty text.
+    % Provides kernel interpolation.
     %
-    % @ingroup general_interpolation
-    %
-    % @author Daniel Wirtz
+    % @author Daniel Wirtz @date 01.04.2010
     
     properties
         K;
     end
     
     methods
-        function a = interpolate(this, fxi)
+        function [a,b] = interpolate(this, fxi)
             % Interpolates the 
-            a = this.K\(fxi');
+            b = mean(fxi);
+            if all(abs(fxi - b) < 10*eps)
+                a = zeros(size(fxi))';
+                if KerMor.Instance.Verbose > 1
+                    fprintf('KernelInterpol note: All mean-cleaned fxi values < 10eps, assuming zero coefficients!\n');
+                end
+            else
+                a = this.K\(fxi-b)';
+            end
         end
     end
     
@@ -22,14 +26,19 @@ classdef KernelInterpol
         function test_KernelInterpolation()
             % Performs a test of this class
             
-            x = -5:.05:5;
-            fx = sinc(x);
+            %x = -5:.05:5;
+            %fx = sinc(x);
+            
+            x = 0:.05:10;
+            fx = x.^2.*sin(x);
             
             n = length(x);
             samp = 1:15:n;
             
             k = kernels.GaussKernel(1);
             internal_test(x,fx,samp,k,10);
+            
+            internal_test(x,ones(size(x))*5,samp,k,13);
             
             k = kernels.InvMultiquadrics(-1.4,2);
             internal_test(x,fx,samp,k,11);
@@ -48,9 +57,9 @@ classdef KernelInterpol
                 figure(fignr);
                 plot(x,fx,'r');
                 
-                a = ki.interpolate(fxi);
+                [a,b] = ki.interpolate(fxi);
                 
-                svfun = @(x)a'*kernel.evaluate(xi,x);
+                svfun = @(x)a'*kernel.evaluate(xi,x)+b;
                 
                 fsvr = svfun(x);
                 

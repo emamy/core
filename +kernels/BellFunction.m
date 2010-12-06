@@ -76,7 +76,7 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
         end
         
         function ci = getImprovedLocalSecantLipschitz(this, di, C, t, mu)
-            if isempty(this.oldxfeat) || any(isnan(this.oldxfeat))
+            if isempty(this.oldxfeat) || any(isnan(this.oldxfeat)) || size(this.oldxfeat,2) ~= size(di,2)
                 this.oldxfeat = this.x0+.2*sign(this.x0-di);
             end
             
@@ -107,6 +107,16 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
                 end
                 ci(center) = abs(this.evaluateD1(xfeat(center)));
             end
+        end
+        
+        function set.x0(this, value)
+            if ~isposrealscalar(value) 
+                error('x0 must be a scalar greater than zero.');
+            end
+            this.x0 = value;
+            % Ensure to reset the current newton iteration starting point
+            % to avoid having endless loops in newton iterations.
+            this.oldxfeat = [];%#ok
         end
         
         function value = get.xR(this)

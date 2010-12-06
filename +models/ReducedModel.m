@@ -37,7 +37,6 @@ classdef ReducedModel < models.BaseModel
         % The parameter samples that have been used for computation of the
         % reduced model.
         ParamSamples;
-        
     end
     
     properties
@@ -52,6 +51,12 @@ classdef ReducedModel < models.BaseModel
     methods(Sealed)
         
         function this = ReducedModel(fullmodel)
+            if nargin == 1
+                this.setFullModel(fullmodel);
+            end
+        end
+        
+        function setFullModel(this, fullmodel)
             % Creates a reduced model from a given full model.
             %
             % @docupdate
@@ -150,13 +155,17 @@ classdef ReducedModel < models.BaseModel
             estrel = est./x;
         end
         
-        function analyze(this, mu, inputidx)
-            if nargin < 3
-                inputidx = 1;
-                if nargin < 2
-                    mu = [];
+        function analyze(this, mu, inputidx, singlefig)
+            if nargin < 4
+                singlefig = false;
+                if nargin < 3
+                    inputidx = 1;
+                    if nargin < 2
+                        mu = [];
+                    end
                 end
             end
+            
             [t,x,xr,time,timer,timer_noerr] = this.getTrajectories(mu, inputidx);
             e = sqrt(sum((x - xr).^2,1));
             est = this.ErrorEstimator.LastError;
@@ -168,42 +177,72 @@ classdef ReducedModel < models.BaseModel
             estrelr = est./xrnorm;
             
             % System plot
+            ymax = max(max(x(:)),max(xr(:)));
+            ymin = min(min(x(:)),min(xr(:)));
             h = figure;
-            pos = get(0,'MonitorPosition');
-            set(h,'OuterPosition',pos(1,:));
-            subplot(2,3,1);
+            if singlefig
+                subplot(1,2,1);
+            else
+                pos = get(0,'MonitorPosition');
+                set(h,'OuterPosition',pos(1,:));
+                subplot(2,3,1);
+            end
             plot(t,x);
             xlabel('t');
             title(sprintf('The full system (d=%d,time=%.3f)',size(x,1),time));
-            subplot(2,3,2);
+            axis([t(1) t(end) ymin ymax]);
+            if singlefig
+                subplot(1,2,2);
+            else
+                subplot(2,3,2);
+            end
             plot(t,xr);
             xlabel('t');
+            axis([t(1) t(end) ymin ymax]);
             title(sprintf('The reduced system (r=%d,self time:%.3f, time with err est:%.3f)',size(this.V,2),timer_noerr,timer));
             
             % Absolute value plot
-            subplot(2,3,3);
+            if singlefig
+                figure;
+                subplot(1,2,1);
+            else
+                subplot(2,3,3);
+            end
             plot(t,xnorm,'r',t,xrnorm,'b');
             xlabel('t');
             title('The state variable norms');
             legend('Full system','Reduced system');%,'Location','Best');
             
             % Error plots
-            subplot(2,3,4);
-            plot(t,e,'r',t,est,'b');%,t,abs(e-est),'g');
+            if singlefig
+                subplot(1,2,2);
+            else
+                subplot(2,3,4);
+            end
+            plot(t,est,'b',t,e,'r');%,t,abs(e-est),'g');
             xlabel('t');
             title(sprintf('The state variable absolute errors.\nmean(e)=%g, mean(est)=%g',mean(e),mean(est)));
-            legend('True error','Estimated error');%,'Location','Best');
+            legend('Estimated error','True error');%,'Location','Best');
             
             % Relative Error plots
-            subplot(2,3,5);
-            plot(t,erel,'r',t,estrel,'b');
+            if singlefig
+                figure;
+                subplot(1,2,1);
+            else
+                subplot(2,3,5);
+            end
+            plot(t,estrel,'b',t,erel,'r');
             xlabel('t');
             title(sprintf(['The state variable relative errors (comp. to '...
                 'full solution)\nmean(e_{rel})=%g, mean(est_{rel})=%g'],...
                 mean(erel),mean(estrel)));
-            legend('True error','Estimated error');%,'Location','Best');
+            legend('Estimated error','True error');%,'Location','Best');
             
-            subplot(2,3,6);
+            if singlefig
+                subplot(1,2,2);
+            else
+                subplot(2,3,6);
+            end            
             plot(t,erelr,'r',t,estrelr,'b');
             xlabel('t');
             title(sprintf(['The state variable relative errors (comp. to '...
@@ -271,43 +310,43 @@ classdef ReducedModel < models.BaseModel
             
             %plot(1:len,fx,1:len,afx,'--');
             
-%             arfx = this.System.f.evaluate(d.V'*xi,ti,mui);
-%             rfx = d.V'*d.ApproxfValues(:,:);
-%             for idx = 1:num
-%                 plot(1:len,rfx(idx,:),1:len,arfx(idx,:));
-%                 pause;
-%             end
+            %             arfx = this.System.f.evaluate(d.V'*xi,ti,mui);
+            %             rfx = d.V'*d.ApproxfValues(:,:);
+            %             for idx = 1:num
+            %                 plot(1:len,rfx(idx,:),1:len,arfx(idx,:));
+            %                 pause;
+            %             end
         end
         
-        function save(this, matfile)
-            % Saves the reduced model to disk.
-            %
-            % Parameters:
-            % matfile: The target file. If not specified, a file with the
-            % name of the reduced model's variable name is used.
-            
-            name = inputname(1);
-            if nargin == 1
-                matfile = fullfile(cd,name);
-            end
-            % For the save process of the reduced model the full model's
-            % Data (=ModelData) and Approx properties are not needed. This
-            % is the fastest way to ensure that the reduced model can still
-            % have access to all important features of the full model but
-            % uses less disk space.
-            m = this.FullModel;
-            d = m.Data;
-            a = m.Approx;
-            
-            m.Data = [];
-            m.Approx = [];
-            
-            eval([name ' = this;']);
-            save(matfile,name);
-            
-            m.Data = d;
-            m.Approx = a;
-        end
+        %         function save(this, matfile)
+        %             % Saves the reduced model to disk.
+        %             %
+        %             % Parameters:
+        %             % matfile: The target file. If not specified, a file with the
+        %             % name of the reduced model's variable name is used.
+        %
+        %             name = inputname(1);
+        %             if nargin == 1
+        %                 matfile = fullfile(cd,name);
+        %             end
+        %             % For the save process of the reduced model the full model's
+        %             % Data (=ModelData) and Approx properties are not needed. This
+        %             % is the fastest way to ensure that the reduced model can still
+        %             % have access to all important features of the full model but
+        %             % uses less disk space.
+        %             m = this.FullModel;
+        %             d = m.Data;
+        %             a = m.Approx;
+        %
+        %             m.Data = [];
+        %             m.Approx = [];
+        %
+        %             eval([name ' = this;']);
+        %             save(matfile,name);
+        %
+        %             m.Data = d;
+        %             m.Approx = a;
+        %         end
         
     end
     
@@ -364,83 +403,36 @@ classdef ReducedModel < models.BaseModel
         end
     end
     
-    %         function [vals, repmu] = getSamplesForParam(this, pidx)
-    %             % Gets the samples from the ParamSamples that are equal in all
-    %             % other params but the one given through pidx.
-    %             %
-    %             % Return values:
-    %             % vals: The sorted, unique values for parameter pidx in
-    %             % ParamSamples.
-    %             % repmu: The representative parameter vector that contains the
-    %             % param values for all others but the pidx' parameter.
-    %             %
-    %             % Note: Since there may be more values of the pidx' param but
-    %             % some having different parameter vectors here the vector of
-    %             % the first smallest pidx' param is taken as representative
-    %             % vector.
-    %             ps = this.ParamSamples;
-    %             numparams = this.System.ParamCount;
-    %             numsamples = size(ps,2);
-    %             paridx = 1:numparams;
-    %
-    %             % Sort values of current param
-    %             [tmp, idx] = sort(ps(pidx,:));
-    %             % Get index of lowest value to have something to start
-    %             % with
-    %             first = idx(1);
-    %             % figure out the leftover indices
-    %             restpar = paridx;
-    %             restpar(pidx) = [];
-    %
-    %             % get comparing vector (whole column but the current
-    %             % parameter's index)
-    %             cmp = ps(restpar,first);
-    %             % find columns that are equal to cmp in the whole
-    %             % column but at the current param's index
-    %             all = sum(repmat(cmp,1,numsamples) == ps(restpar,:),1) == (numparams-1);
-    %
-    %             vals = sort(unique(ps(pidx,all)));
-    %             repmu = ps(:,first);
-    %         end
+    % Save & Load
+    methods
+        function s = saveobj(this)
+            % Saves the reduced model to a struct.
+            % For the save process of the reduced model the full model's
+            % Data (=ModelData) and Approx properties are not needed. This
+            % is the fastest way to ensure that the reduced model can still
+            % have access to all important features of the full model but
+            % uses less disk space.
+            
+            s.FullModel = this.FullModel;
+            s.FullModel = this.FullModel;
+            s.V = this.V; r.W = this.W;
+            s.ParamSamples = this.ParamSamples;
+            s.ErrorEstimator = this.ErrorEstimator;
+        end
+        
+        function this = reload(this,s)
+            this.FullModel = s.FullModel;
+            this.V = s.V; r.W = s.W;
+            this.ParamSamples = s.ParamSamples;
+            this.ErrorEstimator = s.ErrorEstimator;
+        end
+    end
     
-    
-    %% Save & Load
-    %     methods
-    %         function S = saveobj(obj)
-    %             % Just save everything straight
-    %             S.fData = obj.fData;
-    %             S.fSource = obj.fSource;
-    %             S.SubpartOffset = obj.SubpartOffset;
-    %             S.Range = obj.Range;
-    %             S.InitialSize = obj.InitialSize;
-    %             S.LevelSetData = obj.LevelSetData;
-    %             S.Regions = obj.Regions;
-    %             S.Info = obj.Info;
-    %             S.View = obj.View;
-    %         end
-    %
-    %         function obj = reload(obj,S)
-    %             obj.fData = S.fData;
-    %             obj.SubpartOffset = S.SubpartOffset;
-    %             % Important: fSource and SubpartOffset have to be set before
-    %             % the range parameter is set.
-    %             obj.Range = S.Range;
-    %             % Leftover props
-    %             obj.InitialSize = S.InitialSize;
-    %             obj.LevelSetData = S.LevelSetData;
-    %             obj.Regions = S.Regions;
-    %             obj.Info = S.Info;
-    %             obj.View = S.View;
-    %         end
-    %     end
-    %
-    %     methods (Static)
-    %         function obj = loadobj(S)
-    %             a = S.fSource;
-    %             obj = segmentation(sourceimage(S.fSource));
-    %             obj = reload(obj,S);
-    %         end
-    %     end
+    methods (Static)
+        function obj = loadobj(S)
+            obj = reload(models.ReducedModel,S);
+        end
+    end
     
 end
 

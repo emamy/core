@@ -4,7 +4,8 @@ classdef BaseSolver < handle
     % Simply defines an interfaces for a solve function and provides common
     % ODE solver properties.
     %
-    % @todo: Write tests for solvers.
+    % @todo Write tests for solvers.
+    % @todo Rename BaseSolver to BaseODESolver
     
     properties
         % Maximum time step for solver.
@@ -92,7 +93,9 @@ classdef BaseSolver < handle
         % dimensional, strictly monotoneously increasing vector explicitly
         % setting the desired output times. Depending on the MaxStep
         % property, the solver can work with a finer time step internally.
-        [t,y] = solve(odefun, t, x0, opts);
+        solve(odefun, t, x0, opts);
+        
+        %[t,y] = solve(odefun, t, x0, opts);
     end
     
     methods

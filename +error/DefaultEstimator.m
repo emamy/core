@@ -4,17 +4,34 @@ classdef DefaultEstimator < error.BaseEstimator
     
     methods
         function this = DefaultEstimator(rmodel)
-            % Disable per default (expensive!)
-            this = this@error.BaseEstimator(rmodel);
+            % Creates the default error estimator that works with every
+            % model since it computes the full system error.
+            %
+            % Disabled per default since estimations are expensive.
             this.Enabled = false;
             this.ExtraODEDims = 0;
+            
+            if nargin == 1
+                this.setReducedModel(rmodel);
+            end
+        end
+        
+        function offlineComputations(this)%#ok
+            % nothing to do here
+        end
+        
+        function copy = clone(this)
+            % Clones this DefaultEstimator
+            copy = error.DefaultEstimator(this.ReducedModel);
+            copy = clone@error.BaseEstimator(this, copy);
+            % No local properties there.
         end
         
         function eint = evalODEPart(this, x, t, mu, ut)%#ok
             eint = [];
         end
         
-        function process(this, t, x, mu, inputidx)
+        function process(this, t, x, mu, inputidx)%#ok
             m = this.ReducedModel.FullModel;
             [tf,xf] = m.computeTrajectory(mu,inputidx);
             xr = x(1:end-this.ExtraODEDims,:);

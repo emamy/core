@@ -72,7 +72,7 @@ classdef ModelParam < handle
         end
         
         function value = get.HasRange(this)
-            value = this.MinVal ~= this.MaxVal;
+            value = abs(this.MinVal - this.MaxVal) > 10*eps;
         end
     end
     

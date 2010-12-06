@@ -79,9 +79,7 @@ classdef BaseDynSystem < handle
             % Analogue the inputidx may be empty to force skipping the
             % system's input; however, if no inputconv component is set
             % this is ignored in any case.
-            
-
-            
+                        
             % System without inputs
             if isempty(inputidx) || isempty(this.Inputs) || isempty(this.B)
                 odefun = @(t,x)(this.f.evaluate(x,t,mu));

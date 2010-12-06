@@ -4,41 +4,21 @@ classdef CompWiseSVR < approx.BaseCompWiseKernelApprox
     % @author Daniel Wirtz @date 11.03.2010
     
     properties
-        % The eps value for the scalar SVR regression
-        % Wrapped.
+        % The SVR instance to use. Must be a descendend of
+        % general.regression.BaseScalarSVR
         %
-        % See also: general.regression.ScalarSVR
-        eps = .05;
-        
-        % The C value for the scalar SVR regression
-        % Wrapped.
-        %
-        % See also: general.regression.ScalarSVR
-        C = 10;
+        % Default: general.regression.ScalarNuSVR
+        ScalarSVR;
+    end
+
+    methods
+        function this = CompWiseSVR
+            this.ScalarSVR = general.regression.ScalarNuSVR;
+            this.ScalarSVR.nu = .5;
+        end
     end
     
-    properties(Access=private)
-        % The single dimension SVR regression
-        %
-        % @type general.regression.ScalarSVR
-        %
-        % See also: general.regression.ScalarSVR
-        svr;
-    end
-    
-    methods(Access=protected, Sealed)
-        
-        function prepareApproximationGeneration(this, K)
-            this.svr = general.regression.ScalarSVR;
-            this.svr.K = K;
-            this.svr.C = this.C;
-            this.svr.eps = this.eps;
-        end
-        
-        function [ai,b,svidx] = calcComponentApproximation(this, fxi)
-            [ai,b,svidx] = this.svr.regress(fxi);
-        end
-  
+    methods(Sealed)
         function target = clone(this)
             % Makes a copy of this instance.
             %
@@ -48,9 +28,20 @@ classdef CompWiseSVR < approx.BaseCompWiseKernelApprox
             % Call superclass clone
             target = clone@approx.BaseCompWiseKernelApprox(this, target);
             % Copy local properties
-            target.eps = this.eps;
-            target.C = this.C;
+            target.ScalarSVR = this.ScalarSVR.clone;
         end
+    end
+    
+    methods(Access=protected, Sealed)
+        
+        function prepareApproximationGeneration(this, K)
+            this.ScalarSVR.K = K;
+        end
+        
+        function [ai,b,svidx] = calcComponentApproximation(this, fxi)
+            [ai,b,svidx] = this.ScalarSVR.regress(fxi);
+        end
+
     end
     
     methods(Static)
@@ -85,8 +76,9 @@ classdef CompWiseSVR < approx.BaseCompWiseKernelApprox
             m.Data.ApproxTrainData = [zeros(2,size(xi,2)); m.Times; xi];
             m.Data.ApproxfValues = fxi;
             a = approx.CompWiseSVR;
-            a.eps = .1;
-            a.C = 100000;
+            %a.ScalarSVR = general.regression.ScalarEpsSVR;
+            %a.ScalarSVR.eps = .1;
+            a.ScalarSVR.C = 100000;
             a.TimeKernel = kernels.GaussKernel(4);
             a.SystemKernel = kernels.GaussKernel(4);
             m.Approx = a;
@@ -137,8 +129,9 @@ classdef CompWiseSVR < approx.BaseCompWiseKernelApprox
             m.Data.ApproxTrainData = [zeros(2,size(X,2)); m.Times;X];
             m.Data.ApproxfValues = fxi;
             a = approx.CompWiseSVR;
-            a.eps = .1;
-            a.C = 1000;
+            a.ScalarSVR = general.regression.ScalarEpsSVR;
+            a.ScalarSVR.eps = .1;
+            a.ScalarSVR.C = 100000;
             c = kernels.CombinationKernel;
             c.addKernel(kernels.GaussKernel(1));
             c.addKernel(kernels.GaussKernel(6));

@@ -54,6 +54,10 @@ classdef BaseModel < handle
         % Default:
         % 1
         G = 1;
+        
+        % @todo: use in simulate etc
+        Mu;
+        Inputidx;
     end
     
     properties(Dependent)

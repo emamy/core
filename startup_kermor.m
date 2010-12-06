@@ -1,97 +1,29 @@
-% @todo message-system über alle berechnungen hinaus (ungewöhliche dinge
-% berichten, exit flags etc)
-%
-% @todo laufzeittests für reduzierte modelle
-%
-% @todo interface für ModelData/Snapshots -> entweder arbeiten auf der
-% Festplatte oder in 4D-Array .. (für große simulationen) -> globalconf hat
-% string für globales datenverzeichnis!
-%
-% @todo mehr tests / anwendungen für mehrere inputs aber keine parameter!
-%
-% @todo Verbose-Level benutzen / anpassen
-%
-% @todo test für rotationssensitive kerne!
-%
-% @todo: snapshotgenerierung -> mit fehlerschätzer auswählen! (3-4
-% zufällig, dann approx, fehler -> neuen snapshot beim größten fehler etc)
-%
-% @todo: moving least squares (mit gewichtsfkt) für general.regression ..
-% -> book scattered data approx
-%
-% @todo: fft-approximation (?)
-%
-% @todo: Kern mit `\Phi(x,y) = (1-||x-y||_2)_+` oder so
-%
-% @todo: p-partitioning
-%
-% @todo: adaptive svr (impl. `\nu`-SVR, dann snapshots adden bis tol
-% erreicht)
-%
-% @todo: zusammenlegen von funktionen / erstellen eines general-modules für
-% KerMor/rbmatlab?
-%
-% @todo: try..catch langsam?
-%
-% @todo zeitabhängige outputconvertierung?
-% testing.MUnit auch für "nicht-packages"
-%
-% @todo: datenhaltung auf festplatte (mu,inputidx-indiziert) (?) => 
-%   - berechnung kernmatrix in teilen...
-%   - hashfunktion bernard / ggf eigene interface-fkt für eindeutige dirnames
-%
-% @todo: parfor für sampling / comp-wise approximation? (snaphshot-generation/approx)
-%
-% @todo benchmarks von
-% http://portal.uni-freiburg.de/imteksimulation/downloads/benchmark
-% einlesbar machen / einbauen!
-%
-% @todo Beispiele von ODE's aus Matlab-Docs?
-%
-% @todo Fehlerschätzer auf Output beschränken/erweitern!
-%
-% @todo Mehr ODE-Solver (implizit) einbauen, ggf. eigenen RK23 oder so.
-%
-% @todo LaGrange-koeffizientenfunktionen bei kerninterpolation berechnen!
-% ist insgesamt billiger falls `N<<n` 
-% @todo: test für newton-iteration!
-%
-% @todo Implementierung Balanced Truncation (mit base class) für
-% LinearCoreFuns, dann implementierung balanced truncation für empirical
-% gramians nach paper Lall et al. -> neue subspace reduction method für
-% nonlin-systems mit inputs! (geht ggf. auch für systeme ohne inputs? probieren!)
-%
-% @todo vielleicht so etwas wie "isValid" für jede modellkomponente, das
-% vor start von teuren berechnungen prüft ob alles so durchgeht und keine
-% inkompatibilitäten auftreten (z.B. krylov - LinearCoreFun)
-%
-% @todo check ob es eine möglichkeit gibt zu prüfen ob alle unterklassen
-% von projizierbaren klassen die project-methode der oberklasse aufrufen!?
-% könnte sonst zu komischen fehlern führen..
-
-% DONE Allgemeineres Skalarprodukt def. über `<x,y>_G = x^tGy`, default Id
-% DONE Allgemeinere Projektion mit `V,W` und nicht mit `V,V^t`
-% DONE fehler in ODE mit reinformulieren! 
-% DONE getConfig-methode: string-ausgabe aller einstellungen (sofern
-% textuell sinnvoll möglich!) eines Modells
-
-% preferences
+% Preferences
 setpref('Internet','SMTP_Server','localhost');
 
-% get current directory;
-disp('Starting up KerMor in directory:');
-p = fileparts( which('startup_kermor'));
-disp(p);
-
 % Environment
+disp('Initializing environment...')
+p = fileparts( which('startup_kermor'));
+fprintf('Starting up KerMor in directory %s\n',p);
+
 setenv('KERMORTEMP','/datastore');
 setenv('KERMORHOME',p);
 
 % For PCAfixspace
-addpath('/afs/.mathe/project/agh/home/dwirtz/rbmatlab/general/vecmat');
+addpath('/afs/.mathe/project/agh/home/dwirtz/Software/rbmatlab/general/vecmat');
 
 % add further paths to MATLABPATH
 addpath(p);
+addpath(fullfile(p,'3rdparty'));
+addpath(fullfile(p,'3rdparty','ipopt'));
+addpath(fullfile(p,'3rdparty','qpOASES'));
+addpath(fullfile(p,'3rdparty','mosek'));
+addpath(fullfile(p,'3rdparty','pardiso'));
+addpath(fullfile(p,'demos'));
+addpath(fullfile(p,'visual'));
+disp('Entering startup path..');
 cd(p);
-addpath(fullfile(p,'examples'));
 clear('p');
+
+disp('Starting up parallel computing..');
+matlabpool open;

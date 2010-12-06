@@ -49,7 +49,7 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLipschitz
         end
     end
     
-    methods(Access=protected, Sealed)
+    methods(Sealed)
         function copy = clone(this)
             copy = dscomponents.AffLinCoreFun;
             af = general.AffLinFcn;

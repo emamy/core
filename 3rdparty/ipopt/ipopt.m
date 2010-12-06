@@ -1,0 +1,1 @@
+/home/dwirtz/agh/shared_software/ipopt/lib/ipopt.m

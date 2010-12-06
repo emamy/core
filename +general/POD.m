@@ -32,6 +32,17 @@ classdef POD < handle
         %
         % See also: Mode
         Value = .3;
+        
+        % Flag whether to use the svds routine rather than svd.
+        % Applies only for the Modes 'abs' and 'rel'.
+        % For both 'sign' and 'eps' modes all singular values have to be
+        % computed anyways and svd is faster if all values are needed.
+        %
+        % IMPORTANT: The results when using svds are NOT REPRODUCABLE as
+        % svds uses an randomly initialized Arnoldi algorithm.
+        %
+        % Default: false
+        UseSVDS = false;
     end
     
     methods
@@ -57,7 +68,7 @@ classdef POD < handle
             %% Reduction for modes 'sign' and 'eps'
             % For these "dynamic" modes the full singular values have
             % to be computed in order to determine how many to use.
-            if any(strcmpi(this.Mode,{'sign','eps'}))    
+            if any(strcmpi(this.Mode,{'sign','eps'}))
                 [u,s,v] = svd(vec,'econ');
                 s = diag(s);
                 if strcmpi(this.Mode,'sign')
@@ -65,6 +76,10 @@ classdef POD < handle
                 elseif strcmpi(this.Mode,'eps')
                     sig = s >= this.Value;
                 end
+                
+                err = sum(s(~sig));
+                rerr = 100*err/sum(s);
+                fprintf('POD mode ''%s'' with value %2.6f: Selecting %d singular values, error %.4e (%.4e%% relative)\n',this.Mode,this.Value,length(find(sig)),err,rerr);
                 % Select wanted subspace
                 u = u(:,sig);
                 v = v(:,sig);
@@ -73,16 +88,49 @@ classdef POD < handle
                 %% Reduction for modes 'abs' and 'rel'
                 % For cases 'abs' or 'rel': fixed target dimension.
                 % So just let svds extract the wanted components!
-                [u,s,v] = svds(vec, target_dim);
-                s = diag(s);
+                
+                % As tests showed that the svds method is less reliable
+                % computing correct subspaces, an option is added that
+                % explicitly allows to choose if svds is used rather than
+                % svd.
+                if this.UseSVDS
+                    fprintf('POD mode ''%s'' with value %2.6f: Warning, SVDS results are non-reproducable (Arnoldi with random seed)\n',this.Mode,this.Value);
+                    [u,s,v] = svds(vec, target_dim);
+                    s = diag(s);
+                else
+                    [u,s,v] = svd(vec,'econ');
+                    s = diag(s);
+                    err = sum(s(target_dim+1:end));
+                    rerr = 100*err/sum(s);
+                    fprintf('POD mode ''%s'' with value %2.6f: Target dimension is %d singular values, error %.4e (%.4e%% relative)\n',this.Mode,this.Value,target_dim,err,rerr);
+                    u(:,target_dim+1:end) = [];
+                    v(:,target_dim+1:end) = [];
+                    s(target_dim+1:end) = [];
+                end
             end
             
-            % Case N >> d (more columns than dimensions, "normal case")
-            if size(vec,2) > size(vec,1)
+            % Safety for zero singular values.
+            z = find(s == 0);
+            if ~isempty(z)
+                warning('general:pod','%d of %d singular values are zero. Assuming output size %d',length(z),length(s),length(s)-length(z));
+            end
+            
+            if size(vec,2) > size(vec,1) % Case N >> d (more columns than dimensions, "normal case")
+                % Cut out columns of zero singular values
+                u(:,z) = [];
                 podvec = u;
-            else
-                % Case d >> N ("undersampled")
+            else % Case d >> N ("undersampled")
+                % Cut out columns of zero singular values
+                s(z) = [];
+                v(:,z) = [];
                 podvec = vec * v * diag(s.^-1);
+            end
+            
+            if any(isinf(podvec(:)))
+                error('Inf values occured in POD vectors.');
+            end
+            if any(isnan(podvec(:)))
+                error('NaN values occured in POD vectors.');
             end
         end
         

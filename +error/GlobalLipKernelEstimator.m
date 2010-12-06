@@ -2,69 +2,24 @@ classdef GlobalLipKernelEstimator < error.BaseEstimator
     %COMPWISEKERNELESTIMATOR Summary of this class goes here
     %   Detailed explanation goes here
     
-    properties(Access=private)
-        M1;
-        M2;
-        M3;
-    end
-    
     methods
         function this = GlobalLipKernelEstimator(rmodel)
             % @todo: check if the computations for M1,M2 etc can already be
             % done at the time of projection?
             
-            % Validity checks
-            msg = error.GlobalLipKernelEstimator.validModelForEstimator(rmodel);
-            if ~isempty(msg)
-                error(msg);
-            end
-            
-            % Call superclass constructor with model argument
-            this = this@error.BaseEstimator(rmodel);
             this.ExtraODEDims = 1;
             
-            % Only prepare matrices if projection was used
-            if ~isempty(rmodel.V) && ~isempty(rmodel.W)
-                % P = (I-VW^t)
-                P = (eye(size(rmodel.V,1)) - rmodel.V*rmodel.W');
-                D = P' * rmodel.G * P;
-                
-                fm = rmodel.FullModel;
-                % Obtain the correct snapshots
-                if ~isempty(fm.Approx)
-                    % Standard case: the approx function is a kernel expansion.
-
-                    % Get full d x N coeff matrix of approx function
-                    Ma = fm.Approx.Ma;
-                else
-                    % This is the also possible case that the full core
-                    % function of the system is a KernelExpansion.
-
-                    % Get full d x N coeff matrix of core function
-                    Ma = fm.System.f.Ma;
-                end
-                
-                this.M1 = Ma'*D*Ma;
-                
-                % Only linear input conversion (B = const. matrix) allowed so
-                % far! mu,0 is only to let
-                if ~isempty(rmodel.FullModel.System.B)
-                    try
-                        B = rmodel.FullModel.System.B.evaluate([],[]);
-                    catch ME
-                        B = rmodel.FullModel.System.B.evaluate(0,rmodel.System.getRandomParam);
-                        warning('Some:Id','Error estimator for current system will not work correctly! (B is not linear and mu-independent!');
-                    end
-                    this.M2 = B'*D*B;
-                    this.M3 = Ma'*D*B;
-                end
-                
-            else
-                % No projection means no error!
-                this.M1 = 0;
-                this.M2 = 0;
-                this.M3 = 0;
+            if nargin == 1
+                this.setReducedModel(rmodel);
             end
+        end
+        
+        function copy = clone(this)
+            % Creates a deep copy of this estimator instance.
+            
+            copy = error.GlobalLipKernelEstimator;
+            % copy.KernelLipschitzFcn/ODEDims is assigned in constructor!
+            copy = clone@error.BaseEstimator(this, copy);
         end
         
         function e = evalODEPart(this, x, t, mu, ut)

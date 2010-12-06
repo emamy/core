@@ -21,6 +21,8 @@ classdef CompWiseLS < approx.BaseCompWiseKernelApprox
         LS;
     end
     
+    met
+    
     methods(Access=protected, Sealed)
         
         function prepareApproximationGeneration(this, K)
@@ -36,20 +38,7 @@ classdef CompWiseLS < approx.BaseCompWiseKernelApprox
             svidx = [];
         end
         
-        function target = clone(this)
-            % Makes a copy of this instance.
-            %
-            % See also: ICloneable
-            
-            target = approx.CompWiseLS;
-            
-            % Copy local properties
-            target.Lambda = this.Lambda;
-            target.LS = general.regression.K;
-            
-            % Call superclass clone
-            target = clone@approx.BaseCompWiseKernelApprox(this, target);
-        end
+        
     end
     
     methods(Static)

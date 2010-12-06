@@ -4,16 +4,17 @@ classdef BaseApprox < dscomponents.ACoreFun
     %
     % @author Daniel Wirtz @date 11.03.2010
     
-    methods
+    methods        
+        
         function approximateCoreFun(this, model)
             
             % Load snapshots
-            sn = model.Data.ApproxTrainData;
+            atd = model.Data.ApproxTrainData;
             
             % Compile necessary data
-            xi = sn(4:end,:);
-            ti = sn(3,:);
-            muidx = sn(1,:);
+            xi = atd(4:end,:);
+            ti = atd(3,:);
+            muidx = atd(1,:);
             if all(muidx == 0)
                 mui = [];
             else

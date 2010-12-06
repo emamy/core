@@ -52,17 +52,18 @@ classdef ACoreFun < dscomponents.IProjectable & ICloneable
             end
             this.CustomProjection = value;
         end
-    end
-    
-    methods(Access=protected)
+        
         function copy = clone(this, copy)
-            % Clones this instance.
+            if nargin == 1 || ~isa(copy,'dscomponents.ACoreFun')
+                error('Incorrect call to clone. As this class is abstract, a subclass of ACoreFun has to be passed as second argument.');
+            end
+            % Copy local properties
             copy.CustomProjection = this.CustomProjection;
             copy.V = this.V;
             copy.W = this.W;
         end
     end
-    
+        
     methods(Abstract)
         % Evaluates the core function
         y = evaluateCoreFun(this, x, t, mu);

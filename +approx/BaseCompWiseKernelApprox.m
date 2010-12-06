@@ -1,4 +1,5 @@
-classdef BaseCompWiseKernelApprox < approx.BaseApprox & dscomponents.CompwiseKernelCoreFun
+classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
+        dscomponents.CompwiseKernelCoreFun & IParallelizable
     %Base class for component-wise kernel approximations
     %
     % For each dimension `k` there is a representation
@@ -13,7 +14,58 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & dscomponents.CompwiseKer
     % computation!)
     %
     % See also: BaseKernelApprox
-       
+    
+    methods
+        
+        function guessKernelConfig(this,model)
+            zero = 0.01;
+            trange = 5; srange = 5;
+            %prange = 2;
+            
+            atd = model.Data.ApproxTrainData;
+            xd = sqrt(sum(atd(4:end,:).^2));
+            v = unique(round(atd(1,:)));
+            maxdiff = zeros(1,length(v));
+            for muidx = 1:length(v)
+                sel = atd(1,:) == v(muidx);
+                tmp = xd(sel);
+                maxdiff(muidx) = max(abs(tmp(1:end-1)-tmp(2:end)));
+            end
+            d = max(maxdiff);
+            sgamma = -((srange*d)^2)/log(zero);
+            
+            %             params = model.Data.getParams(atd(1,:));
+            %             mud = sqrt(sum(.^2));
+            %
+            %             pgamma = -((prange*d)^2)/log(zero);
+            tgamma = -(trange^2*model.dt)/log(zero);
+            
+            %fprintf('Setting kernel gammas: Time:%e, System:%e, Params:%e\n',tgamma,sgamma,pgamma);
+            fprintf('Setting kernel gammas: Time:%10.10f, System:%10.10f\n',tgamma,sgamma);
+            this.TimeKernel = kernels.GaussKernel(tgamma);
+            this.SystemKernel = kernels.GaussKernel(sgamma);
+            %this.ParamKernel = kernels.GaussKernel(pgamma);
+        end
+        
+        function target = clone(this, target)
+            % Clones the instance.
+            %
+            % Note:
+            % Since we use multiple inheritance we have to call the clone
+            % method from both above superclasses. In this case this leads
+            % to a double execution of the clone method from
+            % dscomponents.ACoreFcn, but this is rather done than ommitted
+            % and causing trouble later on.
+            if nargin == 1 || ~(isa(target,'approx.BaseApprox') && isa(target,'dscomponents.CompwiseKernelCoreFun'))
+                error('Invalid clone call. As this class is abstract, a subclass of both BaseApprox and CompwiseKernelCoreFun has to be passed as second argument.');
+            end
+            
+            target = clone@dscomponents.CompwiseKernelCoreFun(this, target);
+            target = clone@approx.BaseApprox(this, target);
+            % No local properties to copy.
+        end
+    end
+    
     methods(Access=protected)
         
         function gen_approximation_data(this, xi, ti, mui, fxi)
@@ -27,14 +79,75 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & dscomponents.CompwiseKer
             this.snData.mui = mui;
             n = size(xi,2);
             
-            % Call subclass preparation method
-            K = this.evaluateAtCenters(xi, ti, mui);
-            this.prepareApproximationGeneration(K);
+            %             this.guessKernelConfig;
+            %             factors = [.1 .25 .5 .75 1 1.5 2 5 10];
+            %             minDiff = Inf;
+            %             for idx=1:length(factors)
+            %                 gamma = factors(idx)*this.sg;
+            %                 this.SystemKernel.Gamma = gamma;
             
-            % Make hermetian (no rounding errors)
-            %ls.K = .5*(ls.K'+ls.K);
+            % Call subclass preparation method and pass kernel matrix
+            this.prepareApproximationGeneration(...
+                this.evaluateAtCenters(xi, ti, mui));
+            
+            if this.ComputeParallel
+                this.computeParallel(fxi);
+            else
+                this.computeSerial(fxi);
+            end
+            
+            %                 afxi = this.evaluate(xi,ti,mui);
+            %                 di = norm(fxi-afxi);
+            %                 fprintf('Approx difference on centers for gamma=%f: di\n',gamma);
+            %                 if (di < minDiff)
+            %                     bestGamma = gamma;
+            %                     bestMa = this.Ma;
+            %                     bestoff = this.off;
+            %                 end
+            %             end
+            %             this.SystemKernel.Gamma = bestGamma;
+            %             this.Ma = bestMa;
+            %             this.off = bestoff;
+            
+            % Reduce the snapshot array and coeff data to the
+            % really used ones! This means if any snapshot x_n is
+            % not used in any dimension, it is kicked out at this
+            % stage.
+            hlp = sum(this.Ma ~= 0,1);
+            usedidx = find(hlp > 0);
+            if length(usedidx) < n
+                this.Ma = this.Ma(:,usedidx);
+                this.snData.xi = xi(:,usedidx);
+                if ~isempty(ti)
+                    this.snData.ti = ti(:,usedidx);
+                end
+                if ~isempty(mui)
+                    this.snData.mui = mui(:,usedidx);
+                end
+            end
+            
+            % @todo find out when sparse representation is more
+            % efficient!
+            if sum(hlp) / numel(this.Ma) < .5
+                this.Ma = sparse(this.Ma);
+            end
+            
+            % dont use offset vector if none are given
+            if all(this.off == 0)
+                this.off = [];
+            end
+            
+        end
+        
+    end
+    
+    methods(Access=private)
+        
+        function computeSerial(this, fxi)
+            %% Non-parallel execution
+            wh = waitbar(0,'Initializing component-wise kernel approximation');
             try
-                wh = waitbar(0,'Initializing component-wise kernel approximation');
+                n = size(this.snData.xi,2);
                 fdims = size(fxi,1);
                 this.Ma = zeros(fdims, n);
                 this.off = zeros(fdims, 1);
@@ -51,59 +164,41 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & dscomponents.CompwiseKer
                     this.off(fdim) = b;
                 end
                 
-                waitbar(fdims+5/fdims+10,wh,'Compiling approximation model data...');
-                
-                % Kick out any too small weights
-                %this.Ma(abs(this.Ma) < this.AlphaMinValue) = 0;
-                
-                % Reduce the snapshot array and coeff data to the
-                % really used ones! This means if any snapshot x_n is
-                % not used in any dimension, it is kicked out at this
-                % stage.
-                hlp = sum(this.Ma ~= 0,1);
-                usedidx = find(hlp > 0);
-                if length(usedidx) < n
-                    this.Ma = this.Ma(:,usedidx);
-                    this.snData.xi = xi(:,usedidx);
-                    if ~isempty(ti)
-                        this.snData.ti = ti(:,usedidx);
-                    end
-                    if ~isempty(mui)
-                        this.snData.mui = mui(:,usedidx);
-                    end
-                end
-                
-                % @todo find out when sparse representation is more
-                % efficient!
-                if sum(hlp) / numel(this.Ma) < .5
-                    this.Ma = sparse(this.Ma);
-                end
-                
-                % dont use offset vector if none are given
-                if all(this.off == 0)
-                    this.off = [];
-                end
-                
                 close(wh);
             catch ME
                 close(wh);
                 rethrow(ME);
             end
-            
         end
         
-        function target = clone(this, target)
-            % Clones the instance.
-            %
-            % Note:
-            % Since we use multiple inheritance we have to call the clone
-            % method from both above superclasses. In this case this leads
-            % to a double execution of the clone method from
-            % dscomponents.ACoreFcn, but this is rather done than ommitted
-            % and causing trouble later on.
-            target = clone@dscomponents.CompwiseKernelCoreFun(this, target);
-            target = clone@approx.BaseApprox(this, target);
-            % No local properties to copy.
+        function computeParallel(this, fxi)
+            %% Parallel execution
+            n = size(this.snData.xi,2);
+            fdims = size(fxi,1);
+            fprintf('Starting parallel component-wise approximation computation of %d dimensions on %d workers...\n',fdims,matlabpool('size'));
+            parAI = cell(fdims, n);
+            parOff = zeros(fdims, 1);
+            parSV = cell(1,fdims);
+            % Create handle to speedup communications (otherwise the
+            % whole object will be copied to each worker)
+            cfun = @this.calcComponentApproximation;
+            parfor fdim = 1:fdims
+                %waitbar(fdim/fdims+10,wh,sprintf('Computing
+                %approximation for dimension %d/%d ... %2.0f %%',fdim,fdims,(fdim/fdims)*100));
+                % Call template method
+                [parAI{fdim}, b, parSV{fdim}] = cfun(fxi(fdim,:));
+                parOff(fdim) = b;
+            end
+            
+            this.Ma = zeros(fdims, n);
+            for idx = 1:fdims
+                if ~isempty(parSV{idx})
+                    this.Ma(idx,parSV{idx}) = parAI{idx};
+                else
+                    this.Ma(idx,:) = parAI{idx};
+                end
+            end
+            this.off = parOff;
         end
     end
     
@@ -144,4 +239,5 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & dscomponents.CompwiseKer
     end
     
 end
+
 

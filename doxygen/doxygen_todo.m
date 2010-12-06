@@ -36,5 +36,25 @@
 % @todo thismatlabtypesubstitute -> wird falls vorhanden wohl als typ für
 % alle parameter angenommen! einfacher: den parameter einfach verschwinden
 % lassen.
+% @todo Kommentare zwischen function-blöcken innerhalb von method-blöcken
+% (auskommentierte funktionen) führen zu parse errors
+% @todo bei mehr als einem sub-package in der klassendeklaration bei
+% vererbung (class1 < pck1.pck2.someclass & pck3.pck4.someotherclass)
+% gibt's nen parse error nach "&"
+% @todo einen @type-tag einführen, der bei properties den angegebenen Typ
+% voranfügt
+% @todo code-umgebung funktioniert nicht in property-descriptions;
+% @verbatim<code>some code</code>@endverbatim geht aber.
+%
+% @todo genestete funktionen werden geparst. sollten einfach gar nicht
+% auftauchen..? sind ja private
+%
+% @todo rückgabeparameter für abstract-funktionen funktionieren nicht
+% (parse error)
+%
+% @todo fhold zu wenig beim parsen des funktionennamens für abstracts; das
+% erste zeichen wird abgeschnitten. (solver -> olver)
+%
+% @todo kein doxybody-parsing bei abstract functions
 
 somevar = 1;

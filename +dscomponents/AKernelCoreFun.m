@@ -24,7 +24,11 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
         
         % The state variable data used in the approximation.
         %
-        % This is the union of all center data used within the kernel function.
+        % This is the union of all center data used within the kernel
+        % function as a struct with the following fields: 
+        % xi: The state variable centers
+        % ti: The times at which the state xi is taken
+        % mui: The parameter used to obtain the state xi
         snData;
     end
     
@@ -61,16 +65,7 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
                 target.snData.xi = W' * this.snData.xi;
             end
         end
-        
-%         function K = evaluateKernel(this, x, t, mu)
-%             % Evaluates the kernel using the given parameters both as first
-%             % and second argument.
-%             K = this.SubKernelCombinationFun(...
-%                 this.TimeKernel.evaluate(t), ...
-%                 this.SystemKernel.evaluate(x), ...
-%                 this.ParamKernel.evaluate(mu));
-%         end
-        
+                
         function K = evaluateAtCenters(this, x, t, mu)
             % Evaluates the specified Kernel using the Sub-Kernel
             % combination function.
@@ -97,6 +92,18 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
                 this.SystemKernel.evaluate(d.xi, V*x), ...
                 this.ParamKernel.evaluate(d.mui, mu));
         end
+        
+        function target = clone(this, target)
+            % Copy local variables
+            target.snData = this.snData;
+            target.SubKernelCombinationFun = this.SubKernelCombinationFun;
+            
+            % @todo Check whether kernels should be deepcopied, too
+            target.TimeKernel = this.TimeKernel;
+            target.SystemKernel = this.SystemKernel;
+            target.ParamKernel = this.ParamKernel;
+        end
+    end
         
 %         function set.ParamKernel(this, value)
 %             if isa(value,'kernels.BaseKernel')
@@ -130,22 +137,18 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
 %                 error('TimeKernel must be a subclass of kernels.BaseKernel.');
 %             end
 %         end
-    end
+%         function K = evaluateKernel(this, x, t, mu)
+%             % Evaluates the kernel using the given parameters both as first
+%             % and second argument.
+%             K = this.SubKernelCombinationFun(...
+%                 this.TimeKernel.evaluate(t), ...
+%                 this.SystemKernel.evaluate(x), ...
+%                 this.ParamKernel.evaluate(mu));
+%         end
+%     end
     
-    methods(Access=protected)
-        function target = clone(this, target)
-            % Copy local variables
-            target.snData = this.snData;
-            target.SubKernelCombinationFun = this.SubKernelCombinationFun;
-            
-            % @todo Check whether kernels should be deepcopied, too
-            target.TimeKernel = this.TimeKernel;
-            target.SystemKernel = this.SystemKernel;
-            target.ParamKernel = this.ParamKernel;
-        end
-    end
-    
-    methods%(Access=private)
+    %(Access=private)
+    methods
         function value = get.RotationInvariantKernel(this)
             value = this.TimeKernel.RotationInvariant && ...
                 this.SystemKernel.RotationInvariant && ...

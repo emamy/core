@@ -47,7 +47,7 @@ classdef PointerCoreFun < dscomponents.ACoreFun
         end
     end
     
-    methods(Access=protected, Sealed)
+    methods(Sealed)
         function copy = clone(this)
             copy = dscomponents.PointerCoreFun(this.target);
         end

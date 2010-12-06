@@ -34,7 +34,7 @@ classdef RandomSampler < sampling.BaseSampler
             if sys.ParamCount == 1
                 samples = ranges{pidx};
             else
-                samples = this.createCombinations(ranges);
+                samples = general.Utils.createCombinations(ranges);
             end
         end
     end

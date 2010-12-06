@@ -21,21 +21,7 @@ classdef CompWiseLS < approx.BaseCompWiseKernelApprox
         LS;
     end
     
-    methods(Access=protected, Sealed)
-        
-        function prepareApproximationGeneration(this, K)
-            this.LS = general.regression.KernelLS;
-            % Assign Kernel matrix
-            this.LS.K = K;
-            this.LS.lambda = this.Lambda;
-        end
-        
-        function [ai, b, svidx] = calcComponentApproximation(this, fxi)
-            ai = this.LS.regress(fxi);
-            b = 0;
-            svidx = [];
-        end
-        
+    methods(Sealed)
         function target = clone(this)
             % Makes a copy of this instance.
             %
@@ -56,6 +42,25 @@ classdef CompWiseLS < approx.BaseCompWiseKernelApprox
             % Call superclass clone
             target = clone@approx.BaseCompWiseKernelApprox(this, target);
         end
+    end
+    
+    methods(Access=protected, Sealed)
+        
+        function prepareApproximationGeneration(this, K)
+            % @copydoc approx.BaseCompWiseKernelApprox
+            
+            this.LS = general.regression.KernelLS;
+            % Assign Kernel matrix
+            this.LS.K = K;
+            this.LS.lambda = this.Lambda;
+        end
+        
+        function [ai, b, svidx] = calcComponentApproximation(this, fxi)
+            ai = this.LS.regress(fxi);
+            b = 0;
+            svidx = [];
+        end
+        
     end
     
     methods(Static)

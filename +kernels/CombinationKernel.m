@@ -72,7 +72,8 @@ classdef CombinationKernel < kernels.BaseKernel
             x = -1:.05:1;
             fx = sinc(x);
             
-            svr = general.regression.ScalarSVR;
+            svr = general.regression.ScalarEpsSVR;
+            svr.QPSolver = solvers.qpMatlab;
             svr.eps = .3;
             svr.C = 2;
             svr.K = k.evaluate(x,x);

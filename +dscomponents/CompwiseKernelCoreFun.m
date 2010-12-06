@@ -43,14 +43,6 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & dscomponents.IGlo
             %warning('some:id','not yet implemented/validated correctly!');
         end
         
-        function set.Ma(this, value)
-            this.Ma_norms = sqrt(sum(value.^2));%#ok
-            this.Ma = value;
-        end
-    end
-    
-    methods(Access=protected)
-        
         function target = clone(this, target)
             % Check if already a subclass instance is passed upwards and
             % use it if given; otherwise create a new instance here!
@@ -58,14 +50,19 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & dscomponents.IGlo
                 target = dscomponents.CompwiseKernelCoreFun;
             end
             
+            target = clone@dscomponents.AKernelCoreFun(this, target);
+            
             % Copy local variables
             target.Ma = this.Ma;
             target.off = this.off;
-            
-            target = clone@dscomponents.AKernelCoreFun(this, target);
+        end
+        
+        function set.Ma(this, value)
+            this.Ma_norms = sqrt(sum(value.^2));%#ok
+            this.Ma = value;
         end
     end
-    
+        
     methods(Sealed)
         
         function copy = project(this, V, W)

@@ -45,9 +45,6 @@ classdef LocalLipKernelEstimator < error.BaseEstimator
     end
     
     properties(Access=private)
-        M1;
-        M2;
-        M3;
         Ma_norms;
         xi;
     end
@@ -64,75 +61,62 @@ classdef LocalLipKernelEstimator < error.BaseEstimator
     
     methods
         function this = LocalLipKernelEstimator(rmodel)
-            
-            % Validity checks
-            msg = error.LocalLipKernelEstimator.validModelForEstimator(rmodel);
-            if ~isempty(msg)
-                error(msg);
-            end
-            
-            % Call superclass constructor with model argument
-            this = this@error.BaseEstimator(rmodel);
-            
-            this.KernelLipschitzFcn = rmodel.System.f.SystemKernel.getLipschitzFunction;
-
             this.ExtraODEDims = 3;
+            if nargin == 1
+                this.setReducedModel(rmodel);
+            end
+        end
+        
+        function copy = clone(this)
+            % Creates a deep copy of this estimator instance.
+            copy = error.LocalLipKernelEstimator;
+            % ExtraODEDims is set in constructor!
+            copy = clone@error.BaseEstimator(this, copy);
+            copy.KernelLipschitzFcn = this.KernelLipschitzFcn;
+            copy.Iterations = this.Iterations;
+            copy.UseTimeDiscreteC = this.UseTimeDiscreteC;
+            copy.Ma_norms = this.Ma_norms;
+            copy.xi = this.xi;
+            copy.times = this.times;
+            copy.divals = this.divals;
+            copy.e1vals = this.e1vals;
+            copy.C = this.C;
+            copy.stepcnt = this.stepcnt;
+            copy.neg_e1 = this.neg_e1;
+        end
+        
+        function setReducedModel(this, rmodel)
+            % Overrides the setReducedModel method from error.BaseEstimator
+            % and performs additional offline computations.
             
-            fm = rmodel.FullModel;
+            % Call superclass method to perform standard estimator
+            % computations
+            setReducedModel@error.BaseEstimator(this, rmodel);
+            
+            this.KernelLipschitzFcn = this.ReducedModel.System.f.SystemKernel.getLipschitzFunction;
+            
+            fm = this.ReducedModel.FullModel;
             % Obtain the correct snapshots
             if ~isempty(fm.Approx)
                 % Standard case: the approx function is a kernel expansion.
-                
                 % Get centers of full approximation
                 this.xi = fm.Approx.snData.xi;
-                % Get full d x N coeff matrix of approx function
-                Ma = fm.Approx.Ma;
+                % Precompute norms
+                this.Ma_norms = sqrt(sum(fm.Approx.Ma.^2));
             else
                 % This is the also possible case that the full core
                 % function of the system is a KernelExpansion.
-                
+                %
                 % Get centers of full core function
                 this.xi = fm.System.f.snData.xi;
-                % Get full d x N coeff matrix of core function
-                Ma = fm.System.f.Ma;
+                % Precompute norms
+                this.Ma_norms = sqrt(sum(fm.System.f.Ma.^2));
             end
-            if rmodel.System.f.RotationInvariantKernel
-                this.xi = rmodel.System.f.snData.xi;
+            if this.ReducedModel.System.f.RotationInvariantKernel
+                this.xi = this.ReducedModel.System.f.snData.xi;
             end
             
-            % Precompute norms
-            this.Ma_norms = sqrt(sum(Ma.^2));
             
-            % Only prepare matrices if projection was used
-            if ~isempty(rmodel.V) && ~isempty(rmodel.W)
-                % P = (I-VW^t)
-                P = (eye(size(rmodel.V,1)) - rmodel.V*rmodel.W');
-                D = P' * rmodel.G * P;
-                
-                hlp = Ma'*D*Ma;
-                this.M1 = hlp;
-                
-                % Only linear input conversion (B = const. matrix) allowed so
-                % far! mu,0 is only to let
-                if ~isempty(rmodel.FullModel.System.B)
-                    try
-                        B = rmodel.FullModel.System.B.evaluate([],[]);
-                    catch ME%#ok
-                        B = rmodel.FullModel.System.B.evaluate(0,rmodel.System.getRandomParam);
-                        warning('Some:Id','Error estimator for current system will not work correctly! (B is not linear and mu-independent!');
-                    end
-                    % Filter too small entries
-                    hlp = B'*D*B;
-                    this.M2 = hlp;
-                    hlp = Ma'*D*B;
-                    this.M3 = hlp;
-                end
-            else
-                % No projection means no projection error!
-                this.M1 = 0;
-                this.M2 = 0;
-                this.M3 = 0;
-            end
         end
         
         function e = evalODEPart(this, x, t, mu, ut)
@@ -149,7 +133,7 @@ classdef LocalLipKernelEstimator < error.BaseEstimator
             else
                 e(1) = phi'*this.M1*phi;
             end
-            if ~this.neg_e1 && e(1) < 1
+            if ~this.neg_e1 && e(1) < 0
                 this.neg_e1 = true;
             end
             %e(1) = sqrt(abs(e(1)));
@@ -193,7 +177,11 @@ classdef LocalLipKernelEstimator < error.BaseEstimator
             if this.UseTimeDiscreteC
                 Ct = eold(1) + exp(eold(2)).*eold(3);
             end
+            try 
             beta = this.Ma_norms * this.KernelLipschitzFcn(di,Ct,t,mu)';
+            catch ME
+                keyboard;
+            end
             e(2) = beta;
             e(3) = eold(1)*beta*exp(-eold(2));
             
@@ -240,7 +228,6 @@ classdef LocalLipKernelEstimator < error.BaseEstimator
             this.divals = [];
         end
         
-        %% Getter & Setter
         function set.Iterations(this, value)
             if value > 0 && isa(this.ReducedModel.ODESolver,'solvers.MLWrapper')%#ok
                 warning('errorEst:LocalLipEst',...

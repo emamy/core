@@ -13,6 +13,13 @@ classdef CompWiseInt < approx.BaseCompWiseKernelApprox
         KI;
     end
     
+    methods(Sealed)
+        function copy = clone(this)
+            copy = approx.CompWiseInt;
+            copy = clone@approx.BaseCompWiseKernelApprox(this, copy);
+        end
+    end
+    
     methods(Access=protected, Sealed)
         
         function prepareApproximationGeneration(this, K)
@@ -22,14 +29,8 @@ classdef CompWiseInt < approx.BaseCompWiseKernelApprox
         end
         
         function [ai, b, svidx] = calcComponentApproximation(this, fxi)
-            ai = this.KI.interpolate(fxi);
-            b = 0;
+            [ai,b] = this.KI.interpolate(fxi);
             svidx = [];
-        end
-        
-        function copy = clone(this)
-            copy = approx.CompWiseInt;
-            copy = clone@approx.BaseCompWiseKernelApprox(this, copy);
         end
     end
 end

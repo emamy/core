@@ -13,11 +13,14 @@ classdef ManualReduction < spacereduction.BaseSpaceReducer
             % `W`
             this.V = V;
             if nargin == 1
-                if ~isequal(round(V'*V),eye(size(V,2))) || sum(sum(V'*V)-eye(size(V,2))) > 100*eps
+                if ~isequal(round(V'*V),eye(size(V,2))) || sum(sum(V'*V-eye(size(V,2)))) > 100*eps
                     error('If no W is given, V must be orthogonal!');
                 end
                 this.W = V;
             else
+                if ~isequal(round(W'*V),eye(size(W,2))) || sum(sum(W'*V-eye(size(W,2)))) > sqrt(eps)
+                    error('V and W must be bi-orthogonal!');
+                end
                 this.W = W;
             end
         end

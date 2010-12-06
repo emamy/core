@@ -1,4 +1,4 @@
-classdef BaseFullModel < models.BaseModel
+classdef BaseFullModel < models.BaseModel & IParallelizable
     %BASEFULLMODEL The base class for any KerMor detailed model
     %   Implementers of custom models are to inherit from this base class
     %   in order for it to work with KerMor.
@@ -7,6 +7,8 @@ classdef BaseFullModel < models.BaseModel
     %   and reduction methods.
     %   For the implementation of custom dynamical systems, refer to
     %   BaseDynSystem.
+    %
+    % @todo build in time-tracking for offline phase etc
     %
     % See also: models BaseModel BaseDynSystem
     %
@@ -33,6 +35,16 @@ classdef BaseFullModel < models.BaseModel
         % See also: general.POD general.Orthonormalizer
         %PODFix;
         
+        % The number of projection training data snapshots used to compile
+        % the approximation training data set. So far, simply uses linspace
+        % to select a subset.
+        %
+        % @todo move to basekernelapprox when other approximation methods
+        % but kernel-based arise.
+        %
+        % Default: 120
+        ApproxExpansionSize = 120;
+        
         % The reduction algorithm for subspaces
         %
         % See also: spacereduction BaseSpaceReducer
@@ -42,7 +54,34 @@ classdef BaseFullModel < models.BaseModel
         %
         % Defaults to scalar kernel SVR regression
         Approx;
+        
+        % Advanced property. 
+        % Must be a function handle taking the current model instance.
+        %
+        % The handle is invoked before the ApproxfValues and approximation
+        % data is computed within off4_computeApproximation.
+        %
+        % This property allows to manually influence the approximation
+        % training data, for example if the training data has repeating
+        % entries if the problem at hand is homogeneous over a specific
+        % dimension. An example is the models.rbmatlab.RiemannBurgers
+        % model, which is in fact homogeneous in y-direction. Thus, only
+        % distinct x-direction points have to be trained for.
+        preApproximationTrainingCallback;
+        
+        % Advanced property. 
+        % Must be a function handle taking the current model instance.
+        %
+        % The handle is invoked at the end of the off4_computeApproximation
+        % method.
+        %
+        % See preApproximationTrainingCallback for details.
+        postApproximationTrainingCallback;
     end
+    
+%     properties(Access=private)
+%         phase = [0 0 0 0 0];
+%     end
     
     methods
         
@@ -61,94 +100,141 @@ classdef BaseFullModel < models.BaseModel
             % Setup default values for the full model's components
             this.Sampler = sampling.RandomSampler;
             this.SpaceReducer = spacereduction.PODReducer;
-%             p = general.PODFixspace;
-%             p.Mode = 'abs';
-%             p.Value = 1;
-%             this.PODFix = p;
+            %             p = general.PODFixspace;
+            %             p.Mode = 'abs';
+            %             p.Value = 1;
+            %             this.PODFix = p;
             this.Approx = approx.CompWiseInt;
             this.Data = models.ModelData;
             this.System = models.BaseDynSystem;
         end
         
-        function off1_createParamSamples(this)
+        function time = off1_createParamSamples(this)
             % Offline phase 1: Sample generation.
             
             % Sampling
+            time = tic;
             if ~isempty(this.Sampler)
                 this.Data.ParamSamples = this.Sampler.generateSamples(this);
             end
+            time = toc(time);
         end
         
-        function off2_genProjectionTrainData(this)
+        function time = off2_genProjectionTrainData(this)
             % Offline phase 2: Snapshot generation for subspace computation
             %
             % @todo Optimize snapshot array augmentation by preallocation
             % (later will be some storage class)
+            time = tic;
             
             num_s = max(1,this.Data.SampleCount);
             num_in = max(1,this.System.InputCount);
             
             % Compute system dimension using x0.
-            mu = [];
-            if num_samples > 0
-                mu = zeros(this.System.ParamCount,1);
-            end
+            mu = this.Data.getParams(1);
             dims = length(this.System.x0(mu));
             
             trajlen = length(this.Times);
-            sn = zeros(dims+3,trajlen*num_samples*num);
             
-            try
-                wh = waitbar(0,'Initializing...');
-                
-                % Assume no parameters or inputs
-                mu = [];
-                munum = 0;
-                inputidx = [];
-                innum = 0;
-                
-                cnt = 0;
-                % Iterate through all input functions
-                for inidx = 1:num_in
-                    % Iterate through all parameter samples
-                    for pidx = 1:num_s
-                        
-                        % Display
-                        waitbar(perc,wh,sprintf('Generating projection training data... %2.0f%%',round(cnt/(num_in*num_s)*100)));
-                        
-                        % Check for parameters
-                        if this.Data.SampleCount > 0
-                            mu = this.Data.ParamSamples(:,pidx);
-                            munum = pidx;
-                        end
-                        % Check for inputs
-                        if this.System.InputCount > 0
-                            inputidx = inidx;
-                            innum = inidx;
-                        end
-                        
-                        % Get trajectory
-                        [t, x] = this.computeTrajectory(mu, inputidx);
-                                                
-                        % Assign snapshot values
-                        curpos = cnt*trajlen+1;
-                        sn(:,curpos:curpos+trajlen) = ...
-                            [ones(1,newlen)*munum; ones(1,newlen)*innum; t; x];
-                        
-                        cnt=cnt+1;
-                    end
-                end
-                close(wh);
-            catch ME
-                close(wh);
-                rethrow(ME);
+            if num_s*num_in < matlabpool('size')
+                % @TODO: switch back if changed!
+                this.ComputeParallel = false;
             end
             
-            this.Data.ProjTrainData = sn;
+            %% Parallel - computation
+            if this.ComputeParallel
+                idxmat = general.Utils.createCombinations(1:num_s,1:num_in);
+                sn = zeros(dims+3,trajlen,size(idxmat,2));
+                
+                fprintf('Starting parallel projection training data computation of %d trajectories on %d workers...\n',size(idxmat,2),matlabpool('size'));
+                % Iterate through all param/input combinations
+                paridx = idxmat(1,:); % Use sliced variables here
+                inidx = idxmat(2,:);
+                clear idxmat;
+                
+                parfor idx = 1:size(paridx,2)
+                    
+                    % Check for parameters
+                    mu = []; munum = 0;
+                    if this.Data.SampleCount > 0%#ok
+                        munum = paridx(idx);
+                        mu = this.Data.getParams(munum);
+                    end
+                    % Check for inputs
+                    inputidx = []; innum = 0;
+                    if this.System.InputCount > 0
+                        inputidx = inidx(idx);
+                        innum = inputidx;
+                    end
+                    
+                    % Get trajectory
+                    [t, x] = this.computeTrajectory(mu, inputidx);
+                    
+                    % Assign snapshot values
+                    sn(:,:,idx) = [ones(1,trajlen)*munum; ones(1,trajlen)*innum; t; x];
+                end
+                this.Data.ProjTrainData = sn(:,:);
+                
+                %% Non-parallel computation
+            else
+                sn = zeros(dims+3,trajlen*num_s*num_in);
+                try
+                    wh = waitbar(0,'Initializing...');
+                    
+                    % Assume no parameters or inputs
+                    mu = [];
+                    munum = 0;
+                    inputidx = [];
+                    innum = 0;
+                    
+                    cnt = 0;
+                    % Iterate through all input functions
+                    for inidx = 1:num_in
+                        % Iterate through all parameter samples
+                        for pidx = 1:num_s
+                            
+                            % Display
+                            perc = cnt/(num_in*num_s);
+                            waitbar(perc,wh,sprintf('Generating projection training data... %2.0f%%',round(perc*100)));
+                            
+                            % Check for parameters
+                            if this.Data.SampleCount > 0
+                                mu = this.Data.getParams(pidx);
+                                munum = pidx;
+                            end
+                            % Check for inputs
+                            if this.System.InputCount > 0
+                                inputidx = inidx;
+                                innum = inidx;
+                            end
+                            
+                            % Get trajectory
+                            [t, x] = this.computeTrajectory(mu, inputidx);
+                            
+                            % Assign snapshot values
+                            curpos = cnt*trajlen+1;
+                            sn(:,curpos:curpos+trajlen-1) = ...
+                                [ones(1,trajlen)*munum; ones(1,trajlen)*innum; t; x];
+                            
+                            cnt=cnt+1;
+                        end
+                    end
+                    close(wh);
+                catch ME
+                    close(wh);
+                    rethrow(ME);
+                end
+                this.Data.ProjTrainData = sn;
+            end
+            
+            
+            time = toc(time);
         end
         
-        function off3_computeReducedSpace(this)
+        function time = off3_computeReducedSpace(this)
             % Offline phase 3: Generate state space reduction
+            
+            time = tic;
             
             % Clear before running, so that in case of errors the matrix
             % from old reductions is unset.
@@ -171,54 +257,99 @@ classdef BaseFullModel < models.BaseModel
                     rethrow(ME);
                 end
             end
+            
+            time = toc(time);
         end
         
-        function off4_generateApproximation(this)
+        function time = off4_genApproximationTrainData(this)
+            time = tic;
+            if ~isempty(this.Approx)
+                % Validity checks
+                sn = this.Data.ProjTrainData;
+                if isempty(sn)
+                    error('');
+                end
+                
+                % Select subset of projection training data
+                selection = round(linspace(1,size(sn,2),...
+                    min(this.ApproxExpansionSize,size(sn,2))));
+                atd = sn(:,selection);
+                
+                % If projection is used, train approximating function in
+                % centers projected into the subspace.
+                if ~isempty(this.SpaceReducer)
+                    atd(4:end,:) = (this.Data.V*this.Data.W')*atd(4:end,:);
+                end
+                this.Data.ApproxTrainData = atd;
+                
+                % Compute f-Values at training data
+                % Deactivated due to immense overhead and matlab crashes.
+                % investigate further
+                if false && this.ComputeParallel
+                    fval = zeros(size(this.Data.ProjTrainData,1)-3,size(atd,2));
+                    atddata = atd(4:end,:);
+                    pardata = atd(1,:);
+                    if KerMor.Instance.Verbose > 0
+                        fprintf('Starting parallel f-values computation at %d points on %d workers...\n',size(atd,2),matlabpool('size'));
+                    end
+                    parfor sidx=1:size(atd,2)
+                        fval(:,sidx) = ...
+                            this.System.f.evaluate(atddata(:,sidx),... % x
+                            atd(3,sidx),... % t
+                            this.Data.getParams(pardata(sidx))); %#ok mu
+                    end
+                    this.Data.ApproxfValues = fval;
+                else
+                    this.Data.ApproxfValues = zeros(size(this.Data.ProjTrainData,1)-3,size(atd,2));
+                    if KerMor.Instance.Verbose > 0
+                        fprintf('Serial computation of f-values at %d points ...\n',size(atd,2));
+                    end
+                    for sidx=1:size(atd,2)
+                        this.Data.ApproxfValues(:,sidx) = ...
+                            this.System.f.evaluate(atd(4:end,sidx),... % x
+                            atd(3,sidx),... % t
+                            this.Data.getParams(atd(1,sidx))); % mu
+                    end
+                end
+                
+            end
+            time = toc(time);
+        end
+        
+        function time = off5_computeApproximation(this)
             % Offline phase 5: Core function approximation
             %
             % @todo proper subset selection algorithm/method
+            time = tic;
             
             if ~isempty(this.Approx)
-                % Select subset of projection training data
-                sn = this.Data.ProjTrainData;
-                selection = round(linspace(1,size(sn,2),min(200,size(sn,2))));
-                atd = sn(:,selection);
-                
-                % For rotation invariant kernels the training data can be
-                % projected into the reduced space directly.
-                % Hence, when rotation invariant kernels are used we need
-                % to reproject the vectors into the full space using V;
-                % otherwise, use V=1.
-                if isa(this.Approx,'dscomponents.AKernelCoreFun') && ...
-                        this.Approx.RotationInvariantKernel
-                    subdim = size(this.Data.W,2);
-                    % Project x_i to z_i
-                    atd(4:end,1:subdim) = this.Data.W'*atd(4:end,:);
-                    % Remove overhead space
-                    atd(4:end,subdim+1:end) = [];
-                    V = this.Data.V;
+                if isempty(this.Data.ApproxTrainData)
+                    error('No approximation training data available. Called off4_genApproximationTrainData?');
                 else
-                    V = 1;
+                    atd = this.Data.ApproxTrainData;
                 end
                 
-                % Compute f-Values at training data
                 
-                this.Data.ApproxfValues = zeros();
-                for sidx=1:size(sn,2)
-                    x = sn(4:end,sidx);
-                    t = sn(3,sidx);
-                    mu = this.Data.getParam(sn(1,sidx));
-                    fx = this.System.f.evaluate(V*x,t,mu);
-                    f_vals(:,end+1) = fx;%#ok
+                
+                if isa(this.preApproximationTrainingCallback,'function_handle')
+                    this.preApproximationTrainingCallback();
                 end
-                this.Data.ApproxfValues = f_vals;
                 
-                % Approximate core function
+                % Approximate core function (is parallelizable for its own)
+                if KerMor.Instance.Verbose > 0
+                    fprintf('Serial approximation computation for %d dimensions ...\n',size(this.Data.ApproxfValues,1));
+                end
                 this.Approx.approximateCoreFun(this);
+                
+                if isa(this.postApproximationTrainingCallback,'function_handle')
+                    this.postApproximationTrainingCallback();
+                end
             end
+            
+            time = toc(time);
         end
         
-        function offlineGenerations(this)
+        function times = offlineGenerations(this)
             % Performs all large offline computations for model reduction.
             %
             % This method is mainly used to compile all large data for the
@@ -228,79 +359,87 @@ classdef BaseFullModel < models.BaseModel
             %
             % See also: buildReducedModel
             
-            this.off1_createParamSamples;
-            this.off2_genProjectionTrainData;
-            this.off3_computeReducedSpace;
-            this.off4_generateApproximation;
+            times(1) = this.off1_createParamSamples;
+            times(2) = this.off2_genProjectionTrainData;
+            times(3) = this.off3_computeReducedSpace;
+            times(4) = this.off4_genApproximationTrainData;
+            times(5) = this.off5_computeApproximation;
             
             % Set time dirt flag to false as current sn fit the
             % times used.
             this.TimeDirty = false;
         end
         
-        function reduced = buildReducedModel(this)
+        function [reduced,time] = buildReducedModel(this)
             % Builds a reduced model from a full model.
             %
             % Before calling this method ensure that offlineGenerations was
             % called at least once to provide the model's necessary data
             % for the reduction process.
             %
+            % Return values:
+            % reduced: The reduced model created from this full model.
+            % time: The time needed to build the reduced model.
+            %
             % See also: offlineGenerations
             % @docupdate
             
-            if this.TimeDirty 
-                warning(['The T or dt parameters have been changed since the last offline generations.\n'...
-                       'A call to offlineGenerations is required.']);
-            elseif isempty(this.Data) || isempty(this.Data.ProjTrainData)
+%             if this.TimeDirty
+%                 warning(['The T or dt parameters have been changed since the last offline generations.\n'...
+%                     'A call to offlineGenerations is required.']);
+%             else
+            if isempty(this.Data) || isempty(this.Data.ProjTrainData)
                 error('No Snapshot data available. Forgot to call offlineGenerations before?');
             end
+            tic;
             reduced = models.ReducedModel(this);
+            time = toc;
         end
-
+        
         % Not longer used as complete trajectories aren't stored in the
-        % Data.Snapshot array 
-%         function [t,x] = computeTrajectory(this, mu, inputidx)
-%             % Overrides the base method in BaseModel. For speed reasons any
-%             % already computed trajectories are returned without being 
-%             %
-%             % Parameters:
-%             % mu: The parameter `\mu` to use. Set [] for none.
-%             % inputidx: The input function `u(t)` index to use. Set [] for
-%             % none.
-%             %
-%             % See also: models.BaseModel#computeTrajectory(mu, inputidx);
-%             %
-%             % @todo Possibly save the later computed trajectories in the
-%             % ModelData class?
-%             
-%             if ~isempty(this.Data) && ~isempty(this.Data.ProjTrainData)
-%                 x = this.Data.getTrajectory(mu,inputidx);
-%                 if ~isempty(x)
-%                     t = this.Times;
-%                     return;
-%                 end
-%             end
-%             [t,x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
-%             
-%             % HERE: Save new trajectory in ModelData!
-%         end
+        % Data.Snapshot array
+        %         function [t,x] = computeTrajectory(this, mu, inputidx)
+        %             % Overrides the base method in BaseModel. For speed reasons any
+        %             % already computed trajectories are returned without being
+        %             %
+        %             % Parameters:
+        %             % mu: The parameter `\mu` to use. Set [] for none.
+        %             % inputidx: The input function `u(t)` index to use. Set [] for
+        %             % none.
+        %             %
+        %             % See also: models.BaseModel#computeTrajectory(mu, inputidx);
+        %             %
+        %             % @todo Possibly save the later computed trajectories in the
+        %             % ModelData class?
+        %
+        %             if ~isempty(this.Data) && ~isempty(this.Data.ProjTrainData)
+        %                 x = this.Data.getTrajectory(mu,inputidx);
+        %                 if ~isempty(x)
+        %                     t = this.Times;
+        %                     return;
+        %                 end
+        %             end
+        %             [t,x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
+        %
+        %             % HERE: Save new trajectory in ModelData!
+        %         end
         
     end
     
-%     methods(Access=protected,Sealed)
-%         function opts = trajectoryCompInit(this, mu, inputidx)%#ok
-%             % Implements the template method from models.BaseModel
-%             %
-%             % Here in the full model nothing is to do yet as only error
-%             % computation for reduced systems is performed so far in
-%             % ReducedModel.
-%             %
-%             % See also: models.BaseModel models.ReducedModel
-%             
-%             % Nothing to do here yet.
-%             opts = [];
-%         end
-%     end
+    %     methods(Access=protected,Sealed)
+    %         function opts = trajectoryCompInit(this, mu, inputidx)%#ok
+    %             % Implements the template method from models.BaseModel
+    %             %
+    %             % Here in the full model nothing is to do yet as only error
+    %             % computation for reduced systems is performed so far in
+    %             % ReducedModel.
+    %             %
+    %             % See also: models.BaseModel models.ReducedModel
+    %
+    %             % Nothing to do here yet.
+    %             opts = [];
+    %         end
+    %     end
     
     %% Getter & Setter
     methods
@@ -535,4 +674,3 @@ classdef BaseFullModel < models.BaseModel
         end
     end
 end
-
