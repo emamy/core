@@ -35,16 +35,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % See also: general.POD general.Orthonormalizer
         %PODFix;
         
-        % The number of projection training data snapshots used to compile
-        % the approximation training data set. So far, simply uses linspace
-        % to select a subset.
-        %
-        % @todo move to basekernelapprox when other approximation methods
-        % but kernel-based arise.
-        %
-        % Default: 120
-        ApproxExpansionSize = 120;
-        
         % The reduction algorithm for subspaces
         %
         % See also: spacereduction BaseSpaceReducer
@@ -256,18 +246,16 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         end
         
         function time = off4_genApproximationTrainData(this)
+            % Generates the training data for the `\hat{f}`-approximation.
+            %
+            % @todo create IMatrixArgument-interface or so, to detect
+            % whether one can evaluate the system function passing a matrix
+            % argument instead of a vector. -> speedup
             time = tic;
             if ~isempty(this.Approx)
-                % Validity checks
-                sn = this.Data.ProjTrainData;
-                if isempty(sn)
-                    error('No projection training data available to take approximation training data from.');
-                end
                 
                 % Select subset of projection training data
-                selection = round(linspace(1,size(sn,2),...
-                    min(this.ApproxExpansionSize,size(sn,2))));
-                atd = sn(:,selection);
+                atd = this.Approx.selectTrainingData(this.Data);
                 
                 % If projection is used, train approximating function in
                 % centers projected into the subspace.

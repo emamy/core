@@ -35,16 +35,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % See also: general.POD general.Orthonormalizer
         %PODFix;
         
-        % The number of projection training data snapshots used to compile
-        % the approximation training data set. So far, simply uses linspace
-        % to select a subset.
-        %
-        % @todo move to basekernelapprox when other approximation methods
-        % but kernel-based arise.
-        %
-        % Default: 120
-        ApproxExpansionSize = 120;
-        
         % The reduction algorithm for subspaces
         %
         % See also: spacereduction BaseSpaceReducer
@@ -248,32 +238,21 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     warning('KerMor:spacereduction',['System''s state dimension'...
                         'is already one; no effective reduction.']);
                 end
-                try
-                    wh = waitbar(.5,'Computing reduced space...');
-                    [this.Data.V this.Data.W] = this.SpaceReducer.generateReducedSpace(this);
-                    close(wh);
-                catch ME
-                    close(wh);
-                    rethrow(ME);
-                end
+                fprintf('Computing reduced space...\n');
+                [this.Data.V this.Data.W] = this.SpaceReducer.generateReducedSpace(this);
             end
             
             time = toc(time);
         end
         
         function time = off4_genApproximationTrainData(this)
+            % 
+            % @todo
             time = tic;
             if ~isempty(this.Approx)
-                % Validity checks
-                sn = this.Data.ProjTrainData;
-                if isempty(sn)
-                    error('');
-                end
                 
                 % Select subset of projection training data
-                selection = round(linspace(1,size(sn,2),...
-                    min(this.ApproxExpansionSize,size(sn,2))));
-                atd = sn(:,selection);
+                atd = this.Approx.selectTrainingData(this.Data);
                 
                 % If projection is used, train approximating function in
                 % centers projected into the subspace.
@@ -323,22 +302,19 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             time = tic;
             
             if ~isempty(this.Approx)
-                if isempty(this.Data.ApproxTrainData)
+                if isempty(this.Data.ApproxTrainData) || isempty(this.Data.ApproxfValues)
                     error('No approximation training data available. Called off4_genApproximationTrainData?');
-                else
-                    atd = this.Data.ApproxTrainData;
                 end
-                
-                
                 
                 if isa(this.preApproximationTrainingCallback,'function_handle')
                     this.preApproximationTrainingCallback();
                 end
                 
-                % Approximate core function (is parallelizable for its own)
                 if KerMor.Instance.Verbose > 0
                     fprintf('Serial approximation computation for %d dimensions ...\n',size(this.Data.ApproxfValues,1));
                 end
+                
+                % Approximate core function (is parallelizable for its own)
                 this.Approx.approximateCoreFun(this);
                 
                 if isa(this.postApproximationTrainingCallback,'function_handle')

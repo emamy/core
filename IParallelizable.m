@@ -3,7 +3,8 @@ classdef IParallelizable < handle
     %   Detailed explanation goes here
     
     properties
-        ComputeParallel = true;
+        % Flag whether the code should be run in parallel or not.
+        ComputeParallel = false;
     end
     
 end

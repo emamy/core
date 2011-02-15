@@ -7,6 +7,10 @@ classdef BaseApprox < dscomponents.ACoreFun
     methods        
         
         function approximateCoreFun(this, model)
+            % @todo the de-compilation of the ApproxTrainData does not
+            % necessarily have to take place in this superclass; as long as
+            % the data is in the ModelData class one could also move it
+            % into that class. though its not necessary yet..
             
             % Load snapshots
             atd = model.Data.ApproxTrainData;
@@ -22,8 +26,35 @@ classdef BaseApprox < dscomponents.ACoreFun
             end
             
             % Call template method
-            this.gen_approximation_data(xi, ti, mui, model.Data.ApproxfValues);
+            this.gen_approximation_data(model, xi, ti, mui);
         end
+        
+        function atd = selectTrainingData(this, modeldata)
+            % Default approx training data generation method.
+            %
+            % Simply takes ALL the projection training data.
+            %
+            % Important:
+            % Note that the selected training data is projected into the
+            % precomputed subspace if spacereduction is performed.
+            %
+            % Override in subclasses to tailor the selection behaviour to
+            % specific approximation functions' needs.
+            %
+            % See also:
+            % models.BaseFullModel.off4_genApproximationTrainData
+            
+            % Validity checks
+            sn = modeldata.ProjTrainData;
+            if isempty(sn)
+                error('No projection training data available to take approximation training data from.');
+            end
+            
+            selection = round(linspace(1,size(sn,2),...
+                    min(this.ApproxExpansionSize,size(sn,2))));
+            atd = sn(:,selection);
+        end
+        
     end
     
     methods(Abstract, Access=protected)
@@ -33,13 +64,13 @@ classdef BaseApprox < dscomponents.ACoreFun
         % Template method.
         %
         % Parameters:
+        % model: The full model
         % xi: The state variable snapshots as column vectors, each row
         % representing each system dimension.
         % ti: The times at which the state variable snapshots are taken
         % mui: The parameters used to obtain the snapshots. Equals [] if no
         % parameters have been used.
-        % fxi: The core functions' values at the snapshots xi.
-        gen_approximation_data(xi, ti, mui, fxi);
+        gen_approximation_data(model, xi, ti, mui);
     end
     
     methods(Static)

@@ -94,7 +94,8 @@ for C = Cint
         
     end
     
-    ph = plot(x,f(x),'r',x,abs(df(x)),'r--',x,e1,'b',x,e2,'g',x,e3,'m');
+    %ph = plot(x,f(x),'r',x,abs(df(x)),'r--',x,e1,'b',x,e2,'g',x,e3,'m');
+    ph = plot(x,f(x),'r',x,abs(df(x)),'r--',x,e1,'b',x,e3,'g');
     set(ph,'LineWidth',2);
     hold on;
     %plot(x,e12,'b--',x,e22,'g--',x,e32,'m--');
@@ -103,11 +104,11 @@ for C = Cint
     %legend('f(x)','Df(x)','Local Gradient with x_0','Local Secant with x_0','Local secant with x_y');
     
     skip = round(1/(3*dt));
-    ph = plot(x(1:skip:end),minder(1:skip:end),'b^');
+    ph = plot(x(1:skip:end),minder(1:skip:end),'m^');
     set(ph,'MarkerSize',6);
     %plot(x,minder,'r');
     %legend('f(x)','Df(x)','Local Gradient with x_0','Local Secant with x_0','Local secant with x_y','Minimal Lipschitz constant');
-    legend('Gaussian','Abs. Gaussian derivative','Local Gradient with x_0','Local Secant with x_0','Local secant with x_y','Minimal Lipschitz constant');
+    legend('Gaussian','Abs. Gaussian derivative','Local Gradient estimate (LGL)','Local secant estimate (LSL)','Minimal Lipschitz constant');
     
     % C-range plot
     %     plot([x0-C x0-C+eps], [0 1], 'black--',[x0 x0+eps], [0 1], 'black',[x0+C x0+C+eps], [0 1], 'black--');

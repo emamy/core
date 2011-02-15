@@ -9,16 +9,16 @@ classdef BaseDynSystem < handle
     % function f (e.g. for space-discretized systems and thus all
     % space-discretization relevant settings). In order to have all
     % settings combined at one class one should rather pass the custom
-    % system's instance to the ICoreFun implementing classes' constructor
+    % system's instance to the ACoreFun implementing classes' constructor
     % and read settings from that instead.
     % For an example see the models.pcd.PCDSystem and models.pcd.CoreFun.
     %
-    % @author Daniel Wirtz, 17.03.2010
+    % @author Daniel Wirtz @date 17.03.2010
     
     properties
         % The core f function from the dynamical system.
         %
-        % @type dscomponents.ICoreFun
+        % @type dscomponents.ACoreFun
         f;
         
         % The input conversion
@@ -28,8 +28,9 @@ classdef BaseDynSystem < handle
         % Defaults to an StdOutputConv instance, which just forwards the
         % state variables ans supports projection.
         %
-        
-        % @sa dscomponents.StdOutputConv::project
+        % @sa StdOutputConv::project(V)
+        % @sa dscomponents.StdOutputConv::project(matlabtypesubstitute, matlabtypesubstitute)
+        % @sa dscomponents.StdOutputConv::project(matlabtypesubstitute)
         C;
         
         % See also: dscomponents.StdOutputConv/project
@@ -65,8 +66,9 @@ classdef BaseDynSystem < handle
     methods
         
         function this = BaseDynSystem
+            %
+            this.C = dscomponents.LinearOutputConv(1);
             this.x0 = @(mu)0;
-            this.C = dscomponents.StdOutputConv;
         end
         
         function odefun = getODEFun(this, mu, inputidx)
@@ -78,13 +80,9 @@ classdef BaseDynSystem < handle
             % Analogue the inputidx may be empty to force skipping the
             % system's input; however, if no inputconv component is set
             % this is ignored in any case.
-            
-            if isempty(this.f)
-                error('No system''s core function specified. ODE function creation impossible; first set "f" property.');
-            end
-            
+                        
             % System without inputs
-            if isempty(inputidx) || isempty(this.Inputs) || isempty(this.B)
+            if this.InputCount == 0 || isempty(this.B)
                 odefun = @(t,x)(this.f.evaluate(x,t,mu));
             else
                 % generates the ode function for given parameter and input function
@@ -103,15 +101,6 @@ classdef BaseDynSystem < handle
             else
                 mu = [];
             end
-        end
-        
-        function plot(this, model, t, y)
-            % Plots the results of the simulation.
-            % Override in subclasses for a more specific plot if desired.
-            figure;
-            plot(t,y);
-            title(sprintf('Plot for output of model "%s"', model.Name));
-            xlabel('Time'); ylabel('Output functions');
         end
         
     end
@@ -175,8 +164,8 @@ classdef BaseDynSystem < handle
         end
         
         function set.f(this,value)
-            if ~isempty(value) && ~isa(value, 'dscomponents.ICoreFun')
-                error('The property "f" has to be a class implementing dscomponents.ICoreFun');
+            if ~isempty(value) && ~isa(value, 'dscomponents.ACoreFun')
+                error('The property "f" has to be a class implementing dscomponents.ACoreFun');
             end
             this.f = value;
         end
@@ -204,7 +193,7 @@ classdef BaseDynSystem < handle
             this.x0 = value;
         end
         
-        function set.Inputs(this,value)
+        function set.Inputs(this, value)
             if ~iscell(value)
                 error('Property "Inputs" must be a cell array.');
             end

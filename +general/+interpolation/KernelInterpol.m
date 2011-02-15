@@ -9,7 +9,7 @@ classdef KernelInterpol
     
     methods
         function [a,b] = interpolate(this, fxi)
-            % Interpolates the 
+            % Interpolates the
             b = mean(fxi);
             if all(abs(fxi - b) < 10*eps)
                 a = zeros(size(fxi))';
@@ -23,6 +23,71 @@ classdef KernelInterpol
     end
     
     methods(Static)
+        
+% ------------ USED IN PAPER WH10 synth. model tests
+%         function test_KernelInterpolation2()
+%             dim = 3;
+%             x = repmat(0:pi/10:50,dim,1);
+%             fx = -sin(.5*x).*x*.2;
+%             fx = fx(1,:);
+%             
+%             n = size(x,2);
+%             samp = 11:20:n;
+%             xi = x(:,samp);
+%             fxi = fx(samp);
+%             
+%             kernel = kernels.GaussKernel(1);
+%             ki = general.interpolation.KernelInterpol;
+%             figure(1);
+%             plot(x(1,:),fx,'r');
+%             
+%             g = 1:.1:3*pi^2;
+%             minidx = 0; mina = Inf; mintest = Inf;
+%             for idx = 1:length(g)
+%                 kernel.Gamma = g(idx);
+%                 ki.K = kernel.evaluate(xi,xi);
+%                 
+%                 [a,b] = ki.interpolate(fxi);
+%                 
+%                 svfun = @(x)a'*kernel.evaluate(xi,x)+b;
+% 
+%                 fsvr = svfun(x);
+%                 
+%                 if norm(fx-fsvr) < mina
+%                     mina = norm(fx-fsvr);
+%                     minidx=idx;
+%                     minfsvr = fsvr;
+%                 end
+%                 if norm(fx-fsvr)*norm(a) < mintest
+%                     minidxtest=idx;
+%                     minfsvrtest = fsvr;
+%                     minav = a;
+%                     minb = b;
+%                     mintest = norm(fx-fsvr)*norm(a);
+%                 end
+% 
+% %                 hold on;
+% % 
+% %                 % Plot approximated function
+% %                 plot(x,fsvr,'b--');
+% %                 %skipped = setdiff(1:length(x),svidx);
+% %                 plot(xi,fxi,'.r');
+% % 
+% %                 hold off;
+%                 
+%                 fprintf('g=%f, anorm=%f, diff=%f\n',g(idx),norm(a),norm(fx-fsvr));
+%             end
+%             hold on;
+%             plot(x,minfsvr,'b--',x,minfsvrtest,'g--');
+%             %skipped = setdiff(1:length(x),svidx);
+%             plot(xi,fxi,'.r');
+%             hold off;
+%             disp(g(minidx));
+%             disp(g(minidxtest));
+%             minav
+%             minb
+%         end
+        
         function test_KernelInterpolation()
             % Performs a test of this class
             
@@ -72,7 +137,7 @@ classdef KernelInterpol
                 
                 hold off;
             end
-        end 
+        end
         
         function test_KernelInterpolationError
             realprec = 20;
@@ -80,8 +145,8 @@ classdef KernelInterpol
             
             kernel = kernels.GaussKernel(2);
             testfun = @(x)sinc(x) * 2 .*sin(3*x);
-%             kernel = kernels.InvMultiquadrics(-1,1);
-%             testfun = @(x)x.^3+2*x.^2-3*x;
+            %             kernel = kernels.InvMultiquadrics(-1,1);
+            %             testfun = @(x)x.^3+2*x.^2-3*x;
             
             ki = general.interpolation.KernelInterpol;
             
@@ -101,16 +166,16 @@ classdef KernelInterpol
                 
                 err(n) = max(abs(fx-fint));
                 
-%                 figure(n+1);
-%                 plot(xi,fxi,'r.',x,fx,'r',x,fint,'b--',x,abs(fx-fint),'g');
-%                 title(sprintf('h=%f, ||f-sfx||=%f',h,err(n)));
+                %                 figure(n+1);
+                %                 plot(xi,fxi,'r.',x,fx,'r',x,fint,'b--',x,abs(fx-fint),'g');
+                %                 title(sprintf('h=%f, ||f-sfx||=%f',h,err(n)));
             end
             figure(1);
             h = 1./hsteps;
             plot(h,exp(log(h)./h),'b',h,exp(-1./h),'b--',h,err,'r');
             legend('exp(log(h)/h)','exp(-1/h)','||f-sfx||_\infty');
             xlabel('h');
-        end 
-    end    
+        end
+    end
 end
 

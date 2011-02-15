@@ -58,6 +58,26 @@ classdef GaussKernel < kernels.BellFunction
             this.x0 = sqrt(value/2); %#ok
             this.PenaltyFactor = 1/value; %#ok
         end
+        
+        function g = setGammaForDistance(this, dist, ep)
+            % Computes the `\gamma` value for which the Gaussian is smaller
+            % than `\epsilon` in a distance of dist. Returns the computed
+            % value AND sets the kernel's Gamma property to this value.
+            %
+            % Parameters:
+            % dist: The target distance at which the gaussian is smaller
+            % than ep
+            % ep: The `\epsilon` value. If not given, `\epsilon`=eps
+            % (machine precision) is assumed.
+            %
+            % Return values:
+            % g: The computed gamma
+            if nargin == 2
+                ep = eps;
+            end
+            g = -(dist^2)/log(ep);
+            this.Gamma = g;
+        end
     end
     
 end

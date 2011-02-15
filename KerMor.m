@@ -113,8 +113,22 @@ classdef KerMor < handle
     % @todo timedirty überarbeiten / rausnehmen etc, sollte auch einzelaufrufe
     % zu offX checken.
     %
-    % @todo: umstellen von simulate(mu,inputidx) auf simulate +
+    % @todo umstellen von simulate(mu,inputidx) auf simulate +
     % setMu,setInputidx -> faster evaluation
+    %
+    % @todo PCAFixspace wieder einbauen, um greedy-basisgen zu erlauben (->
+    % generell: greedy-unterraumalgorithmus einbauen)
+    %
+    % @todo add tests for models with C output and custom G for 1-n
+    % dimensions!
+    %
+    % @todo hierarchical subspace selection? -> bad that approximation is
+    % trained on largest subspace, so would have to have more
+    % approximations. or any possibility to project approximation into
+    % sub-subspace??
+    %
+    % @todo !!!!!!!!!!!!!!!!!!11include kernel expansion offset 'b' into
+    % error estimators! (yet only valid for b=0)
     
     % DONE Allgemeineres Skalarprodukt def. über `<x,y>_G = x^tGy`, default Id
     % DONE Allgemeinere Projektion mit `V,W` und nicht mit `V,V^t`

@@ -70,6 +70,31 @@ classdef Utils
                 end
             end
         end
+        
+        function y = preparePlainPlot(y)
+            % Memory-saving plotting for plain result plots.
+            %
+            % Parameters:
+            % y: A result matrix `y` with rows corresponding to single
+            % dimensions and columns corresponding to time-steps.
+            %
+            % Return values:
+            % If there are more than 1000 dimensions, the subset with
+            % distinct (via unique) last values are extracted. If this
+            % still results in more than 4000 plots, the first 4000
+            % dimensions are selected.
+            if size(y,1) > 1000
+                fprintf('Utils/preparePlainPlot: Number of graphs for plot > 1000, taking graphs with distinct y(T) values.\n');
+                [v,idx] = unique(y(:,end));
+                [v,idxm] = unique(y(:,round(size(y,2)/2)));
+                y = y(union(idx,idxm),:);
+                sy = size(y,1);
+                if sy > 4000
+                    fprintf('Utils/preparePlainPlot: Number of graphs for plot still > 4000, taking 4000 graphs.\n');
+                    y = y(round(1:sy/4000:sy),:);
+                end
+            end
+        end
     end
     
     methods(Static)

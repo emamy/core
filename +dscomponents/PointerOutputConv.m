@@ -1,8 +1,8 @@
-classdef PointerOutputConv < dscomponents.IOutputConv
+classdef PointerOutputConv < dscomponents.AOutputConv
     %POINTEROUTPUTCONV Allows for input converters provided by function handles.
     %   
     % In many contexts the creation of a specific class implementing
-    % IOutputConv is not necessary due to the simplicity of the conversion
+    % AOutputConv is not necessary due to the simplicity of the conversion
     % or because no function-specific properties have to be modeled. In
     % this case use this class and pass a function handle to the
     % constructor which will be used as the actual function.
@@ -29,7 +29,7 @@ classdef PointerOutputConv < dscomponents.IOutputConv
                 error('funPtr nargin must equal two (= t,mu).');
             end
             this.Target = funPtr;
-            % only set if given. Default value see IOutputConv
+            % only set if given. Default value see AOutputConv
             if nargin == 2
                 this.TimeDependent = time_dependent;
             end

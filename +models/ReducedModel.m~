@@ -122,228 +122,46 @@ classdef ReducedModel < models.BaseModel
         end
         
         function exo = getExo(this, mu)
-            % Computes the norm of the initial error `E_{x_0}(\mu)`
+            % Computes the norm of the initial error 
+            % `E_{y_0}(\mu) = ||C(0,\mu)(I-VW^t)x_0(\mu)||
             if ~isempty(this.V) && ~isempty(this.W)
                 x0 = this.FullModel.System.x0(mu);
-                y = this.W'*x0;
-                GV = this.G*this.V;
-                exo = x0'*this.G*x0 -x0'*GV*y - y'*this.V'*this.G*x0 + y'*this.V'*GV*y;
+                Vy = this.V*(this.W'*x0);
+                exo = x0'*this.G*x0 - 2*x0'*this.G*Vy + Vy'*this.G'*Vy;
                 exo = sqrt(max(exo,0));
+%                 exo = sqrt(sum((C*(x0-this.V*this.W'*x0)).^2));
             else
                 exo = 0;
             end
         end
         
-        function [t,e,est] = getError(this, varargin)
-            % Gets the reduced model's error for a specified parameter and
-            % input.
-            %
-            % @todo possibly move into BaseEstimator?
-            
-            [t,x,xr] = this.getTrajectories(varargin{:});
-            % Compute L^2-norm of difference for each timestep
-            e = sqrt(sum((x - xr).^2,1));
-            est = this.ErrorEstimator.LastError;
-        end
+%         function [t,e,est] = getError(this, varargin)
+%             % Gets the reduced model's error for a specified parameter and
+%             % input.
+%             %
+%             % @todo possibly move into BaseEstimator?
+%             
+%             [t,x,xr] = this.getTrajectories(varargin{:});
+%             % Compute L^2-norm of difference for each timestep
+%             e = sqrt(sum((x - xr).^2,1));
+%             est = this.ErrorEstimator.LastError;
+%         end
         
-        function [t,erel,estrel] = getRelativeError(this, varargin)
-            [t,x,xr] = this.getTrajectories(varargin{:});
-            e = sqrt(sum((x - xr).^2,1));
-            est = this.ErrorEstimator.LastError;
-            x = sqrt(sum(x.^2,1));
-            erel = e./x;
-            estrel = est./x;
-        end
+%         function [t,erel,estrel] = getRelativeError(this, varargin)
+%             [t,x,xr] = this.getTrajectories(varargin{:});
+%             e = sqrt(sum((x - xr).^2,1));
+%             est = this.ErrorEstimator.LastError;
+%             x = sqrt(sum(x.^2,1));
+%             erel = e./x;
+%             estrel = est./x;
+%         end
         
-        function analyze(this, mu, inputidx, singlefig)
-            if nargin < 4
-                singlefig = false;
-                if nargin < 3
-                    inputidx = 1;
-                    if nargin < 2
-                        mu = [];
-                    end
-                end
-            end
-            
-            [t,x,xr,time,timer,timer_noerr] = this.getTrajectories(mu, inputidx);
-            e = sqrt(sum((x - xr).^2,1));
-            est = this.ErrorEstimator.LastError;
-            xnorm = sqrt(sum(x.^2,1));
-            erel = e./xnorm;
-            estrel = est./xnorm;
-            xrnorm = sqrt(sum(xr.^2,1));
-            erelr = e./xrnorm;
-            estrelr = est./xrnorm;
-            
-            % System plot
-            ymax = max(max(x(:)),max(xr(:)));
-            ymin = min(min(x(:)),min(xr(:)));
-            h = figure;
-            if singlefig
-                subplot(1,2,2);
-            else
-                pos = get(0,'MonitorPosition');
-                set(h,'OuterPosition',pos(1,:));
-                subplot(2,3,1);
-            end
-            plot(t,x);
-            xlabel('t');
-            title(sprintf('The full system (d=%d,time=%.3f)',size(x,1),time));
-            axis([t(1) t(end) ymin ymax]);
-            if singlefig
-                subplot(1,2,2);
-            else
-                subplot(2,3,2);
-            end
-            plot(t,xr);
-            xlabel('t');
-            axis([t(1) t(end) ymin ymax]);
-            title(sprintf('The reduced system (r=%d,self time:%.3f, time with err est:%.3f)',size(this.V,2),timer_noerr,timer));
-            
-            % Absolute value plot
-            if singlefig
-                figure;
-                subplot(1,2,1);
-            else
-                subplot(2,3,3);
-            end
-            plot(t,xnorm,'r',t,xrnorm,'b');
-            xlabel('t');
-            title('The state variable norms');
-            legend('Full system','Reduced system');%,'Location','Best');
-            
-            % Error plots
-            if singlefig
-                figure;
-                subplot(1,2,2);
-            else
-                subplot(2,3,4);
-            end
-            
-            plot(t,est,'b',t,e,'r');%,t,abs(e-est),'g');
-            xlabel('t');
-            title(sprintf('The state variable absolute errors.\nmean(e)=%g, mean(est)=%g',mean(e),mean(est)));
-            legend('Estimated error','True error');%,'Location','Best');
-            
-            % Relative Error plots
-            subplot(2,3,5);
-            plot(t,estrel,'b',t,erel,'r');
-            xlabel('t');
-            title(sprintf(['The state variable relative errors (comp. to '...
-                'full solution)\nmean(e_{rel})=%g, mean(est_{rel})=%g'],...
-                mean(erel),mean(estrel)));
-            legend('Estimated error','True error');%,'Location','Best');
-            
-            subplot(2,3,6);
-            plot(t,erelr,'r',t,estrelr,'b');
-            xlabel('t');
-            title(sprintf(['The state variable relative errors (comp. to '...
-                'reduced solution)\nmean(ered_{rel})=%g, mean(estred_{rel})=%g'],...
-                mean(erelr),mean(estrelr)));
-            legend('True error','Estimated error');%,'Location','Best');
-        end
         
-        function compareCoreVsApprox(this)
-            num = 10;
-            d = this.FullModel.Data;
-            
-            % Get data
-            sn = d.ApproxTrainData;
-            
-            factor = 4;
-            % Extend data
-            nz = factor*size(sn,2);
-            oldidx = 1:factor:nz;
-            
-            xi = sn(4:end,:);
-            XI(:,oldidx) = xi;
-            di = (xi(:,2:end)-xi(:,1:end-1))/factor;
-            di(:,end+1) = 0;
-            ti = sn(3,:);
-            TI(oldidx) = ti;
-            dti = (ti(2:end)-ti(1:end-1))/factor;
-            dti(end+1) = 0;
-            mui(oldidx) = sn(1,:);
-            %fx = zeros(size(d.ApproxfValues,1),size(d.ApproxfValues,2)*factor);
-            fx(:,oldidx) = d.ApproxfValues;
-            for fac = 1:factor-1
-                newidx = oldidx+fac;
-                % xi
-                XI(:,newidx) = xi+di*(fac/(factor-1));
-                % ti
-                TI(newidx) = ti+dti*(fac/(factor-1));
-                % mui
-                mui(newidx) = sn(1,:);
-                
-                % Evaluate original function at middle points
-                for idx=newidx
-                    fx(:,idx) = this.FullModel.System.f.evaluate(XI(:,idx),TI(idx),d.getParams(mui(idx)));
-                end
-            end
-            MUI = d.getParams(mui);
-            
-            afx = this.FullModel.Approx.evaluate(XI,TI,MUI);
-            
-            err = sqrt(sum((fx-afx).^2));
-            total_err = sqrt(sum(err.^2))
-            
-            % Plotting
-            len = size(afx,2);
-            muvals = (mui / max(mui));
-            for idx = 1:num
-                fxp = fx(idx,:);
-                afxp = afx(idx,:);
-                subplot(1,2,1);
-                plot(1:len,fxp,'r',1:len,afxp,'b--',1:len,muvals*(max(fxp)-min(fxp)),'green',[oldidx; oldidx + eps],[0 0],'black+');
-                subplot(1,2,2);
-                plot(1:len,err,'r',1:len,muvals*(max(err)-min(err)),'green',[oldidx; oldidx + eps],[0 0],'black+');
-                pause;
-            end
-            
-            %plot(1:len,fx,1:len,afx,'--');
-            
-            %             arfx = this.System.f.evaluate(d.V'*xi,ti,mui);
-            %             rfx = d.V'*d.ApproxfValues(:,:);
-            %             for idx = 1:num
-            %                 plot(1:len,rfx(idx,:),1:len,arfx(idx,:));
-            %                 pause;
-            %             end
-        end
-        
-        %         function save(this, matfile)
-        %             % Saves the reduced model to disk.
-        %             %
-        %             % Parameters:
-        %             % matfile: The target file. If not specified, a file with the
-        %             % name of the reduced model's variable name is used.
-        %
-        %             name = inputname(1);
-        %             if nargin == 1
-        %                 matfile = fullfile(cd,name);
-        %             end
-        %             % For the save process of the reduced model the full model's
-        %             % Data (=ModelData) and Approx properties are not needed. This
-        %             % is the fastest way to ensure that the reduced model can still
-        %             % have access to all important features of the full model but
-        %             % uses less disk space.
-        %             m = this.FullModel;
-        %             d = m.Data;
-        %             a = m.Approx;
-        %
-        %             m.Data = [];
-        %             m.Approx = [];
-        %
-        %             eval([name ' = this;']);
-        %             save(matfile,name);
-        %
-        %             m.Data = d;
-        %             m.Approx = a;
-        %         end
         
     end
     
     methods(Access=protected,Sealed)
+        
         function x0 = getX0(this, mu)
             % Gets the initial value of `x_0(\mu)`.
             %
@@ -354,6 +172,7 @@ classdef ReducedModel < models.BaseModel
                 x0 = [x0; this.ErrorEstimator.getE0(mu)];
             end
         end
+        
     end
     
     methods
@@ -374,8 +193,8 @@ classdef ReducedModel < models.BaseModel
             % Perform reduced simulation
             this.ErrorEstimator.Enabled = false;
             tic;
-            [t,z] = this.computeTrajectory(mu, inputidx);
-            xr = this.V*z;%#ok
+            this.computeTrajectory(mu, inputidx);
+            %xr = this.V*z;%#ok
             t_noerr = toc;
             this.ErrorEstimator.Enabled = true;
             tic;

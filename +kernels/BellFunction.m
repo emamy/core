@@ -1,6 +1,9 @@
 classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
     %BELLFUNCTION Summary of this class goes here
     %   Detailed explanation goes here
+    %
+    % @todo export different estimator strategies into external classes =>
+    % simulation speedup, separation of concerns..
     
     properties
         x0;

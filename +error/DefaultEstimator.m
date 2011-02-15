@@ -1,6 +1,12 @@
 classdef DefaultEstimator < error.BaseEstimator
-    %DEFAULTESTIMATOR Summary of this class goes here
-    %   Detailed explanation goes here
+    %DEFAULTESTIMATOR Default error "estimator" for reduced models
+    % Standard estimator that is independent from any special reduced model
+    % since it computes the full error!
+    %
+    % Warning:
+    % If a nontrivial output conversion is used (i.e. `C\neq1`), the
+    % default estimator computes `e_y(t) = ||C||\cdot||e(t)||`, which will
+    % result in an higher error estimate than the true error.
     
     methods
         function this = DefaultEstimator(rmodel)
@@ -15,11 +21,7 @@ classdef DefaultEstimator < error.BaseEstimator
                 this.setReducedModel(rmodel);
             end
         end
-        
-        function offlineComputations(this)%#ok
-            % nothing to do here
-        end
-        
+               
         function copy = clone(this)
             % Clones this DefaultEstimator
             copy = error.DefaultEstimator(this.ReducedModel);
@@ -31,12 +33,37 @@ classdef DefaultEstimator < error.BaseEstimator
             eint = [];
         end
         
-        function process(this, t, x, mu, inputidx)%#ok
+        function process(this, t, x, mu, inputidx)
             m = this.ReducedModel.FullModel;
+            % Compute full solution
             [tf,xf] = m.computeTrajectory(mu,inputidx);
             xr = x(1:end-this.ExtraODEDims,:);
-            diff = xf- this.ReducedModel.V*xr;
-            this.LastError = sqrt(sum(diff.^2));
+            if ~isempty(this.ReducedModel.V)
+                diff = xf-this.ReducedModel.V*xr;
+            else
+                diff = xf-xr;
+            end
+            
+            % Compute state columns norm
+            if length(this.ReducedModel.G) > 1
+                warning('DefaultEstimator:process','Correct error norm for G <> 1 not implemented.');
+            end
+            y = sqrt(sum(diff.^2,1));
+            
+            % Convert to exact error on output level
+%             diffy = m.System.C.computeOutput(t,diff,mu);
+%             this.LastError = sqrt(sum(diffy.*(this.ReducedModel.G*diffy),1));
+%             return;
+            
+            % Get error
+            if m.System.C.TimeDependent
+                for idx=1:length(t)
+                    y(idx) = norm(m.System.C.evaluate(t(idx),mu))*y(idx);
+                end
+            else
+                y = norm(m.System.C.evaluate([],mu))*y;
+            end
+            this.LastError = y;
         end
         
         function e0 = getE0(this, mu)%#ok

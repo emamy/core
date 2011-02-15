@@ -49,7 +49,7 @@ classdef BaseModel < handle
         % variables (i.e. dimensions of `x(t)`), then we must have
         % `G\in\mathbb{R}^{d\times d}`.
         %
-        % Leave at `1\in\mathbb{R}` if `G=I_d` should be assumed.
+        % Leave at `1` if `G=I_d` should be assumed.
         %
         % Default:
         % 1
@@ -78,7 +78,7 @@ classdef BaseModel < handle
              this.ODESolver = solvers.MLWrapper(@ode23);
         end
         
-        function [t,y,sec] = simulate(this, mu, inputidx)
+        function [t,y,sec,x] = simulate(this, mu, inputidx)
             % Simulates the system and produces the system's output.
             %
             % Both parameters are optional. (Which to provide will be
@@ -94,6 +94,11 @@ classdef BaseModel < handle
             %    either returns the full trajectory or the processed output
             %    at times t.
             % sec: the seconds needed for simulation.
+            % x: The state space variables before output conversion.
+            %
+            % @todo: fix Input checks (set inidx=1 iff one input is
+            % there, otherwise error)
+            % @todo: switch return arguments sec & x + tests
             
             if nargin < 3
                 if ~isempty(this.System.Inputs)
@@ -113,40 +118,32 @@ classdef BaseModel < handle
             
             starttime = tic;
             
+            % Get state trajectory
             [t,x] = this.computeTrajectory(mu, inputidx);
             
-            if ~isempty(this.System.C)
-                if this.System.C.TimeDependent
-                    % Evaluate the output conversion at each time t
-                    % Figure out resulting size of C*x evaluation
-                    hlp = this.System.C.evaluate(t(1),mu)*x(:,1);
-                    y = zeros(size(hlp,1),length(t));
-                    y(:,1) = hlp;
-                    for idx=2:length(t)
-                        y(:,idx) = this.System.C.evaluate(t(idx),mu)*x(:,idx);
-                    end
-                else
-                    % otherwise it's a constant matrix so multiplication
-                    % can be preformed much faster.
-                    y = this.System.C.evaluate([],mu)*x;
-                end
-            else
-                warning('KerMor:NoOutputConversion',['No system output'...
-                    'conversion set. Forgot to set property C? Result'...
-                    'equals state variables.']);
-                y = x;
-            end
+            % Convert to output
+            y = this.System.C.computeOutput(t,x,mu);
             
             sec = toc(starttime);
         end
         
-        function plot(this, t, y)
+        function plot(this, t, y, ax)
             % Plots the results of the simulation.
             % Override in subclasses for a more specific plot if desired.
-            figure;
-            plot(t,y);
-            title(sprintf('Plot for output of model "%s"', this.Name));
-            xlabel('Time'); ylabel('Output functions');
+            %
+            % Parameters:
+            % t: The simulation times `t_i`
+            % y: The simulation output matrix `y`, i.e. `y(t_i)`
+            % ax: An axes handle as plotting target. Optional; if not
+            % specified a new figure is created.
+            if nargin < 4
+                figure;
+                ax = gca;
+            end
+            y = general.Utils.preparePlainPlot(y);
+            plot(ax,t,y);
+            title(ax,sprintf('Plot for output of model "%s"', this.Name));
+            xlabel(ax,'Time'); ylabel(ax,'Output functions');
         end
         
         function cfg = getConfigStr(this)
@@ -162,12 +159,27 @@ classdef BaseModel < handle
         function [t,x] = computeTrajectory(this, mu, inputidx)
             % Computes a solution/trajectory for the given mu and inputidx.
             %
+            % Parameters:
+            % mu: The parameter `\mu` for the simulation
+            % inputidx: The integer index of the input function to use. If
+            % more than one inputs are specified this is a necessary
+            % argument.
+            %
             % Return values:
             % t: The times at which the model was evaluated. Will equal
             % the property Times
             % x: Depending on the existance of an output converter, this
             %    either returns the full trajectory or the processed output
             %    at times t.
+            
+            % Validity checks
+            if this.System.InputCount > 0 && isempty(inputidx)
+                if this.System.InputCount == 1
+                    inputidx = 1;
+                else
+                    error('If more than one input u is set you must specify an inputidx.');
+                end
+            end
             
             % Setup simulation-time constant data (if available)
             if isa(this.System,'ISimConstants')

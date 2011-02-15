@@ -1,5 +1,5 @@
-classdef StdOutputConv < dscomponents.IOutputConv
-    %STDOUTPUTCONV Standard output converter.
+classdef LinearOutputConv < dscomponents.AOutputConv
+    %STDOUTPUTCONV Standard linear output converter.
     %
     %   Simply forwards the system's states to the output.
     %   If projected, the states are projected back into the original sized
@@ -8,13 +8,13 @@ classdef StdOutputConv < dscomponents.IOutputConv
     % @author Daniel Wirtz @date 15.03.2010
     
     properties(Access=private)
-        V;
+        C;
     end
     
     methods
-        
-        function this = StdOutputConv
+        function this = LinearOutputConv(C)
             % Standard constructor.
+            this.C = C;
             
             % Ensure that the flag is set correctly (independent from the
             % default setting which may change)
@@ -26,19 +26,14 @@ classdef StdOutputConv < dscomponents.IOutputConv
             %
             % Simply creates a new instance (to keep the full model
             % running) and sets the projection matrix.
-            copy = dscomponents.StdOutputConv;
-            copy.V = V;
+            copy = dscomponents.LinearOutputConv(this.C*V);
         end
         
         function C = evaluate(this, t, mu)%#ok
             % Evaluates the output conversion matrix.
             % In this simple case this is just the projection matrix, if
             % set, otherwise 1.
-            if ~isempty(this.V)
-                C = this.V;
-            else
-                C = 1;
-            end
+            C = this.C;
         end
     end
     

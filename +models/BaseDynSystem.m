@@ -25,15 +25,15 @@ classdef BaseDynSystem < handle
         B;
         
         % The output conversion
-        % Defaults to an StdOutputConv instance, which just forwards the
-        % state variables ans supports projection.
+        % Defaults to an LinearOutputConv instance using a 1-matrix, which
+        % just forwards the state variables and supports projection.
         %
-        % @sa StdOutputConv::project(V)
-        % @sa dscomponents.StdOutputConv::project(matlabtypesubstitute, matlabtypesubstitute)
-        % @sa dscomponents.StdOutputConv::project(matlabtypesubstitute)
+        % @sa LinearOutputConv::project(V)
+        % @sa dscomponents.LinearOutputConv::project(matlabtypesubstitute, matlabtypesubstitute)
+        % @sa dscomponents.LinearOutputConv::project(matlabtypesubstitute)
         C;
         
-        % See also: dscomponents.StdOutputConv/project
+        % See also: dscomponents.LinearOutputConv/project
         
         % The system's possible input functions.
         % A cell array of function handles, each taking a time argument t.
@@ -66,7 +66,11 @@ classdef BaseDynSystem < handle
     methods
         
         function this = BaseDynSystem
-            this.C = dscomponents.StdOutputConv;
+            % Creates a new base dynamical system class instance.
+            %
+            % Uses default output mapping: state variables are output.
+            % Initial conditions are set to zero.
+            this.C = dscomponents.LinearOutputConv(1);
             this.x0 = @(mu)0;
         end
         
@@ -81,7 +85,7 @@ classdef BaseDynSystem < handle
             % this is ignored in any case.
                         
             % System without inputs
-            if isempty(inputidx) || isempty(this.Inputs) || isempty(this.B)
+            if this.InputCount == 0 || isempty(this.B)
                 odefun = @(t,x)(this.f.evaluate(x,t,mu));
             else
                 % generates the ode function for given parameter and input function
@@ -177,8 +181,8 @@ classdef BaseDynSystem < handle
         end
         
         function set.C(this,value)
-            if ~isempty(value) && ~isa(value, 'dscomponents.IOutputConv')
-                error('The property "C" has to be a class implementing dscomponents.IOutputConv');
+            if ~isempty(value) && ~isa(value, 'dscomponents.AOutputConv')
+                error('The property "C" has to be a class implementing dscomponents.AOutputConv');
             end
             this.C = value;
         end
@@ -192,7 +196,7 @@ classdef BaseDynSystem < handle
             this.x0 = value;
         end
         
-        function set.Inputs(this,value)
+        function set.Inputs(this, value)
             if ~iscell(value)
                 error('Property "Inputs" must be a cell array.');
             end

@@ -14,6 +14,16 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
     % computation!)
     %
     % See also: BaseKernelApprox
+
+    properties
+       % The number of projection training data snapshots used to compile
+        % the approximation training data set. So far, the default strategy
+        % implemented in this class simply uses linspace to select a subset
+        % of the specified size.
+        %
+        % Default: 120
+        ApproxExpansionSize = 120;
+    end
     
     methods
         
@@ -47,6 +57,31 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
             %this.ParamKernel = kernels.GaussKernel(pgamma);
         end
         
+        function atd = selectTrainingData(this, modeldata)
+            % Selects a subset of the projection training data linearly
+            % spaced. The number of samples taken is determined by the
+            % ApproxExpansionSize number.
+            %
+            % Important:
+            % Note that the selected training data is projected into the
+            % precomputed subspace if spacereduction is performed.
+            %
+            % Overrides the default method in BaseApprox.
+            %
+            % See also:
+            % models.BaseFullModel.off4_genApproximationTrainData
+            
+            % Validity checks
+            sn = modeldata.ProjTrainData;
+            if isempty(sn)
+                error('No projection training data available to take approximation training data from.');
+            end
+            
+            selection = round(linspace(1,size(sn,2),...
+                    min(this.ApproxExpansionSize,size(sn,2))));
+            atd = sn(:,selection);
+        end
+        
         function target = clone(this, target)
             % Clones the instance.
             %
@@ -62,7 +97,8 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
             
             target = clone@dscomponents.CompwiseKernelCoreFun(this, target);
             target = clone@approx.BaseApprox(this, target);
-            % No local properties to copy.
+            % copy local props
+            copy.ApproxExpansionSize = this.ApproxExpansionSize;
         end
     end
     

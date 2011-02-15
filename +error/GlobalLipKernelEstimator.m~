@@ -1,71 +1,85 @@
-classdef GlobalLipKernelEstimator < error.BaseEstimator
+classdef GlobalLipKernelEstimator < error.BaseLipKernelEstimator
     %COMPWISEKERNELESTIMATOR Summary of this class goes here
     %   Detailed explanation goes here
     
-    properties(Access=private)
-        M1;
-        M2;
-        M3;
-    end
-    
     methods
         function this = GlobalLipKernelEstimator(rmodel)
-            
-            
-            % Call superclass constructor with model argument
-            this = this@error.BaseEstimator(rmodel);
             this.ExtraODEDims = 1;
             
-            % Only prepare matrices if projection was used
-            if ~isempty(rmodel.V) && ~isempty(rmodel.W)
-                % P = (I-VW^t)
-                P = (eye(size(rmodel.V,1)) - rmodel.V*rmodel.W');
-                D = P' * rmodel.G * P;
-                
-                % Get full d x N coeff matrix of approx
-                Ma = rmodel.FullModel.Approx.Ma;
-                
-                this.M1 = Ma'*D*Ma;
-                
-                % Only linear input conversion (B = const. matrix) allowed so
-                % far! mu,0 is only to let
-                if ~isempty(rmodel.FullModel.System.B)
-                    try
-                        B = rmodel.FullModel.System.B.evaluate([],[]);
-                    catch ME
-                        B = rmodel.FullModel.System.B.evaluate(0,rmodel.System.getRandomParam);
-                        warning('Some:Id','Error estimator for current system will not work correctly! (B is not linear and mu-independent!');
-                    end
-                    this.M2 = B'*D*B;
-                    this.M3 = Ma'*D*B;
-                end
-                
-            else
-                % No projection means no error!
-                this.M1 = 0;
-                this.M2 = 0;
-                this.M3 = 0;
+            if nargin == 1
+                this.setReducedModel(rmodel);
             end
         end
         
-        function e = evaluateIntegralPart(this, x, t, mu, ut)
+        function copy = clone(this)
+            % Creates a deep copy of this estimator instance.
+            copy = error.GlobalLipKernelEstimator;
+            copy = clone@error.BaseLipKernelEstimator(this, copy);
+        end
+        
+        function e = evalODEPart(this, x, t, mu, ut)
             phi = this.ReducedModel.System.f.evaluateAtCenters(x(1:end-this.ExtraODEDims,:), t, mu);
-            % An input function u is set
-            if nargin == 5
-                e = phi'*this.M1*phi + ut'*this.M2*ut + phi'*this.M3*ut;
-                % No input case
-            else
-                e = phi'*this.M1*phi;
-            end
+            
+%             rmodel = this.ReducedModel;
+%             fm = rmodel.FullModel;
+%                 
+%             % Obtain linear output conversion matrix (estimators only
+%             % work for LTI case)
+%             C = fm.System.C.evaluate(0,[]);
+%             % Get full d x N coeff matrix of core function
+%             Ma = fm.System.f.Ma;
+%                 
+%             
+%             % Only linear input conversion (B = const. matrix) allowed so
+%             % far! mu,0 is only to let
+%             if ~isempty(fm.System.B)
+%                 B = fm.System.B.evaluate([],[]);
+%                 e = sqrt(sum(C*(Ma*phi - rmodel.V*(rmodel.W'*Ma)*phi ...
+%                     + B*ut - rmodel.V*(rmodel.W'*B)*ut),1));
+%             else
+%                 e = sqrt(sum(C*(Ma*phi - rmodel.V*(rmodel.W'*Ma)*phi),1));
+%             end
+
+            rmodel = this.ReducedModel;
+            fm = rmodel.FullModel;
+                
+            % Obtain linear output conversion matrix (estimators only
+            % work for LTI case)
+            C = fm.System.C.evaluate(0,[]);
+            % Get full d x N coeff matrix of core function
+            Ma = fm.System.f.Ma;
+            
+            % Compute projection part matrices, without creating a
+            % d x d matrix (too big!)
+            CVWM = (C*rmodel.V)*(rmodel.W'*Ma);
+            CM = C*Ma;
+            %e = phi'*CM'*(CM*phi) - 2*phi'*CM'*CVWM*phi + phi'*CVWM'*(CVWM*phi);
+            e = (CM-CVWM)*phi;
+            e = e'*e;
+            e = sqrt(sum((C*(Ma*phi - rmodel.V*(rmodel.W'*Ma)*phi),1));
+
+            
+%             % An input function u is set
+%             if nargin == 5
+%                 e = phi'*this.M1*phi + phi'*this.M2*ut + ut'*this.M3*ut;
+%                 % No input case
+%             else
+%                 e = phi'*this.M1*phi;
+%             end
             e = sqrt(max(e,0));
         end
         
         function process(this, t, x, mu, inputidx)%#ok
+            % @todo also take into account FullModel.Approx at cf computation!
             eint = x(end-this.ExtraODEDims+1:end,:);
             if all(eint == 0)
                 warning('CompWiseErrorEstimator:process','Integral part is all zero. Attention!');
             end
-            cf = this.ReducedModel.FullModel.System.f.getGlobalLipschitz(t,mu);
+            %cf = this.ReducedModel.FullModel.System.f.getGlobalLipschitz(t,mu);
+            C = this.ReducedModel.FullModel.System.C.evaluate(0,[]);
+            f = this.ReducedModel.FullModel.System.f;
+            cf = sum(sqrt(sum((C*f.Ma).^2,1))) * f.SystemKernel.getGlobalLipschitz;
+            
             pt1 = exp(cf .* reshape(t,1,[]));
             pt2 = (eint + this.ReducedModel.getExo(mu));
             this.LastError = pt1 .* pt2;
@@ -80,13 +94,12 @@ classdef GlobalLipKernelEstimator < error.BaseEstimator
     end
     
     methods(Static)
-        function [valid, msg] = validModelForEstimator(rmodel)
+        function errmsg = validModelForEstimator(rmodel)
             % Validations
-            if ~isa(rmodel.FullModel.System.f,'dscomponents.IGlobalLipschitz')
-                msg = 'The full model''s core function must implement the dscomponents.IGlobalLipschitz interface for this error estimator.';
-            elseif ~isa(rmodel.FullModel.Approx,'dscomponents.CompwiseKernelCoreFun')
-                error('The full model''s approx function must be a subclass of dscomponents.CompwiseKernelCoreFun for this error estimator.'); 
-            end 
+            errmsg = validModelForEstimator@error.BaseLipKernelEstimator(rmodel);
+            if isempty(errmsg) && ~isa(rmodel.FullModel.System.f,'dscomponents.IGlobalLipschitz')
+                errmsg = 'The full model''s core function must implement the dscomponents.IGlobalLipschitz interface for this error estimator.';
+            end
         end
     end
     

@@ -102,7 +102,7 @@ classdef ReducedSystem < models.BaseDynSystem
                 if est.Enabled
                     xdims = est.ExtraODEDims;
                     % System without inputs
-                    if isempty(inputidx) || this.InputCount == 0 || isempty(this.B)
+                    if this.InputCount == 0 || isempty(this.B)
                         odefun = @(t,x)([this.f.evaluate(x(1:end-xdims,:),t,mu); est.evalODEPart(x,t,mu)]);
                     else
                         % generates the ode function for given parameter and input function

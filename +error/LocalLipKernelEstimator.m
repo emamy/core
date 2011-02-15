@@ -1,5 +1,5 @@
-classdef LocalLipKernelEstimator < error.BaseEstimator
-    %COMPWISEKERNELESTIMATOR Summary of this class goes here
+classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
+    %LocalLipKernelEstimator Summary of this class goes here
     %
     %   Requirements:
     %   ReducedModel.System.f is an instance of AKernelCoreFun
@@ -54,7 +54,7 @@ classdef LocalLipKernelEstimator < error.BaseEstimator
         times;
         divals;
         e1vals;
-        C;
+        errEst;
         stepcnt;
         neg_e1=false;
     end
@@ -71,7 +71,7 @@ classdef LocalLipKernelEstimator < error.BaseEstimator
             % Creates a deep copy of this estimator instance.
             copy = error.LocalLipKernelEstimator;
             % ExtraODEDims is set in constructor!
-            copy = clone@error.BaseEstimator(this, copy);
+            copy = clone@error.BaseLipKernelEstimator(this, copy);
             copy.KernelLipschitzFcn = this.KernelLipschitzFcn;
             copy.Iterations = this.Iterations;
             copy.UseTimeDiscreteC = this.UseTimeDiscreteC;
@@ -80,7 +80,7 @@ classdef LocalLipKernelEstimator < error.BaseEstimator
             copy.times = this.times;
             copy.divals = this.divals;
             copy.e1vals = this.e1vals;
-            copy.C = this.C;
+            copy.errEst = this.errEst;
             copy.stepcnt = this.stepcnt;
             copy.neg_e1 = this.neg_e1;
         end
@@ -91,7 +91,7 @@ classdef LocalLipKernelEstimator < error.BaseEstimator
             
             % Call superclass method to perform standard estimator
             % computations
-            setReducedModel@error.BaseEstimator(this, rmodel);
+            setReducedModel@error.BaseLipKernelEstimator(this, rmodel);
             
             this.KernelLipschitzFcn = this.ReducedModel.System.f.SystemKernel.getLipschitzFunction;
             
@@ -102,7 +102,7 @@ classdef LocalLipKernelEstimator < error.BaseEstimator
                 % Get centers of full approximation
                 this.xi = fm.Approx.snData.xi;
                 % Precompute norms
-                this.Ma_norms = sqrt(sum(fm.Approx.Ma.^2));
+                this.Ma_norms = sqrt(sum(fm.Approx.Ma.^2,1));
             else
                 % This is the also possible case that the full core
                 % function of the system is a KernelExpansion.
@@ -110,13 +110,11 @@ classdef LocalLipKernelEstimator < error.BaseEstimator
                 % Get centers of full core function
                 this.xi = fm.System.f.snData.xi;
                 % Precompute norms
-                this.Ma_norms = sqrt(sum(fm.System.f.Ma.^2));
+                this.Ma_norms = sqrt(sum(fm.System.f.Ma.^2,1));
             end
             if this.ReducedModel.System.f.RotationInvariantKernel
                 this.xi = this.ReducedModel.System.f.snData.xi;
             end
-            
-            
         end
         
         function e = evalODEPart(this, x, t, mu, ut)
@@ -128,7 +126,7 @@ classdef LocalLipKernelEstimator < error.BaseEstimator
             phi = this.ReducedModel.System.f.evaluateAtCenters(x(1:end-this.ExtraODEDims), t, mu);
             % An input function u is set
             if nargin == 5
-                e(1) = phi'*this.M1*phi + ut'*this.M2*ut + phi'*this.M3*ut;
+                e(1) = phi'*this.M1*phi + phi'*this.M2*ut + ut'*this.M3*ut;
                 % No input case
             else
                 e(1) = phi'*this.M1*phi;
@@ -148,40 +146,18 @@ classdef LocalLipKernelEstimator < error.BaseEstimator
             di = this.xi - repmat(z,1,size(this.xi,2));
             di = sqrt(sum(di.^2,1));
             
-            %% Verbose debug block
-%             k = this.ReducedModel.System.f.SystemKernel;
-%             ts = tic;
-%             ci1 = k.getLocalGradientLipschitz(di,Inf,t,mu);
-%             beta1 = this.Ma_norms * ci1';
-%             t = toc(ts);
-%             fprintf('LGL beta: %f, c-time: %f\n', beta1, t);
-%             
-%             ts = tic;
-%             ci2 = k.getLocalSecantLipschitz(di,Inf,t,mu);
-%             beta2 = this.Ma_norms * ci2';
-%             t = toc(ts);
-%             fprintf('LSL beta: %f, c-time: %f\n', beta2, t);
-%             
-%             ts = tic;
-%             ci3 = k.getImprovedLocalSecantLipschitz(di,Inf,t,mu);
-%             beta3 = this.Ma_norms * ci3';
-%             t = toc(ts);
-%             fprintf('ILSL beta: %f, c-time: %f\n', beta3, t);
-%             beta = min([beta1,beta2,beta3]);
-
             %% Normal computations
-            
             % Standard (worst-) Case
             Ct = Inf;
             % Time-discrete computation
             if this.UseTimeDiscreteC
                 Ct = eold(1) + exp(eold(2)).*eold(3);
             end
-            try 
-            beta = this.Ma_norms * this.KernelLipschitzFcn(di,Ct,t,mu)';
-            catch ME
-                keyboard;
-            end
+%             try 
+                beta = this.Ma_norms * this.KernelLipschitzFcn(di,Ct,t,mu)';
+%             catch ME
+%                 keyboard;
+%             end
             e(2) = beta;
             e(3) = eold(1)*beta*exp(-eold(2));
             
@@ -214,6 +190,10 @@ classdef LocalLipKernelEstimator < error.BaseEstimator
                     this.performIterations(t, mu);
                 end
             end
+            
+            % Tranform to output error estimation
+            C = this.ReducedModel.FullModel.System.C.evaluate(0,[]);
+            this.LastError = norm(C)*this.LastError;
         end
         
         function e0 = getE0(this, mu)
@@ -259,18 +239,18 @@ classdef LocalLipKernelEstimator < error.BaseEstimator
             
 %            cl = metaclass(this);
             odefun = @(t,x)this.iterationODEPart(x,t,mu);
-            this.C = this.LastError;
+            this.errEst = this.LastError;
             for it = 1:this.Iterations
 %                 fprintf('%s,%s, Iteration %d\n',cl.Name,func2str(this.KernelLipschitzFcn),it);
                 
                 % Set step counter to one
                 this.stepcnt = 1;
                 % Expand the C error to fit the times
-                this.C = this.C(idx);
+                this.errEst = this.errEst(idx);
                 [ti, eint] = solver.solve(odefun, t, this.getE0(mu));
-                this.C = eint(1,:) + exp(eint(2,:)).*eint(3,:);         
+                this.errEst = eint(1,:) + exp(eint(2,:)).*eint(3,:);         
             end
-            this.LastError = this.C;
+            this.LastError = this.errEst;
         end
         
         function e = iterationODEPart(this, eold, t, mu)
@@ -289,7 +269,7 @@ classdef LocalLipKernelEstimator < error.BaseEstimator
             e = zeros(3,1);
             e(1) = this.e1vals(idx);
             beta = this.Ma_norms * this.KernelLipschitzFcn(...
-                this.divals(idx,:),this.C(idx),t,mu)';
+                this.divals(idx,:),this.errEst(idx),t,mu)';
             e(2) = beta;
             e(3) = eold(1)*beta*exp(-eold(2));
             
@@ -300,15 +280,9 @@ classdef LocalLipKernelEstimator < error.BaseEstimator
     methods(Static)
         function errmsg = validModelForEstimator(rmodel)
             % Validations
-            errmsg = [];
-            if ~isa(rmodel.System.f,'dscomponents.AKernelCoreFun')
+            errmsg = validModelForEstimator@error.BaseLipKernelEstimator(rmodel);
+            if isempty(errmsg) && ~isa(rmodel.System.f,'dscomponents.AKernelCoreFun')
                 errmsg = 'The reduced model''s core function must be a subclass of dscomponents.AKernelCoreFun for this error estimator.'; 
-            elseif ~isempty(rmodel.FullModel.Approx) 
-                if ~isa(rmodel.FullModel.Approx,'dscomponents.CompwiseKernelCoreFun')
-                    errmsg = 'The full model''s approx function must be a subclass of dscomponents.CompwiseKernelCoreFun for this error estimator.'; 
-                end
-            elseif ~isa(rmodel.FullModel.System.f,'dscomponents.CompwiseKernelCoreFun')
-                    errmsg = 'If no approximation is used, the full model''s core function must be a subclass of dscomponents.CompwiseKernelCoreFun for this error estimator.'; 
             end
         end
         

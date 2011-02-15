@@ -45,15 +45,19 @@ classdef BaseModel < handle
         % In some settings the state variables have a special meaning (like
         % DOF's in FEM simulations) where the pure `L^2`-norm has less
         % meaning than a custom norm induced by a symmetric positive
-        % definite matrix G. If `d\in\mathbb{N}` is the number of state
-        % variables (i.e. dimensions of `x(t)`), then we must have
-        % `G\in\mathbb{R}^{d\times d}`.
+        % definite matrix G. If `m\in\mathbb{N}` is the number of output
+        % state variables (i.e. dimensions of `y(t)`), then we must have
+        % `G\in\mathbb{R}^{m\times m}`.
         %
         % Leave at `1\in\mathbb{R}` if `G=I_d` should be assumed.
         %
         % Default:
         % 1
         G = 1;
+        
+        % @todo: use in simulate etc
+        Mu;
+        Inputidx;
     end
     
     properties(Dependent)
@@ -74,7 +78,7 @@ classdef BaseModel < handle
              this.ODESolver = solvers.MLWrapper(@ode23);
         end
         
-        function [t,y,sec] = simulate(this, mu, inputidx)
+        function [t,y,sec,x] = simulate(this, mu, inputidx)
             % Simulates the system and produces the system's output.
             %
             % Both parameters are optional. (Which to provide will be
@@ -90,6 +94,11 @@ classdef BaseModel < handle
             %    either returns the full trajectory or the processed output
             %    at times t.
             % sec: the seconds needed for simulation.
+            % x: The state space variables before output conversion.
+            %
+            % @todo: fix Input checks (set inidx=1 iff one input is
+            % there, otherwise error)
+            % @todo: switch return arguments sec & x + tests
             
             if nargin < 3
                 if ~isempty(this.System.Inputs)
@@ -111,38 +120,28 @@ classdef BaseModel < handle
             
             [t,x] = this.computeTrajectory(mu, inputidx);
             
-            if ~isempty(this.System.C)
-                if this.System.C.TimeDependent
-                    % Evaluate the output conversion at each time t
-                    % Figure out resulting size of C*x evaluation
-                    hlp = this.System.C.evaluate(t(1),mu)*x(:,1);
-                    y = zeros(size(hlp,1),length(t));
-                    y(:,1) = hlp;
-                    for idx=2:length(t)
-                        y(:,idx) = this.System.C.evaluate(t(idx),mu)*x(:,idx);
-                    end
-                else
-                    % otherwise it's a constant matrix so multiplication
-                    % can be preformed much faster.
-                    y = this.System.C.evaluate([],mu)*x;
-                end
-            else
-                warning('KerMor:NoOutputConversion',['No system output'...
-                    'conversion set. Forgot to set property C? Result'...
-                    'equals state variables.']);
-                y = x;
-            end
+            
             
             sec = toc(starttime);
         end
         
-        function plot(this, t, y)
+        function plot(this, t, y, ax)
             % Plots the results of the simulation.
             % Override in subclasses for a more specific plot if desired.
-            figure;
-            plot(t,y);
-            title(sprintf('Plot for output of model "%s"', this.Name));
-            xlabel('Time'); ylabel('Output functions');
+            %
+            % Parameters:
+            % t: The simulation times `t_i`
+            % y: The simulation output matrix `y`, i.e. `y(t_i)`
+            % ax: An axes handle as plotting target. Optional; if not
+            % specified a new figure is created.
+            if nargin < 4
+                figure;
+                ax = gca;
+            end
+            y = general.Utils.preparePlainPlot(y);
+            plot(ax,t,y);
+            title(ax,sprintf('Plot for output of model "%s"', this.Name));
+            xlabel(ax,'Time'); ylabel(ax,'Output functions');
         end
         
         function cfg = getConfigStr(this)
@@ -158,12 +157,27 @@ classdef BaseModel < handle
         function [t,x] = computeTrajectory(this, mu, inputidx)
             % Computes a solution/trajectory for the given mu and inputidx.
             %
+            % Parameters:
+            % mu: The parameter `\mu` for the simulation
+            % inputidx: The integer index of the input function to use. If
+            % more than one inputs are specified this is a necessary
+            % argument.
+            %
             % Return values:
             % t: The times at which the model was evaluated. Will equal
             % the property Times
             % x: Depending on the existance of an output converter, this
             %    either returns the full trajectory or the processed output
             %    at times t.
+            
+            % Validity checks
+            if this.System.InputCount > 0 && isempty(inputidx)
+                if this.System.InputCount == 1
+                    inputidx = 1;
+                else
+                    error('If more than one input u is set you must specify an inputidx.');
+                end
+            end
             
             % Setup simulation-time constant data (if available)
             if isa(this.System,'ISimConstants')
@@ -279,29 +293,33 @@ classdef BaseModel < handle
                         if isobject(pobj)
                             str = [str p.Name this.getObjectConfig(pobj, numtabs+1, depth-1)];%#ok
                         elseif isnumeric(pobj)
-                            try
-                                if numel(pobj) > 20
-                                    str = [str p.Name ': ' num2str(pobj)];%#ok
-                                else
-                                    pobj = reshape(pobj,1,[]);
-                                    str = [str p.Name ': ' num2str(pobj)];%#ok
-                                end
-                            catch ME
-                                disp(pobj);
+                            if numel(pobj) > 20
+                                str = [str p.Name ': [' num2str(size(pobj)) '] ' class(pobj)];%#ok
+                            else
+                                pobj = reshape(pobj,1,[]);
+                                str = [str p.Name ': ' num2str(pobj)];%#ok
                             end
-                            %str = strcat(str,p.Name,': ',num2str(pobj));
                         elseif isstruct(pobj)
-                            str = [str 'Struct: ' p.Name ', Fields: '];%#ok
+                            if any(size(pobj) > 1)
+                                str = [str p.Name ' (struct, [' num2str(size(pobj)) ']), fields: '];%#ok
+                            else
+                                str = [str p.Name ' (struct), fields: '];%#ok
+                            end
                             fn = fieldnames(pobj);
                             for fnidx = 1:length(fn)
+                                %str = [str fn{fnidx} this.getObjectConfig(pobj, numtabs+1, depth-1)];%#ok
                                 str = [str fn{fnidx} ','];%#ok
                             end
                             str = str(1:end-1);
                         elseif isa(pobj,'function_handle')
-                            str = [str 'Function handle: ' func2str(pobj)];%#ok
+                            str = [str p.Name ' (f-handle): ' func2str(pobj)];%#ok
                         end
                     else
-                        str = [str p.Name ': empty'];%#ok
+                        if isequal(obj,pobj)
+                            str = [str p.Name ': self-reference'];%#ok
+                        else
+                            str = [str p.Name ': empty'];%#ok
+                        end
                     end
                     str = [str '\n'];%#ok
                     %str = strcat(str,'\n');

@@ -1,4 +1,4 @@
-classdef AffLinOutputConv < general.AffLinFcn & dscomponents.IOutputConv
+classdef AffLinOutputConv < general.AffLinFcn & dscomponents.AOutputConv
     %AFFLINOUTPUTCONV Summary of this class goes here
     %   Detailed explanation goes here
     

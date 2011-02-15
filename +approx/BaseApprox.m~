@@ -1,49 +1,67 @@
 classdef BaseApprox < dscomponents.ACoreFun
     %BASEAPPROX Abstract base class for all core function approximations
     %
-    %   In the approximation context, the triple of x,t and mu is put
-    %   together to a column vector when evaluated. This central class
-    %   manages the combination/splitting process, no other subclass should
-    %   (have to) know about the actual combination choice.
-    %   See  evaluate and splitTripleVect for details.
     %
     % @author Daniel Wirtz @date 11.03.2010
     
-    %     properties(SetAccess=private, GetAccess=protected)
-    %         % The system's full dimension for readonly-use in subclasses.
-    %         xDim;
-    %     end
-    
-    methods
-           
+    methods        
+        
         function approximateCoreFun(this, model)
-            ps = model.Data.ParamSamples;
-            xi = model.Data.PlainSnapshotArray;
+            % @todo the de-compilation of the ApproxTrainData does not
+            % necessarily have to take place in this superclass; as long as
+            % the data is in the ModelData class one could also move it
+            % into that class. though its not necessary yet..
             
-            num_samples = max(1,this.Data.SampleCount);
-            num_inputs = max(1,this.System.InputCount);
-            numPSamples = size(model.Data.Snapshots,3);
-            numInSamples = size(model.Data.Snapshots,4);
+            % Load snapshots
+            atd = model.Data.ApproxTrainData;
             
-            % Repeat times vector as often as different param/input combinations exist
-            ti = repmat(model.Times,1,numPSamples*numInSamples);
-            
-            % Repeat ParamSamples for each time, then later the result for
-            % each input. Leave [] if no params are given.
-            mui = [];
-            if (model.Data.SampleCount > 0)
-                idx = repmat(...
-                    reshape(...
-                    repmat(1:size(ps,2),length(model.Times),1),...
-                    1,[]),...
-                    1,numInSamples...
-                    );
-                mui = model.Data.ParamSamples(:,idx);
+            % Compile necessary data
+            xi = atd(4:end,:);
+            ti = atd(3,:);
+            muidx = atd(1,:);
+            if all(muidx == 0)
+                mui = [];
+            else
+                mui = model.Data.ParamSamples(:,muidx);
             end
             
             % Call template method
-            this.gen_approximation_data(xi, ti, mui, model.Data.fValues(:,:));
+            this.gen_approximation_data(model, xi, ti, mui);
         end
+        
+        function atd = selectTrainingData(this, modeldata)
+            % Selects a subset of the projection training data linearly
+            % spaced. The number of samples taken is determined by the
+            % ApproxExpansionSize number.
+            %
+            % Important:
+            % Note that the selected training data is projected into the
+            % precomputed subspace if spacereduction is performed.
+            %
+            % Override in subclasses to tailor the selection behaviour to
+            % specific approximation functions' needs.
+            %
+            % See also:
+            % models.BaseFullModel.off4_genApproximationTrainData
+            
+            % Validity checks
+            sn = modeldata.ProjTrainData;
+            if isempty(sn)
+                error('No projection training data available to take approximation training data from.');
+            end
+            
+            selection = round(linspace(1,size(sn,2),...
+                    min(this.ApproxExpansionSize,size(sn,2))));
+            atd = sn(:,selection);
+        end
+        
+        function copy = clone(this, copy)
+            
+        end
+    end
+    
+    methods(Abstract)
+        atd = selectTrainingData(this, modeldata)
     end
     
     methods(Abstract, Access=protected)
@@ -53,11 +71,13 @@ classdef BaseApprox < dscomponents.ACoreFun
         % Template method.
         %
         % Parameters:
+        % model: The full model
         % xi: The state variable snapshots as column vectors, each row
         % representing each system dimension.
-        % fxi: The core functions' values at the snapshots xi.
-        gen_approximation_data(xi, ti, mui, fxi);
-        
+        % ti: The times at which the state variable snapshots are taken
+        % mui: The parameters used to obtain the snapshots. Equals [] if no
+        % parameters have been used.
+        gen_approximation_data(model, xi, ti, mui);
     end
     
     methods(Static)
@@ -74,7 +94,7 @@ classdef BaseApprox < dscomponents.ACoreFun
             fx = ts.fnlin(x,repmat(1:samples,ts.testdim,1));
             
             model = models.BaseFullModel;
-            model.Data.Snapshots = x;
+            model.Data.ProjTrainData = x;
             r = spacereduction.PODReducer;
             v = r.generateReducedSpace(model);
             
