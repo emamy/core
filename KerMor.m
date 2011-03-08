@@ -6,18 +6,18 @@ classdef KerMor < handle
     %
     % @date 04.03.2011 @author Daniel Wirtz
     %
-    % @change{0,2,2011-03-04} Moved startup and shutdown functions into this class
-    % @change{0,2,2011-03-03} Created local settings file and management thereof for
-    % easy local installation and path adjustment.
-    % @change{0,1} Initial version.
+    % @new{0,3,2011-03-08} Created a new Doxygen keyword \c @@new for new
+    % feature versioning lists
+    % @change{0,2,2011-03-04} Moved startup and shutdown functions into
+    % this class
+    % @change{0,1} Initial version. @new{0,1} Initial version.
     %
     % To-Do's for KerMor:
-    % @todo message-system über alle berechnungen hinaus (ungewöhliche dinge
+    % @todo 
+    % - message-system über alle berechnungen hinaus (ungewöhliche dinge
     % berichten, exit flags etc)
-    %
-    % @todo laufzeittests für reduzierte modelle
-    %
-    % @todo interface für ModelData/Snapshots -> entweder arbeiten auf der
+    % - laufzeittests für reduzierte modelle
+    % - interface für ModelData/Snapshots -> entweder arbeiten auf der
     % Festplatte oder in 4D-Array .. (für große simulationen) -> KerMor hat
     % string für globales datenverzeichnis!
     % generell datenhaltung auf festplatte (mu,inputidx-indiziert) (?) =>
