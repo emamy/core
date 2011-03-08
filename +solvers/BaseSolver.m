@@ -10,6 +10,9 @@ classdef BaseSolver < handle
     properties
         % Maximum time step for solver.
         %
+        % Upon time-step computation via getCompTimes this value is used as
+        % `dt` inner time-step.
+        %
         % Default: [] (Use solver's default settings)
         MaxStep = [];
         
@@ -29,14 +32,17 @@ classdef BaseSolver < handle
     methods(Access=protected)
         function [times, tout, outputtimes] = getCompTimes(this, t)
             % Computes the computation and effective output times for a
-            % given input time vector t and the desired timestep dt.
-            % This method returns the given values of MaxStep is empty.
+            % given input time vector t. 
+            %
+            % As maximum execution speed is wanted, MaxStep is used as `dt`
+            % time-step size. So in order to set `dt` use the MaxStep
+            % property.
+            % This method returns the given values if MaxStep is empty.
             %
             % Parameters:
             % t: The desired times t. Either a two element vector
             % containing start time `t_0` and end time `T` or a row vector
             % `t=[t_0, t_1, \ldots, T]`.
-            % dt: The internal timestep to use during computation.
             %
             % Return values:
             % times: The actual times at which to compute the solution.

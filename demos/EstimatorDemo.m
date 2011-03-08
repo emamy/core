@@ -71,7 +71,8 @@ classdef EstimatorDemo < handle
             
             num = length(this.Est);
             times = zeros(num,1);
-            errs = zeros(num,length(this.Model.Times));
+            nt = length(this.Model.Times);
+            errs = zeros(num,nt);
             
             % Plotting preparations
             str = '';
@@ -105,8 +106,8 @@ classdef EstimatorDemo < handle
                 set(h,'OuterPosition',pos(1,:));
                 subplot(1,3,1);
             end
-            sel = round(linspace(1,length(this.Model.Times),6));
-            sel = sel(2:5);
+            sel = round(linspace(1,nt,6));
+            sel = sel(1:5);
             
             %% Absolute error plots
             if this.LogarithmicPlot
@@ -119,7 +120,8 @@ classdef EstimatorDemo < handle
             % Add some markers
             for idx=1:length(this.Est)
                 set(ph(idx),'LineStyle',this.Est(idx).LineStyle);
-                h = plot(this.Model.Times(sel+2*idx), errs(idx,sel+2*idx),this.Est(idx).MarkerStyle);
+                pos = mod(sel+2*(idx-1),nt)+1;
+                h = plot(this.Model.Times(pos), errs(idx,pos),this.Est(idx).MarkerStyle);
                 c = get(ph(idx),'Color');
                 set(h,'MarkerFaceColor',c,'MarkerEdgeColor',c*.7);
             end
@@ -141,7 +143,8 @@ classdef EstimatorDemo < handle
             hold on;
             for idx=1:length(this.Est)
                 set(ph(idx),'LineStyle',this.Est(idx).LineStyle);
-                h = plot(this.Model.Times(sel+2*idx), errs(idx,sel+2*idx),this.Est(idx).MarkerStyle);
+                pos = mod(sel+2*(idx-1),nt)+1;
+                h = plot(this.Model.Times(pos), errs(idx,pos),this.Est(idx).MarkerStyle);
                 c = get(ph(idx),'Color');
                 set(h,'MarkerFaceColor',c,'MarkerEdgeColor',c*.7);
             end

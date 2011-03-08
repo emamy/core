@@ -72,7 +72,7 @@ classdef qpIPOPT < solvers.BaseQPSolver
             end
             %options.bound_relax_factor = 0;
             
-            %options.ipopt.print_level = KerMor.Instance.Verbose;
+            %options.ipopt.print_level = KerMor.App.Verbose;
             %options.ipopt.output_file = 'out.txt';
             options.ipopt.tol         = 1e-7;
             

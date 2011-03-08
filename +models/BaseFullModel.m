@@ -271,7 +271,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     fval = zeros(size(this.Data.ProjTrainData,1)-3,size(atd,2));
                     atddata = atd(4:end,:);
                     pardata = atd(1,:);
-                    if KerMor.Instance.Verbose > 0
+                    if KerMor.App.Verbose > 0
                         fprintf('Starting parallel f-values computation at %d points on %d workers...\n',size(atd,2),matlabpool('size'));
                     end
                     parfor sidx=1:size(atd,2)
@@ -283,7 +283,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     this.Data.ApproxfValues = fval;
                 else
                     this.Data.ApproxfValues = zeros(size(this.Data.ProjTrainData,1)-3,size(atd,2));
-                    if KerMor.Instance.Verbose > 0
+                    if KerMor.App.Verbose > 0
                         fprintf('Serial computation of f-values at %d points ...\n',size(atd,2));
                     end
                     for sidx=1:size(atd,2)
@@ -313,7 +313,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     this.preApproximationTrainingCallback();
                 end
                 
-                if KerMor.Instance.Verbose > 0
+                if KerMor.App.Verbose > 0
                     fprintf('Serial approximation computation for %d dimensions ...\n',size(this.Data.ApproxfValues,1));
                 end
                 

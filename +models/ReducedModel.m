@@ -123,7 +123,7 @@ classdef ReducedModel < models.BaseModel
         
         function exo = getExo(this, mu)
             % Computes the norm of the initial error 
-            % `E_{y_0}(\mu) = ||C(0,\mu)(I-VW^t)x_0(\mu)||
+            % `E_{y_0}(\mu) = ||C(0,\mu)(I-VW^t)x_0(\mu)||`
             if ~isempty(this.V) && ~isempty(this.W)
                 x0 = this.FullModel.System.x0(mu);
                 Vy = this.V*(this.W'*x0);

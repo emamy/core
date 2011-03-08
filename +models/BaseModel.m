@@ -1,14 +1,21 @@
 classdef BaseModel < handle
-    %BASEMODEL Base class for both full and reduced models.
-    %   This class gathers all common functionalities of models in the
-    %   KerMor framework.
-    %   The most important method would be @code [t,y] =
-    %   simulate(mu,inputidx) @endcode which computes the system's solution
-    %   for given `\mu` and input number (if applicable).
-    %   Also a plot wrapper is provided that refers to the plotting methods
-    %   within the model's system.
+    % Base class for both full and reduced models.
+    %
+    % This class gathers all common functionalities of models in the
+    % KerMor framework.
+    % The most important method would be @code [t,y] =
+    % simulate(mu,inputidx) @endcode which computes the system's solution
+    % for given `\mu` and input number (if applicable).  Also a plot
+    % wrapper is provided that refers to the plotting methods within the
+    % model's system.
+    % Test: `x\in\R`
     %
     % @author Daniel Wirtz @date 19.03.2010
+    %
+    % @change{0,1} Generalized scalar product via `<x,y>_G = x^tGy`,
+    % default `I_d` for `d\in\N`
+    % @change{0,1} String output of all model settings via method
+    % getObjectConfig
     
     properties
         % The actual dynamical system used in the model.
@@ -35,7 +42,7 @@ classdef BaseModel < handle
         % The solver to use for the ODE.
         % Must be an instance of any solvers.BaseSolver subclass.
         %
-        % Default: solvers.MLWrapper(@ode23)
+        % Default: @code solvers.MLWrapper(@ode23) @endcode
         %
         % See also: solvers BaseSolver ode23 ode45 ode113
         ODESolver;
@@ -54,10 +61,6 @@ classdef BaseModel < handle
         % Default:
         % 1
         G = 1;
-        
-        % @todo: use in simulate etc
-        Mu;
-        Inputidx;
     end
     
     properties(Dependent)

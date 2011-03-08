@@ -1,5 +1,5 @@
 classdef ICloneable < handle
-    %ICLONEABLE Interface for cloneable handle classes
+   %ICLONEABLE Interface for cloneable handle classes
     %
     % Any implementing class should optionally take the "target" argument
     % as an subclass instance of the current class. This is to enable
@@ -32,8 +32,6 @@ classdef ICloneable < handle
     % @author Daniel Wirtz @date 15.03.2010
     
     methods(Abstract)
-        copy = clone(this, target);
+        copy = clone(this, target)
     end
-    
 end
-

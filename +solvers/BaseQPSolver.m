@@ -82,7 +82,7 @@ classdef BaseQPSolver < ICloneable
             end
             
             % Verbose output
-            if KerMor.Instance.Verbose > 3
+            if KerMor.App.Verbose > 3
                 fprintf('QP-Solver ''%s'' finished after %d/%d Iterations and %f seconds. Info:\n',this.Name,info.Iterations,this.MaxIterations, info.CompTime);
                 disp(info);
             end
@@ -117,15 +117,15 @@ classdef BaseQPSolver < ICloneable
             qp{1} = solvers.qpMatlab;
             qp{2} = solvers.qpOASES;
             qp{3} = solvers.qpMosek;
-            ip = solvers.qpIPOPT;
-            ip.UserOptions.ipopt.linear_solver = 'ma27';
-            qp{4} = ip;
-            ip = solvers.qpIPOPT;
-            ip.UserOptions.ipopt.linear_solver = 'ma57';
-            qp{5} = ip;
-            ip = solvers.qpIPOPT;
-            ip.UserOptions.ipopt.linear_solver = 'mumps';
-            qp{6} = ip;
+%             ip = solvers.qpIPOPT;
+%             ip.UserOptions.ipopt.linear_solver = 'ma27';
+%             qp{4} = ip;
+%             ip = solvers.qpIPOPT;
+%             ip.UserOptions.ipopt.linear_solver = 'ma57';
+%             qp{5} = ip;
+%             ip = solvers.qpIPOPT;
+%             ip.UserOptions.ipopt.linear_solver = 'mumps';
+%             qp{6} = ip;
             
             for idx = 1:length(qp)
                 %qp{idx}.MaxIterations = 50;

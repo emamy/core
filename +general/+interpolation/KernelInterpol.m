@@ -1,4 +1,4 @@
-classdef KernelInterpol
+classdef KernelInterpol < handle
     % Provides kernel interpolation.
     %
     % @author Daniel Wirtz @date 01.04.2010
@@ -13,7 +13,7 @@ classdef KernelInterpol
             b = mean(fxi);
             if all(abs(fxi - b) < 10*eps)
                 a = zeros(size(fxi))';
-                if KerMor.Instance.Verbose > 1
+                if KerMor.App.Verbose > 1
                     fprintf('KernelInterpol note: All mean-cleaned fxi values < 10eps, assuming zero coefficients!\n');
                 end
             else

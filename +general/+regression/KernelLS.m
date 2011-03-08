@@ -1,4 +1,4 @@
-classdef KernelLS
+classdef KernelLS < handle
     %KERNELLS Least-Squares kernel regression ("Rigde Regression")
     %   Since the systems can be considerably large, the pcg solver is used
     %   instead of plain inversion.

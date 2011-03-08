@@ -1,6 +1,9 @@
 classdef ModelData < handle
     %MODELDATA Class that contains a model's large data
     %   @todo setter for matrices V,W with checks for norm one etc
+    %
+    % @change{0,1} More common projection via matrices `V,W` instead of
+    % `V,V^t`.
     
     properties
         % A Model's parameter samples

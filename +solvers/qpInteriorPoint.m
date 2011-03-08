@@ -111,8 +111,8 @@ classdef qpInteriorPoint
         end
         
         function [ai,b] = quadprog2(this, fxi)
-            % Implememtation using no transformation of the beta \leq u to
-            % beta + t = u, t \geq 0
+            % Implememtation using no transformation of the `\beta \leq u`
+            % to `\beta + t = u, t \geq 0`
             
             e = 0.05;
             maxIt = 100;

@@ -47,7 +47,7 @@ classdef CompWiseLS < approx.BaseCompWiseKernelApprox
     methods(Access=protected, Sealed)
         
         function prepareApproximationGeneration(this, K)
-            % @copydoc approx.BaseCompWiseKernelApprox
+            % @copydoc approx::BaseCompWiseKernelApprox
             
             this.LS = general.regression.KernelLS;
             % Assign Kernel matrix

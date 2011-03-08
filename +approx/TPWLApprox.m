@@ -1,6 +1,7 @@
 classdef TPWLApprox < approx.BaseApprox
-    %TPWLAPPROX Summary of this class goes here
-    %   Detailed explanation goes here
+    % Trajectory-piecewise function approximation
+    %
+    % @todo NOT FINISHED YET!
     
     properties
         % The weight function `w`
@@ -162,8 +163,7 @@ classdef TPWLApprox < approx.BaseApprox
             
             r = m.buildReducedModel;
             ApproxVisualizer(r);
-            
-            r.analyze;
+            res = true;
         end
     end
     

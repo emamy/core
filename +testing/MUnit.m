@@ -1,5 +1,5 @@
 classdef MUnit
-    %MUNIT Class Unit Testing Framework for Matlab
+    % Class Unit Testing Framework for Matlab
     %
     % This class allows to run tests within a OO-Based Matlab program
     % according to the conventions mentioned below:
@@ -16,14 +16,14 @@ classdef MUnit
     %
     % See also: TestFunctionPrefix
     %
+    % @author Daniel Wirtz @date 12.03.2010
+    %
     % @todo 08.10.10: extend test method signature by a verbose flag; v=0 means
     % quiet, v=1 means text output and v=2 means with plots
     % @todo 08.10.10: apply changes of extended test method signature to all already
     % implemented test cases where applicable!
     % @todo 08.10.10: Extend MUnit to also be able to deal with folders &
     % function files named according to MUnit convention
-    %
-    % @author Daniel Wirtz @date 12.03.2010
     
     properties(Constant)
         % The prefix for any function that will be detected in the MUnit
@@ -73,6 +73,15 @@ classdef MUnit
     
     methods(Static, Access=private)
         function [s,f] = recursiveRun(dir,currentPackage)
+            % Internal private recursion function.
+            %
+            % Parameters:
+            % dir: The directory to recurse, as full absolute path
+            % currentPackage: The current package name
+            %
+            % Return values:
+            % s: The number of successful tests
+            % f: The number of failed tests
             w = what(dir);
             
             % Some weird afs stuff goin on!

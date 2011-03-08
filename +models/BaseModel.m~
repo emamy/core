@@ -45,19 +45,15 @@ classdef BaseModel < handle
         % In some settings the state variables have a special meaning (like
         % DOF's in FEM simulations) where the pure `L^2`-norm has less
         % meaning than a custom norm induced by a symmetric positive
-        % definite matrix G. If `m\in\mathbb{N}` is the number of output
-        % state variables (i.e. dimensions of `y(t)`), then we must have
-        % `G\in\mathbb{R}^{m\times m}`.
+        % definite matrix G. If `d\in\mathbb{N}` is the number of state
+        % variables (i.e. dimensions of `x(t)`), then we must have
+        % `G\in\mathbb{R}^{d\times d}`.
         %
-        % Leave at `1\in\mathbb{R}` if `G=I_d` should be assumed.
+        % Leave at `1` if `G=I_d` should be assumed.
         %
         % Default:
         % 1
         G = 1;
-        
-        % @todo: use in simulate etc
-        Mu;
-        Inputidx;
     end
     
     properties(Dependent)
@@ -118,9 +114,11 @@ classdef BaseModel < handle
             
             starttime = tic;
             
+            % Get state trajectory
             [t,x] = this.computeTrajectory(mu, inputidx);
             
-            
+            % Convert to output
+            y = this.System.C.computeOutput(t,x,mu);
             
             sec = toc(starttime);
         end

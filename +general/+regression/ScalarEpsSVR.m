@@ -86,9 +86,9 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             svr.eps = .1;
             svr.C = 10;
             %svr.QPSolver.MaxIterations = 1000;
-            vr.QPSolver = solvers.qpMatlab;
+            %svr.QPSolver = solvers.qpMatlab;
             %svr.QPSolver = solvers.qpMosek;
-            svr.QPSolver = solvers.qpIPOPT;
+            svr.QPSolver = solvers.qpOASES;
             %kernel = kernels.PolyKernel(2);
             %kernel = kernels.LinearKernel;
             kernel = kernels.GaussKernel(1);

@@ -72,7 +72,7 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & dscomponents.IGlo
             % "target". This is due to the fact that no further subclasses
             % are intended for this class; if this gets the case, one needs
             % to add the target argument and check if it's set or not:
-            % @begincode
+            % @code
             %if nargin < 4
             %    copy = this.clone;
             %else

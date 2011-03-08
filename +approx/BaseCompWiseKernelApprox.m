@@ -104,7 +104,7 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
     
     methods(Access=protected)
         
-        function gen_approximation_data(this, xi, ti, mui, fxi)
+        function gen_approximation_data(this, model, xi, ti, mui, fxi)
             % Computes the approximation according to the concrete
             % approximation strategy.
             % Fills the Ma, off and snData properties of the
@@ -127,9 +127,9 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
                 this.evaluateAtCenters(xi, ti, mui));
             
             if this.ComputeParallel
-                this.computeParallel(fxi);
+                this.computeParallel(model.Data.ApproxfValues);
             else
-                this.computeSerial(fxi);
+                this.computeSerial(model.Data.ApproxfValues);
             end
             
             %                 afxi = this.evaluate(xi,ti,mui);
