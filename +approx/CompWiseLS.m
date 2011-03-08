@@ -80,7 +80,7 @@ classdef CompWiseLS < approx.BaseCompWiseKernelApprox
             m = models.BaseFullModel;
             m.T = size(x,2)-1;
             m.dt = 1;
-            m.Data.ApproxTrainData = [zeros(2,size(x,2)); m.Times; x];
+            m.Data.ApproxTrainData = [zeros(2,size(x,2)); m.scaledTimes; x];
             m.Data.ApproxfValues = fxi;
             a = approx.CompWiseLS;
             a.Lambda = .1;
@@ -94,7 +94,7 @@ classdef CompWiseLS < approx.BaseCompWiseKernelApprox
             x2(2,:) = Y2(:);
             % Fit t (insert "mid-times")
             m.dt = m.T/(size(x2,2)-1);
-            fxiap = m.Approx.evaluate(x2,m.Times,[]);
+            fxiap = m.Approx.evaluate(x2,m.scaledTimes,[]);
             
             figure(1)
             subplot(1,2,1);
@@ -120,7 +120,7 @@ classdef CompWiseLS < approx.BaseCompWiseKernelApprox
             m = models.BaseFullModel;
             m.T = length(x)-1;
             m.dt = 1;
-            m.Data.ApproxTrainData = [zeros(2,size(x,2)); m.Times; x];
+            m.Data.ApproxTrainData = [zeros(2,size(x,2)); m.scaledTimes; x];
             m.Data.ApproxfValues = fxi;
             a = approx.CompWiseLS;
             a.Lambda = 1;
@@ -144,7 +144,7 @@ classdef CompWiseLS < approx.BaseCompWiseKernelApprox
             x2 = -2:.5/dim:2;
             % Fit t (insert "mid-times")
             m.dt = m.T/(length(x2)-1);
-            fxiap = m.Approx.evaluate(x2,m.Times,[]);
+            fxiap = m.Approx.evaluate(x2,m.scaledTimes,[]);
             
             figure(1)
             subplot(1,2,1);

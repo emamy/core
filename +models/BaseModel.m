@@ -12,6 +12,14 @@ classdef BaseModel < handle
     %
     % @author Daniel Wirtz @date 19.03.2010
     %
+    % @new{0,3,2011-03-08} Implemented time scaling via addition of the
+    % property @ref models.BaseModel.tau "tau" and dependent attributes @ref models.BaseModel.dtscaled "dtscaled" and @ref
+    % models.BaseModel.Tscaled "Tscaled". This way model data can be entered in original units and the
+    % system calculates with the scaled time values. The main change is in
+    % @ref models.BaseModel.computeTrajectory where the ODE solver is
+    % called with the scaled time steps and the resulting timesteps are
+    % re-scaled to their original unit.
+    %
     % @change{0,1} Generalized scalar product via `<x,y>_G = x^tGy`,
     % default `I_d` for `d\in\N`
     % @change{0,1} String output of all model settings via method
@@ -37,6 +45,9 @@ classdef BaseModel < handle
         %
         % NOTE: When changing this property any offline computations have
         % to be repeated in order to obtain a new reduced model.
+        %
+        % @default 0.1
+        % See also: dtscaled
         dt = .1;
         
         % The solver to use for the ODE.
@@ -61,17 +72,49 @@ classdef BaseModel < handle
         % Default:
         % 1
         G = 1;
+        
+        % Time scaling factor
+        %
+        % If used, the values from T and dt are getting scaled by tau when
+        % calling simulate.
+        %
+        % @default 1
+        tau = 1;
     end
     
     properties(Dependent)
         % Evaluation points of the model as increasing array
         Times;
+        
+        % The time steps in scaled time units
+        %
+        % See also: tau
+        scaledTimes;
+        
+        % The scaled end time T
+        %
+        % If tau is used, this value is `\tilde{T} = T/\tau`
+        % See also: tau T
+        Tscaled;
     end
     
     properties(Access=protected)
         % Flag that indicates changes in either T or dt after
         % offlineGenerations have been performed.
         TimeDirty;
+    end
+    
+    properties(SetAccess=private)
+        % The scaled timestep dt
+        %
+        % @note Due to performance reasons this property is not computed
+        % dependently but fitted any time dt or tau are changed.
+        %
+        % If tau is used, this value is `\tilde{dt} = dt/\tau`
+        %
+        % @default .1 (as in dt)
+        % See also: tau dt
+        dtscaled = .1;
     end
     
     methods
@@ -203,10 +246,13 @@ classdef BaseModel < handle
             
             % Solve ODE
             if ~isempty(this.System.MaxTimestep)
+                % Remember: When scaling is used, these are the 
                 this.ODESolver.MaxStep = this.System.MaxTimestep;
                 this.ODESolver.InitialStep = .5*this.System.MaxTimestep;
             end
-            [t,x] = this.ODESolver.solve(odefun, this.Times, x0);
+            [t,x] = this.ODESolver.solve(odefun, this.scaledTimes, x0);
+            % Scale times back to real units
+            t = t*this.tau;
         end
     end
     
@@ -244,6 +290,18 @@ classdef BaseModel < handle
             value = 0:this.dt:this.T;
         end
         
+        function value = get.scaledTimes(this)
+            value = 0:this.dtscaled:this.Tscaled;
+        end
+        
+        function value = get.Tscaled(this)
+            if isempty(this.tau)
+                value = this.T;
+            else
+                value = this.T/this.tau;
+            end
+        end
+        
         function set.T(this, value)
             if ~isposrealscalar(value)
                 error('T must be a positive real scalar.');
@@ -259,7 +317,26 @@ classdef BaseModel < handle
                 error('T must be a positive real scalar.');
             end
             if this.dt ~= value
+                if isempty(this.tau)%#ok
+                    this.dtscaled = value;%#ok
+                else
+                    this.dtscaled = value/this.tau;%#ok
+                end
                 this.dt = value;
+                this.TimeDirty = true;%#ok
+            end
+            
+        end
+        
+        function set.tau(this, value)
+            if ~isposrealscalar(value)
+                error('tau must be a positive real scalar.');
+            end
+            if this.tau ~= value
+                if ~isempty(this.dt)%#ok
+                    this.dtscaled = this.dt/value;%#ok
+                end
+                this.tau = value;
                 this.TimeDirty = true;%#ok
             end
         end

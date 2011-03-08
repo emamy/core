@@ -1,14 +1,21 @@
 classdef BaseModel < handle
-    %BASEMODEL Base class for both full and reduced models.
-    %   This class gathers all common functionalities of models in the
-    %   KerMor framework.
-    %   The most important method would be @code [t,y] =
-    %   simulate(mu,inputidx) @endcode which computes the system's solution
-    %   for given `\mu` and input number (if applicable).
-    %   Also a plot wrapper is provided that refers to the plotting methods
-    %   within the model's system.
+    % Base class for both full and reduced models.
+    %
+    % This class gathers all common functionalities of models in the
+    % KerMor framework.
+    % The most important method would be @code [t,y] =
+    % simulate(mu,inputidx) @endcode which computes the system's solution
+    % for given `\mu` and input number (if applicable).  Also a plot
+    % wrapper is provided that refers to the plotting methods within the
+    % model's system.
+    % Test: `x\in\R`
     %
     % @author Daniel Wirtz @date 19.03.2010
+    %
+    % @change{0,1} Generalized scalar product via `<x,y>_G = x^tGy`,
+    % default `I_d` for `d\in\N`
+    % @change{0,1} String output of all model settings via method
+    % getObjectConfig
     
     properties
         % The actual dynamical system used in the model.
@@ -35,7 +42,7 @@ classdef BaseModel < handle
         % The solver to use for the ODE.
         % Must be an instance of any solvers.BaseSolver subclass.
         %
-        % Default: solvers.MLWrapper(@ode23)
+        % Default: @code solvers.MLWrapper(@ode23) @endcode
         %
         % See also: solvers BaseSolver ode23 ode45 ode113
         ODESolver;
@@ -54,6 +61,14 @@ classdef BaseModel < handle
         % Default:
         % 1
         G = 1;
+        
+        % Time scaling factor
+        %
+        % If used, the values from T and dt are getting scaled by tau when
+        % calling simulate.
+        %
+        % @default empty
+        tau = [];
     end
     
     properties(Dependent)
@@ -65,6 +80,23 @@ classdef BaseModel < handle
         % Flag that indicates changes in either T or dt after
         % offlineGenerations have been performed.
         TimeDirty;
+        
+        % The scaled end time T
+        %
+        % If tau is used, this value is `\tilde{T} = T/\tau`
+        % See also: tau T
+        Tscaled;
+    end
+    
+    properties(SetAccess=private)
+        % The scaled timestep dt
+        %
+        % @note Due to performance reasons this property is not computed
+        % dependently but fitted any time dt or tau are changed.
+        %
+        % If tau is used, this value is `\tilde{dt} = dt/\tau`
+        % See also: tau dt
+        dtscaled;
     end
     
     methods
@@ -237,6 +269,14 @@ classdef BaseModel < handle
             value = 0:this.dt:this.T;
         end
         
+        function value = get.Tscaled(this)
+            if isempty(this.tau)
+                value = this.T;
+            else
+                value = this.T/this.tau;
+            end
+        end
+        
         function set.T(this, value)
             if ~isposrealscalar(value)
                 error('T must be a positive real scalar.');
@@ -252,8 +292,28 @@ classdef BaseModel < handle
                 error('T must be a positive real scalar.');
             end
             if this.dt ~= value
+                if isempty(this.tau)%#ok
+                    this.dtscaled = value;%#ok
+                else
+                    this.dtscaled = value/this.tau;%#ok
+                end
                 this.dt = value;
                 this.TimeDirty = true;%#ok
+            end
+            
+        end
+        
+        function set.tau(this, value)
+            if ~isposrealscalar(value)
+                error('tau must be a positive real scalar.');
+            end
+            this.TimeDirty = ~isempty(this.tau) && ~isempty(value) && this.tau ~= value
+            if 
+                if ~isempty(this.dt)%#ok
+                    this.dtscaled = this.dt/value;%#ok
+                end
+                this.tau = value;
+                 = true;%#ok
             end
         end
         

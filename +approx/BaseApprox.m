@@ -49,10 +49,8 @@ classdef BaseApprox < dscomponents.ACoreFun
             if isempty(sn)
                 error('No projection training data available to take approximation training data from.');
             end
-            
-            selection = round(linspace(1,size(sn,2),...
-                    min(this.ApproxExpansionSize,size(sn,2))));
-            atd = sn(:,selection);
+
+            atd = sn;
         end
         
     end

@@ -16,6 +16,11 @@ classdef BaseDynSystem < handle
     % @author Daniel Wirtz @date 17.03.2010
     
     properties
+        % The parent associated model
+        %
+        % @type models.BaseModel
+        Model;
+        
         % The core f function from the dynamical system.
         %
         % @type dscomponents.ACoreFun
@@ -25,15 +30,13 @@ classdef BaseDynSystem < handle
         B;
         
         % The output conversion
-        % Defaults to an StdOutputConv instance, which just forwards the
-        % state variables ans supports projection.
+        % Defaults to an LinearOutputConv instance using a 1-matrix, which
+        % just forwards the state variables and supports projection.
         %
-        % @sa StdOutputConv::project(V)
-        % @sa dscomponents.StdOutputConv::project(matlabtypesubstitute, matlabtypesubstitute)
-        % @sa dscomponents.StdOutputConv::project(matlabtypesubstitute)
+        % @sa LinearOutputConv::project(V)
         C;
         
-        % See also: dscomponents.StdOutputConv/project
+        % See also: dscomponents.LinearOutputConv/project
         
         % The system's possible input functions.
         % A cell array of function handles, each taking a time argument t.
@@ -52,6 +55,11 @@ classdef BaseDynSystem < handle
         %
         % This might be necessary if the Core function encapsulates a
         % spatial discretization and thus CFL conditions apply, for example.
+        %
+        % @note If any time scaling is used within the model, this value
+        % must correspond to the ''scaled'' maximum timestep.
+        %
+        % See also: BaseModel BaseModel.tau BaseModel.dtscaled
         MaxTimestep = [];
     end
     
@@ -65,8 +73,18 @@ classdef BaseDynSystem < handle
     
     methods
         
-        function this = BaseDynSystem
+        function this = BaseDynSystem(model)
+            % Creates a new base dynamical system class instance.
             %
+            % Uses default output mapping: state variables are output.
+            % Initial conditions are set to zero.
+            %
+            % Parameters:
+            % model: The parent model that 
+            
+            if (nargin > 0)
+                this.Model = model;
+            end
             this.C = dscomponents.LinearOutputConv(1);
             this.x0 = @(mu)0;
         end
@@ -178,8 +196,8 @@ classdef BaseDynSystem < handle
         end
         
         function set.C(this,value)
-            if ~isempty(value) && ~isa(value, 'dscomponents.IOutputConv')
-                error('The property "C" has to be a class implementing dscomponents.IOutputConv');
+            if ~isempty(value) && ~isa(value, 'dscomponents.AOutputConv')
+                error('The property "C" has to be a class implementing dscomponents.AOutputConv');
             end
             this.C = value;
         end

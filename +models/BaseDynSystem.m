@@ -29,8 +29,6 @@ classdef BaseDynSystem < handle
         % just forwards the state variables and supports projection.
         %
         % @sa LinearOutputConv::project(V)
-        % @sa dscomponents.LinearOutputConv::project(matlabtypesubstitute, matlabtypesubstitute)
-        % @sa dscomponents.LinearOutputConv::project(matlabtypesubstitute)
         C;
         
         % See also: dscomponents.LinearOutputConv/project
@@ -52,6 +50,11 @@ classdef BaseDynSystem < handle
         %
         % This might be necessary if the Core function encapsulates a
         % spatial discretization and thus CFL conditions apply, for example.
+        %
+        % @note If any time scaling is used within the model, this value
+        % must correspond to the ''scaled'' maximum timestep.
+        %
+        % See also: BaseModel BaseModel.tau BaseModel.dtscaled
         MaxTimestep = [];
     end
     
@@ -70,6 +73,9 @@ classdef BaseDynSystem < handle
             %
             % Uses default output mapping: state variables are output.
             % Initial conditions are set to zero.
+            %
+            % Parameters:
+            % model: The parent model that 
             this.C = dscomponents.LinearOutputConv(1);
             this.x0 = @(mu)0;
         end

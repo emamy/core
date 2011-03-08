@@ -73,7 +73,7 @@ classdef CompWiseSVR < approx.BaseCompWiseKernelApprox
             m = models.BaseFullModel;
             m.T = size(xi,2)-1;
             m.dt = 1;
-            m.Data.ApproxTrainData = [zeros(2,size(xi,2)); m.Times; xi];
+            m.Data.ApproxTrainData = [zeros(2,size(xi,2)); m.scaledTimes; xi];
             m.Data.ApproxfValues = fxi;
             a = approx.CompWiseSVR;
             %a.ScalarSVR = general.regression.ScalarEpsSVR;
@@ -83,7 +83,7 @@ classdef CompWiseSVR < approx.BaseCompWiseKernelApprox
             a.SystemKernel = kernels.GaussKernel(4);
             m.Approx = a;
             m.Approx.approximateCoreFun(m);
-            fxiap = m.Approx.evaluate(xi,m.Times,[]);
+            fxiap = m.Approx.evaluate(xi,m.scaledTimes,[]);
             
             figure(1)
             subplot(2,2,1);
@@ -126,7 +126,7 @@ classdef CompWiseSVR < approx.BaseCompWiseKernelApprox
             m = models.BaseFullModel;
             m.T = size(X,2)-1;
             m.dt = 1;
-            m.Data.ApproxTrainData = [zeros(2,size(X,2)); m.Times;X];
+            m.Data.ApproxTrainData = [zeros(2,size(X,2)); m.scaledTimes;X];
             m.Data.ApproxfValues = fxi;
             a = approx.CompWiseSVR;
             a.ScalarSVR = general.regression.ScalarEpsSVR;
@@ -141,7 +141,7 @@ classdef CompWiseSVR < approx.BaseCompWiseKernelApprox
             a.TimeKernel = kernels.GaussKernel(7);
             m.Approx = a;
             m.Approx.approximateCoreFun(m);
-            fxiap = m.Approx.evaluate(X,m.Times,[]);
+            fxiap = m.Approx.evaluate(X,m.scaledTimes,[]);
             
             figure(2);
             subplot(2,2,1);
