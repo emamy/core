@@ -68,7 +68,7 @@ classdef BaseApprox < dscomponents.ACoreFun
         % ti: The times at which the state variable snapshots are taken
         % mui: The parameters used to obtain the snapshots. Equals [] if no
         % parameters have been used.
-        gen_approximation_data(model, xi, ti, mui);
+        gen_approximation_data(this, model, xi, ti, mui);
     end
     
     methods(Static)

@@ -73,9 +73,6 @@ classdef BaseDynSystem < handle
             %
             % Uses default output mapping: state variables are output.
             % Initial conditions are set to zero.
-            %
-            % Parameters:
-            % model: The parent model that 
             this.C = dscomponents.LinearOutputConv(1);
             this.x0 = @(mu)0;
         end

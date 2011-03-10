@@ -8,21 +8,21 @@ classdef BaseModel < handle
     % for given `\mu` and input number (if applicable).  Also a plot
     % wrapper is provided that refers to the plotting methods within the
     % model's system.
-    % Test: `x\in\R`
     %
     % @author Daniel Wirtz @date 19.03.2010
     %
-    % @new{0,3,2011-03-08} Implemented time scaling via addition of the
-    % property @ref models.BaseModel.tau "tau" and dependent attributes @ref models.BaseModel.dtscaled "dtscaled" and @ref
-    % models.BaseModel.Tscaled "Tscaled". This way model data can be entered in original units and the
+    % @new{0,3,dw,2011-03-08} Implemented time scaling via addition of the
+    % property models.BaseModel.tau and dependent attributes
+    % models.BaseModel.dtscaled and models.BaseModel.Tscaled. This
+    % way model data can be entered in original units and the
     % system calculates with the scaled time values. The main change is in
     % @ref models.BaseModel.computeTrajectory where the ODE solver is
     % called with the scaled time steps and the resulting timesteps are
     % re-scaled to their original unit.
     %
-    % @change{0,1} Generalized scalar product via `<x,y>_G = x^tGy`,
+    % @change{0,1,dw} Generalized scalar product via `<x,y>_G = x^tGy`,
     % default `I_d` for `d\in\N`
-    % @change{0,1} String output of all model settings via method
+    % @new{0,1,dw} String output of all model settings via method
     % getObjectConfig
     
     properties

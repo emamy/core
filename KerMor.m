@@ -5,12 +5,26 @@ classdef KerMor < handle
     % http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
     %
     % @date 04.03.2011 @author Daniel Wirtz
+    % 
+    % @change{0,3,dw,2011-03-09} Included a developer key parameter into
+    % the '@@new' and '@@change' tags to create a link to the author of the
+    % new features or changes.
     %
-    % @new{0,3,2011-03-08} Created a new Doxygen keyword \c @@new for new
+    % @new{0,3,dw,2011-03-09}
+    % - Added installation routines for unix systems.
+    % Now one can download the sources from a git repository and simply
+    % call KerMor.install to prepare the environment & compile any
+    % included mex files.
+    % - Added a KerMor.createDocs static method to create the
+    % documentation from within the matlab environment.
+    %
+    % @new{0,3,dw,2011-03-08} Created a new Doxygen keyword '@@new' for new
     % feature versioning lists
-    % @change{0,2,2011-03-04} Moved startup and shutdown functions into
+    %
+    % @change{0,2,dw,2011-03-04} Moved startup and shutdown functions into
     % this class
-    % @change{0,1} Initial version. @new{0,1} Initial version.
+    %
+    % @change{0,1,dw} Initial version. @new{0,1,dw} Initial version.
     %
     % To-Do's for KerMor:
     % @todo 
@@ -265,7 +279,7 @@ classdef KerMor < handle
             
             initDirectories;
             init3rdparty;
-            initParallelToolbox;
+            initParallelization;
             
             disp('Entering startup path..');
             cd(p);
@@ -332,11 +346,24 @@ classdef KerMor < handle
                 %addpath(fullfile(p,'3rdparty','pardiso'));
             end
             
-            function initParallelToolbox
+            function initParallelization
                 % Checks if the parallel computing toolbox is available
+                %
+                % @todo wrap with try-catch and set flag in KerMor.App
+                % class!
+                %
+                % @note The 'feature' command is undocumented, see
+                % http://www.mathworks.com/matlabcentral/newsreader/view_thread/154551
+                % for more information.
                 disp('Checking for and starting parallel computing..');
-                % @todo wrap with try-catch and set flag in KerMor.App class!
-                matlabpool open;
+                
+                % Dont use matlabpool at the moment
+                %matlabpool open;
+                
+                % Sets the maximum number of threads to create by OpenMP
+                % binaries according to the number of cores available on
+                % the machine.
+                setenv('OMP_NUM_THREADS',num2str(feature('numCores')));
             end
         end
         
@@ -356,6 +383,61 @@ classdef KerMor < handle
                 instance = KerMor;
             end
             theinstance = instance;
+        end
+        
+        function install
+            % Performs installation of KerMor on a system
+            %
+            % Adds variables to the users environment, so far only needed
+            % for the documentation creation. Custom paths for data storage
+            % are checked and set by the start script.
+            %
+            %
+            % See also: installUnix installWindows
+            disp('<<<<<<<<<< Welcome to the KerMor install script. >>>>>>>>>>');
+            if isunix
+                KerMor.installUnix;
+            elseif ispc
+                KerMor.installWindows;
+            end
+            disp('<<<<<<<<<< Setup complete. >>>>>>>>>>');
+            %KerMor.start;
+        end
+        
+        function createDocs(uml, open)
+            % Creates the Doxygen documentation
+            %
+            % Parameters:
+            % uml: Set to true to create UML-like graphics output
+            % @default false
+            % open: Set to true if the documentation should be opened after
+            % successful compilation
+            % @default false
+            if nargin < 2
+                open = false;
+                if nargin < 1
+                    uml = false;
+                end
+            end
+            
+            cmd = fullfile(KerMor.App.HomeDirectory,'documentation','make.sh');
+            if uml
+                cmd = [cmd ' uml'];
+            end
+            [s,r] = system(cmd);
+            disp(r);
+            index = fullfile(getenv('KERMOR_DOCS'), 'index.html');
+            if open
+                % Try to use iceweasel per default (nasty, uhm?)
+                [s,r] = system('which iceweasel');
+                if ~isempty(r)
+                    cmd = 'iceweasel ';
+                else
+                    % Otherwise: use user preferred browser
+                    cmd = 'xdg-open ';
+                end
+                system([cmd index]);
+            end
         end
         
         function application = start
@@ -388,6 +470,93 @@ classdef KerMor < handle
             % Closes the matlab-pool for parallel computing is closed
             % if in use.
             KerMor.App.shutdown;
+        end
+    end
+    
+    methods(Static,Access=private)
+        function installUnix
+            % Install script for unix systems
+            %
+            % Adds kermor specific variables to the user's environment by
+            % inserting them into the ~/.bashrc file.
+            %
+            % @note If you run this install script more than once, old path
+            % variables will be overwritten (as multiple entries will
+            % appear in the .bashrc file)
+            %
+            % The custom variable names are
+            % - 'KERMOR_SOURCE' The source directory
+            % - 'KERMOR_DOCS' The documentation output directory
+            % - 'KERMOR_DOXYBIN' Path to the doxygen binary (autodetect)
+            %
+            % @todo compile any mex files!
+            
+            h = fileparts(which('KerMor'));
+            fid = fopen('~/.bashrc','a+');
+            try
+                
+                fprintf(fid,'\n# KerMor environment variables (added by KerMor.install script on %s)\n',date);
+                fprintf(fid,'export KERMOR_SOURCE="%s"\n',h);
+                % Set in running environment (until restart)
+                setenv('KERMOR_SOURCE',h);
+
+
+                %% Documentation directory
+                if isempty(getenv('KERMOR_DOCS'))
+                    d = fullfile(h,'documentation','output');
+                    str = sprintf(['No documentation output directory has been set yet.\n'...
+                            'The default will be %s\n'...
+                            'Do you want to specify a custom output directory? (Y)es/(N)o: '],d);
+                    ds = lower(input(str,'s'));
+                    if isequal(ds,'y')
+                        d = uigetdir(h,'Please select the documentation output folder.');
+                        if d == 0
+                            d = fullfile(h,'documentation','output');
+                            fprintf('Operation cancelled, using default directory %s...\n',d);
+                        end
+                    end
+                    fprintf(fid,'export KERMOR_DOCS="%s"\n',d);
+                    setenv('KERMOR_DOCS',d)
+                end
+
+                %% Doxygen binary
+                if isempty(getenv('KERMOR_DOXYBIN'))
+                    [s,r] = system('which doxygen');
+                    db = [];
+                    if ~isempty(r)
+                        db = 'doxygen';
+                        str = sprintf(['Doxygen installation is available (%s).\n'...
+                                'Do you want to use a different doxygen binary? (Y)es/(N)o: '],strrep(r,char(10),''));
+                        yn = lower(input(str,'s'));
+                    end
+                    if isempty(r) || isequal(yn,'y')
+                        [f,p] = uigetfile('~/*.*','Select the custom doxygen binary file.');
+                        if f ~= 0
+                            db = fullfile(p, f);
+                        end
+                    end
+                    if ~isempty(db)
+                        fprintf(fid,'export KERMOR_DOXYBIN="%s"\n',db);
+                        setenv('KERMOR_DOXYBIN',db);
+                    else
+                        warning('KerMor:installUnix','No doxygen binary selected. Documentation creation will not work.');
+                    end
+                end
+                fclose(fid);
+            catch ME%#ok
+                fclose(fid);
+            end
+        end
+        
+        function installWindows
+            % installation script for Microsoft Windows based systems.
+            %
+            % Not yet implemented/necessary (docs make-script is linux only!)
+            %
+            % @todo
+            % - Install script for Windows
+            % - Create batch file for documentation creation on windows
+            error('Installation routine not yet implemented.\nPlease refer to the KerMor documentation at http://www.agh.ians.uni-stuttgart.de/documentation/kermor for help.');
         end
     end
     
