@@ -33,7 +33,7 @@ classdef Heun < solvers.BaseSolver
         
         function [tout,y] = solve(this, odefun, t, x0)
             % Get computation times
-            [times, tout, outputtimes] = this.getCompTimes(t);
+            [times, outputtimes] = this.getCompTimes(t);
             % Initialize result
             steps = length(times);
             y = [x0 zeros(size(x0,1),steps-1)];
@@ -45,6 +45,7 @@ classdef Heun < solvers.BaseSolver
                 y(:,idx) = y(:,idx-1) + (dt(idx-1)/2)*(f + odefun(times(idx),hlp));
             end
             y = y(:,outputtimes);
+            tout = times(outputtimes);
             
 %             cur = x0; outidx = 2;
 %             steps = length(times);

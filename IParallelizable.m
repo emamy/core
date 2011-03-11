@@ -8,4 +8,3 @@ classdef IParallelizable < handle
     end
     
 end
-

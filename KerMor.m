@@ -158,7 +158,8 @@ classdef KerMor < handle
         % The directory to use for simulation data storage
         %
         % In this folder large simulation and model data will be stored and
-        % read by KerMor.
+        % read by KerMor. Can be set anytime during runtime. If no value is
+        % given the KerMor.start script will ask for it.
         %
         % @default ./data
         DataStoreDirectory = '';
@@ -171,6 +172,12 @@ classdef KerMor < handle
         %
         % @default 1
         Verbose = 1;
+        
+        % Flag whether to enable use of the Matlab Parallel Computing
+        % Toolbox.
+        %
+        % @default false
+        UseMatlabParallelComputing = false;
     end
     
     properties(SetAccess=private)

@@ -30,7 +30,7 @@ classdef BaseSolver < handle
     end
     
     methods(Access=protected)
-        function [times, tout, outputtimes] = getCompTimes(this, t)
+        function [times, outputtimes] = getCompTimes(this, t)
             % Computes the computation and effective output times for a
             % given input time vector t. 
             %
@@ -39,6 +39,11 @@ classdef BaseSolver < handle
             % property.
             % This method returns the given values if MaxStep is empty.
             %
+            % If 't' was an array, we have @code t =
+            % times(outputtimes)@endcode for the resulting parameters.
+            % Otherwise, if 't' was a two-element vector (start- and
+            % endtime) we get @code times = t(1):this.MaxStep:t(2) @endcode
+            %
             % Parameters:
             % t: The desired times t. Either a two element vector
             % containing start time `t_0` and end time `T` or a row vector
@@ -46,13 +51,15 @@ classdef BaseSolver < handle
             %
             % Return values:
             % times: The actual times at which to compute the solution.
-            % tout: The effective times that are being returned along with
-            % the solution values.
             % outputtimes: A logical row vector of the size of times that
             % indicates which element from the times vector also belongs to
-            % the tout vector.
+            % the effective output times vector.
             %
             % @todo InitialStep mit einbauen!
+            %
+            % @change{0,3,dw,2011-03-11} Removed 'tout' from the return
+            % parameters since it can be computed either way via 'tout =
+            % times(outputtimes)'.
             
             % Validity checks
             if any(abs(sort(t) - t) > 100*eps)
@@ -62,12 +69,10 @@ classdef BaseSolver < handle
             % Default values
             outputtimes = true(1,length(t));
             times = t;
-            tout = t;
             if ~isempty(this.MaxStep)
                 if numel(t) == 2
                     times = t(1):this.MaxStep:t(2);
                     outputtimes = true(1,length(times));
-                    tout = times;
                 else    
                     % Find refinement indices
                     idx = fliplr(find(abs(t(2:end)-t(1:end-1)-this.MaxStep)>100*eps));
@@ -82,7 +87,6 @@ classdef BaseSolver < handle
                         if numel(tout) ~= numel(t) || any(abs(tout - t) > 100*eps)
                             error('Unexpected error: Computed time vector differs from the desired one.');
                             t%#ok
-                            tout
                         end
                     end
                 end
@@ -94,12 +98,14 @@ classdef BaseSolver < handle
         % The abstract solve function for the ODE solver.
         %
         % Parameters:
+        % odefun: A function handle to the ode's function. Signature is
+        % 'odefun(t,x)'
         % t: Either a two dimensional vector with t(1) < t(2) specifiying
         % the start and end time, or a greater or equal to three
         % dimensional, strictly monotoneously increasing vector explicitly
         % setting the desired output times. Depending on the MaxStep
         % property, the solver can work with a finer time step internally.
-        solve(odefun, t, x0, opts);
+        solve(this, odefun, t, x0, opts);
         
         %[t,y] = solve(odefun, t, x0, opts);
     end
@@ -129,9 +135,9 @@ classdef BaseSolver < handle
         
         function res = test_SolverSpeedTest
             m = models.synth.KernelTest(200);
+            perform(solvers.ExplEuler);
             perform(solvers.MLWrapper(@ode23));
             perform(solvers.MLWrapper(@ode45));
-            perform(solvers.ExplEuler);
             perform(solvers.Heun);
             
             res = 1;

@@ -1,6 +1,9 @@
 #include <mex.h>
 #include <math.h>
-/*#include <omp.h>*/
+
+/* Nice macro for matlab-style indication! */
+#define X(i,j) x[j*n+i]
+#define Y(i,j) y[j*n+i]
 
 /* Implements the sum(x.^2,1) matlab command for a matrix x */
 void sumsq(double* xsq, double* x, int n, int m) {
@@ -10,13 +13,12 @@ void sumsq(double* xsq, double* x, int n, int m) {
     char temp[100];
 #endif
 
-    /*#pragma omp parallel shared(xsq,x,n,m) private(i)*/
     for (j=0;j<m;j++) {
         xsq[j] = 0;
         for (i=0;i<n;i++) {
-            xsq[j] += x[j*n+i]*x[j*n+i];
+            xsq[j] += X(i,j)*X(i,j);
 #ifdef DEBUG
-            sprintf(temp, "j(m)=%d(%d), i(n)=%d(%d), x=%.12f\n", j, m, i, n, x[j*n+i]);
+            sprintf(temp, "j(m)=%d(%d), i(n)=%d(%d), x=%.12f\n", j, m, i, n, X(i,j));
             mexPrintf(temp);
 #endif
         }
@@ -90,16 +92,15 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] ) {
         }
 
         /* Only compute lower left triangular & copy values */
-        /*#pragma omp parallel shared(res,xsq,x,n,m) private(hlp,j,l)*/
         for (i = 1; i < m; i++) {
             for (j = 0; j < i; j++) {
                 hlp=0;
                 for (l = 0; l < n; l++) {
 #ifdef DEBUG
-                    sprintf(temp, "ScaP i=%d, j=%d, l=%d, x=%.12f, y=%.12f\n", i, j, l, x[i*n+l], y[j*n+l]);
+                    sprintf(temp, "ScaP i=%d, j=%d, l=%d, x=%.12f\n", i, j, l, X(l,i));
                     mexPrintf(temp);
 #endif
-                    hlp += x[i*n+l]*x[j*n+l];
+                    hlp += X(l,i)*X(l,j);
                 }
 #ifdef DEBUG
                 sprintf(temp, "xsq[i]=%.12f, xsq[j]=%.12f, x*y=%.12f\n", xsq[i], xsq[j], hlp);
@@ -114,8 +115,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] ) {
         
     /* Two argument case */
     } else {
-        
-
+                
 #ifdef DEBUG
     sprintf(temp, "Call with two parameters!\n");
     mexPrintf(temp);
@@ -131,17 +131,16 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] ) {
         
         double ysq[k];
         sumsq(ysq, y, n, k);
-        /*#pragma omp parallel shared(res,xsq,ysq,x,y,n,m) private(hlp,j,l)*/
         for (i = 0; i < m; i++) {
             for (j = 0; j < k; j++) {
 
                 hlp=0;
                 for (l = 0; l < n; l++) {
 #ifdef DEBUG
-                    sprintf(temp, "ScaP i=%d, j=%d, l=%d, x=%.12f, y=%.12f\n", i, j, l, x[i*n+l], y[j*n+l]);
+                    sprintf(temp, "ScaP i=%d, j=%d, l=%d, x=%.12f, y=%.12f\n", i, j, l, X(l,i), Y(l,i));
                     mexPrintf(temp);
 #endif
-                    hlp += x[i*n+l]*y[j*n+l];
+                    hlp += X(l,i)*Y(l,j);
                 }
 #ifdef DEBUG
             sprintf(temp, "xsq=%.12f, ysq=%.12f, x*y=%.12f\n", xsq[i], ysq[j], hlp);

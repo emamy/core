@@ -10,7 +10,7 @@ void sumsq(double* xsq, double* x, int n, int m) {
     char temp[100];
 #endif
 
-    #pragma omp parallel shared(xsq,x,n,m) private(i,j)
+    #pragma omp parallel for shared(xsq,x,n,m) private(i,j)
     for (j=0;j<m;j++) {
         xsq[j] = 0;
         for (i=0;i<n;i++) {
@@ -88,8 +88,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] ) {
         }
 
         /* Only compute lower left triangular & copy values */
-        #pragma omp parallel shared(res,xsq,x,n,m) private(hlp,i,j,l)
-        {
+        #pragma omp parallel for shared(res,xsq,x,n,m) private(hlp,i,j,l)
         for (i = 1; i < m; i++) {
             for (j = 0; j < i; j++) {
                 hlp=0;
@@ -108,7 +107,6 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] ) {
                 /* Copy lower left triangular to upper right */
                 res[j+i*m] = res[i+j*m];
             }
-        }
         }
         
     /* Two argument case */
@@ -130,42 +128,46 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] ) {
         
         double ysq[k];
         sumsq(ysq, y, n, k);
-        /*char temp[100];
-        sprintf(temp,"Hallo?\n");
-        mexPrintf(temp);
-        
-        int tid;
-        printf("Number of processors: %d\n", omp_get_num_procs());
-        #pragma omp parallel private(tid) 
-        {
-            tid = omp_get_thread_num()+10;
-            printf("Hello World from thread = %d, +10=%d\n", omp_get_thread_num(),tid);
-        }*/
-        
-        #pragma omp parallel shared(res,xsq,ysq,x,y,n,m,k) private(hlp,j,i,l)
-        {
-        /*tid = omp_get_thread_num()+10;*/
-        /*sprintf(temp,"omp threads: %d\n",omp_get_num_threads());
-        mexPrintf(temp);*/
-        for (i = 0; i < m; i++) {
-            /*sprintf(temp,"omp thread nr: %d\n",omp_get_thread_num());
-            mexPrintf(temp);*/
-            for (j = 0; j < k; j++) {
-                hlp=0;
-                for (l = 0; l < n; l++) {
+        /* Check for the correct loop to split up, depending on whether more columns or
+         rows are given */
+        if (m > k) {
+            #pragma omp parallel for shared(res,xsq,ysq,x,y,n,m,k) private(hlp,i,j,l)
+            for (i = 0; i < m; i++) {
+                for (j = 0; j < k; j++) {
+                    hlp=0;
+                    for (l = 0; l < n; l++) {
 #ifdef DEBUG
-                    sprintf(temp, "ScaP i=%d, j=%d, l=%d, x=%.12f, y=%.12f\n", i, j, l, x[i*n+l], y[j*n+l]);
-                    mexPrintf(temp);
+                        sprintf(temp, "ScaP i=%d, j=%d, l=%d, x=%.12f, y=%.12f\n", i, j, l, x[i*n+l], y[j*n+l]);
+                        mexPrintf(temp);
 #endif
-                    hlp += x[i*n+l]*y[j*n+l];
+                        hlp += x[i*n+l]*y[j*n+l];
+                    }
+#ifdef DEBUG
+                sprintf(temp, "xsq=%.12f, ysq=%.12f, x*y=%.12f\n", xsq[i], ysq[j], hlp);
+                mexPrintf(temp);
+#endif
+                res[i+j*m] = exp(-(xsq[i]+ysq[j]-2*hlp)/gamma);
                 }
-#ifdef DEBUG
-            sprintf(temp, "xsq=%.12f, ysq=%.12f, x*y=%.12f\n", xsq[i], ysq[j], hlp);
-            mexPrintf(temp);
-#endif
-            res[i+j*m] = exp(-(xsq[i]+ysq[j]-2*hlp)/gamma);
             }
-        }
+        } else {
+            #pragma omp parallel for shared(res,xsq,ysq,x,y,n,m,k) private(hlp,i,j,l)
+            for (j = 0; j < k; j++) {
+                for (i = 0; i < m; i++) {
+                    hlp=0;
+                    for (l = 0; l < n; l++) {
+#ifdef DEBUG
+                        sprintf(temp, "ScaP i=%d, j=%d, l=%d, x=%.12f, y=%.12f\n", i, j, l, x[i*n+l], y[j*n+l]);
+                        mexPrintf(temp);
+#endif
+                        hlp += x[i*n+l]*y[j*n+l];
+                    }
+#ifdef DEBUG
+                sprintf(temp, "xsq=%.12f, ysq=%.12f, x*y=%.12f\n", xsq[i], ysq[j], hlp);
+                mexPrintf(temp);
+#endif
+                res[i+j*m] = exp(-(xsq[i]+ysq[j]-2*hlp)/gamma);
+                }
+            }
         }
     }
 }
