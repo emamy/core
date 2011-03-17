@@ -4,7 +4,7 @@
 
 /* Implements the sum(x.^2,1) matlab command for a matrix x */
 void sumsq(double* xsq, double* x, int n, int m) {
-    int i, j;
+    int i, j, *v, vfirst;
 
 #ifdef DEBUG
     char temp[100];
@@ -13,8 +13,14 @@ void sumsq(double* xsq, double* x, int n, int m) {
     #pragma omp parallel for shared(xsq,x,n,m) private(i,j)
     for (j=0;j<m;j++) {
         xsq[j] = 0;
+/*
+        vfirst = x[j*n]; v = &vfirst;
+*/
         for (i=0;i<n;i++) {
             xsq[j] += x[j*n+i]*x[j*n+i];
+/*
+            xsq[j] += v[i]*v[i];
+*/
 #ifdef DEBUG
             sprintf(temp, "j(m)=%d(%d), i(n)=%d(%d), x=%.12f\n", j, m, i, n, x[j*n+i]);
             mexPrintf(temp);

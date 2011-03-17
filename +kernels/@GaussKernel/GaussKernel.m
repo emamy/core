@@ -24,8 +24,7 @@ classdef GaussKernel < kernels.BellFunction
             end
         end
         
-        function K = evaluateMatlab(this, x, y)
-            % Temporary method for speed testing
+        function K = evaluate(this, x, y)
             n1sq = sum(x.^2,1);
             n1 = size(x,2);
 
@@ -34,6 +33,35 @@ classdef GaussKernel < kernels.BellFunction
                 n2 = n1;
                 y = x;
             else
+                n2sq = sum(y.^2,1);
+                n2 = size(y,2);
+            end;
+            K = (ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*x'*y;
+            K(K<0) = 0;
+            K = exp(-K/this.Gamma);
+        end
+        
+        function K = evaluateIntel(this, x, varargin)
+            % Experimental function that automatically calls the mex openmp
+            % implementation code if the vectors are small enough.
+            %
+            % @todo write c code more efficient (use blas/lapack?)
+            
+            % Evaluate MEX function if sizes are small!
+            if numel(x) < 500000
+                 K = this.evaluateMex(x,varargin{:});
+                 return;
+            end
+            
+            n1sq = sum(x.^2,1);
+            n1 = size(x,2);
+
+            if nargin == 2;
+                n2sq = n1sq;
+                n2 = n1;
+                y = x;
+            else
+                y = varargin{1};
                 n2sq = sum(y.^2,1);
                 n2 = size(y,2);
             end;
@@ -111,19 +139,20 @@ classdef GaussKernel < kernels.BellFunction
                 fprintf('%d ',i);
                 
                 t = tic;
-                Kmex = k.evaluate(x);
+                Kmex = k.dontuse_evaluate(x);
+                %Kmex = k.evaluateIntel(x);
                 tmex(i) = toc(t);
 
                 t = tic;
-                Kmex2 = k.evaluate2(x);
+                Kmex2 = k.dontuse_evaluateDirect(x);
                 tmex2(i) = toc(t);
 
                 t = tic;
-                KmexP = k.evaluateP(x);
+                KmexP = k.evaluateMex(x);
                 tmexp(i) = toc(t);
 
                 t = tic;
-                K = k.evaluateMatlab(x);
+                K = k.evaluate(x);
                 tmat(i) = toc(t);
             
             end
@@ -139,13 +168,13 @@ classdef GaussKernel < kernels.BellFunction
         
         function res = test_GaussMexSpeedTest2Arg(sx,sy1,sy2,iter)
             if nargin < 4
-                iter = 50;
+                iter = 40;
                 if nargin < 3
                     sy2 = 100;
                     if nargin < 2
                         sy1 = 100;
                         if nargin < 1
-                            sx = 5000;
+                            sx = 500;
                         end
                     end
                 end
@@ -163,19 +192,20 @@ classdef GaussKernel < kernels.BellFunction
                 fprintf('%d ',i);
                 
                 t = tic;
-                Kmex = k.evaluate(x,y);
+                Kmex = k.dontuse_evaluate(x,y);
+                %Kmex = k.evaluateIntel(x,y);
                 tmex(i) = toc(t);
 
                 t = tic;
-                Kmex2 = k.evaluate2(x,y);
+                Kmex2 = k.dontuse_evaluateDirect(x,y);
                 tmex2(i) = toc(t);
 
                 t = tic;
-                KmexP = k.evaluateP(x,y);
+                KmexP = k.evaluateMex(x,y);
                 tmexp(i) = toc(t);
 
                 t = tic;
-                K = k.evaluateMatlab(x,y);
+                K = k.evaluate(x,y);
                 tmat(i) = toc(t);
             
             end

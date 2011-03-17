@@ -68,8 +68,14 @@ classdef ExplEuler < solvers.BaseSolver
         
     end
     
-    methods(Access=private)
+    methods(Access=public)
+        % brief upper
+        %
+        % detail
         [tout, y] = solveMex(this, odefun, t, x0);
+        % brief lower
+        %
+        % detail lower
     end
     
     methods(Static)

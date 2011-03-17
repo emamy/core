@@ -5,7 +5,12 @@ classdef KerMor < handle
     % http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
     %
     % @date 04.03.2011 @author Daniel Wirtz
-    % 
+    %
+    % @new{0,3,dw,2011-03-17} Added the fields @ref KerMor.Hasrbmatlab and
+    % KerMor.rbmatlabDirectory. This allows to register a copy of rbmatlab
+    % located at the 'rbmatlabDirectory' with KerMor. Without having setup
+    % this directory any models.rbmatlab classes will not work correctly.
+    %
     % @change{0,3,dw,2011-03-09} Included a developer key parameter into
     % the '@@new' and '@@change' tags to create a link to the author of the
     % new features or changes.
@@ -27,7 +32,7 @@ classdef KerMor < handle
     % @change{0,1,dw} Initial version. @new{0,1,dw} Initial version.
     %
     % To-Do's for KerMor:
-    % @todo 
+    % @todo
     % - message-system über alle berechnungen hinaus (ungewöhliche dinge
     % berichten, exit flags etc)
     % - laufzeittests für reduzierte modelle
@@ -168,6 +173,11 @@ classdef KerMor < handle
         % @default ./temp
         TempDirectory = '';
         
+        % The source directory for a copy of rbmatlab
+        %
+        % @default []
+        rbmatlabDirectory = '';
+        
         % Verbose output level
         %
         % @default 1
@@ -200,6 +210,11 @@ classdef KerMor < handle
         %
         % @default false
         HasqpMosek = false;
+        
+        % Flag if rbmatlab wrapping functionalities are enabled
+        %
+        % @default false
+        Hasrbmatlab = false;
     end
     
     methods
@@ -221,6 +236,28 @@ classdef KerMor < handle
             setpref('KERMOR','TMPDIR',tmp);
             this.TempDirectory = tmp;
             fprintf('Temporary files: %s\n',tmp);
+        end
+        
+        function set.rbmatlabDirectory(this, ds)
+            % Sets the rbmatlab source directory
+            %
+            % Parameters:
+            % ds: The directory of an rbmatlab source. Use empty string or
+            % cell to "uninstall" rbmatlab.
+            %
+            % Throws an exception if the path is invalid or does not
+            % contain the rbmatlab startup script.
+            if ~isempty(ds)
+                if ~isdir(ds)
+                    error('Invalid directory: %s',ds);
+                end
+                if ~exist(fullfile(ds,'startup_rbmatlab.m'),'file')
+                    error('Invalid rbmatlab directory (no startup script found): %s',ds);
+                end
+            end
+            setpref('KERMOR','RBMATLABDIR',ds);
+            this.rbmatlabDirectory = ds;
+            fprintf('rbmatlab root directory: %s\n',ds);
         end
         
         function h = get.HomeDirectory(this)
@@ -256,6 +293,19 @@ classdef KerMor < handle
             end
         end
         
+        function h = get.rbmatlabDirectory(this)
+            
+            % recover values if clear classes has been issued
+            if isempty(this.rbmatlabDirectory)
+                h = getpref('KERMOR','RBMATLABDIR','');
+                if ~isempty(h)
+                    this.rbmatlabDirectory = h;
+                end
+            else
+                h = this.rbmatlabDirectory;
+            end
+        end
+        
         function flag = get.HasIPOPT(this)%#ok
             flag = ~isempty(which('ipopt'));
         end
@@ -266,6 +316,25 @@ classdef KerMor < handle
         
         function flag = get.HasqpMosek(this)%#ok
             flag = ~isempty(which('mosekopt'));
+        end
+        
+        function flag = get.Hasrbmatlab(this)
+            % Indicates if rbmatlab is available and initialized
+            %
+            % This function checks for a set rbmatlabDirectory and if the
+            % rbmatlab script 'rbmatlabhome' is within the current path
+            % (=substitute for the rbmatlab startup-script being executed)
+            flag = false;
+            if ~isempty(this.rbmatlabDirectory)
+                flag = ~isempty(which('rbmatlabhome'));
+                if ~flag
+                    warning('KerMor:App',...
+                        ['rbmatlab directory is set, but script'...
+                        ' ''rbmatlabhome'' could not be found in current path.\n'...
+                        'Unsure if rbmatlab-dependent models will work,'...
+                        ' check if rbmatlab version has changed!']);
+                end
+            end
         end
     end
     
@@ -350,6 +419,19 @@ classdef KerMor < handle
                     %rmpath(fullfile(p,'3rdparty','mosek'));
                 end
                 
+                % rbmatlab
+                if ~isempty(this.rbmatlabDirectory)
+                    disp('<<<<<<<<< Starting rbmatlab >>>>>>>>>>');
+                    setenv('RBMATLABTEMP', this.TempDirectory);
+                    setenv('RBMATLABHOME', this.rbmatlabDirectory);
+                    addpath(this.rbmatlabDirectory);
+                    curdir = pwd;
+                    evalin('base','startup_rbmatlab;');
+                    evalin('base','clear all;');
+                    chdir(curdir);
+                    disp('<<<<<<<<< Done Starting rbmatlab >>>>>>>>>>');
+                end
+                
                 %addpath(fullfile(p,'3rdparty','pardiso'));
             end
             
@@ -374,7 +456,7 @@ classdef KerMor < handle
             end
         end
         
-        function shutdown(this)
+        function shutdown(this)%#ok
             % @todo only close if parallel computing is available!
             matlabpool close;
         end
@@ -399,16 +481,40 @@ classdef KerMor < handle
             % for the documentation creation. Custom paths for data storage
             % are checked and set by the start script.
             %
+            % If no rbmatlab directory is already presently set by a
+            % previous install, the installation program asks if an
+            % rbmatlab-installation should be registered with KerMor.
             %
             % See also: installUnix installWindows
             disp('<<<<<<<<<< Welcome to the KerMor install script. >>>>>>>>>>');
+            
+            %% Operation-system dependent actions
             if isunix
                 KerMor.installUnix;
             elseif ispc
                 KerMor.installWindows;
             end
-            disp('<<<<<<<<<< Setup complete. >>>>>>>>>>');
-            %KerMor.start;
+            
+            %% Optional: rbmatlab
+            a = KerMor.App;
+            if isempty(a.rbmatlabDirectory)
+                str = sprintf(['Do you want to register a local rbmatlab '...
+                    ' version with KerMor?\n(Y)es/(N)o: ']);
+                ds = lower(input(str,'s'));
+                if isequal(ds,'y')
+                    d = uigetdir(h,'Please select the rbmatlab source root folder.');
+                    if d ~= 0
+                        try
+                            a.rbmatlabDirectory = d;
+                        catch ME
+                            disp('Setting the rbmatlab directory failed:');
+                            disp(getReport(ME, 'basic'));
+                            disp('You can still connect to rbmatlab later by setting the rbmatlabDirectory property.');
+                        end
+                    end
+                end
+            end
+            disp('<<<<<<<<<< Setup complete. You can now start KerMor by running "KerMor.start;". >>>>>>>>>>');
         end
         
         function createDocs(uml, open)
@@ -462,11 +568,11 @@ classdef KerMor < handle
             % application: The KerMor instance.
             application = KerMor.App;
             application.initialize;
-%             if ~application.Started
-%                 application.initialize;
-%             else
-%                 error('The application is already started.');
-%             end
+            %             if ~application.Started
+            %                 application.initialize;
+            %             else
+            %                 error('The application is already started.');
+            %             end
         end
         
         function stop
@@ -506,14 +612,14 @@ classdef KerMor < handle
                 fprintf(fid,'export KERMOR_SOURCE="%s"\n',h);
                 % Set in running environment (until restart)
                 setenv('KERMOR_SOURCE',h);
-
-
+                
+                
                 %% Documentation directory
                 if isempty(getenv('KERMOR_DOCS'))
                     d = fullfile(h,'documentation','output');
                     str = sprintf(['No documentation output directory has been set yet.\n'...
-                            'The default will be %s\n'...
-                            'Do you want to specify a custom output directory? (Y)es/(N)o: '],d);
+                        'The default will be %s\n'...
+                        'Do you want to specify a custom output directory? (Y)es/(N)o: '],d);
                     ds = lower(input(str,'s'));
                     if isequal(ds,'y')
                         d = uigetdir(h,'Please select the documentation output folder.');
@@ -525,7 +631,7 @@ classdef KerMor < handle
                     fprintf(fid,'export KERMOR_DOCS="%s"\n',d);
                     setenv('KERMOR_DOCS',d)
                 end
-
+                
                 %% Doxygen binary
                 if isempty(getenv('KERMOR_DOXYBIN'))
                     [s,r] = system('which doxygen');
@@ -533,7 +639,7 @@ classdef KerMor < handle
                     if ~isempty(r)
                         db = 'doxygen';
                         str = sprintf(['Doxygen installation is available (%s).\n'...
-                                'Do you want to use a different doxygen binary? (Y)es/(N)o: '],strrep(r,char(10),''));
+                            'Do you want to use a different doxygen binary? (Y)es/(N)o: '],strrep(r,char(10),''));
                         yn = lower(input(str,'s'));
                     end
                     if isempty(r) || isequal(yn,'y')

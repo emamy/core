@@ -68,7 +68,7 @@
 %hold off;
 % max(max(max(sqrt(dx1.^2 + dx2.^2 + dx3.^2))))
 
-function tmp
+function LocalLipGradientEstPlay
 
 %% Presettings
 
