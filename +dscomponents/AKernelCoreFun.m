@@ -1,6 +1,20 @@
 classdef AKernelCoreFun < dscomponents.ACoreFun
-    %KERNELCOREFUN Summary of this class goes here
-    %   Detailed explanation goes here
+    % Base class for kernel based system core functions
+    % @author Daniel Wirtz @date April 2010
+    %
+    % This class is the composition of three different kernels, which are
+    % one for time, parameters and state variables. Those kernels are
+    % combined using the function handle set by the property
+    % SubKernelCombinationFun.
+    %
+    % @change{0,3,dw,2011-03-21}
+    % - Moved the dscomponents.AKernelCoreFun.RotationInvariant property
+    % into a local private variable that gets updated only when the kernels
+    % are changed. This way a repetitive in-simulation evaluation of the
+    % property gets avoided.
+    % - Changed & documented the default kernels.
+    % - Added set method for
+    % dscomponents.AKernelCoreFun.SubKernelCombinationFun property.
     
     properties
         % The function that combines the sub (time/system/param) kernels.
@@ -32,24 +46,18 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
         snData;
     end
     
-%     properties(SetAccess=private)
-%         % A flag that tells subclasses whether the approximating kernel
-%         % function is rotation invariant. Depending on the flag projection
-%         % of subclasses can be different.
-%         RotationInvariantKernel = false;
-%     end
-    
-    properties(SetAccess=private, Dependent)
-        % A flag that tells subclasses whether the approximating kernel
-        % function is rotation invariant. Depending on the flag projection
-        % of subclasses can be different.
-        RotationInvariantKernel;
+    properties(SetAccess=private)
+        % A flag that tells subclasses if this (kernel-based)
+        % function is rotation invariant.
+        % 
+        % Depending on the flag projection of subclasses can be different.
+        RotationInvariant = false;
     end
     
     methods
         function this = AKernelCoreFun
             % Default constructors. Initializes default kernels.
-            this.TimeKernel = kernels.LinearKernel;
+            this.TimeKernel = kernels.NoKernel;
             this.SystemKernel = kernels.GaussKernel(10);
             % The default kernel is a neutral (=1) kernel as not all models
             % have parameters.
@@ -61,7 +69,7 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
             target = project@dscomponents.ACoreFun(this,V,W,target);
             % For rotation invariant kernel expansions the snapshots can be
             % transferred into the subspace without loss.
-            if this.RotationInvariantKernel
+            if this.RotationInvariant
                 target.snData.xi = W' * this.snData.xi;
             end
         end
@@ -77,20 +85,20 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
             % else)
             %
             % @todo Ggf. Cache-Funktion wieder einbauen (feasibility?)
-            % @todo check warning in this function.
-            
-            d = this.snData;
-%             if (isempty(d.mui) && ~isa(this.ParamKernel,'kernels.NoKernel'))
-%                 error('ad:ADG','mui is empty! ..');
-%             end
+                        
             V = 1;
-            if ~this.RotationInvariantKernel && ~isempty(this.V)
+            if ~this.RotationInvariant && ~isempty(this.V)
                 V = this.V;
             end
             K = this.SubKernelCombinationFun(...
-                this.TimeKernel.evaluate(d.ti, t), ...
-                this.SystemKernel.evaluate(d.xi, V*x), ...
-                this.ParamKernel.evaluate(d.mui, mu));
+                this.TimeKernel.evaluate(this.snData.ti, t), ...
+                this.SystemKernel.evaluate(this.snData.xi, V*x), ...
+                this.ParamKernel.evaluate(this.snData.mui, mu));
+            % Checked alternative: not much faster so more general method
+            % preferrable
+%             K = this.TimeKernel.evaluate(this.snData.ti, t).* ...
+%                 this.SystemKernel.evaluate(this.snData.xi, V*x).* ...
+%                 this.ParamKernel.evaluate(this.snData.mui, mu);
         end
         
         function target = clone(this, target)
@@ -103,56 +111,60 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
             target.SystemKernel = this.SystemKernel;
             target.ParamKernel = this.ParamKernel;
         end
-    end
         
-%         function set.ParamKernel(this, value)
-%             if isa(value,'kernels.BaseKernel')
-%                 this.ParamKernel = value;
-%                 if ~isempty(this.TimeKernel) && ~isempty(this.SystemKernel)%#ok
-%                     this.updateRotInv;%#ok
-%                 end
-%             else
-%                 error('ParamKernel must be a subclass of kernels.BaseKernel.');
-%             end
-%         end
-%         
-%         function set.SystemKernel(this, value)
-%             if isa(value,'kernels.BaseKernel')
-%                 this.SystemKernel = value;
-%                 if ~isempty(this.ParamKernel) && ~isempty(this.TimeKernel)%#ok
-%                     this.updateRotInv;%#ok
-%                 end
-%             else
-%                 error('SystemKernel must be a subclass of kernels.BaseKernel.');
-%             end
-%         end
-%         
-%         function set.TimeKernel(this, value)
-%             if isa(value,'kernels.BaseKernel')
-%                 this.TimeKernel = value;
-%                 if ~isempty(this.ParamKernel) && ~isempty(this.SystemKernel)%#ok
-%                     this.updateRotInv;%#ok
-%                 end
-%             else
-%                 error('TimeKernel must be a subclass of kernels.BaseKernel.');
-%             end
-%         end
-%         function K = evaluateKernel(this, x, t, mu)
-%             % Evaluates the kernel using the given parameters both as first
-%             % and second argument.
-%             K = this.SubKernelCombinationFun(...
-%                 this.TimeKernel.evaluate(t), ...
-%                 this.SystemKernel.evaluate(x), ...
-%                 this.ParamKernel.evaluate(mu));
-%         end
-%     end
+        function set.SubKernelCombinationFun(this, fhandle)
+            if ~isa(fhandle,'function_handle')
+                error('SubKernelCombinationFun must be a function handle.');
+            end
+            this.SubKernelCombinationFun = fhandle;
+        end
     
-    %(Access=private)
-    methods
-        function value = get.RotationInvariantKernel(this)
-            value = this.TimeKernel.RotationInvariant && ...
-                this.SystemKernel.RotationInvariant && ...
-                this.ParamKernel.RotationInvariant;
+        
+        function set.ParamKernel(this, value)
+            if isa(value,'kernels.BaseKernel')
+                this.ParamKernel = value;
+                this.updateRotInv;%#ok
+            else
+                error('ParamKernel must be a subclass of kernels.BaseKernel.');
+            end
+        end
+        
+        function set.SystemKernel(this, value)
+            if isa(value,'kernels.BaseKernel')
+                this.SystemKernel = value;
+                this.updateRotInv;%#ok
+            else
+                error('SystemKernel must be a subclass of kernels.BaseKernel.');
+            end
+        end
+        
+        function set.TimeKernel(this, value)
+            if isa(value,'kernels.BaseKernel')
+                this.TimeKernel = value;
+                this.updateRotInv;%#ok
+            else
+                error('TimeKernel must be a subclass of kernels.BaseKernel.');
+            end
+        end
+    end
+    
+    methods(Access=private)
+        function updateRotInv(this)
+            % Updates the RotationInvariant property of this CoreFun by
+            % checking all registered kernels.
+            this.RotationInvariant = true;
+            if ~isempty(this.TimeKernel)
+                this.RotationInvariant = this.RotationInvariant ...
+                    && this.TimeKernel.RotationInvariant;
+            end
+            if ~isempty(this.SystemKernel)
+                this.RotationInvariant = this.RotationInvariant ...
+                    && this.SystemKernel.RotationInvariant;
+            end
+            if ~isempty(this.ParamKernel)
+                this.RotationInvariant = this.RotationInvariant ...
+                    && this.ParamKernel.RotationInvariant;
+            end
         end
     end
 end

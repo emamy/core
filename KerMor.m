@@ -6,6 +6,10 @@ classdef KerMor < handle
     %
     % @date 04.03.2011 @author Daniel Wirtz
     %
+    % @change{0,3,dw,2011-03-21} Nicer color output for the
+    % KerMor.createDocs command and the log file is printed directly in
+    % MatLab.
+    %
     % @new{0,3,dw,2011-03-17} Added the fields @ref KerMor.Hasrbmatlab and
     % KerMor.rbmatlabDirectory. This allows to register a copy of rbmatlab
     % located at the 'rbmatlabDirectory' with KerMor. Without having setup
@@ -34,7 +38,9 @@ classdef KerMor < handle
     % To-Do's for KerMor:
     % @todo
     % - message-system über alle berechnungen hinaus (ungewöhliche dinge
-    % berichten, exit flags etc)
+    % berichten, exit flags etc). hier eine zentrale logging-funktion die
+    % je nach verbose sachen direkt plottet oder (immer!) in ein log-file
+    % schreibt.. das ganze mit verbose-leveln kombinieren!
     % - laufzeittests für reduzierte modelle
     % - interface für ModelData/Snapshots -> entweder arbeiten auf der
     % Festplatte oder in 4D-Array .. (für große simulationen) -> KerMor hat
@@ -538,7 +544,16 @@ classdef KerMor < handle
                 cmd = [cmd ' uml'];
             end
             [s,r] = system(cmd);
-            disp(r);
+            wpos = strfind(r,'Logged warnings:');
+            if ~isempty(wpos)
+                endpos = strfind(r,'Complete log file');
+                cprintf([0 .5 0],r(1:wpos-1));
+                cprintf([1,.4,0],strrep(r(wpos:endpos-1),'\','\\')); 
+                cprintf([0 .5 0],r(endpos:end));
+            else
+                cprintf([0 .5 0],strrep(r,'\','\\'));
+            end
+            fprintf('\n');
             index = fullfile(getenv('KERMOR_DOCS'), 'index.html');
             if open
                 % Try to use iceweasel per default (nasty, uhm?)

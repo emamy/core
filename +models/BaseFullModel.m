@@ -259,7 +259,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 
                 % If projection is used, train approximating function in
                 % centers projected into the subspace.
-                if ~isempty(this.SpaceReducer)
+                if ~isempty(this.Data.V) && ~isempty(this.Data.W)
                     atd(4:end,:) = (this.Data.V*this.Data.W')*atd(4:end,:);
                 end
                 this.Data.ApproxTrainData = atd;
@@ -267,7 +267,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 % Compute f-Values at training data
                 % Deactivated due to immense overhead and matlab crashes.
                 % investigate further
-                if false && this.ComputeParallel
+                if this.ComputeParallel
                     fval = zeros(size(this.Data.ProjTrainData,1)-3,size(atd,2));
                     atddata = atd(4:end,:);
                     pardata = atd(1,:);
@@ -292,6 +292,12 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                             atd(3,sidx),... % t
                             this.Data.getParams(atd(1,sidx))); % mu
                     end
+                end
+                
+                if isa(this.Approx,'approx.IAutoConfig')
+                    % Call automatic configuration method for approx class
+                    % if applicable
+                    this.Approx.autoConfig(this);
                 end
                 
             end

@@ -1,5 +1,6 @@
 classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
-        dscomponents.CompwiseKernelCoreFun & IParallelizable
+        dscomponents.CompwiseKernelCoreFun & IParallelizable & ...
+        approx.IAutoConfig
     %Base class for component-wise kernel approximations
     %
     % For each dimension `k` there is a representation
@@ -13,7 +14,7 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
     % matter how many originally have been used for the approximation
     % computation!)
     %
-    % See also: BaseKernelApprox
+    % See also: BaseKernelApprox IAutoConfig
 
     properties
        % The number of projection training data snapshots used to compile
@@ -26,37 +27,7 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
     end
     
     methods
-        
-        function guessKernelConfig(this,model)
-            zero = 0.01;
-            trange = 5; srange = 5;
-            %prange = 2;
-            
-            atd = model.Data.ApproxTrainData;
-            xd = sqrt(sum(atd(4:end,:).^2));
-            v = unique(round(atd(1,:)));
-            maxdiff = zeros(1,length(v));
-            for muidx = 1:length(v)
-                sel = atd(1,:) == v(muidx);
-                tmp = xd(sel);
-                maxdiff(muidx) = max(abs(tmp(1:end-1)-tmp(2:end)));
-            end
-            d = max(maxdiff);
-            sgamma = -((srange*d)^2)/log(zero);
-            
-            %             params = model.Data.getParams(atd(1,:));
-            %             mud = sqrt(sum(.^2));
-            %
-            %             pgamma = -((prange*d)^2)/log(zero);
-            tgamma = -(trange^2*model.dt)/log(zero);
-            
-            %fprintf('Setting kernel gammas: Time:%e, System:%e, Params:%e\n',tgamma,sgamma,pgamma);
-            fprintf('Setting kernel gammas: Time:%10.10f, System:%10.10f\n',tgamma,sgamma);
-            this.TimeKernel = kernels.GaussKernel(tgamma);
-            this.SystemKernel = kernels.GaussKernel(sgamma);
-            %this.ParamKernel = kernels.GaussKernel(pgamma);
-        end
-        
+                
         function atd = selectTrainingData(this, modeldata)
             % Selects a subset of the projection training data linearly
             % spaced. The number of samples taken is determined by the
@@ -173,6 +144,60 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
                 this.off = [];
             end
             
+        end
+        
+        function autoconfigure(this, model)
+            % Implements the template method from IAutoConfigure.
+            %
+            % For this class autoconfiguration means detection of the
+            % "ideal" radius for gaussian kernels, if used. The strategy is
+            % 
+            % Parameters:
+            % md: The current model's ModelData instance
+            %
+            % See also: IAutoConfigure
+            %
+            % @todo Move the settings to a more customizable place? Which
+            % are reasonable?
+            
+            % Settings.
+            zero = 1e-4;
+            trange = 3; % nonzero over trange times the dt-distance
+            srange = 3; % nonzero over srange times the maximum distance within the training data
+            prange = 2; % nonzero over prange times the param samples distance
+            
+            atd = model.Data.ApproxTrainData;
+            v = unique(round(atd(1,:)));
+            
+            %% State kernel gamma
+            if isa(this.SystemKernel,'kernels.GaussKernel')
+                xd = sqrt(sum(atd(4:end,:).^2));
+
+                % Find samples for each parameter    
+                maxdiff = zeros(1,length(v));
+                for muidx = 1:length(v)
+                    sel = atd(1,:) == v(muidx);
+                    tmp = xd(sel);
+                    maxdiff(muidx) = max(abs(tmp(1:end-1)-tmp(2:end)));
+                end
+                d = max(maxdiff);
+                this.SystemKernel.setGammaForDistance(srange*d,zero);
+            end
+            
+            %% Time kernel
+            if isa(this.TimeKernel,'kernels.GaussKernel')
+                this.TimeKernel.setGammaForDistance(trange*model.dt);
+            end
+            
+            %% Param kernel
+            if isa(this.ParamKernel,'kernels.GaussKernel')
+                params = model.Data.getParams(v);
+                % Gives a matrix with parameters in each column
+                mud = sqrt(sum(params.^2));
+                % Create distance matrix
+                dist = abs(repmat(mud,size(mud,2),1)-repmat(mud',1,size(mud,2)));
+                this.ParamKernel.setGammaForDistance(prange*max(dist(:)));
+            end
         end
         
     end

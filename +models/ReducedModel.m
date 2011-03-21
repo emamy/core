@@ -178,6 +178,9 @@ classdef ReducedModel < models.BaseModel
         function [t,x,xr,time,timer,t_noerr] = getTrajectories(this, mu, inputidx)
             % Debug Method. Computes the trajectories of the full, reduced
             % and reduced without error estimation systems.
+            %
+            % @change{0,3,dw,2011-03-21} Fixed the case when a model does not use
+            % space reduction (call to analyze would have failed)
             if nargin < 3
                 inputidx=[];
                 if nargin < 2
@@ -192,12 +195,15 @@ classdef ReducedModel < models.BaseModel
             this.ErrorEstimator.Enabled = false;
             tic;
             this.computeTrajectory(mu, inputidx);
-            %xr = this.V*z;%#ok
             t_noerr = toc;
             this.ErrorEstimator.Enabled = true;
             tic;
             [t,z] = this.computeTrajectory(mu, inputidx);
-            xr = this.V*z;
+            if ~isempty(this.V)
+                xr = this.V*z;
+            else
+                xr = z;
+            end
             timer = toc;
         end
         

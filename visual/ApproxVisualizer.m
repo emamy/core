@@ -125,8 +125,8 @@ set(h.pnlParams,'Units','normalized');
 dist = 22;%px
 pcnt = 0;
 % Create model parameter slides
-for pidx = 1:m.ParamCount
-    p = m.Params(pidx);
+for pidx = 1:m.System.ParamCount
+    p = m.System.Params(pidx);
     if p.HasRange
         % Top location
         top = pos(4)-pcnt*dist-40;
@@ -166,14 +166,14 @@ end
 
 function updateUserParam(h)
 r = getappdata(h.main,'r');
-pc = r.FullModel.ParamCount;
+pc = r.FullModel.System.ParamCount;
 mu = zeros(pc,1);
 slides = findobj(h.pnlParams,'Style','slider');
 for n=1:pc
-    if r.FullModel.Params(n).HasRange
+    if r.FullModel.System.Params(n).HasRange
         mu(n) = get(slides(pc-n+1),'Value');
     else
-        mu(n) = r.FullModel.Params(n).MinVal;
+        mu(n) = r.FullModel.System.Params(n).MinVal;
     end
 end
 setappdata(h.main,'mu',mu);

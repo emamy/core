@@ -1,15 +1,65 @@
 classdef KernelInterpol < handle
     % Provides kernel interpolation.
     %
+    % The basic interpolation form is 
+    % `` f(x) = \sum\limits_{i=1}^N \alpha_i \Phi(x,x_i) + \beta ``
+    % Interpolation finds coefficients and an offset such that 
+    % `fx_i = RHS(x_i)` for `i=1\ldotsN`.
+    %
+    % There is also a zero-function threshold `10*eps`. If all
+    % `fx_i-\beta` values are below that a constant function is
+    % assumed.
+    %
     % @author Daniel Wirtz @date 01.04.2010
+    %
+    % @change{0,3,dw,2011-03-21} 
+    % - Added the general.interpolation.KernelInterpol.UseLU property. With
+    % this subsequent calls to interpolate using the same kernel matrix is
+    % more efficient.
+    % - Updated the documentation
     
     properties
+        % The kernel matrix K to use within interpolation.
+        %
+        % See also: UseLU
         K;
+        
+        % Flag that indicates whether to use LU decomposition of the kernel
+        % matrix of not. Ideally set this property ''after'' you assigned
+        % the kernel matrix K
+        %
+        % @default false
+        % See also: K
+        UseLU = false;
+    end
+    
+    properties(Access=private)
+        % Private variable to store the lower left part of the optional LU
+        % decomp.
+        %
+        % See also: K UseLU
+        L;
+        
+        % Private variable to store the lower left part of the optional LU
+        % decomp.
+        %
+        % See also: K UseLU
+        U;
     end
     
     methods
         function [a,b] = interpolate(this, fxi)
-            % Interpolates the
+            % Computes the kernel expansion coefficients `\alpha_i` and
+            % offset `\beta` as described in the class documentation.
+            %
+            % The offset `\beta` equals the mean value over all `fx_i`
+            % values.
+            %
+            % Parameters:
+            % fxi: The real function value samples at centers `x_i`
+            % Return values:
+            % a: The coefficient vector `\alpha`
+            % b: The offset `\beta`
             b = mean(fxi);
             if all(abs(fxi - b) < 10*eps)
                 a = zeros(size(fxi))';
@@ -17,8 +67,33 @@ classdef KernelInterpol < handle
                     fprintf('KernelInterpol note: All mean-cleaned fxi values < 10eps, assuming zero coefficients!\n');
                 end
             else
-                a = this.K\(fxi-b)';
+                if this.UseLU
+                    a = this.U\(this.L\(fxi-b)');
+%                     a2 = this.K\(fxi-b)';
+%                     fprintf('maxdiff: %1.20f\n',max((a-a2) ./ a));
+                else
+                    a = this.K\(fxi-b)';
+                end
             end
+        end
+        
+        function set.UseLU(this, value)
+            % Sets the UseLU property and ensures that if it was set after
+            % the kernel matrix was assigned the LU decomposition is
+            % computed in each case.
+            this.UseLU = value;
+            if value && ~isempty(this.K) && isempty(this.L)%#ok
+                [this.L, this.U] = lu(value);%#ok
+            end
+        end
+        
+        function set.K(this, value)
+            % Sets the kernel matrix property and computes the LU
+            % decomposition if the UseLU flag is set to true.
+            if this.UseLU%#ok
+                [this.L, this.U] = lu(value);%#ok
+            end
+            this.K = value;
         end
     end
     

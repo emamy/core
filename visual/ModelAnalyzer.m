@@ -10,9 +10,9 @@ classdef ModelAnalyzer < handle;
     
     methods
         
-        function this = ModelAnalyzer(rmodel)
+        function this = ModelAnalyzer(rmodel, varargin)
             if nargin > 0
-                this.analyze(rmodel);
+                this.analyze(rmodel,varargin{:});
             end
         end
         

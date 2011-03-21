@@ -23,9 +23,10 @@ classdef CompWiseInt < approx.BaseCompWiseKernelApprox
     methods(Access=protected, Sealed)
         
         function prepareApproximationGeneration(this, K)
-            this.KI = general.interpolation.KernelInterpol;
-            % Assign Kernel matrix
-            this.KI.K = K;
+            ki = general.interpolation.KernelInterpol;
+            ki.UseLU = true;
+            ki.K = K;
+            this.KI = ki;
         end
         
         function [ai, b, svidx] = calcComponentApproximation(this, fxi)

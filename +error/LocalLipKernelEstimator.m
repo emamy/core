@@ -112,7 +112,7 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
                 % Precompute norms
                 this.Ma_norms = sqrt(sum(fm.System.f.Ma.^2,1));
             end
-            if this.ReducedModel.System.f.RotationInvariantKernel
+            if this.ReducedModel.System.f.RotationInvariant
                 this.xi = this.ReducedModel.System.f.snData.xi;
             end
         end
@@ -138,7 +138,7 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
             e(1) = sqrt(max(e(1),0));
             
             % Compute the local lipschitz constant estimations
-            if this.ReducedModel.System.f.RotationInvariantKernel
+            if this.ReducedModel.System.f.RotationInvariant
                 z = x(1:end-this.ExtraODEDims);
             else
                 z = this.ReducedModel.V*x(1:end-this.ExtraODEDims);

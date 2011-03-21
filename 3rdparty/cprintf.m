@@ -102,7 +102,11 @@ function count = cprintf(style,format,varargin)
 
   % Process the text string
   error(nargchk(2, inf, nargin, 'struct'));
-  str = sprintf(format,varargin{:});
+  if (numel(varargin) > 0)
+      str = sprintf(format,varargin{:});
+  else
+      str = format;
+  end
 
   % Get the normalized style name and underlining flag
   [underlineFlag, style] = processStyleInfo(style);
