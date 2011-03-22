@@ -12,7 +12,7 @@ classdef KernelInterpol < handle
     %
     % @author Daniel Wirtz @date 01.04.2010
     %
-    % @change{0,3,dw,2011-03-21} 
+    % @change{0,2,dw,2011-03-21} 
     % - Added the general.interpolation.KernelInterpol.UseLU property. With
     % this subsequent calls to interpolate using the same kernel matrix is
     % more efficient.
@@ -57,6 +57,7 @@ classdef KernelInterpol < handle
             %
             % Parameters:
             % fxi: The real function value samples at centers `x_i`
+            %
             % Return values:
             % a: The coefficient vector `\alpha`
             % b: The offset `\beta`

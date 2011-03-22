@@ -151,42 +151,45 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
             %
             % For this class autoconfiguration means detection of the
             % "ideal" radius for gaussian kernels, if used. The strategy is
+            % to enforce that for the largest distance between any two
+            % considered centers the sum of both nearby kernel evaluations
+            % equals one, i.e.
+            % ``e^{-\frac{\left(\frac{d}{2}\right)^2}{\gamma}} =
+            % \frac{1}{2}``
+            % if `d` is the largest distance.
             % 
             % Parameters:
-            % md: The current model's ModelData instance
+            % model: The current model instance
             %
             % See also: IAutoConfigure
-            %
-            % @todo Move the settings to a more customizable place? Which
-            % are reasonable?
             
             % Settings.
-            zero = 1e-4;
-            trange = 3; % nonzero over trange times the dt-distance
-            srange = 3; % nonzero over srange times the maximum distance within the training data
-            prange = 2; % nonzero over prange times the param samples distance
-            
-            atd = model.Data.ApproxTrainData;
-            v = unique(round(atd(1,:)));
+            %zero = 1e-4;
+            %trange = 3; % nonzero over trange times the dt-distance
+            %srange = 3; % nonzero over srange times the maximum distance within the training data
+            %prange = 2; % nonzero over prange times the param samples distance
+            data = model.Data.ApproxTrainData;
+            v = unique(round(data(1,:)));
             
             %% State kernel gamma
             if isa(this.SystemKernel,'kernels.GaussKernel')
-                xd = sqrt(sum(atd(4:end,:).^2));
+                xd = sqrt(sum(data(4:end,:).^2));
 
                 % Find samples for each parameter    
                 maxdiff = zeros(1,length(v));
                 for muidx = 1:length(v)
-                    sel = atd(1,:) == v(muidx);
+                    sel = data(1,:) == v(muidx);
                     tmp = xd(sel);
                     maxdiff(muidx) = max(abs(tmp(1:end-1)-tmp(2:end)));
                 end
                 d = max(maxdiff);
-                this.SystemKernel.setGammaForDistance(srange*d,zero);
+                this.SystemKernel.setGammaForDistance(d/2,.5);
             end
             
             %% Time kernel
             if isa(this.TimeKernel,'kernels.GaussKernel')
-                this.TimeKernel.setGammaForDistance(trange*model.dt);
+                warning('Code:unchecked','Implementation not yet finished/ideal!');
+                this.TimeKernel.setGammaForDistance(model.dt/2,.5);
             end
             
             %% Param kernel
@@ -196,7 +199,7 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
                 mud = sqrt(sum(params.^2));
                 % Create distance matrix
                 dist = abs(repmat(mud,size(mud,2),1)-repmat(mud',1,size(mud,2)));
-                this.ParamKernel.setGammaForDistance(prange*max(dist(:)));
+                this.ParamKernel.setGammaForDistance(max(dist(:))/2,.5);
             end
         end
         

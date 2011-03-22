@@ -4,6 +4,9 @@ classdef RandomModelEstimatorDemo < EstimatorDemo
     % configured with the provided properties.
     %
     % @author Daniel Wirtz @date 25.11.2010
+    %
+    % @change{0,2,dw,2011-03-22} Fixed the constructor to only take an
+    % optional dimension argument.
     
     properties
         % System dimension
@@ -21,15 +24,14 @@ classdef RandomModelEstimatorDemo < EstimatorDemo
     
     methods
         
-        function this = RandomModelEstimatorDemo
+        function this = RandomModelEstimatorDemo(dims)
             % Creates a new estimator demo.
             %
             % Parameters:
-            % inarg: Is either a models.BaseFullModel subclass that
-            % determines the model to use OR a scalar defining the
-            % dimensions of the default test model. Calling the constructor
-            % with no arguments causes the Demo to use the default demo
-            % model with the default dimension size (500).
+            % dims: A scalar defining the dimensions of the default test
+            % model. Calling the constructor with no arguments causes the
+            % Demo to use the default demo model with the default dimension
+            % size (500).
             
             %% Model settings
             fm = models.BaseFullModel;
@@ -59,7 +61,7 @@ classdef RandomModelEstimatorDemo < EstimatorDemo
             this.Model = fm;
             
             if nargin == 1
-                this.Dims = inarg;
+                this.Dims = dims;
             else
                 this.newCoeffs;
             end

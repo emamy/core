@@ -11,7 +11,7 @@ classdef ExplEuler < solvers.BaseSolver
     %
     % See also: solvers BaseSolver Heun
     %
-    % @new{0,3,dw,2011-03-11} Added a c/mex implementation of the
+    % @new{0,2,dw,2011-03-11} Added a c/mex implementation of the
     % algorithm. Turns out it is double the times slower than the matlab
     % native code version, so leaving it only in there for speed test
     % purposes (solvers.ExplEuler.test_solveMex).

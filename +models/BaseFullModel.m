@@ -57,6 +57,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % dimension. An example is the models.rbmatlab.RiemannBurgers
         % model, which is in fact homogeneous in y-direction. Thus, only
         % distinct x-direction points have to be trained for.
+        %
+        % @todo create class events from this
         preApproximationTrainingCallback;
         
         % Advanced property. 
@@ -65,7 +67,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % The handle is invoked at the end of the off4_computeApproximation
         % method.
         %
-        % See preApproximationTrainingCallback for details.
+        % See also: preApproximationTrainingCallback
         postApproximationTrainingCallback;
     end
     

@@ -57,7 +57,7 @@ classdef BaseSolver < handle
             %
             % @todo InitialStep mit einbauen!
             %
-            % @change{0,3,dw,2011-03-11} Removed 'tout' from the return
+            % @change{0,2,dw,2011-03-11} Removed 'tout' from the return
             % parameters since it can be computed either way via 'tout =
             % times(outputtimes)'.
             

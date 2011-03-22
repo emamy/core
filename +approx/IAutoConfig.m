@@ -11,7 +11,7 @@ classdef IAutoConfig < handle
     %
     % See also: BaseCompWiseKernelApprox
     %
-    % @new{0,3,dw,2011-03-21} Added this class to KerMor. Now all
+    % @new{0,2,dw,2011-03-21} Added this class to KerMor. Now all
     % implementing subclasses are autoconfigured (if enabled) during the
     % offline generation process (Used in
     % models.BaseFullModel.off4_genApproximationTrainData)

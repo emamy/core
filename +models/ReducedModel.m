@@ -179,7 +179,7 @@ classdef ReducedModel < models.BaseModel
             % Debug Method. Computes the trajectories of the full, reduced
             % and reduced without error estimation systems.
             %
-            % @change{0,3,dw,2011-03-21} Fixed the case when a model does not use
+            % @change{0,2,dw,2011-03-21} Fixed the case when a model does not use
             % space reduction (call to analyze would have failed)
             if nargin < 3
                 inputidx=[];

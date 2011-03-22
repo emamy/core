@@ -7,7 +7,7 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
     % combined using the function handle set by the property
     % SubKernelCombinationFun.
     %
-    % @change{0,3,dw,2011-03-21}
+    % @change{0,2,dw,2011-03-21}
     % - Moved the dscomponents.AKernelCoreFun.RotationInvariant property
     % into a local private variable that gets updated only when the kernels
     % are changed. This way a repetitive in-simulation evaluation of the

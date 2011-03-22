@@ -6,20 +6,20 @@ classdef KerMor < handle
     %
     % @date 04.03.2011 @author Daniel Wirtz
     %
-    % @change{0,3,dw,2011-03-21} Nicer color output for the
+    % @change{0,2,dw,2011-03-21} Nicer color output for the
     % KerMor.createDocs command and the log file is printed directly in
     % MatLab.
     %
-    % @new{0,3,dw,2011-03-17} Added the fields @ref KerMor.Hasrbmatlab and
+    % @new{0,2,dw,2011-03-17} Added the fields @ref KerMor.Hasrbmatlab and
     % KerMor.rbmatlabDirectory. This allows to register a copy of rbmatlab
     % located at the 'rbmatlabDirectory' with KerMor. Without having setup
     % this directory any models.rbmatlab classes will not work correctly.
     %
-    % @change{0,3,dw,2011-03-09} Included a developer key parameter into
-    % the '@@new' and '@@change' tags to create a link to the author of the
+    % @change{0,2,dw,2011-03-09} Included a developer key parameter into
+    % the '@@new' and '@@change{0' tags to create a link to the author of the
     % new features or changes.
     %
-    % @new{0,3,dw,2011-03-09}
+    % @new{0,2,dw,2011-03-09}
     % - Added installation routines for unix systems.
     % Now one can download the sources from a git repository and simply
     % call KerMor.install to prepare the environment & compile any
@@ -27,7 +27,7 @@ classdef KerMor < handle
     % - Added a KerMor.createDocs static method to create the
     % documentation from within the matlab environment.
     %
-    % @new{0,3,dw,2011-03-08} Created a new Doxygen keyword '@@new' for new
+    % @new{0,2,dw,2011-03-08} Created a new Doxygen keyword '@@new' for new
     % feature versioning lists
     %
     % @change{0,2,dw,2011-03-04} Moved startup and shutdown functions into

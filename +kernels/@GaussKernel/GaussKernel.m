@@ -7,7 +7,7 @@ classdef GaussKernel < kernels.BellFunction
     %
     % @author Daniel Wirtz @date 11.03.2011
     %
-    % @change{0,3,dw,2011-03-11} Added new speed tests for one and two
+    % @change{0,2,dw,2011-03-11} Added new speed tests for one and two
     % argument calls to 'evaluate'. The tests are run 'iter' times and the
     % mean value is plotted to the output. (See @ref
     % kernels.GaussKernel.test_GaussMexSpeedTest1Arg and @ref
@@ -98,8 +98,10 @@ classdef GaussKernel < kernels.BellFunction
         
         function g = setGammaForDistance(this, dist, ep)
             % Computes the `\gamma` value for which the Gaussian is smaller
-            % than `\epsilon` in a distance of dist. Returns the computed
-            % value AND sets the kernel's Gamma property to this value.
+            % than `\epsilon` in a distance of dist, i.e.
+            % ``e^{-\frac{d^2}{\gamma}) < \epsilon``
+            % Returns the computed value AND sets the kernel's Gamma
+            % property to this value.
             %
             % Parameters:
             % dist: The target distance at which the gaussian is smaller
@@ -122,6 +124,51 @@ classdef GaussKernel < kernels.BellFunction
     end
     
     methods(Static)
+        
+        function res = test_InterpolGamma
+            
+% Algorithmus
+% evaluate f over whole validationdata (subset projdata) and store
+% select initial training set from projdata
+%   find optimal kernel config (for all dims!)
+%   compute position of max error (normdiff f-evals)
+%   add pos to training set
+% while numcenters < maxnum || err < tol
+            
+            ki = general.interpolation.KernelInterpol;
+            %ki.UseLU = true;
+            k = kernels.GaussKernel;
+            dx = .2;
+            x = -3:dx:3;
+            %xfine = -3:dx/2:3;
+            fx = sin(x*pi); %+rand(size(x))
+            plot(x,fx);
+            epsteps = 0.05:.05:.95;
+            dlog = zeros(3,length(epsteps));
+            for epidx=1:length(epsteps)
+                ep = epsteps(epidx);
+                k.setGammaForDistance(dx,ep);
+                for idx = 1:length(x)
+                    x2 = x;
+                    x2(idx) = [];
+                    fx2 = fx;
+                    fx2(idx) = [];
+                    
+                    ki.K = k.evaluate(x2);
+                    [a,b] = ki.interpolate(fx2);
+                    
+                    fxi = a'*k.evaluate(x2,x) + b;
+                    diff(idx) = abs(fx(idx) - fxi(idx));
+                end
+                dlog(1,epidx) = ep;
+                dlog(2,epidx) = min(diff);
+                dlog(3,epidx) = max(diff);
+            end            
+            disp(dlog);
+            [val, idx] = min(dlog(2,:));
+            fprintf('Min distance: %f at ep=%f\n',dlog(2,idx),dlog(1,idx));
+        end
+        
         function res = test_GaussMexSpeedTest1Arg(sx,sy,iter)
             if nargin < 3
                 iter = 50;

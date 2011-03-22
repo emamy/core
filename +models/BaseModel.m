@@ -11,7 +11,7 @@ classdef BaseModel < handle
     %
     % @author Daniel Wirtz @date 19.03.2010
     %
-    % @new{0,3,dw,2011-03-08} Implemented time scaling via addition of the
+    % @new{0,2,dw,2011-03-08} Implemented time scaling via addition of the
     % property models.BaseModel.tau and dependent attributes
     % models.BaseModel.dtscaled and models.BaseModel.Tscaled. This
     % way model data can be entered in original units and the
