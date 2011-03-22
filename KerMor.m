@@ -6,6 +6,9 @@ classdef KerMor < handle
     %
     % @date 04.03.2011 @author Daniel Wirtz
     %
+    % @change{0,3,dw,2011-03-22} Modified the GIT repository so that
+    % branches now reflect the KerMor versions.
+    %
     % @change{0,2,dw,2011-03-21} Nicer color output for the
     % KerMor.createDocs command and the log file is printed directly in
     % MatLab.
