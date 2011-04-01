@@ -1,8 +1,7 @@
 classdef BaseApprox < dscomponents.ACoreFun
-    %BASEAPPROX Abstract base class for all core function approximations
+    % Abstract base class for all core function approximations
     %
-    %
-    % @author Daniel Wirtz @date 11.03.2010
+    % @author Daniel Wirtz @date 2010-03-11
     
     methods        
         
@@ -29,7 +28,7 @@ classdef BaseApprox < dscomponents.ACoreFun
             this.gen_approximation_data(model, xi, ti, mui);
         end
         
-        function atd = selectTrainingData(this, modeldata)
+        function atd = selectTrainingData(this, modeldata)%#ok
             % Default approx training data generation method.
             %
             % Simply takes ALL the projection training data.
@@ -72,22 +71,26 @@ classdef BaseApprox < dscomponents.ACoreFun
     end
     
     methods(Static)
-        function res = testApproxProjections
-            a{1} = approx.CompWiseInt;
-            a{2} = approx.CompWiseSVR;
-            a{3} = approx.CompWiseLS;
+        function res = test_ApproxProjections
+            a{1} = approx.DefaultCompWiseKernelApprox;
+            a{1}.CoeffComp = general.interpolation.KernelInterpol;
+            a{2} = approx.DefaultCompWiseKernelApprox;
+            a{2}.CoeffComp = general.regression.ScalarEpsSVR;
+            a{2} = approx.DefaultCompWiseKernelApprox;
+            a{2}.CoeffComp = general.regression.KernelLS;
             
             b = cell(length(a),0);
             
             ts = testing.testsettings;
-            samples = 30;
+            samples = 50;
             x = rand(ts.testdim, samples);
             fx = ts.fnlin(x,repmat(1:samples,ts.testdim,1));
             
-            model = models.BaseFullModel;
-            model.Data.ProjTrainData = x;
-            r = spacereduction.PODReducer;
-            v = r.generateReducedSpace(model);
+            model = ts.m;
+            model.Data.ProjTrainData = [zeros(3,size(x,2)); x];
+            model.Data.ApproxTrainData = model.Data.ProjTrainData;
+            model.Data.ApproxfValues = fx;
+            v = model.SpaceReducer.generateReducedSpace(model);
             
             res = true;
             for idx=1:length(a)
@@ -95,12 +98,12 @@ classdef BaseApprox < dscomponents.ACoreFun
                     app = a{idx};
                     mc = metaclass(app);
                     name = mc.Name;
-                    cprintf(testing.MUnit.GreenCol,['Testing ' name '...']);
-                    app.gen_approximation_data(x,fx);
-                    b{idx} = app.project(v);
+                    cprintf(testing.MUnit.GreenCol,['Testing ' name '...\n']);
+                    app.gen_approximation_data(model, x, [], []);
+                    b{idx} = app.project(v,v);
                     
-                    ifxfull = app.evaluate_approximation(x);
-                    ifxred = v * b{idx}.evaluate_approximation(v' * x);
+                    ifxfull = app.evaluate(x,[],[]);
+                    ifxred = v * b{idx}.evaluate(v' * x,[],[]);
                     figure(idx+20);
                     plot(1:ts.testdim,sum(abs(ifxfull-ifxred),2));
                     title(name);

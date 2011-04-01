@@ -1,4 +1,5 @@
-classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & dscomponents.IGlobalLipschitz
+classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
+        dscomponents.IGlobalLipschitz
     %COMPWISEKERNELCOREFUN Summary of this class goes here
     %   Detailed explanation goes here
     %
@@ -38,7 +39,7 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & dscomponents.IGlo
         function c = getGlobalLipschitz(this, t, mu)
             % @todo validate computation
             
-            %k = abs(this.TimeKernel.evaluate(this.snData.ti,t).*this.ParamKernel.evaluate(this.snData.mui,mu));
+            %k = abs(this.TimeKernel.evaluate(this.Centers.ti,t).*this.ParamKernel.evaluate(this.Centers.mui,mu));
             c = sum(this.Ma_norms) * this.SystemKernel.getGlobalLipschitz;
             %warning('some:id','not yet implemented/validated correctly!');
         end

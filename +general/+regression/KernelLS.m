@@ -1,4 +1,4 @@
-classdef KernelLS < handle
+classdef KernelLS < handle & approx.IKernelCoeffComp
     %KERNELLS Least-Squares kernel regression ("Rigde Regression")
     %   Since the systems can be considerably large, the pcg solver is used
     %   instead of plain inversion.
@@ -46,6 +46,17 @@ classdef KernelLS < handle
                 [a, flag] = bicg(M,y,this.CGTol, this.CGMaxIt);
             end
             
+        end
+        
+        %% approx.IKernelCoeffComp interface members
+        function init(this, K)
+            this.K = K;
+        end
+        
+        function [ai, b, svidx] = computeKernelCoefficients(this, yi)
+            ai = this.regress(yi);
+            b = 0;
+            svidx = [];
         end
         
     end

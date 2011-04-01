@@ -96,7 +96,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             %             p.Mode = 'abs';
             %             p.Value = 1;
             %             this.PODFix = p;
-            this.Approx = approx.CompWiseInt;
+            this.Approx = approx.DefaultCompWiseKernelApprox;
             this.Data = models.ModelData;
             this.System = models.BaseDynSystem;
         end
@@ -248,11 +248,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         end
         
         function time = off4_genApproximationTrainData(this)
-            % Generates the training data for the `\hat{f}`-approximation.
+            % Generates the training data `x_i` for the
+            % `\hat{f}`-approximation and precomputes `f(x_i)` values.
             %
-            % @todo create IMatrixArgument-interface or so, to detect
-            % whether one can evaluate the system function passing a matrix
-            % argument instead of a vector. -> speedup
             time = tic;
             if ~isempty(this.Approx)
                 
@@ -294,14 +292,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                             atd(3,sidx),... % t
                             this.Data.getParams(atd(1,sidx))); % mu
                     end
-                end
-                
-                if isa(this.Approx,'approx.IAutoConfig')
-                    % Call automatic configuration method for approx class
-                    % if applicable
-                    this.Approx.autoConfig(this);
-                end
-                
+                end                
             end
             time = toc(time);
         end

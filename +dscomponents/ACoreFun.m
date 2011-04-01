@@ -1,8 +1,10 @@
 classdef ACoreFun < dscomponents.IProjectable & ICloneable
-    %ICOREFUN Basic interface for all dynamical system's core functions
+    % Basic interface for all dynamical system's core functions
     % Inherits the IProjectable interface.
     %
     % @author Daniel Wirtz @date 17.03.2010
+    %
+    % @todo Add test for non-custom projection (model with `W'f(x,t,\mu)V`)
     
     properties(Access=protected)
         % Set this property if the projection process is customized by
@@ -39,6 +41,14 @@ classdef ACoreFun < dscomponents.IProjectable & ICloneable
             % `f = f^r(z)` or projects the reduced state variable z into
             % the original space and evaluates the function there, so via
             % `f = V'f(Vz)`
+            %
+            % Parameters:
+            % x: The state variable vector/matrix (with colum state
+            % vectors)
+            % t: The corresponding times for each state vector. Set to []
+            % if no time is used.
+            % mu: The parameter to use. Set to [] if the function does not
+            % support parameters.
             if this.CustomProjection || isempty(this.V) || isempty(this.W)
                 fx = this.evaluateCoreFun(x, t, mu);
             else

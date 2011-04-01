@@ -1,4 +1,4 @@
-classdef KernelInterpol < handle
+classdef KernelInterpol < approx.IKernelCoeffComp
     % Provides kernel interpolation.
     %
     % The basic interpolation form is 
@@ -95,6 +95,18 @@ classdef KernelInterpol < handle
                 [this.L, this.U] = lu(value);%#ok
             end
             this.K = value;
+        end
+        
+        
+        %% approx.IKernelCoeffComp interface members
+        function init(this, K)
+            this.UseLU = true;
+            this.K = K;
+        end
+        
+        function [ai, b, svidx] = computeKernelCoefficients(this, yi)
+            [ai,b] = this.interpolate(yi);
+            svidx = [];
         end
     end
     

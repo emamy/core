@@ -1,4 +1,4 @@
-classdef BaseScalarSVR < ICloneable
+classdef BaseScalarSVR < ICloneable & approx.IKernelCoeffComp
     %SCALARSVR Scalar support vector regression.
     %
     % Base class for any scalar SVR algorithm.
@@ -54,6 +54,15 @@ classdef BaseScalarSVR < ICloneable
         function set.K(this, value)
             % Make matrix symmetric (can be false due to rounding errors)
             this.K = .5*(value + value');
+        end
+        
+        %% approx.IKernelCoeffComp interface members
+        function init(this, K)
+            this.K = K;
+        end
+        
+        function [ai, b, svidx] = computeKernelCoefficients(this, yi)
+            [ai,b, svidx] = this.regress(yi);
         end
     end
         

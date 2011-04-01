@@ -1,0 +1,9 @@
+*.?~
+*.??~
+*.mexa64
+*.fig
+*.tex
+*.mat
+*.eps
+*.txt
+*.jpg

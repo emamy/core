@@ -100,7 +100,7 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
             if ~isempty(fm.Approx)
                 % Standard case: the approx function is a kernel expansion.
                 % Get centers of full approximation
-                this.xi = fm.Approx.snData.xi;
+                this.xi = fm.Approx.Centers.xi;
                 % Precompute norms
                 this.Ma_norms = sqrt(sum(fm.Approx.Ma.^2,1));
             else
@@ -108,12 +108,12 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
                 % function of the system is a KernelExpansion.
                 %
                 % Get centers of full core function
-                this.xi = fm.System.f.snData.xi;
+                this.xi = fm.System.f.Centers.xi;
                 % Precompute norms
                 this.Ma_norms = sqrt(sum(fm.System.f.Ma.^2,1));
             end
             if this.ReducedModel.System.f.RotationInvariant
-                this.xi = this.ReducedModel.System.f.snData.xi;
+                this.xi = this.ReducedModel.System.f.Centers.xi;
             end
         end
         

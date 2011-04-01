@@ -13,7 +13,7 @@ s = struct;
 
 %% Test sizes
 % What dimension?
-s.testdim = 4;
+s.testdim = 10;
 
 % How many params? (to use from the ones defined below)
 s.testparams = 2;
@@ -27,9 +27,10 @@ s.m.Sampler = sampling.RandomSampler;
 s.m.Sampler.Samples = 10;
 s.m.ODESolver = solvers.ExplEuler;
 
-a = approx.CompWiseSVR;
+a = approx.DefaultCompWiseKernelApprox;
+a.CoeffComp = general.regression.ScalarEpsSVR;
 %a = approx.CompWiseLS;
-%a = approx.CompWiseInt;
+%a = approx.DefaultCompWiseKernelApprox;
 s.TimeKernel = kernels.LinearKernel;
 %a.TimeKernel = kernels.GaussKernel(2);
 s.SystemKernel = kernels.GaussKernel(2);

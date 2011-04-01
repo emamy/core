@@ -52,8 +52,8 @@ classdef RandomModelEstimatorDemo < EstimatorDemo
             cf = dscomponents.CompwiseKernelCoreFun;
             cf.TimeKernel = kernels.NoKernel;
             cf.ParamKernel = kernels.NoKernel;
-            cf.snData.ti = [];
-            cf.snData.mui = [];
+            cf.Centers.ti = [];
+            cf.Centers.mui = [];
             
             %% System settings
             fm.System = models.BaseDynSystem;
@@ -77,7 +77,7 @@ classdef RandomModelEstimatorDemo < EstimatorDemo
                 base = linspace(-20, 20, this.NumCenters);
                 this.Model.System.x0 = @(mu)x0-.5;
             end
-            this.Model.System.f.snData.xi = repmat(base,this.Dims,1);
+            this.Model.System.f.Centers.xi = repmat(base,this.Dims,1);
             
             if  this.UniformExpansion
                 V = ones(this.Dims,1)*sqrt(1/this.Dims);
