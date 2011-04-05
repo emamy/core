@@ -1,32 +1,22 @@
 classdef BaseApprox < dscomponents.ACoreFun
     % Abstract base class for all core function approximations
     %
+    % Simply provides two methods: 
+    % - selectTrainingData: Used to select a (sub-)set of the training data
+    % - approximateCoreFun: Abstract template method that performs the
+    % actual approximation. Possible algorithms may be i.e. component-wise
+    % approximation, multidimensional approximation or any other.
+    %
     % @author Daniel Wirtz @date 2010-03-11
+    %
+    % @change{0,3,dw,2011-04-01} Removed the gen_approximation_data
+    % template method as it basically only compiled the single xi,ti,mui
+    % values which will be re-joined into the
+    % dscomponents.AKernelCoreFun.Centers property in all currently
+    % implemented approximation strategies. Some similar intermediate
+    % method may be reintroduced later.
     
     methods        
-        
-        function approximateCoreFun(this, model)
-            % @todo the de-compilation of the ApproxTrainData does not
-            % necessarily have to take place in this superclass; as long as
-            % the data is in the ModelData class one could also move it
-            % into that class. though its not necessary yet..
-            
-            % Load snapshots
-            atd = model.Data.ApproxTrainData;
-            
-            % Compile necessary data
-            xi = atd(4:end,:);
-            ti = atd(3,:);
-            muidx = atd(1,:);
-            if all(muidx == 0)
-                mui = [];
-            else
-                mui = model.Data.ParamSamples(:,muidx);
-            end
-            
-            % Call template method
-            this.gen_approximation_data(model, xi, ti, mui);
-        end
         
         function atd = selectTrainingData(this, modeldata)%#ok
             % Default approx training data generation method.
@@ -44,7 +34,7 @@ classdef BaseApprox < dscomponents.ACoreFun
             % models.BaseFullModel.off4_genApproximationTrainData
             
             % Validity checks
-            sn = modeldata.ProjTrainData;
+            sn = modeldata.TrainingData;
             if isempty(sn)
                 error('No projection training data available to take approximation training data from.');
             end
@@ -54,7 +44,7 @@ classdef BaseApprox < dscomponents.ACoreFun
         
     end
     
-    methods(Abstract, Access=protected)
+    methods(Abstract)
         % Computes the approximation according to the concrete
         % approximation strategy.
         %
@@ -62,12 +52,7 @@ classdef BaseApprox < dscomponents.ACoreFun
         %
         % Parameters:
         % model: The full model
-        % xi: The state variable snapshots as column vectors, each row
-        % representing each system dimension.
-        % ti: The times at which the state variable snapshots are taken
-        % mui: The parameters used to obtain the snapshots. Equals [] if no
-        % parameters have been used.
-        gen_approximation_data(this, model, xi, ti, mui);
+        approximateCoreFun(this, model);
     end
     
     methods(Static)
@@ -87,8 +72,8 @@ classdef BaseApprox < dscomponents.ACoreFun
             fx = ts.fnlin(x,repmat(1:samples,ts.testdim,1));
             
             model = ts.m;
-            model.Data.ProjTrainData = [zeros(3,size(x,2)); x];
-            model.Data.ApproxTrainData = model.Data.ProjTrainData;
+            model.Data.TrainingData = [zeros(3,size(x,2)); x];
+            model.Data.ApproxTrainData = model.Data.TrainingData;
             model.Data.ApproxfValues = fx;
             v = model.SpaceReducer.generateReducedSpace(model);
             

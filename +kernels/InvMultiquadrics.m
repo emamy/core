@@ -1,6 +1,10 @@
 classdef InvMultiquadrics < kernels.BaseKernel
     %InvMULTIQUADRICS Summary of this class goes here
     %   Detailed explanation goes here
+    %
+    % @todo check for what params the inv multiquadrics are a bell function
+    % and implement bell function methods!
+    
     
     properties
         % The negative exponent

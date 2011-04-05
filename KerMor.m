@@ -6,6 +6,11 @@ classdef KerMor < handle
     %
     % @date 04.03.2011 @author Daniel Wirtz
     %
+    % @new{0,3,dw,2011-04-05} Added a new property KerMor.DesktopLayout. As
+    % with KDE4 matlab seems to start with a pretty random layout this
+    % property enables the developer to specify a (previously saved)
+    % desktop layout to be associated with KerMor.
+    %
     % @change{0,3,dw,2011-03-22} Modified the GIT repository so that
     % branches now reflect the KerMor versions.
     %
@@ -182,6 +187,15 @@ classdef KerMor < handle
         % @default ./temp
         TempDirectory = '';
         
+        % The preferred desktop layout to work with.
+        %
+        % If you work with different desktop layouts or the KDE JUST DOES
+        % NOT GET IT you can save your custom desktop layout and set this
+        % property to its name. Upon start, KerMor will restore the layout
+        % for you automatically. Set to '' to disable.
+        % @default empty
+        DesktopLayout = '';
+        
         % The source directory for a copy of rbmatlab
         %
         % @default []
@@ -228,7 +242,7 @@ classdef KerMor < handle
     
     methods
         function set.DataStoreDirectory(this, ds)
-            if ~isdir(ds)
+            if ~isempty(ds) && ~isdir(ds)
                 fprintf('Creating directory %s\n',ds);
                 mkdir(ds);
             end
@@ -238,13 +252,18 @@ classdef KerMor < handle
         end
         
         function set.TempDirectory(this, tmp)
-            if ~isdir(tmp)
+            if ~isempty(tmp) && ~isdir(tmp)
                 fprintf('Creating directory %s\n',tmp);
                 mkdir(tmp);
             end
             setpref('KERMOR','TMPDIR',tmp);
             this.TempDirectory = tmp;
             fprintf('Temporary files: %s\n',tmp);
+        end
+        
+        function set.DesktopLayout(this, value)
+            setpref('KERMOR','DESKLAYOUT',value);
+            this.DesktopLayout = value;
         end
         
         function set.rbmatlabDirectory(this, ds)
@@ -299,6 +318,16 @@ classdef KerMor < handle
                 end
             else
                 h = this.TempDirectory;
+            end
+        end
+        
+        function d = get.DesktopLayout(this)
+            % recover values if clear classes has been issued
+            if isempty(this.DesktopLayout)
+                d = getpref('KERMOR','DESKLAYOUT','');
+                this.DesktopLayout = d;
+            else
+                d = this.DesktopLayout;
             end
         end
         
@@ -370,6 +399,11 @@ classdef KerMor < handle
             cd(p);
             clear('p');
             
+            if ~isempty(this.DesktopLayout)
+                fprintf('Applying desktop layout %s..\n',this.DesktopLayout);
+                desktop = com.mathworks.mde.desk.MLDesktop.getInstance;
+                desktop.restoreLayout(this.DesktopLayout);
+            end
             
             disp('<<<<<<<<< Ready to go. >>>>>>>>>>');
             

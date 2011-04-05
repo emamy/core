@@ -1,17 +1,6 @@
 classdef DefaultCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
     % Default component-wise kernel approximation algorithm
     %
-    % For each dimension `k` there is a representation
-    % ``f_k(x) = \sum\limits_{i=1}^N \alpha_{k,i}\Phi(x,x_i) + b_k``
-    % for the approximation. The property cData contains in row `k` all
-    % indices `\alpha_k` used in the `k`-th dimension. off contains all
-    % `b_k`.
-    %
-    % The property Centers contains all state variable Centers that
-    % are relevant for the evaluation of the approximated function. (No
-    % matter how many originally have been used for the approximation
-    % computation!)
-    %
     % @author Daniel Wirtz @date 2011-03-31
     %
     % See also: BaseApprox BaseCompWiseKernelApprox
@@ -30,70 +19,28 @@ classdef DefaultCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
     end
 
     methods
-                
-        function atd = selectTrainingData(this, modeldata)
-            % Selects a subset of the projection training data linearly
-            % spaced. The number of samples taken is determined by the
-            % ApproxExpansionSize number.
-            %
-            % Important:
-            % Note that the selected training data is projected into the
-            % precomputed subspace if spacereduction is performed.
-            %
-            % Overrides the default method in BaseApprox.
-            %
-            % See also:
-            % models.BaseFullModel.off4_genApproximationTrainData
+        
+        function approximateCoreFun(this, model)
+            % Load snapshots
+            atd = model.Data.ApproxTrainData;
             
-            % Validity checks
-            sn = modeldata.ProjTrainData;
-            if isempty(sn)
-                error('No projection training data available to take approximation training data from.');
+            % Compile necessary data
+            xi = atd(4:end,:);
+            ti = atd(3,:);
+            muidx = atd(1,:);
+            if all(muidx == 0)
+                mui = [];
+            else
+                mui = model.Data.ParamSamples(:,muidx);
             end
-            
-            selection = round(linspace(1,size(sn,2),...
-                    min(this.ApproxExpansionSize,size(sn,2))));
-            atd = sn(:,selection);
-        end
-        
-        function target = clone(this)
-            % Clones the instance.
-            
-            % Create instance as this is the final class so far. If
-            % subclassed, this clone method has to be given an additional
-            % target argument.
-            target = approx.DefaultCompWiseKernelApprox;
-            
-            target = clone@approx.BaseCompWiseKernelApprox(this, target);
-            % copy local props
-            copy.ApproxExpansionSize = this.ApproxExpansionSize;
-        end
-       
-    end
-    
-    methods(Access=protected)
-        
-        function gen_approximation_data(this, model, xi, ti, mui)
-            % Computes the approximation according to the concrete
-            % approximation strategy.
-            % Fills the Ma, off and Centers properties of the
-            % CompwiseKernelCorefun with data.
-            
+            % Set AKernelCoreFun centers
             this.Centers.xi = xi;
             this.Centers.ti = ti;
             this.Centers.mui = mui;
             n = size(xi,2);
             
-            %             this.guessKernelConfig;
-            %             factors = [.1 .25 .5 .75 1 1.5 2 5 10];
-            %             minDiff = Inf;
-            %             for idx=1:length(factors)
-            %                 gamma = factors(idx)*this.sg;
-            %                 this.SystemKernel.Gamma = gamma;
-            
             % Call coeffcomp preparation method and pass kernel matrix
-            this.CoeffComp.init(...
-                this.evaluateAtCenters(xi, ti, mui));
+            this.CoeffComp.init(this.getKernelMatrix);
             
             % Call protected method
             this.computeCoeffs(model.Data.ApproxfValues);
@@ -125,6 +72,44 @@ classdef DefaultCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             if all(this.off == 0)
                 this.off = [];
             end     
+        end
+                
+        function atd = selectTrainingData(this, modeldata)
+            % Selects a subset of the projection training data linearly
+            % spaced. The number of samples taken is determined by the
+            % ApproxExpansionSize number.
+            %
+            % Important:
+            % Note that the selected training data is projected into the
+            % precomputed subspace if spacereduction is performed.
+            %
+            % Overrides the default method in BaseApprox.
+            %
+            % See also:
+            % models.BaseFullModel.off4_genApproximationTrainData
+            
+            % Validity checks
+            sn = modeldata.TrainingData;
+            if isempty(sn)
+                error('No projection training data available to take approximation training data from.');
+            end
+            
+            selection = round(linspace(1,size(sn,2),...
+                    min(this.ApproxExpansionSize,size(sn,2))));
+            atd = sn(:,selection);
+        end
+        
+        function target = clone(this)
+            % Clones the instance.
+            
+            % Create instance as this is the final class so far. If
+            % subclassed, this clone method has to be given an additional
+            % target argument.
+            target = approx.DefaultCompWiseKernelApprox;
+            
+            target = clone@approx.BaseCompWiseKernelApprox(this, target);
+            % copy local props
+            copy.ApproxExpansionSize = this.ApproxExpansionSize;
         end
     end
 end

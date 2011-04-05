@@ -27,11 +27,9 @@ s.m.Sampler = sampling.RandomSampler;
 s.m.Sampler.Samples = 10;
 s.m.ODESolver = solvers.ExplEuler;
 
-a = approx.DefaultCompWiseKernelApprox;
-a.CoeffComp = general.regression.ScalarEpsSVR;
-%a = approx.CompWiseLS;
-%a = approx.DefaultCompWiseKernelApprox;
-s.TimeKernel = kernels.LinearKernel;
+a = approx.AdaptiveCompWiseKernelApprox;
+%a.CoeffComp = general.regression.ScalarEpsSVR;
+s.TimeKernel = kernels.NoKernel;
 %a.TimeKernel = kernels.GaussKernel(2);
 s.SystemKernel = kernels.GaussKernel(2);
 s.ParamKernel = kernels.GaussKernel(2);

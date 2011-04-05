@@ -37,12 +37,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         
         % The reduction algorithm for subspaces
         %
+        % @default spacereduction.PODReducer
         % See also: spacereduction BaseSpaceReducer
         SpaceReducer;
         
         % The approximation method for the CoreFunction
         %
-        % Defaults to scalar kernel SVR regression
+        % @default approx.AdaptiveCompWiseKernelApprox
         Approx;
         
         % Advanced property. 
@@ -96,7 +97,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             %             p.Mode = 'abs';
             %             p.Value = 1;
             %             this.PODFix = p;
-            this.Approx = approx.DefaultCompWiseKernelApprox;
+            this.Approx = approx.AdaptiveCompWiseKernelApprox;
             this.Data = models.ModelData;
             this.System = models.BaseDynSystem;
         end
@@ -112,11 +113,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             time = toc(time);
         end
         
-        function time = off2_genProjectionTrainData(this)
+        function time = off2_genTrainingData(this)
             % Offline phase 2: Snapshot generation for subspace computation
             %
-            % @todo Optimize snapshot array augmentation by preallocation
+            % @todo 
+            % - Optimize snapshot array augmentation by preallocation
             % (later will be some storage class)
+            % - Remove waitbar and connect to messaging system
             time = tic;
             
             num_s = max(1,this.Data.SampleCount);
@@ -165,7 +168,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     % Assign snapshot values
                     sn(:,:,idx) = [ones(1,trajlen)*munum; ones(1,trajlen)*innum; t; x];
                 end
-                this.Data.ProjTrainData = sn(:,:);
+                this.Data.TrainingData = sn(:,:);
                 
                 %% Non-parallel computation
             else
@@ -216,7 +219,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     close(wh);
                     rethrow(ME);
                 end
-                this.Data.ProjTrainData = sn;
+                this.Data.TrainingData = sn;
             end
             
             
@@ -233,7 +236,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.Data.V = [];
             this.Data.W = [];
             if ~isempty(this.SpaceReducer)
-                if size(this.Data.ProjTrainData,2) == 1
+                if size(this.Data.TrainingData,2) == 1
                     % Easy case: Source dimension is already one. Just set V = Id.
                     this.Data.V = 1;
                     this.Data.W = 1;
@@ -268,7 +271,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 % Deactivated due to immense overhead and matlab crashes.
                 % investigate further
                 if this.ComputeParallel
-                    fval = zeros(size(this.Data.ProjTrainData,1)-3,size(atd,2));
+                    fval = zeros(size(this.Data.TrainingData,1)-3,size(atd,2));
                     atddata = atd(4:end,:);
                     pardata = atd(1,:);
                     if KerMor.App.Verbose > 0
@@ -282,7 +285,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     end
                     this.Data.ApproxfValues = fval;
                 else
-                    this.Data.ApproxfValues = zeros(size(this.Data.ProjTrainData,1)-3,size(atd,2));
+                    this.Data.ApproxfValues = zeros(size(this.Data.TrainingData,1)-3,size(atd,2));
                     if KerMor.App.Verbose > 0
                         fprintf('Serial computation of f-values at %d points ...\n',size(atd,2));
                     end
@@ -338,7 +341,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % See also: buildReducedModel
             
             times(1) = this.off1_createParamSamples;
-            times(2) = this.off2_genProjectionTrainData;
+            times(2) = this.off2_genTrainingData;
             times(3) = this.off3_computeReducedSpace;
             times(4) = this.off4_genApproximationTrainData;
             times(5) = this.off5_computeApproximation;
@@ -366,7 +369,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 %                 warning(['The T or dt parameters have been changed since the last offline generations.\n'...
 %                     'A call to offlineGenerations is required.']);
 %             else
-            if isempty(this.Data) || isempty(this.Data.ProjTrainData)
+            if isempty(this.Data) || isempty(this.Data.TrainingData)
                 error('No Snapshot data available. Forgot to call offlineGenerations before?');
             end
             tic;
@@ -390,7 +393,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         %             % @todo Possibly save the later computed trajectories in the
         %             % ModelData class?
         %
-        %             if ~isempty(this.Data) && ~isempty(this.Data.ProjTrainData)
+        %             if ~isempty(this.Data) && ~isempty(this.Data.TrainingData)
         %                 x = this.Data.getTrajectory(mu,inputidx);
         %                 if ~isempty(x)
         %                     t = this.Times;
@@ -439,6 +442,46 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function set.Approx(this, value)
             this.checkType(value, 'approx.BaseApprox');%#ok
             this.Approx = value;
+        end
+        
+%         function s = saveobj(this, full)
+%             % Saves this full model to a struct.
+%             
+%             if nargin < 2
+%                 full = true;
+%             end
+%             s.Sampler = this.Sampler;
+%             s.SpaceReducer = this.SpaceReducer;
+%             s.preApproximationTrainingCallback = this.preApproximationTrainingCallback;
+%             s.postApproximationTrainingCallback = this.postApproximationTrainingCallback;
+%             if full
+%                 s.Approx = this.Approx;    
+%                 s.Data = this.Data;
+%             end
+%         end
+    end
+    
+    methods (Static, Access=protected)
+        function obj = loadobj(s, obj)
+            % Loads the properties for the BaseFullModel part of this
+            % class.
+            %
+            % See also: ILoadable BaseModel.loadobj
+            if nargin < 2
+                m = metaclass(s);
+                error('Error loading class of type %s. Cannot infer subclass in class models.BaseFullModel, have you implemented loadobj static methods for all classes in the hierarchy?',m.Name);
+            end
+            % Call superclass load
+            obj = loadobj@models.BaseModel(s, obj);
+            
+            % Set local values in an order that wont throw errors at the
+            % setter methods
+            obj.Data = s.Data;
+            obj.Approx = s.Approx;
+            obj.Sampler = s.Sampler;
+            obj.SpaceReducer = s.SpaceReducer;
+            obj.preApproximationTrainingCallback = s.preApproximationTrainingCallback;
+            obj.postApproximationTrainingCallback = s.postApproximationTrainingCallback;
         end
     end
     

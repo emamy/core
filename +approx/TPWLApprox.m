@@ -82,7 +82,7 @@ classdef TPWLApprox < approx.BaseApprox
         end
         
         function atd = selectTrainingData(this, modeldata)
-            sn = modeldata.ProjTrainData;
+            sn = modeldata.TrainingData;
             x = sn(4:end,:);
             d = sqrt(size(x,1))*this.EpsRad;
             selidx = 1;

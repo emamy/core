@@ -4,14 +4,19 @@ classdef ModelData < handle
     %
     % @change{0,1,dw} More common projection via matrices `V,W` instead of
     % `V,V^t`.
+    % @change{0,3,dw,2011-04-01} 
+    % - Changed the old 'ProjTrainData' to 'TrainingData', as this property
+    % name describes the usage more precisely.
+    % - Changes
     
     properties
         % A Model's parameter samples
         ParamSamples = [];
         
-        % A model's snapshots for each parameter sample. This data is the
-        % base for subspace computation algorithms located in package
-        % spacereduction.
+        % Training data for subspace & approximation computations.
+        %
+        % This data is the base for subspace computation algorithms located
+        % in package spacereduction.
         % Each column represents a snapshot vector composed of
         % - Dim1: The index of the parameter in ParamSamples used to
         % compute this snapshot. Zero if no parameters are used.
@@ -19,7 +24,11 @@ classdef ModelData < handle
         % snapshot. Zero if no inputs are used.
         % - Dim3: The time `t` that corresponds to the snapshot's time.
         % - Dim4-end: The system's state variable for the snapshot.
-        ProjTrainData = [];
+        %
+        % @todo overhaul data storage format! (may be getting too big, and
+        % currently replicates lots of values in the first two dimensions,
+        % i.e. param and inputindices) Same for ApproxTrainData
+        TrainingData = [];
         
         % Training data for the core function approximation.
         % Each vector is composed of
@@ -109,8 +118,8 @@ classdef ModelData < handle
 %             this.ParamSamples = value;
 %         end
 %         
-%         function set.ProjTrainData(this, value)
-%             this.ProjTrainData = value;
+%         function set.TrainingData(this, value)
+%             this.TrainingData = value;
 %         end
 %         
 %         function set.ApproxfValues(this, value)

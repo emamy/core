@@ -1,5 +1,5 @@
 classdef BaseDynSystem < handle
-    %BASEDYNSYSTEM Base class for all KerMor dynamical systems.
+    % Base class for all KerMor dynamical systems.
     %
     % To setup custom dynamical systems, inherit from this class.
     %

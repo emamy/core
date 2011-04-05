@@ -7,6 +7,8 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
     % combined using the function handle set by the property
     % SubKernelCombinationFun.
     %
+    % @new{0,3,dw,2011-04-04} Added the
+    % dscomponents.AKernelCoreFun.getKernelMatrix method
     % @change{0,2,dw,2011-03-21}
     % - Moved the dscomponents.AKernelCoreFun.RotationInvariant property
     % into a local private variable that gets updated only when the kernels
@@ -23,29 +25,35 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
         
         % The Kernel to use for time variables
         %
+        % @default kernels.NoKernel
         % See also: SystemKernel ParamKernel
         TimeKernel;
         
         % The Kernel to use for system variables
         %
+        % @default kernels.GaussKernel
         % See also: TimeKernel ParamKernel
         SystemKernel;
         
         % The Kernel to use for parameter variables
         %
+        % @default kernels.NoKernel
         % See also: TimeKernel SystemKernel
-        ParamKernel;
+        ParamKernel;        
         
         % The kernel centers used in the approximation.
         %
         % This is the union of all center data used within the kernel
-        % function as a struct with the following fields: 
-        % xi: The state variable centers
-        % ti: The times at which the state xi is taken
-        % mui: The parameter used to obtain the state xi
+        % function as a struct 
+        % with the following fields:
+        % - 'xi' The state variable centers
+        % - 'ti' The times at which the state xi is taken
+        % - 'mui' The parameter used to obtain the state xi
         %
         % The only required field is xi, others can be set to [] if not
         % used.
+        %
+        % @default @code struct('xi',[],'ti',[],'mui',[]) @endcode
         Centers;
     end
     
@@ -87,6 +95,8 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
             % mu: The parameters associated with x (if used, take []
             % else)
             %
+            % See also: getKernelMatrix
+            %
             % @todo Ggf. Cache-Funktion wieder einbauen (feasibility?)
                         
             V = 1;
@@ -102,6 +112,22 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
 %             K = this.TimeKernel.evaluate(this.Centers.ti, t).* ...
 %                 this.SystemKernel.evaluate(this.Centers.xi, V*x).* ...
 %                 this.ParamKernel.evaluate(this.Centers.mui, mu);
+        end
+        
+        function K = getKernelMatrix(this)
+            % Computes the kernel matrix for the currently set center data.
+            %
+            % Convenience method, equal to call evaluateAtCenters with
+            % passing the center data as arguments. However, this method is
+            % (possibly, depends on kernel implementation) faster as it
+            % calls the kernels kernels.BaseKernel.evaluate -method with
+            % one argument.
+            %
+            % See also: evaluateAtCenters
+            K = this.SubKernelCombinationFun(...
+                this.TimeKernel.evaluate(this.Centers.ti), ...
+                this.SystemKernel.evaluate(this.Centers.xi), ...
+                this.ParamKernel.evaluate(this.Centers.mui));
         end
         
         function target = clone(this, target)

@@ -11,18 +11,18 @@ classdef ICloneable < handle
     %
     % Cloning guidelines:
     % -# Function signature
-    %  - The cloneable class may be subclassed:
+    %  -# The cloneable class may be subclassed: 
     %    The method must take an extra argument "target" which may
     %    contain a subclass instance. Then all local attributes (public
     %    and private) must be copied into that passed instance. This
     %    ensures that all properties along the inheritance tree are
     %    taken care of.
-    %  - The class is a final class:
+    %  -# The class is a final class: 
     %    No extra argument is necessary, just create a new blank
     %    instance using the class' constructor (including any necessary
     %    constructor arguments; these will be derivable from the
     %    classes' context)
-    % -# Call to superclass clone method 
+    % -# Call to superclass clone method: 
     %   For subclasses you have to call the clone method of the next
     %   superior class via @code clone@superclassname(this, target)
     %   @endcode
@@ -30,6 +30,8 @@ classdef ICloneable < handle
     %   Only copy properties that are declared within that very same class!
     %
     % @author Daniel Wirtz @date 15.03.2010
+    %
+    % See also: ILoadable
     
     methods(Abstract)
         copy = clone(this, target)
