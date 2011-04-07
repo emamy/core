@@ -98,30 +98,40 @@ classdef TPWLApprox < approx.BaseApprox
             end
             atd = sn(:,selidx);
         end
-    end
-    
-    methods(Access=protected)
-        function gen_approximation_data(this, model, xi, ti, mui)
+        
+        function approximateCoreFun(this, model)
             % Implements BaseApprox abstract template method
             %
             % @todo parallelize
             
-            as = size(xi,2);
-            N = size(xi,1);
+            % Load snapshots
+            atd = model.Data.ApproxTrainData;
+            
+            % Compile necessary data
+            this.xi = atd(4:end,:);
+            ti = atd(3,:);
+            muidx = atd(1,:);
+            if all(muidx == 0)
+                mui = [];
+            else
+                mui = model.Data.ParamSamples(:,muidx);
+            end
+
+            as = size(this.xi,2);
+            N = size(this.xi,1);
             h = 0.01;
             
             this.Ai = cell(0,as);
             dh = diag(ones(1,N)*h);
             for i = 1:as
                 sel = ones(1,N)*i;
-                xipt = xi(:,sel);
+                xipt = this.xi(:,sel);
                 if isempty(mui); mu = []; else mu = mui(:,sel); end
                 tmp = (model.Data.ApproxfValues(:,sel)-...
                     model.f.evaluate(xipt+dh,ti(sel),mu))/h;
                 this.Ai{i} = tmp;
-                this.bi(:,i) = model.Data.ApproxfValues(:,i) - tmp*xi(:,i);
+                this.bi(:,i) = model.Data.ApproxfValues(:,i) - tmp*this.xi(:,i);
             end
-            this.xi = xi;
             
 %             this.Ai = sparse(N*as,N*as);%xi(:,idx) + repmat(diag(ones(1,N))*h,1,as);
 %             dh = diag(ones(1,N)*h);

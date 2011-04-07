@@ -28,6 +28,7 @@ s.m.Sampler.Samples = 10;
 s.m.ODESolver = solvers.ExplEuler;
 
 a = approx.AdaptiveCompWiseKernelApprox;
+a.MaxExpansionSize = 5; % Keep test run short!
 %a.CoeffComp = general.regression.ScalarEpsSVR;
 s.TimeKernel = kernels.NoKernel;
 %a.TimeKernel = kernels.GaussKernel(2);

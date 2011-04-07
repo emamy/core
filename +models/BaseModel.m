@@ -11,8 +11,11 @@ classdef BaseModel < KerMorObject
     %
     % @author Daniel Wirtz @date 19.03.2010
     %
-    % @change{0,3,dw,2011-04-05} Removed the getConfigStr-Method and moved
-    % it to general.Utils.getObjectConfig
+    % @change{0,3,dw,2011-04-05} 
+    % - Removed the getConfigStr-Method and moved it to
+    % general.Utils.getObjectConfig
+    % - Added a setter for System checking for self-references
+    %
     % @new{0,2,dw,2011-03-08} Implemented time scaling via addition of the
     % property models.BaseModel.tau and dependent attributes
     % models.BaseModel.dtscaled and models.BaseModel.Tscaled. This
@@ -24,6 +27,7 @@ classdef BaseModel < KerMorObject
     %
     % @change{0,1,dw} Generalized scalar product via `<x,y>_G = x^tGy`,
     % default `I_d` for `d\in\N`
+    %
     % @new{0,1,dw} String output of all model settings via method
     % getObjectConfig
     
@@ -39,15 +43,6 @@ classdef BaseModel < KerMorObject
         % NOTE: When changing this property any offline computations have
         % to be repeated in order to obtain a new reduced model.
         T = 1;
-        
-        % The desired time-stepsize for simulations
-        %
-        % NOTE: When changing this property any offline computations have
-        % to be repeated in order to obtain a new reduced model.
-        %
-        % @default 0.1
-        % See also: dtscaled
-        dt = .1;
         
         % The solver to use for the ODE.
         % Must be an instance of any solvers.BaseSolver subclass.
@@ -71,14 +66,6 @@ classdef BaseModel < KerMorObject
         % Default:
         % 1
         G = 1;
-        
-        % Time scaling factor
-        %
-        % If used, the values from T and dt are getting scaled by tau when
-        % calling simulate.
-        %
-        % @default 1
-        tau = 1;
     end
     
     properties(Dependent)
@@ -95,6 +82,23 @@ classdef BaseModel < KerMorObject
         % If tau is used, this value is `\tilde{T} = T/\tau`
         % See also: tau T
         Tscaled;
+        
+        % Time scaling factor
+        %
+        % If used, the values from T and dt are getting scaled by tau when
+        % calling simulate.
+        %
+        % @default 1
+        tau;
+        
+        % The desired time-stepsize for simulations
+        %
+        % NOTE: When changing this property any offline computations have
+        % to be repeated in order to obtain a new reduced model.
+        %
+        % @default 0.1
+        % See also: dtscaled
+        dt;
     end
     
     properties(Access=protected)
@@ -114,6 +118,11 @@ classdef BaseModel < KerMorObject
         % @default .1 (as in dt)
         % See also: tau dt
         dtscaled = .1;
+    end
+    
+    properties(Access=private)
+        ftau = 1;
+        fdt = .1;
     end
     
     methods
@@ -278,18 +287,7 @@ classdef BaseModel < KerMorObject
         end
     end
     
-    methods(Access=protected,Sealed)
-               
-        function checkType(this, obj, type)%#ok
-            % Object typechecker.
-            % Checks if a given object is of the specified type and throws
-            % an error if not.
-            % Convenience method.
-            if ~isempty(obj) && ~isa(obj, type)
-                error(['Wrong type ''' class(obj) ''' for this property. Has to be a ' type]);
-            end
-        end
-    end
+    
     
     %% Getter & Setter
     methods
@@ -309,43 +307,54 @@ classdef BaseModel < KerMorObject
             end
         end
         
+        function dt = get.dt(this)
+            dt = this.fdt;
+        end
+        
+        function tau = get.tau(this)
+            tau = this.ftau;
+        end
+        
         function set.T(this, value)
             if ~isposrealscalar(value)
                 error('T must be a positive real scalar.');
             end
             if this.T ~= value
                 this.T = value;
-                this.TimeDirty = true;%#ok
+                this.TimeDirty = true;%#ok -> setter does not change anything
             end
         end
         
         function set.dt(this, value)
             if ~isposrealscalar(value)
-                error('T must be a positive real scalar.');
+                error('dt must be a positive real scalar.');
             end
-            if this.dt ~= value
-                if isempty(this.tau)%#ok
-                    this.dtscaled = value;%#ok
-                else
-                    this.dtscaled = value/this.tau;%#ok
-                end
-                this.dt = value;
-                this.TimeDirty = true;%#ok
+            if this.fdt ~= value
+                this.dtscaled = value/this.ftau;
+                this.fdt = value;
+                this.TimeDirty = true;
             end
-            
         end
         
         function set.tau(this, value)
             if ~isposrealscalar(value)
                 error('tau must be a positive real scalar.');
             end
-            if this.tau ~= value
-                if ~isempty(this.dt)%#ok
-                    this.dtscaled = this.dt/value;%#ok
-                end
-                this.tau = value;
-                this.TimeDirty = true;%#ok
+            if this.ftau ~= value
+                this.dtscaled = this.fdt/value;
+                this.ftau = value;
+                this.TimeDirty = true;
             end
+        end
+        
+        function set.System(this, value)
+            if ~isa(value,'models.BaseDynSystem')
+                error('The System property must be a subclass of models.BaseDynSystem.');
+            end
+            if (isequal(this,value))
+                warning('KerMor:selfReference','Careful with self-referencing classes. See BaseFullModel class documentation for details.');
+            end
+            this.System = value;
         end
         
         function set.G(this, value)
@@ -378,28 +387,30 @@ classdef BaseModel < KerMorObject
 %         end
 %     end
 %     
-    methods (Static, Access=protected)
-        function obj = loadobj(s, obj)
-            % Loads the BaseModel part of the current class.
-            %
-            % See also: ILoadable
-            if nargin < 2
-                m = metaclass(s);
-                error('Error loading class of type %s. Cannot infer subclass in class models.BaseModel, have you implemented loadobj static methods for all classes in the hierarchy?',m.Name);
-            end
-            % Simple data type properties first
-            obj.Name = s.Name;
-            obj.T = s.T;
-            obj.dt = s.dt;
-            obj.G = s.G;
-            obj.tau = s.tau;
-            obj.TimeDirty = s.TimeDirty;
-            obj.dtscaled = s.dtscaled;
-            
-            % Class instances next
-            obj.System = s.System;
-            obj.ODESolver = s.ODESolver;
-        end
-    end
+%     methods (Static, Access=protected)
+%         function obj = loadobj(s, obj)
+%             % Loads the BaseModel part of the current class.
+%             %
+%             % See also: ALoadable
+%             if nargin < 2
+%                 m = metaclass(s);
+%                 error('Error loading class of type %s. Cannot infer subclass in class models.BaseModel, have you implemented loadobj static methods for all classes in the hierarchy?',m.Name);
+%             end
+%             obj = loadobj@KerMorObject(s, obj);
+%             ALoadable.loadProps(mfilename('class'), obj, s);
+% %             % Simple data type properties first
+% %             obj.Name = s.Name;
+% %             obj.T = s.T;
+% %             obj.dt = s.dt;
+% %             obj.G = s.G;
+% %             obj.tau = s.tau;
+% %             obj.TimeDirty = s.TimeDirty;
+% %             obj.dtscaled = s.dtscaled;
+% %             
+% %             % Class instances next
+% %             obj.System = s.System;
+% %             obj.ODESolver = s.ODESolver;
+%         end
+%     end
 end
 

@@ -1,6 +1,7 @@
 classdef ModelData < handle
-    %MODELDATA Class that contains a model's large data
-    %   @todo setter for matrices V,W with checks for norm one etc
+    % Data class that contains a model's large data
+    %
+    % @todo Implmement all setters with appropriate checks
     %
     % @change{0,1,dw} More common projection via matrices `V,W` instead of
     % `V,V^t`.
@@ -113,35 +114,9 @@ classdef ModelData < handle
     
     %% Getter & Setter
     methods
-%         function set.ParamSamples(this, value)
-%             % @todo Getter & setter / validation
-%             this.ParamSamples = value;
-%         end
-%         
-%         function set.TrainingData(this, value)
-%             this.TrainingData = value;
-%         end
-%         
-%         function set.ApproxfValues(this, value)
-%             this.ApproxfValues = value;
-%         end
-                
         function value = get.SampleCount(this)
             value = size(this.ParamSamples,2);
-        end
-        
-%         function value = get.PlainSnapshotArray(this)
-%             value = this.Snapshots(:,:);
-%         end
-        
+        end     
     end
-    
-    %         function set.V(this, value)
-    %             if ~all(round(value' * value) == diag(ones(size(value,2),1)))
-    %                 warning('KerMor:ModelData:Vortho','V matrix may not be orthogonal!');
-    %             end
-    %             this.V = value;
-    %         end
-    
 end
 

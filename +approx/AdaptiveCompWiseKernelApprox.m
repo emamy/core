@@ -6,6 +6,9 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
     %
     % See also: BaseApprox BaseCompWiseKernelApprox
     %
+    % @change{0,3,dw,2011-04-06} Now works with models that dont have any
+    % parameters.
+    %
     % @new{0,3,dw,2011-04-01} Added this class.
     
     properties
@@ -48,23 +51,37 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             %% Initializations
             atd = model.Data.ApproxTrainData;
             fx = model.Data.ApproxfValues;
-            params = model.Data.getParams(atd(1,:));
+            % check if training data contains parameters
+            if any(atd(1,:) ~= 0)
+                hasparams = true;
+                params = model.Data.getParams(atd(1,:));
+            else
+                hasparams = false;
+                params = [];
+            end
             nx = general.NNTracker;
             nt = general.NNTracker;
-            np = general.NNTracker;
+            if hasparams
+                np = general.NNTracker;
+            end
             
             %% Compute bounding boxes & center
             [BXmin, BXmax] = general.Utils.getBoundingBox(atd(4:end,:));
-            [BPmin, BPmax] = general.Utils.getBoundingBox(...
-                model.Data.getParams(unique(atd(1,:))));
             Btmin = min(atd(3,:)); Btmax = max(atd(3,:));
-            thecenter = [BXmin+BXmax; Btmin+Btmax; BPmin + BPmax]/2;
+            if hasparams
+                [BPmin, BPmax] = general.Utils.getBoundingBox(...
+                    model.Data.getParams(unique(atd(1,:))));
+                thecenter = [BXmin+BXmax; Btmin+Btmax; BPmin + BPmax]/2;
+                B = [atd(3:end,:); params];
+            else
+                thecenter = [BXmin+BXmax; Btmin+Btmax]/2;
+                B = atd(3:end,:);
+            end
             
             %% Select initial center x0
             % Strategy A: Take the point that is closest to the bounding
             % box center!
             A = repmat(thecenter, 1, size(atd,2));
-            B = [atd(3:end,:); params];
             [dummy, inIdx] = min(sum((A-B).^2,1));
             clear A B;
             
@@ -73,12 +90,15 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             
             initial = atd(:,inIdx);
             this.Centers.xi = initial(4:end);
+            nx.addPoint(initial(4:end)); % Add points to nearest neighbor trackers (for gamma comp)
             this.Centers.ti = initial(3);
-            this.Centers.mui = params(:,inIdx);
-            % Add points to nearest neighbor trackers (for gamma comp)
-            nx.addPoint(initial(4:end));
             nt.addPoint(initial(3));
-            np.addPoint(this.Centers.mui);
+            if hasparams
+                this.Centers.mui = params(:,inIdx);
+                np.addPoint(this.Centers.mui);
+            else
+                this.Centers.mui = [];
+            end
             
             %% Set up initial expansion
             used = inIdx;
@@ -92,11 +112,11 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             this.SystemKernel.setGammaForDistance(def_dx,this.gameps);
             if ~isa(this.TimeKernel,'kernels.NoKernel')
                 def_dt = (Btmax - Btmin) / this.dfact;
-                this.SystemKernel.setGammaForDistance(def_dt,this.gameps);
+                this.TimeKernel.setGammaForDistance(def_dt,this.gameps);
             end
-            if ~isa(this.ParamKernel,'kernels.NoKernel')
+            if hasparams && ~isa(this.ParamKernel,'kernels.NoKernel')
                 def_dp = norm(BPmax - BPmin) / this.dfact;
-                this.SystemKernel.setGammaForDistance(def_dp,this.gameps);
+                this.ParamKernel.setGammaForDistance(def_dp,this.gameps);
             end
             
             %% Outer control loop
@@ -164,13 +184,15 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                 new = atd(:,maxidx);
                 this.Centers.xi(:,end+1) = new(4:end);
                 this.Centers.ti(end+1) = new(3);
-                this.Centers.mui(:,end+1) = params(:,maxidx);
-                
-                %% Compute new gamma
+                if hasparams
+                    this.Centers.mui(:,end+1) = params(:,maxidx);
+                    np.addPoint(params(:,maxidx));
+                end
                 % Add points to nearest neighbor trackers (for gamma comp)
                 nx.addPoint(new(4:end));
                 nt.addPoint(new(3));
-                np.addPoint(params(:,maxidx));
+                
+                %% Compute new gamma
                 % Update Kernels Gamma values
                 d = nx.getMaxNN/this.dfact;
                 gs = this.SystemKernel.setGammaForDistance(d,this.gameps);
@@ -184,18 +206,18 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
 %                     else
 %                         distt = nt.getMaxNN;
 %                     end
-%                     gt = this.SystemKernel.setGammaForDistance(distt/this.dfact,this.gameps);
+%                     gt = this.TimeKernel.setGammaForDistance(distt/this.dfact,this.gameps);
 %                     if KerMor.App.Verbose > 2
 %                         fprintf(', Time:%10f => gamma=%10f',distt/this.dfact,gt);
 %                     end
 %                 end
-                if ~isa(this.ParamKernel,'kernels.NoKernel')
+                if hasparams && ~isa(this.ParamKernel,'kernels.NoKernel')
                     if isinf(np.getMaxNN)
-                        distp = def_dt;
+                        distp = def_dp;
                     else
                         distp = np.getMaxNN;
                     end
-                    gp = this.SystemKernel.setGammaForDistance(distp/this.dfact,this.gameps);
+                    gp = this.ParamKernel.setGammaForDistance(distp/this.dfact,this.gameps);
                     if KerMor.App.Verbose > 2
                         fprintf(', Param:%10f => gamma=%10f',distp/this.dfact,gp);
                     end

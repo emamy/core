@@ -31,7 +31,7 @@ classdef ICloneable < handle
     %
     % @author Daniel Wirtz @date 15.03.2010
     %
-    % See also: ILoadable
+    % See also: ALoadable
     
     methods(Abstract)
         copy = clone(this, target)

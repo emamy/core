@@ -7,8 +7,13 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
     % combined using the function handle set by the property
     % SubKernelCombinationFun.
     %
+    % @change{0,3,dw,2011-04-6} Set the kernel properties to dependent and
+    % introduced private storage members for them. Also improved the setter
+    % for the SubKernelCombinationFun (checks for 3 args now)
+    %
     % @new{0,3,dw,2011-04-04} Added the
     % dscomponents.AKernelCoreFun.getKernelMatrix method
+    %
     % @change{0,2,dw,2011-03-21}
     % - Moved the dscomponents.AKernelCoreFun.RotationInvariant property
     % into a local private variable that gets updated only when the kernels
@@ -22,24 +27,6 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
         % The function that combines the sub (time/system/param) kernels.
         % Must be a function handle that takes three arguments.
         SubKernelCombinationFun = @(t,s,p)t .* s .* p;
-        
-        % The Kernel to use for time variables
-        %
-        % @default kernels.NoKernel
-        % See also: SystemKernel ParamKernel
-        TimeKernel;
-        
-        % The Kernel to use for system variables
-        %
-        % @default kernels.GaussKernel
-        % See also: TimeKernel ParamKernel
-        SystemKernel;
-        
-        % The Kernel to use for parameter variables
-        %
-        % @default kernels.NoKernel
-        % See also: TimeKernel SystemKernel
-        ParamKernel;        
         
         % The kernel centers used in the approximation.
         %
@@ -57,6 +44,26 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
         Centers;
     end
     
+    properties(Dependent)
+        % The Kernel to use for time variables
+        %
+        % @default kernels.NoKernel
+        % See also: SystemKernel ParamKernel
+        TimeKernel;
+        
+        % The Kernel to use for system variables
+        %
+        % @default kernels.GaussKernel
+        % See also: TimeKernel ParamKernel
+        SystemKernel;
+        
+        % The Kernel to use for parameter variables
+        %
+        % @default kernels.NoKernel
+        % See also: TimeKernel SystemKernel
+        ParamKernel;
+    end
+    
     properties(SetAccess=private)
         % A flag that tells subclasses if this (kernel-based)
         % function is rotation invariant.
@@ -65,14 +72,28 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
         RotationInvariant = false;
     end
     
+    properties(Access=private)
+        fSK;
+        fTK;
+        fPK;
+    end
+    
     methods
         function this = AKernelCoreFun
-            % Default constructors. Initializes default kernels.
-            this.TimeKernel = kernels.NoKernel;
-            this.SystemKernel = kernels.GaussKernel(10);
-            % The default kernel is a neutral (=1) kernel as not all models
-            % have parameters.
-            this.ParamKernel = kernels.NoKernel;            
+            % Default constructor. 
+            %
+            % Initializes default kernels.
+            
+            this.fSK = kernels.GaussKernel(10);
+            % The default kernels for time and parameters are neutral (=1)
+            % kernels as not all models have time or parameter dependent
+            % system functions.
+            this.fTK = kernels.NoKernel;
+            this.fPK = kernels.NoKernel;
+            
+            % DONT CHANGE THIS LINE unless you know what you are doing or
+            % you are me :-)
+            this.updateRotInv;
         end
         
         function target = project(this, V, W, target)
@@ -135,68 +156,69 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
             target.Centers = this.Centers;
             target.SubKernelCombinationFun = this.SubKernelCombinationFun;
             
-            % @todo Check whether kernels should be deepcopied, too
-            target.TimeKernel = this.TimeKernel;
-            target.SystemKernel = this.SystemKernel;
-            target.ParamKernel = this.ParamKernel;
+            % @todo Implement cloning for kernels too
+            target.fTK = this.fTK;
+            target.fSK = this.fSK;
+            target.fPK = this.fPK;
+            target.RotationInvariant = this.RotationInvariant;
         end
         
-        function autoConfGamma(this, model)
-            % Implements the template method from IAutoConfigure.
-            %
-            % For this class autoconfiguration means detection of the
-            % "ideal" radius for gaussian kernels, if used. The strategy is
-            % to enforce that for the largest distance between any two
-            % considered centers the sum of both nearby kernel evaluations
-            % equals one, i.e.
-            % ``e^{-\frac{\left(\frac{d}{2}\right)^2}{\gamma}} =
-            % \frac{1}{2}``
-            % if `d` is the largest distance.
-            % 
-            % Parameters:
-            % model: The current model instance
-            %
-            % See also: IAutoConfigure
-            
-            % Settings.
-            %zero = 1e-4;
-            %trange = 3; % nonzero over trange times the dt-distance
-            %srange = 3; % nonzero over srange times the maximum distance within the training data
-            %prange = 2; % nonzero over prange times the param samples distance
-            data = model.Data.ApproxTrainData;
-            v = unique(round(data(1,:)));
-            
-            %% State kernel gamma
-            if isa(this.SystemKernel,'kernels.GaussKernel')
-                xd = sqrt(sum(data(4:end,:).^2));
-
-                % Find samples for each parameter    
-                maxdiff = zeros(1,length(v));
-                for muidx = 1:length(v)
-                    sel = data(1,:) == v(muidx);
-                    tmp = xd(sel);
-                    maxdiff(muidx) = max(abs(tmp(1:end-1)-tmp(2:end)));
-                end
-                d = max(maxdiff);
-                this.SystemKernel.setGammaForDistance(d/2,.5);
-            end
-            
-            %% Time kernel
-            if isa(this.TimeKernel,'kernels.GaussKernel')
-                warning('Code:unchecked','Implementation not yet finished/ideal!');
-                this.TimeKernel.setGammaForDistance(model.dt/2,.5);
-            end
-            
-            %% Param kernel
-            if isa(this.ParamKernel,'kernels.GaussKernel')
-                params = model.Data.getParams(v);
-                % Gives a matrix with parameters in each column
-                mud = sqrt(sum(params.^2));
-                % Create distance matrix
-                dist = abs(repmat(mud,size(mud,2),1)-repmat(mud',1,size(mud,2)));
-                this.ParamKernel.setGammaForDistance(max(dist(:))/2,.5);
-            end
-        end
+%         function autoConfGamma(this, model)
+%             % Implements the template method from IAutoConfigure.
+%             %
+%             % For this class autoconfiguration means detection of the
+%             % "ideal" radius for gaussian kernels, if used. The strategy is
+%             % to enforce that for the largest distance between any two
+%             % considered centers the sum of both nearby kernel evaluations
+%             % equals one, i.e.
+%             % ``e^{-\frac{\left(\frac{d}{2}\right)^2}{\gamma}} =
+%             % \frac{1}{2}``
+%             % if `d` is the largest distance.
+%             % 
+%             % Parameters:
+%             % model: The current model instance
+%             %
+%             % See also: IAutoConfigure
+%             
+%             % Settings.
+%             %zero = 1e-4;
+%             %trange = 3; % nonzero over trange times the dt-distance
+%             %srange = 3; % nonzero over srange times the maximum distance within the training data
+%             %prange = 2; % nonzero over prange times the param samples distance
+%             data = model.Data.ApproxTrainData;
+%             v = unique(round(data(1,:)));
+%             
+%             %% State kernel gamma
+%             if isa(this.SystemKernel,'kernels.GaussKernel')
+%                 xd = sqrt(sum(data(4:end,:).^2));
+% 
+%                 % Find samples for each parameter    
+%                 maxdiff = zeros(1,length(v));
+%                 for muidx = 1:length(v)
+%                     sel = data(1,:) == v(muidx);
+%                     tmp = xd(sel);
+%                     maxdiff(muidx) = max(abs(tmp(1:end-1)-tmp(2:end)));
+%                 end
+%                 d = max(maxdiff);
+%                 this.SystemKernel.setGammaForDistance(d/2,.5);
+%             end
+%             
+%             %% Time kernel
+%             if isa(this.TimeKernel,'kernels.GaussKernel')
+%                 warning('Code:unchecked','Implementation not yet finished/ideal!');
+%                 this.TimeKernel.setGammaForDistance(model.dt/2,.5);
+%             end
+%             
+%             %% Param kernel
+%             if isa(this.ParamKernel,'kernels.GaussKernel')
+%                 params = model.Data.getParams(v);
+%                 % Gives a matrix with parameters in each column
+%                 mud = sqrt(sum(params.^2));
+%                 % Create distance matrix
+%                 dist = abs(repmat(mud,size(mud,2),1)-repmat(mud',1,size(mud,2)));
+%                 this.ParamKernel.setGammaForDistance(max(dist(:))/2,.5);
+%             end
+%         end
         
     end
     
@@ -205,15 +227,28 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
         function set.SubKernelCombinationFun(this, fhandle)
             if ~isa(fhandle,'function_handle')
                 error('SubKernelCombinationFun must be a function handle.');
+            elseif nargin(fhandle) ~= 3
+                error('SubKernelCombinationFun must take exactly three input arguments.');
             end
             this.SubKernelCombinationFun = fhandle;
         end
-    
         
+        function k = get.ParamKernel(this)
+            k = this.fPK;
+        end
+        
+        function k = get.SystemKernel(this)
+            k = this.fSK;
+        end
+        
+        function k = get.TimeKernel(this)
+            k = this.fTK;
+        end
+    
         function set.ParamKernel(this, value)
             if isa(value,'kernels.BaseKernel')
-                this.ParamKernel = value;
-                this.updateRotInv;%#ok
+                this.fPK = value;
+                this.updateRotInv;
             else
                 error('ParamKernel must be a subclass of kernels.BaseKernel.');
             end
@@ -221,8 +256,8 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
         
         function set.SystemKernel(this, value)
             if isa(value,'kernels.BaseKernel')
-                this.SystemKernel = value;
-                this.updateRotInv;%#ok
+                this.fSK = value;
+                this.updateRotInv;
             else
                 error('SystemKernel must be a subclass of kernels.BaseKernel.');
             end
@@ -230,8 +265,8 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
         
         function set.TimeKernel(this, value)
             if isa(value,'kernels.BaseKernel')
-                this.TimeKernel = value;
-                this.updateRotInv;%#ok
+                this.fTK = value;
+                this.updateRotInv;
             else
                 error('TimeKernel must be a subclass of kernels.BaseKernel.');
             end
@@ -242,19 +277,10 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
         function updateRotInv(this)
             % Updates the RotationInvariant property of this CoreFun by
             % checking all registered kernels.
-            this.RotationInvariant = true;
-            if ~isempty(this.TimeKernel)
-                this.RotationInvariant = this.RotationInvariant ...
-                    && this.TimeKernel.RotationInvariant;
-            end
-            if ~isempty(this.SystemKernel)
-                this.RotationInvariant = this.RotationInvariant ...
-                    && this.SystemKernel.RotationInvariant;
-            end
-            if ~isempty(this.ParamKernel)
-                this.RotationInvariant = this.RotationInvariant ...
-                    && this.ParamKernel.RotationInvariant;
-            end
+            this.RotationInvariant = ...
+                this.fTK.RotationInvariant &&...
+                this.fSK.RotationInvariant && ...
+                this.fPK.RotationInvariant;
         end
     end
 end

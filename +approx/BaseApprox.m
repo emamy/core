@@ -63,6 +63,9 @@ classdef BaseApprox < dscomponents.ACoreFun
             a{2}.CoeffComp = general.regression.ScalarEpsSVR;
             a{2} = approx.DefaultCompWiseKernelApprox;
             a{2}.CoeffComp = general.regression.KernelLS;
+            a{3} = approx.AdaptiveCompWiseKernelApprox;
+            a{3}.CoeffComp = general.interpolation.KernelInterpol;
+            a{3}.MaxExpansionSize = 20;
             
             b = cell(length(a),0);
             
@@ -84,7 +87,7 @@ classdef BaseApprox < dscomponents.ACoreFun
                     mc = metaclass(app);
                     name = mc.Name;
                     cprintf(testing.MUnit.GreenCol,['Testing ' name '...\n']);
-                    app.gen_approximation_data(model, x, [], []);
+                    app.approximateCoreFun(model);
                     b{idx} = app.project(v,v);
                     
                     ifxfull = app.evaluate(x,[],[]);

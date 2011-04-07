@@ -1,12 +1,13 @@
 classdef BaseFullModel < models.BaseModel & IParallelizable
-    %BASEFULLMODEL The base class for any KerMor detailed model
-    %   Implementers of custom models are to inherit from this base class
-    %   in order for it to work with KerMor.
-    %   For custom models, the properties of this class (combined with
-    %   those from BaseModel) can be set to influence the model behaviour
-    %   and reduction methods.
-    %   For the implementation of custom dynamical systems, refer to
-    %   BaseDynSystem.
+    % The base class for any KerMor detailed model
+    %
+    % Implementers of custom models are to inherit from this base class
+    % in order for it to work with KerMor.
+    % For custom models, the properties of this class (combined with
+    % those from BaseModel) can be set to influence the model behaviour
+    % and reduction methods.
+    % For the implementation of custom dynamical systems, refer to
+    % BaseDynSystem.
     %
     % @todo build in time-tracking for offline phase etc
     %
@@ -461,29 +462,30 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 %         end
     end
     
-    methods (Static, Access=protected)
-        function obj = loadobj(s, obj)
-            % Loads the properties for the BaseFullModel part of this
-            % class.
-            %
-            % See also: ILoadable BaseModel.loadobj
-            if nargin < 2
-                m = metaclass(s);
-                error('Error loading class of type %s. Cannot infer subclass in class models.BaseFullModel, have you implemented loadobj static methods for all classes in the hierarchy?',m.Name);
-            end
-            % Call superclass load
-            obj = loadobj@models.BaseModel(s, obj);
-            
-            % Set local values in an order that wont throw errors at the
-            % setter methods
-            obj.Data = s.Data;
-            obj.Approx = s.Approx;
-            obj.Sampler = s.Sampler;
-            obj.SpaceReducer = s.SpaceReducer;
-            obj.preApproximationTrainingCallback = s.preApproximationTrainingCallback;
-            obj.postApproximationTrainingCallback = s.postApproximationTrainingCallback;
-        end
-    end
+%     methods (Static, Access=protected)
+%         function obj = loadobj(s, obj)
+%             % Loads the properties for the BaseFullModel part of this
+%             % class.
+%             %
+%             % See also: ALoadable BaseModel.loadobj
+%             if nargin < 2
+%                 m = metaclass(s);
+%                 error('Error loading class of type %s. Cannot infer subclass in class models.BaseFullModel, have you implemented loadobj static methods for all classes in the hierarchy?',m.Name);
+%             end
+%             % Call superclass load
+%             obj = loadobj@models.BaseModel(s, obj);
+%             
+%             % Set local values in an order that wont throw errors at the
+%             % setter methods
+%             ALoadable.loadProps(mfilename('class'), obj, s);
+% %             obj.Data = s.Data;
+% %             obj.Approx = s.Approx;
+% %             obj.Sampler = s.Sampler;
+% %             obj.SpaceReducer = s.SpaceReducer;
+% %             obj.preApproximationTrainingCallback = s.preApproximationTrainingCallback;
+% %             obj.postApproximationTrainingCallback = s.postApproximationTrainingCallback;
+%         end
+%     end
     
     methods(Static)
         function test_BaseModels

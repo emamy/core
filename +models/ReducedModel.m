@@ -39,13 +39,17 @@ classdef ReducedModel < models.BaseModel
         ParamSamples;
     end
     
-    properties
+    properties(Dependent)
         % The error estimator for the reduced model
         %
         %
         %
         % @type error.BaseEstimator
         ErrorEstimator;
+    end
+    
+    properties(Access=private)
+        fErrorEstimator;
     end
     
     methods(Sealed)
@@ -98,9 +102,8 @@ classdef ReducedModel < models.BaseModel
             this.W = fullmodel.Data.W;
             this.ParamSamples = fullmodel.Data.ParamSamples;
             
-            % Create a new reducedSystem passing the full and so far
-            % initialized reduced models
-            this.System = models.ReducedSystem(fullmodel,this);
+            % Create a new reducedSystem passing this reduced model
+            this.System = models.ReducedSystem(this);
             
             % Obtain an error estimator. The static method looks for a
             % suitable error estimator or returns the default (=expensive!)
@@ -227,6 +230,10 @@ classdef ReducedModel < models.BaseModel
             timer = toc;
         end
         
+        function e = get.ErrorEstimator(this)
+            e = this.fErrorEstimator;
+        end
+        
         function set.ErrorEstimator(this, value)
             if ~isempty(value)
                 if ~isa(value,'error.BaseEstimator')
@@ -237,52 +244,36 @@ classdef ReducedModel < models.BaseModel
                     error(msg);
                 end
             end
-            this.ErrorEstimator = value;
+            this.fErrorEstimator = value;
         end
     end
     
-    % Save & Load
-%     methods(Access=protected)
-%         function s = saveobj(this)
-%             % Saves the reduced model to a struct.
+%     methods(Static,Access=protected)
+%         function obj = loadobj(s)
+%             % Creates a new reduced model instance and loads its properties
+%             % from the given struct. 
 %             %
-%             % For the save process of the reduced model the full model's
-%             % Data (=ModelData) and Approx properties are not needed. This
-%             % is the fastest way to ensure that the reduced model can still
-%             % have access to all important features of the full model but
-%             % uses less disk space.
+%             % This method is only implemented as the property assignment
+%             % order is important for a reduced model (example: cannot set
+%             % an error estimator before having set the models system)
+%             obj = models.ReducedModel;
 %             
-%             s = this;
-% %             s = saveobj@models.BaseModel(this);
-% %             f = this.FullModel.clone;
-% %             f.Approx = [];
-% %             f.Data = [];
-% %             s.FullModel = f;
-% %             s.V = this.V; s.W = this.W;
-% %             s.ParamSamples = this.ParamSamples;
-% %             s.ErrorEstimator = this.ErrorEstimator;
+%             % Load BaseModel's properties
+%             obj = loadobj@models.BaseModel(s, obj);
+%             
+%             % Load local properties
+%             di = ALoadable.getObjectDict;
+%             ex = di(s.FullModel.ID);
+%             if ~isempty(ex)
+%                 obj.FullModel = ex;
+%             else
+%                 obj.FullModel = s.FullModel;
+%             end
+%             obj.V = s.V; obj.W = s.W;
+%             obj.ParamSamples = s.ParamSamples;
+%             obj.ErrorEstimator = s.ErrorEstimator;
 %         end
 %     end
-    
-    methods(Static,Access=protected)
-        function obj = loadobj(s)
-            % Creates a new reduced model instance and loads its properties
-            % from the given struct. 
-            %
-            % This method is only implemented as the property assignment
-            % order is important for a reduced model (example: cannot set
-            % an error estimator before having set the models system)
-            
-            obj = models.ReducedModel;
-            % Load BaseModel's properties
-            obj = models.BaseModel.loadobj(s, obj);
-            % Load local properties
-            obj.FullModel = s.FullModel;
-            obj.V = s.V; obj.W = s.W;
-            obj.ParamSamples = s.ParamSamples;
-            obj.ErrorEstimator = s.ErrorEstimator;
-        end
-    end
     
 end
 
