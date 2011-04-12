@@ -244,6 +244,15 @@ classdef KerMor < handle
     end
     
     methods
+        function set.UseMatlabParallelComputing(this, umpc)
+            if umpc == true
+                t = which('matlabpool');
+                if isempty(t) == 0
+                   this.UseMatlabParallelComputing = true;
+                   setpref('KERMOR','USEMATLABPARALLELCOMPUTING',umpc);
+                end    
+            end
+        end
           
         function set.DataStoreDirectory(this, ds)
             if ~isempty(ds) && ~isdir(ds)
@@ -292,17 +301,19 @@ classdef KerMor < handle
             fprintf('rbmatlab root directory: %s\n',ds);
         end
         
-        % Set UseMatlabParallelComputing to true if Parallel Processing
-        % toolbox is installed and recover values if clear classes
-        % has been issued
         function h = get.UseMatlabParallelComputing(this)
-            t = which('matlabpool');
-            if isempty(t) == 0
-                this.UseMatlabParallelComputing = true;
+            
+            % recover values if clear classes has been issued or Matlab
+            % Parallel processing toolbox deleted
+            if this.UseMatlabParallelComputing ~= true
+                h = getpref('KERMOR','USEMATLABPARALLELCOMPUTING','');
+                t = which('matlabpool');
+                if ~isempty(h) || ~isempty(t)
+                    this.UseMatlabParallelComputing = h;
+                end
             else
-                disp('Matlab Parallel Processing toolbox not installed...switching to serial processing mode');
-            end
-            h = this.UseMatlabParallelComputing;
+                h = this.UseMatlabParallelComputing;
+            end            
         end
         
         function h = get.HomeDirectory(this)

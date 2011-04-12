@@ -8,13 +8,15 @@ classdef IParallelizable < handle
     end    
     
     methods
-        function IParallelizable = IParallelizable % class constructor
-           t = matlabpool('size');
-            if (t > 0)
-                IParallelizable.ComputeParallel = true;
-            else 
-                disp('Proceeding with Serial Processing...');
-            end
+        function set.ComputeParallel(this, h)
+            if h == true
+                a = KerMor.App;
+                if a.UseMatlabParallelComputing == true
+                    this.ComputeParallel = h;
+                else
+                    disp('WARNING : Matlab Parallel Processing toolbox not activated');
+                end
+            end    
         end
     end
      
