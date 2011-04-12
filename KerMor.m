@@ -227,6 +227,7 @@ classdef KerMor < handle
     end
     
     methods
+          
         function set.DataStoreDirectory(this, ds)
             if ~isdir(ds)
                 fprintf('Creating directory %s\n',ds);
@@ -267,6 +268,19 @@ classdef KerMor < handle
             setpref('KERMOR','RBMATLABDIR',ds);
             this.rbmatlabDirectory = ds;
             fprintf('rbmatlab root directory: %s\n',ds);
+        end
+        
+        % Set UseMatlabParallelComputing to true if Parallel Processing
+        % toolbox is installed and recover values if clear classes
+        % has been issued
+        function h = get.UseMatlabParallelComputing(this)
+            t = which('matlabpool');
+            if isempty(t) == 0
+                this.UseMatlabParallelComputing = true;
+            else
+                disp('Matlab Parallel Processing toolbox not installed...switching to serial processing mode');
+            end
+            h = this.UseMatlabParallelComputing;
         end
         
         function h = get.HomeDirectory(this)
@@ -363,8 +377,8 @@ classdef KerMor < handle
             addpath(fullfile(p,'visual'));
             
             initDirectories;
-            init3rdparty;
-            initParallelization;
+            init3rdparty;            
+            this.initParallelization;
             
             disp('Entering startup path..');
             cd(p);
@@ -442,11 +456,13 @@ classdef KerMor < handle
                 end
                 
                 %addpath(fullfile(p,'3rdparty','pardiso'));
-            end
+            end            
             
-            function initParallelization
+        end
+        
+        function initParallelization(this)%& ok
                 % Checks if the parallel computing toolbox is available
-                %
+                %                              
                 % @todo wrap with try-catch and set flag in KerMor.App
                 % class!
                 %
@@ -455,16 +471,18 @@ classdef KerMor < handle
                 % for more information.
                 disp('Checking for and starting parallel computing..');
                 
-                % Dont use matlabpool at the moment
-                %matlabpool open;
+                % Open matlabpool only if UseMatlabParallelComputing is set to
+                % true
+                if (this.UseMatlabParallelComputing == true)
+                    matlabpool open;         
+                end                                   
                 
                 % Sets the maximum number of threads to create by OpenMP
                 % binaries according to the number of cores available on
                 % the machine.
                 setenv('OMP_NUM_THREADS',num2str(feature('numCores')));
-            end
         end
-        
+            
         function shutdown(this)%#ok
             % @todo only close if parallel computing is available!
             matlabpool close;
