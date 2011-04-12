@@ -146,20 +146,5 @@ classdef BaseEstimator < ICloneable
         % an estimator can be used for a given model or not.
         errmsg = validModelForEstimator(rmodel);
     end
-    
-    %% Save & Load
-%     methods
-%         function s = saveobj(obj)
-%             s.Enabled = obj.Enabled;
-%             
-%         end
-%     end
-    
-%     methods (Static)
-%         function obj = loadobj(s)
-%             obj.Enabled = s.Enabled;
-%         end
-%     end
-    
 end
 

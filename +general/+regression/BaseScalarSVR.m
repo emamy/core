@@ -26,11 +26,11 @@ classdef BaseScalarSVR < ICloneable & approx.IKernelCoeffComp
         % See also: eps
         C = 10;
         
-        % Minimum value for any gamma to be considered a support vector
+        % Minimum value for any alpha to be considered a support vector
         % coefficient
         %
-        % Default: 10*eps
-        AlphaMinValue = 10*eps;
+        % Default: 1e-30
+        AlphaMinValue = 1e-30;
         
         % The quadratic solver internally used
         %

@@ -39,7 +39,7 @@ classdef ReducedModel < models.BaseModel
         ParamSamples;
     end
     
-    properties
+    properties(Dependent)
         % The error estimator for the reduced model
         %
         %
@@ -48,9 +48,21 @@ classdef ReducedModel < models.BaseModel
         ErrorEstimator;
     end
     
+    properties(Access=private)
+        fErrorEstimator;
+    end
+    
     methods(Sealed)
         
         function this = ReducedModel(fullmodel)
+            % Creates a new reduced model instance.
+            %
+            % Optionally, a models.BaseFullModel subclass can be passed to
+            % create this new reduced model from.
+            %
+            % Parameters:
+            % fullmodel: A full model where the reduced model shall be
+            % created from. [Optional]
             if nargin == 1
                 this.setFullModel(fullmodel);
             end
@@ -82,7 +94,6 @@ classdef ReducedModel < models.BaseModel
             % Copy common values from the full model
             this.T = fullmodel.T;
             this.dt = fullmodel.dt;
-            this.Verbose = fullmodel.Verbose;
             this.ODESolver = fullmodel.ODESolver;
             this.G = fullmodel.G;
             
@@ -91,9 +102,8 @@ classdef ReducedModel < models.BaseModel
             this.W = fullmodel.Data.W;
             this.ParamSamples = fullmodel.Data.ParamSamples;
             
-            % Create a new reducedSystem passing the full and so far
-            % initialized reduced models
-            this.System = models.ReducedSystem(fullmodel,this);
+            % Create a new reducedSystem passing this reduced model
+            this.System = models.ReducedSystem(this);
             
             % Obtain an error estimator. The static method looks for a
             % suitable error estimator or returns the default (=expensive!)
@@ -133,6 +143,19 @@ classdef ReducedModel < models.BaseModel
             else
                 exo = 0;
             end
+        end
+        
+        function save(this, filename)
+           a = this.FullModel.Approx;
+           d = this.FullModel.Data;
+           
+           this.FullModel.Approx = [];
+           this.FullModel.Data = [];
+           
+           save(filename, 'this');
+           
+           this.FullModel.Approx = a;
+           this.FullModel.Data = d;
         end
         
 %         function [t,e,est] = getError(this, varargin)
@@ -207,48 +230,50 @@ classdef ReducedModel < models.BaseModel
             timer = toc;
         end
         
-        function set.ErrorEstimator(this, value)
-            if ~isa(value,'error.BaseEstimator')
-                error('The ErrorEstimator property must be a subclass of the error.BaseEstimator class.');
-            end
-            msg = value.validModelForEstimator(this);
-            if ~isempty(msg)
-                error(msg);
-            end
-            this.ErrorEstimator = value;
-        end
-    end
-    
-    % Save & Load
-    methods
-        function s = saveobj(this)
-            % Saves the reduced model to a struct.
-            % For the save process of the reduced model the full model's
-            % Data (=ModelData) and Approx properties are not needed. This
-            % is the fastest way to ensure that the reduced model can still
-            % have access to all important features of the full model but
-            % uses less disk space.
-            
-            s.FullModel = this.FullModel;
-            s.FullModel = this.FullModel;
-            s.V = this.V; r.W = this.W;
-            s.ParamSamples = this.ParamSamples;
-            s.ErrorEstimator = this.ErrorEstimator;
+        function e = get.ErrorEstimator(this)
+            e = this.fErrorEstimator;
         end
         
-        function this = reload(this,s)
-            this.FullModel = s.FullModel;
-            this.V = s.V; r.W = s.W;
-            this.ParamSamples = s.ParamSamples;
-            this.ErrorEstimator = s.ErrorEstimator;
+        function set.ErrorEstimator(this, value)
+            if ~isempty(value)
+                if ~isa(value,'error.BaseEstimator')
+                    error('The ErrorEstimator property must be a subclass of the error.BaseEstimator class.');
+                end
+                msg = value.validModelForEstimator(this);
+                if ~isempty(msg)
+                    error(msg);
+                end
+            end
+            this.fErrorEstimator = value;
         end
     end
     
-    methods (Static)
-        function obj = loadobj(S)
-            obj = reload(models.ReducedModel,S);
-        end
-    end
+%     methods(Static,Access=protected)
+%         function obj = loadobj(s)
+%             % Creates a new reduced model instance and loads its properties
+%             % from the given struct. 
+%             %
+%             % This method is only implemented as the property assignment
+%             % order is important for a reduced model (example: cannot set
+%             % an error estimator before having set the models system)
+%             obj = models.ReducedModel;
+%             
+%             % Load BaseModel's properties
+%             obj = loadobj@models.BaseModel(s, obj);
+%             
+%             % Load local properties
+%             di = ALoadable.getObjectDict;
+%             ex = di(s.FullModel.ID);
+%             if ~isempty(ex)
+%                 obj.FullModel = ex;
+%             else
+%                 obj.FullModel = s.FullModel;
+%             end
+%             obj.V = s.V; obj.W = s.W;
+%             obj.ParamSamples = s.ParamSamples;
+%             obj.ErrorEstimator = s.ErrorEstimator;
+%         end
+%     end
     
 end
 

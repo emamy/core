@@ -6,9 +6,6 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
     % @todo IMPORTANT: Allow different kernels for different centers!
     
     properties
-        % The coefficient data for each dimension.
-        Ma;
-        
         % The `b_k` offsets for each dimension.
         %
         % Set to empty if no offsets are used. This property is
@@ -16,7 +13,14 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
         off = [];
     end
     
+    properties(Dependent)
+        % The coefficient data for each dimension.
+        Ma;
+    end
+    
     properties(Access=private)
+        machanged = true;
+        fMa;
         Ma_norms;
     end
     
@@ -40,6 +44,10 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
             % @todo validate computation
             
             %k = abs(this.TimeKernel.evaluate(this.Centers.ti,t).*this.ParamKernel.evaluate(this.Centers.mui,mu));
+            if this.machanged
+                this.Ma_norms = sqrt(sum(this.Ma.^2,1));
+                this.machanged = false;
+            end
             c = sum(this.Ma_norms) * this.SystemKernel.getGlobalLipschitz;
             %warning('some:id','not yet implemented/validated correctly!');
         end
@@ -54,13 +62,17 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
             target = clone@dscomponents.AKernelCoreFun(this, target);
             
             % Copy local variables
-            target.Ma = this.Ma;
+            target.fMa = this.fMa;
             target.off = this.off;
         end
         
-        function set.Ma(this, value)
-            this.Ma_norms = sqrt(sum(value.^2));%#ok
-            this.Ma = value;
+        function m = get.Ma(this)
+            m = this.fMa;
+        end
+        
+        function set.Ma(this, value)            
+            this.machanged = true;
+            this.fMa = value;
         end
     end
         

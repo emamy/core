@@ -1,5 +1,5 @@
-classdef BaseDynSystem < handle
-    %BASEDYNSYSTEM Base class for all KerMor dynamical systems.
+classdef BaseDynSystem < KerMorObject
+    % Base class for all KerMor dynamical systems.
     %
     % To setup custom dynamical systems, inherit from this class.
     %
@@ -14,6 +14,12 @@ classdef BaseDynSystem < handle
     % For an example see the models.pcd.PCDSystem and models.pcd.CoreFun.
     %
     % @author Daniel Wirtz @date 17.03.2010
+    %
+    % @change{0,3,dw,2011-04-6} This class inherits from KerMorObject now
+    % in order to enable correct saving/loading
+    %
+    % @new{0,3,dw,2011-04-05} Added a setter for property BaseDynSystem.f
+    % that checks for self references.
     
     properties
         % The core f function from the dynamical system.
@@ -64,9 +70,25 @@ classdef BaseDynSystem < handle
         
         % The number of the system's parameters.
         ParamCount;
+        
+        % The Model this System is attached to.
+        Model;
+    end
+    
+    properties(Access=private)
+        fModel;
     end
     
     methods
+        
+        function m = get.Model(this)
+            m = this.fModel;
+        end
+        
+        function set.Model(this, value)
+            this.validateModel(value);
+            this.fModel = value;
+        end
         
         function this = BaseDynSystem
             % Creates a new base dynamical system class instance.
@@ -108,11 +130,6 @@ classdef BaseDynSystem < handle
                 mu = [];
             end
         end
-        
-    end
-    
-    %% Getter & Setter
-    methods
         
         function addParam(this, name, range, desired)
             % Adds a parameter with the given values to the parameter
@@ -168,10 +185,29 @@ classdef BaseDynSystem < handle
             end
             this.addParam(name, range, desired);
         end
-        
+    end
+    
+    methods(Access=protected)
+        function validateModel(this, model)%#ok
+            % Validates if the model to be set is a valid BaseModel at
+            % least.
+            % Extracting this function out of the setter enables subclasses
+            % to further restrict the objects that may be passed, as is
+            % being done in models.ReducedSystem, for example.
+            if ~isa(model, 'models.BaseModel')
+                error('The Model property has to be a child of models.BaseModel');
+            end
+        end
+    end
+    
+    %% Getter & Setter
+    methods
         function set.f(this,value)
             if ~isempty(value) && ~isa(value, 'dscomponents.ACoreFun')
                 error('The property "f" has to be a class implementing dscomponents.ACoreFun');
+            end
+            if (isequal(this,value))
+                warning('KerMor:selfReference','Careful with self-referencing classes. See BaseFullModel class documentation for details.');
             end
             this.f = value;
         end
@@ -228,6 +264,25 @@ classdef BaseDynSystem < handle
             value = length(this.Inputs);
         end
     end
+    
+%     methods(Static,Access=protected)
+%         function obj = loadobj(s, obj)
+%             % Loads the BaseDynSystem part from a saved subclass.
+%             if nargin < 2
+%                 m = metaclass(s);
+%                 error('Error loading class of type %s. Cannot infer subclass in class models.BaseDynSystem, have you implemented loadobj static methods for all subclasses in the hierarchy?',m.Name);
+%             end
+%             obj = loadobj@KerMorObject(s, obj);
+%             ALoadable.loadProps(mfilename('class'), obj, s);
+% %             obj.f = s.f;
+% %             obj.B = s.B;
+% %             obj.C = s.C;
+% %             obj.Inputs = s.Inputs;
+% %             obj.Params = s.Params;
+% %             obj.x0 = s.x0;
+% %             obj.MaxTimestep = s.MaxTimestep;
+%         end
+%     end
     
 end
 

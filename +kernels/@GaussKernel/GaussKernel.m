@@ -117,8 +117,8 @@ classdef GaussKernel < kernels.BellFunction
             g = -(dist^2)/log(ep);
             this.Gamma = g;
             
-            if KerMor.App.Verbose > 0
-                fprintf('Setting Gamma = %f\n',g);
+            if KerMor.App.Verbose > 3
+                fprintf('Setting Gamma = %12.20f\n',g);
             end
         end
     end

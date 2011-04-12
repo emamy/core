@@ -4,19 +4,28 @@ classdef ReducedSystem < models.BaseDynSystem
     
     properties(Access=private)
         plotPtr;
-        reducedModel;
     end
     
     methods
-        function this = ReducedSystem(fullmodel, reducedmodel)
+        function this = ReducedSystem(rmodel)
+            % Creates a new ReducedSystem instance.
+            %
+            % Parameters:
+            % rmodel: [Optional] The reduced model to create the reduced
+            % system from.
+            if nargin == 1
+                this.setReducedModel(rmodel);
+            end
+        end
+        
+        function setReducedModel(this, rmodel)
             % Creates a reduced system from BaseFullModel child system.
             % As default, all system's components are copied as-is and any
             % reduction changes are performed in the
             % BaseFullModel.buildReducedModel method.
             %
             % Parameters:
-            % fullmodel: The full model that contains the full system
-            % reducedmodel: The instance of the reduced model that will
+            % rmodel: The instance of the reduced model that will
             % contain this instance as System property.
             %
             % Important:
@@ -27,68 +36,66 @@ classdef ReducedSystem < models.BaseDynSystem
             % also save the full model with all data.
             %
             % See also: models.BaseFullModel#buildReducedModel
-            if nargin == 0
-                error('KerMor:ReducedSystem:EmptyConstructor',...
-                    'This class should not be constructed without arguments.');
-            else
-                disp('Start building reduced system...');
-                fullsys = fullmodel.System;
-                % Clones the full system's basic (all but functions)
-                % properties
-                this.Params = fullsys.Params;
-                this.Inputs = fullsys.Inputs;
-                this.MaxTimestep = fullsys.MaxTimestep;
-                this.reducedModel = reducedmodel;
+            disp('Start building reduced system...');
+            fullmodel = rmodel.FullModel;
+            this.Model = rmodel;
+            
+            fullsys = fullmodel.System;
+            
+            % Clones the full system's basic (all but functions)
+            % properties
+            this.Params = fullsys.Params;
+            this.Inputs = fullsys.Inputs;
+            this.MaxTimestep = fullsys.MaxTimestep;
+            
+            % Copy component handles (it's NOT cloning them!)
+            % This is the default as if no reduction methods are
+            % applied (sensless but yet allowed) an identical system
+            % will be the result.
+            this.f = fullsys.f;
+            this.B = fullsys.B;
+            this.C = fullsys.C;
+            this.x0 = fullsys.x0;
+            % Set the plot-wrapper (uses the plot method from the full
+            % system)
+            this.plotPtr = @fullsys.plot;
+            
+            % Create local workspace copy
+            V = this.Model.V;
+            W = this.Model.W;
+            
+            % Figure whether preojection was setup for this system
+            if ~isempty(fullmodel.SpaceReducer)
+                if isempty(V) || isempty(W)
+                    error(['Model has a SpaceReducer but no projection'...
+                        'data is given. Forgot to call offlineGenerations?']);
+                end
+                % Project input/output
+                if ~isempty(fullsys.B)
+                    this.B = fullsys.B.project(V,W);
+                end
+                % We have a C in each case, mostly StdOutputConv.
+                this.C = fullsys.C.project(V,W);
                 
-                % Copy component handles (it's NOT cloning them!)
-                % This is the default as if no reduction methods are
-                % applied (sensless but yet allowed) an identical system
-                % will be the result.
-                this.f = fullsys.f;
-                this.B = fullsys.B;
-                this.C = fullsys.C;
-                this.x0 = fullsys.x0;
-                % Set the plot-wrapper (uses the plot method from the full
-                % system)
-                this.plotPtr = @fullsys.plot;
-                
-                % Create local workspace copy
-                V = reducedmodel.V;
-                W = reducedmodel.W;
-                
-                % Figure whether preojection was setup for this system
-                if ~isempty(fullmodel.SpaceReducer)
-                    if isempty(V) || isempty(W)
-                        error(['Model has a SpaceReducer but no projection'...
-                            'data is given. Forgot to call offlineGenerations?']);
-                    end
-                    % Project input/output
-                    if ~isempty(fullsys.B)
-                        this.B = fullsys.B.project(V,W);
-                    end
-                    % We have a C in each case, mostly StdOutputConv.
-                    this.C = fullsys.C.project(V,W);
-                    
-                    % Project the approximated CoreFun of the full model if exists
-                    if ~isempty(fullmodel.Approx)
-                        this.f = fullmodel.Approx.project(V,W);
-                    else
-                        % Otherwise at least try to project the models' full
-                        % function.
-                        this.f = fullsys.f.project(V,W);
-                    end
-                    
-                    % Project the initial value function
-                    % Dont use this.Data.V but reduced.V since the function
-                    % handle stores the local workspace and after loading the
-                    % reduced model the Data field will be [].
-                    % See ReducedModel.save for details.
-                    this.x0 = @(mu)W'*fullsys.x0(mu);
+                % Project the approximated CoreFun of the full model if exists
+                if ~isempty(fullmodel.Approx)
+                    this.f = fullmodel.Approx.project(V,W);
                 else
-                    % Only use approximated version if set
-                    if ~isempty(fullmodel.Approx)
-                        this.f = fullmodel.Approx;
-                    end
+                    % Otherwise at least try to project the models' full
+                    % function.
+                    this.f = fullsys.f.project(V,W);
+                end
+                
+                % Project the initial value function
+                % Dont use this.Data.V but reduced.V since the function
+                % handle stores the local workspace and after loading the
+                % reduced model the Data field will be [].
+                % See ReducedModel.save for details.
+                this.x0 = @(mu)W'*fullsys.x0(mu);
+            else
+                % Only use approximated version if set
+                if ~isempty(fullmodel.Approx)
+                    this.f = fullmodel.Approx;
                 end
             end
         end
@@ -97,7 +104,7 @@ classdef ReducedSystem < models.BaseDynSystem
             % Overrides the default implementation in BaseDynSystem and
             % extends the functionality of the ODE function if any error
             % estimators are enabled.
-            est = this.reducedModel.ErrorEstimator;
+            est = this.Model.ErrorEstimator;
             if ~isempty(est)
                 if est.Enabled
                     xdims = est.ExtraODEDims;
@@ -126,5 +133,28 @@ classdef ReducedSystem < models.BaseDynSystem
             this.plotPtr(model, t, y);
         end
     end
+    
+    methods(Access=protected, Sealed)
+        function validateModel(this, model)%#ok
+            % Overrides the validateModel function in BaseDynSystem.
+            % 
+            % No need to call the superclass here as ReducedModel is a
+            % child of BaseModel.
+            if ~isa(model, 'models.ReducedModel')
+                error('The Model property has to be a child of models.ReducedModel');
+            end
+        end
+    end
+    
+%     methods(Static,Access=protected)
+%         function obj = loadobj(s)
+%             obj = models.ReducedSystem;
+%             ALoadable.getObjectDict(s.ID) = obj;
+%             % Load BaseModel's properties
+%             obj = models.BaseDynSystem.loadobj(s, obj);
+%             % Load local properties
+%             obj.plotPtr = s.plotPtr;
+%         end
+%     end
 end
 

@@ -8,10 +8,11 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
     % indices `\alpha_k` used in the `k`-th dimension. off contains all
     % `b_k`.
     %
-    % The property Centers contains all state variable Centers that
-    % are relevant for the evaluation of the approximated function. (No
-    % matter how many originally have been used for the approximation
-    % computation!)
+    % The property Centers (inherited from
+    % dscomponents.CompwiseKernelCoreFun) contains all state variable
+    % Centers that are relevant for the evaluation of the approximated
+    % function. (No matter how many originally have been used for the
+    % approximation computation)
     %
     % @change{0,3,dw,2011-03-31} 
     % - Added a new property approx.BaseCompWiseKernelApprox.CoeffComp
@@ -81,6 +82,9 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
             %
             % Please take care that the CoeffComp.init method was called
             % before executing this function.
+%             if KerMor.App.Verbose > 1
+%                 fprintf('Initializing component-wise coefficient computation\n');
+%             end
             if this.ComputeParallel
                 this.computeCoeffsParallel(fxi);
             else
@@ -92,30 +96,27 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
     methods(Access=private)
         
         function computeCoeffsSerial(this, fxi)
+            % Computes the coefficients using the CoeffComp instance
+            % serially.
+            %
+            % @todo remove waitbar and connect to verbose/messaging system
             %% Non-parallel execution
-            wh = waitbar(0,'Initializing component-wise kernel approximation');
-            try
-                n = size(this.Centers.xi,2);
-                fdims = size(fxi,1);
-                this.Ma = zeros(fdims, n);
-                this.off = zeros(fdims, 1);
-                for fdim = 1:fdims
-                    waitbar(fdim/fdims+10,wh,sprintf('Computing approximation for dimension %d/%d ... %2.0f %%',fdim,fdims,(fdim/fdims)*100));
-                    
-                    % Call template method
-                    [ai, b, svidx] = this.CoeffComp.computeKernelCoefficients(fxi(fdim,:));
-                    if ~isempty(svidx)
-                        this.Ma(fdim,svidx) = ai;
-                    else
-                        this.Ma(fdim,:) = ai;
-                    end
-                    this.off(fdim) = b;
+            n = size(this.Centers.xi,2);
+            fdims = size(fxi,1);
+            this.Ma = zeros(fdims, n);
+            this.off = zeros(fdims, 1);
+            for fdim = 1:fdims
+                if KerMor.App.Verbose > 3
+                    fprintf('Computing approximation for dimension %d/%d ... %2.0f %%\n',fdim,fdims,(fdim/fdims)*100);
                 end
-                
-                close(wh);
-            catch ME
-                close(wh);
-                rethrow(ME);
+                % Call template method
+                [ai, b, svidx] = this.CoeffComp.computeKernelCoefficients(fxi(fdim,:));
+                if ~isempty(svidx)
+                    this.Ma(fdim,svidx) = ai;
+                else
+                    this.Ma(fdim,:) = ai;
+                end
+                this.off(fdim) = b;
             end
         end
         

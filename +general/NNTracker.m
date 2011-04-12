@@ -10,6 +10,9 @@ classdef NNTracker < handle
     % 
     % @new{0,3,dw,2011-03-30} Added this class to support nearest neighbor
     % tracking (in `L^2`-norm) for a successively built set of points.
+    %
+    % @new{0,3,dw,2011-04-01} Added a UniqueValues property that determines
+    % if repeatedly added values are ignored or not.
     
     properties(SetAccess=private)
         % The points matrix containing each point as a column vector
@@ -25,6 +28,12 @@ classdef NNTracker < handle
         %
         % See also: Points
         NNDists;
+        
+        % Flag that determines if values that are added more than once are
+        % ignored or not.
+        %
+        % @default true
+        UniqueValues = true;
     end
     
     methods
@@ -47,13 +56,21 @@ classdef NNTracker < handle
                 error('The point to add must be a column vector.');
             end
             
-            
             np = size(this.Points,2);
             % Previous points exist
             if np > 0
+                
                 % Prepare comparison matrix
-                X = repmat(x,1,size(this.Points,2));
+                X = repmat(x,1,np);
                 d = sqrt(sum((this.Points-X).^2,1));
+                
+                % Check if unique values should be taken
+                if this.UniqueValues && any(d == 0)
+                    if KerMor.App.Verbose > 3
+                        fprintf('NNTracker: Double value %s detected\n',num2str(x'));
+                    end
+                    return;
+                end
                 
                 % Update any closer distances
                 sm = d < this.NNDists;

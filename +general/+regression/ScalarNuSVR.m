@@ -66,7 +66,7 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             ub = ones(2*m,1)*(this.C/m);
             
             % Call solver
-            [p,d,info] = this.QPSolver.solve(Q,c,lb,ub,A,lbA,ubA,x0);
+             [p,d,info] = this.QPSolver.solve(Q,c,lb,ub,A,lbA,ubA,x0);
             
             % Convert results
             ai = T*p;

@@ -4,7 +4,15 @@ classdef KerMor < handle
     % Software documentation can be found at
     % http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
     %
+    % Any KerMor developers should check out the pages @ref development for
+    % coding guidelines and conventions.
+    %
     % @date 04.03.2011 @author Daniel Wirtz
+    %
+    % @new{0,3,dw,2011-04-05} Added a new property KerMor.DesktopLayout. As
+    % with KDE4 matlab seems to start with a pretty random layout this
+    % property enables the developer to specify a (previously saved)
+    % desktop layout to be associated with KerMor.
     %
     % @change{0,3,dw,2011-03-22} Modified the GIT repository so that
     % branches now reflect the KerMor versions.
@@ -40,31 +48,31 @@ classdef KerMor < handle
     %
     % To-Do's for KerMor:
     % @todo
-    % - message-system über alle berechnungen hinaus (ungewöhliche dinge
+    % - message-system ?ber alle berechnungen hinaus (ungew?hliche dinge
     % berichten, exit flags etc). hier eine zentrale logging-funktion die
     % je nach verbose sachen direkt plottet oder (immer!) in ein log-file
     % schreibt.. das ganze mit verbose-leveln kombinieren!
-    % - laufzeittests für reduzierte modelle
-    % - interface für ModelData/Snapshots -> entweder arbeiten auf der
-    % Festplatte oder in 4D-Array .. (für große simulationen) -> KerMor hat
-    % string für globales datenverzeichnis!
+    % - laufzeittests f?r reduzierte modelle
+    % - interface f?r ModelData/Snapshots -> entweder arbeiten auf der
+    % Festplatte oder in 4D-Array .. (f?r gro?e simulationen) -> KerMor hat
+    % string f?r globales datenverzeichnis!
     % generell datenhaltung auf festplatte (mu,inputidx-indiziert) (?) =>
     %   - berechnung kernmatrix in teilen...
-    %   - hashfunktion bernard / ggf eigene interface-fkt für eindeutige
+    %   - hashfunktion bernard / ggf eigene interface-fkt f?r eindeutige
     %   dirnames
-    %   -speichermanagement: große matrizen / etc virtuell auf festplatte
+    %   -speichermanagement: gro?e matrizen / etc virtuell auf festplatte
     %   laden/speichern
     %
-    % @todo mehr tests / anwendungen für mehrere inputs aber keine parameter!
+    % @todo mehr tests / anwendungen f?r mehrere inputs aber keine parameter!
     %
     % @todo Verbose-Level benutzen / anpassen
     %
-    % @todo test für rotationssensitive kerne!
+    % @todo test f?r rotationssensitive kerne!
     %
-    % @todo: snapshotgenerierung -> mit fehlerschätzer auswählen! (3-4
-    % zufällig, dann approx, fehler -> neuen snapshot beim größten fehler etc)
+    % @todo: snapshotgenerierung -> mit fehlersch?tzer ausw?hlen! (3-4
+    % zuf?llig, dann approx, fehler -> neuen snapshot beim gr??ten fehler etc)
     %
-    % @todo: moving least squares (mit gewichtsfkt) für general.regression ..
+    % @todo: moving least squares (mit gewichtsfkt) f?r general.regression ..
     % -> book scattered data approx
     %
     % @todo: fft-approximation (?)
@@ -76,16 +84,16 @@ classdef KerMor < handle
     % @todo: adaptive svr (impl. `\nu`-SVR, dann snapshots adden bis tol
     % erreicht)
     %
-    % @todo: zusammenlegen von funktionen / erstellen eines general-modules für
+    % @todo: zusammenlegen von funktionen / erstellen eines general-modules f?r
     % KerMor/rbmatlab?
     %
     % @todo: try..catch langsam?
     %
-    % @todo zeitabhängige outputconvertierung?
-    % testing.MUnit auch für "nicht-packages"
+    % @todo zeitabh?ngige outputconvertierung?
+    % testing.MUnit auch f?r "nicht-packages"
     %
     %
-    % @todo: parfor für sampling / comp-wise approximation? (snaphshot-generation/approx)
+    % @todo: parfor f?r sampling / comp-wise approximation? (snaphshot-generation/approx)
     %
     % @todo benchmarks von
     % http://portal.uni-freiburg.de/imteksimulation/downloads/benchmark
@@ -93,61 +101,61 @@ classdef KerMor < handle
     %
     % @todo Beispiele von ODE's aus Matlab-Docs? (verficiation)
     %
-    % @todo Fehlerschätzer auf Output beschränken/erweitern!
+    % @todo Fehlersch?tzer auf Output beschr?nken/erweitern!
     %
     % @todo Mehr ODE-Solver (implizit) einbauen, ggf. eigenen RK23 oder so.
     %
     % @todo LaGrange-koeffizientenfunktionen bei kerninterpolation berechnen!
     % ist insgesamt billiger falls `N<<n`
     %
-    % @todo: test für newton-iteration!
+    % @todo: test f?r newton-iteration!
     %
-    % @todo Implementierung Balanced Truncation (mit base class) für
-    % LinearCoreFuns, dann implementierung balanced truncation für empirical
-    % gramians nach paper Lall et al. -> neue subspace reduction method für
-    % nonlin-systems mit inputs! (geht ggf. auch für systeme ohne inputs? probieren!)
+    % @todo Implementierung Balanced Truncation (mit base class) f?r
+    % LinearCoreFuns, dann implementierung balanced truncation f?r empirical
+    % gramians nach paper Lall et al. -> neue subspace reduction method f?r
+    % nonlin-systems mit inputs! (geht ggf. auch f?r systeme ohne inputs? probieren!)
     %
-    % @todo vielleicht so etwas wie "isValid" für jede modellkomponente, das
-    % vor start von teuren berechnungen prüft ob alles so durchgeht und keine
-    % inkompatibilitäten auftreten (z.B. krylov - LinearCoreFun)
+    % @todo vielleicht so etwas wie "isValid" f?r jede modellkomponente, das
+    % vor start von teuren berechnungen pr?ft ob alles so durchgeht und keine
+    % inkompatibilit?ten auftreten (z.B. krylov - LinearCoreFun)
     %
-    % @todo check ob es eine möglichkeit gibt zu prüfen ob alle unterklassen
+    % @todo check ob es eine m?glichkeit gibt zu pr?fen ob alle unterklassen
     % von projizierbaren klassen die project-methode der oberklasse aufrufen!?
-    % könnte sonst zu komischen fehlern führen..
+    % k?nnte sonst zu komischen fehlern f?hren..
     %
     % @todo check warum der error estimator nach einem save vom reduzierten
     % modell nicht gespeichert wird.
     %
-    % @todo 16.09.2010: für skalarprodukt-kerne eigenes interface
-    % implementieren und dann ggf. für W=V korrekt projezieren + TEST
+    % @todo 16.09.2010: f?r skalarprodukt-kerne eigenes interface
+    % implementieren und dann ggf. f?r W=V korrekt projezieren + TEST
     % schreiben!
     %
-    % @todo cacher aus RBMatlab portieren/übertragen!
+    % @todo cacher aus RBMatlab portieren/?bertragen!
     %
-    % @todo t-partitioning für KerMor? ideen mit markus austauschen!
+    % @todo t-partitioning f?r KerMor? ideen mit markus austauschen!
     %
-    % @todo check ob die Norm von kernexpansionen mit offset-term b ähnlich
+    % @todo check ob die Norm von kernexpansionen mit offset-term b ?hnlich
     % bleibt!
     %
     % @todo MUnit erweitern um benchmark-mode, so das anstelle von "test_"
-    % prefix-fkt alle mit "bench_" ausgeführt werden; (rückgabe ist in dem fall
+    % prefix-fkt alle mit "bench_" ausgef?hrt werden; (r?ckgabe ist in dem fall
     % ggf ein struct mit algorithmus und zeiten)
     %
-    % @todo eigene POD-Basen für verschiedene Teile des systems denen andere
+    % @todo eigene POD-Basen f?r verschiedene Teile des systems denen andere
     % physik zugrunde liegt (i.e. f(x) => [f_1(x); f_2(x)]), mit einzelner
-    % auswertung? dazu müsste man indexmatrizen einrichten die die
+    % auswertung? dazu m?sste man indexmatrizen einrichten die die
     % verschiedenen teile von f bezeichnen... (Motivation: "Application of POD
     % and DEIM for MOR of Nonl. Miscible Viscous Flow, Chaturantabut/Sorensen)
     %
-    % @todo fehlerschätzer gegen die volle, nicht projizierte
-    % kernelapproximation einrichten? damit kann man den aktuell beschätzten
+    % @todo fehlersch?tzer gegen die volle, nicht projizierte
+    % kernelapproximation einrichten? damit kann man den aktuell besch?tzten
     % fehler besser bekommen..
     %
-    % @todo sekantenabschätzung per kernregression vorab für 1D berechnen? dann
-    % entfällt das newton-problem lösen. interpolation z.B. geht auch für
-    % fehlerabschätzung um die rigorosität zu erhalten.
+    % @todo sekantenabsch?tzung per kernregression vorab f?r 1D berechnen? dann
+    % entf?llt das newton-problem l?sen. interpolation z.B. geht auch f?r
+    % fehlerabsch?tzung um die rigorosit?t zu erhalten.
     %
-    % @todo timedirty überarbeiten / rausnehmen etc, sollte auch einzelaufrufe
+    % @todo timedirty ?berarbeiten / rausnehmen etc, sollte auch einzelaufrufe
     % zu offX checken.
     %
     % @todo umstellen von simulate(mu,inputidx) auf simulate +
@@ -181,6 +189,15 @@ classdef KerMor < handle
         % The directory to use for temporary simulation data
         % @default ./temp
         TempDirectory = '';
+        
+        % The preferred desktop layout to work with.
+        %
+        % If you work with different desktop layouts or the KDE JUST DOES
+        % NOT GET IT you can save your custom desktop layout and set this
+        % property to its name. Upon start, KerMor will restore the layout
+        % for you automatically. Set to '' to disable.
+        % @default empty
+        DesktopLayout = '';
         
         % The source directory for a copy of rbmatlab
         %
@@ -229,7 +246,7 @@ classdef KerMor < handle
     methods
           
         function set.DataStoreDirectory(this, ds)
-            if ~isdir(ds)
+            if ~isempty(ds) && ~isdir(ds)
                 fprintf('Creating directory %s\n',ds);
                 mkdir(ds);
             end
@@ -239,13 +256,18 @@ classdef KerMor < handle
         end
         
         function set.TempDirectory(this, tmp)
-            if ~isdir(tmp)
+            if ~isempty(tmp) && ~isdir(tmp)
                 fprintf('Creating directory %s\n',tmp);
                 mkdir(tmp);
             end
             setpref('KERMOR','TMPDIR',tmp);
             this.TempDirectory = tmp;
             fprintf('Temporary files: %s\n',tmp);
+        end
+        
+        function set.DesktopLayout(this, value)
+            setpref('KERMOR','DESKLAYOUT',value);
+            this.DesktopLayout = value;
         end
         
         function set.rbmatlabDirectory(this, ds)
@@ -313,6 +335,16 @@ classdef KerMor < handle
                 end
             else
                 h = this.TempDirectory;
+            end
+        end
+        
+        function d = get.DesktopLayout(this)
+            % recover values if clear classes has been issued
+            if isempty(this.DesktopLayout)
+                d = getpref('KERMOR','DESKLAYOUT','');
+                this.DesktopLayout = d;
+            else
+                d = this.DesktopLayout;
             end
         end
         
@@ -384,6 +416,11 @@ classdef KerMor < handle
             cd(p);
             clear('p');
             
+            if ~isempty(this.DesktopLayout)
+                fprintf('Applying desktop layout %s..\n',this.DesktopLayout);
+                desktop = com.mathworks.mde.desk.MLDesktop.getInstance;
+                desktop.restoreLayout(this.DesktopLayout);
+            end
             
             disp('<<<<<<<<< Ready to go. >>>>>>>>>>');
             
@@ -420,6 +457,9 @@ classdef KerMor < handle
                 % implemented/wrapped
                 disp('Checking for 3rd party software...')
                 addpath(fullfile(p,'3rdparty'));
+                
+                % md5
+                %addpath(fullfile(p,'3rdparty','md5'));
                 
                 % ipopt
                 addpath(fullfile(p,'3rdparty','ipopt'));

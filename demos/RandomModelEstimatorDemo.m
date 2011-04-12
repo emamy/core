@@ -35,7 +35,6 @@ classdef RandomModelEstimatorDemo < EstimatorDemo
             
             %% Model settings
             fm = models.BaseFullModel;
-            fm.Verbose = 0;
             fm.Name = 'Estimator Demo Model';
             
             fm.T = 1;

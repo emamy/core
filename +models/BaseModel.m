@@ -1,4 +1,4 @@
-classdef BaseModel < handle
+classdef BaseModel < KerMorObject
     % Base class for both full and reduced models.
     %
     % This class gathers all common functionalities of models in the
@@ -11,6 +11,11 @@ classdef BaseModel < handle
     %
     % @author Daniel Wirtz @date 19.03.2010
     %
+    % @change{0,3,dw,2011-04-05} 
+    % - Removed the getConfigStr-Method and moved it to
+    % general.Utils.getObjectConfig
+    % - Added a setter for System checking for self-references
+    %
     % @new{0,2,dw,2011-03-08} Implemented time scaling via addition of the
     % property models.BaseModel.tau and dependent attributes
     % models.BaseModel.dtscaled and models.BaseModel.Tscaled. This
@@ -22,6 +27,7 @@ classdef BaseModel < handle
     %
     % @change{0,1,dw} Generalized scalar product via `<x,y>_G = x^tGy`,
     % default `I_d` for `d\in\N`
+    %
     % @new{0,1,dw} String output of all model settings via method
     % getObjectConfig
     
@@ -31,24 +37,12 @@ classdef BaseModel < handle
         
         % The name of the Model
         Name = 'Base Model';
-        
-        % The verbose output level at simulations
-        Verbose = 0;
-        
+                
         % The final timestep up to which to simulate.
         %
         % NOTE: When changing this property any offline computations have
         % to be repeated in order to obtain a new reduced model.
         T = 1;
-        
-        % The desired time-stepsize for simulations
-        %
-        % NOTE: When changing this property any offline computations have
-        % to be repeated in order to obtain a new reduced model.
-        %
-        % @default 0.1
-        % See also: dtscaled
-        dt = .1;
         
         % The solver to use for the ODE.
         % Must be an instance of any solvers.BaseSolver subclass.
@@ -72,14 +66,6 @@ classdef BaseModel < handle
         % Default:
         % 1
         G = 1;
-        
-        % Time scaling factor
-        %
-        % If used, the values from T and dt are getting scaled by tau when
-        % calling simulate.
-        %
-        % @default 1
-        tau = 1;
     end
     
     properties(Dependent)
@@ -96,6 +82,23 @@ classdef BaseModel < handle
         % If tau is used, this value is `\tilde{T} = T/\tau`
         % See also: tau T
         Tscaled;
+        
+        % Time scaling factor
+        %
+        % If used, the values from T and dt are getting scaled by tau when
+        % calling simulate.
+        %
+        % @default 1
+        tau;
+        
+        % The desired time-stepsize for simulations
+        %
+        % NOTE: When changing this property any offline computations have
+        % to be repeated in order to obtain a new reduced model.
+        %
+        % @default 0.1
+        % See also: dtscaled
+        dt;
     end
     
     properties(Access=protected)
@@ -115,6 +118,11 @@ classdef BaseModel < handle
         % @default .1 (as in dt)
         % See also: tau dt
         dtscaled = .1;
+    end
+    
+    properties(Access=private)
+        ftau = 1;
+        fdt = .1;
     end
     
     methods
@@ -192,16 +200,6 @@ classdef BaseModel < handle
             xlabel(ax,'Time'); ylabel(ax,'Output functions');
         end
         
-        function cfg = getConfigStr(this)
-            % Returns a string that contains all available class and
-            % subclass information about the current model.
-            
-            %res = ['Configuration of model ''' this.Name '''' this.getObjectConfig(this, 0, 20)];
-            %cfg = res;
-            %cfg = sprintf(res);
-            cfg = sprintf(['Configuration of model ''' this.Name '''' this.getObjectConfig(this, 0, 20)]);
-        end
-        
         function [t,x] = computeTrajectory(this, mu, inputidx)
             % Computes a solution/trajectory for the given mu and inputidx.
             %
@@ -254,6 +252,24 @@ classdef BaseModel < handle
             % Scale times back to real units
             t = t*this.tau;
         end
+        
+%         function target = clone(this, target)            
+%             % Clones this instance into another instance given by target.
+%             if nargin < 2 || ~isa(target, 'models.BaseModel')
+%                 error('The target argument must be given and a valid BaseModel subclass.');
+%             end
+%             % Clone the system & odesolver, too
+%             target.System = this.System.clone;
+%             target.ODESolver = this.ODESolver.clone;
+%             target.Name = this.Name;
+%             target.Verbose = this.Verbose;
+%             target.T = this.T;
+%             target.dt = this.dt;
+%             target.G = this.G;
+%             target.tau = this.tau;
+%             target.TimeDirty = this.TimeDirty;
+%             target.dtscaled = this.dtscaled;
+%         end
     end
     
     methods(Access=protected)
@@ -271,18 +287,7 @@ classdef BaseModel < handle
         end
     end
     
-    methods(Access=protected,Sealed)
-               
-        function checkType(this, obj, type)%#ok
-            % Object typechecker.
-            % Checks if a given object is of the specified type and throws
-            % an error if not.
-            % Convenience method.
-            if ~isempty(obj) && ~isa(obj, type)
-                error(['Wrong type ''' class(obj) ''' for this property. Has to be a ' type]);
-            end
-        end
-    end
+    
     
     %% Getter & Setter
     methods
@@ -302,43 +307,54 @@ classdef BaseModel < handle
             end
         end
         
+        function dt = get.dt(this)
+            dt = this.fdt;
+        end
+        
+        function tau = get.tau(this)
+            tau = this.ftau;
+        end
+        
         function set.T(this, value)
             if ~isposrealscalar(value)
                 error('T must be a positive real scalar.');
             end
             if this.T ~= value
                 this.T = value;
-                this.TimeDirty = true;%#ok
+                this.TimeDirty = true;%#ok -> setter does not change anything
             end
         end
         
         function set.dt(this, value)
             if ~isposrealscalar(value)
-                error('T must be a positive real scalar.');
+                error('dt must be a positive real scalar.');
             end
-            if this.dt ~= value
-                if isempty(this.tau)%#ok
-                    this.dtscaled = value;%#ok
-                else
-                    this.dtscaled = value/this.tau;%#ok
-                end
-                this.dt = value;
-                this.TimeDirty = true;%#ok
+            if this.fdt ~= value
+                this.dtscaled = value/this.ftau;
+                this.fdt = value;
+                this.TimeDirty = true;
             end
-            
         end
         
         function set.tau(this, value)
             if ~isposrealscalar(value)
                 error('tau must be a positive real scalar.');
             end
-            if this.tau ~= value
-                if ~isempty(this.dt)%#ok
-                    this.dtscaled = this.dt/value;%#ok
-                end
-                this.tau = value;
-                this.TimeDirty = true;%#ok
+            if this.ftau ~= value
+                this.dtscaled = this.fdt/value;
+                this.ftau = value;
+                this.TimeDirty = true;
             end
+        end
+        
+        function set.System(this, value)
+            if ~isa(value,'models.BaseDynSystem')
+                error('The System property must be a subclass of models.BaseDynSystem.');
+            end
+            if (isequal(this,value))
+                warning('KerMor:selfReference','Careful with self-referencing classes. See BaseFullModel class documentation for details.');
+            end
+            this.System = value;
         end
         
         function set.G(this, value)
@@ -350,66 +366,51 @@ classdef BaseModel < handle
             this.checkType(value,'solvers.BaseSolver');%#ok
             this.ODESolver = value;
         end
+        
     end
     
-    methods(Access=private)
-        function str = getObjectConfig(this, obj, numtabs, depth)
-            str = '';
-            if depth == 0
-                warning('Un:important','Exceeded the maximal recursion depth. Ignoring deeper objects.');
-                return;
-            end
-            mc = metaclass(obj);
-            if isfield(obj,'Name')
-                name = obj.Name;
-            else
-                name = mc.Name;
-            end
-            str = [str ': ' name '\n'];
-            for idx = 1:length(mc.Properties)
-                p = mc.Properties{idx};
-                if strcmp(p.GetAccess,'public')
-                    str = [str repmat('\t',1,numtabs)];%#ok
-                    pobj = obj.(p.Name);
-                    if ~isempty(pobj) && ~isequal(obj,pobj)
-                        if isobject(pobj)
-                            str = [str p.Name this.getObjectConfig(pobj, numtabs+1, depth-1)];%#ok
-                        elseif isnumeric(pobj)
-                            if numel(pobj) > 20
-                                str = [str p.Name ': [' num2str(size(pobj)) '] ' class(pobj)];%#ok
-                            else
-                                pobj = reshape(pobj,1,[]);
-                                str = [str p.Name ': ' num2str(pobj)];%#ok
-                            end
-                        elseif isstruct(pobj)
-                            if any(size(pobj) > 1)
-                                str = [str p.Name ' (struct, [' num2str(size(pobj)) ']), fields: '];%#ok
-                            else
-                                str = [str p.Name ' (struct), fields: '];%#ok
-                            end
-                            fn = fieldnames(pobj);
-                            for fnidx = 1:length(fn)
-                                %str = [str fn{fnidx} this.getObjectConfig(pobj, numtabs+1, depth-1)];%#ok
-                                str = [str fn{fnidx} ','];%#ok
-                            end
-                            str = str(1:end-1);
-                        elseif isa(pobj,'function_handle')
-                            str = [str p.Name ' (f-handle): ' func2str(pobj)];%#ok
-                        end
-                    else
-                        if isequal(obj,pobj)
-                            str = [str p.Name ': self-reference'];%#ok
-                        else
-                            str = [str p.Name ': empty'];%#ok
-                        end
-                    end
-                    str = [str '\n'];%#ok
-                    %str = strcat(str,'\n');
-                end
-            end
-            % Take away the last \n
-            str = str(1:end-2);
-        end
-    end
+%     methods(Access=protected)
+%         function s = saveobj(this)
+%             % Saves this BaseModel instance to a struct.
+%             %
+%             % This method is protected as 
+%             s.System = this.System;
+%             s.Name = this.Name;
+%             s.Verbose = this.Verbose;
+%             s.T = this.T;
+%             s.dt = this.dt;
+%             s.ODESolver = this.ODESolver;
+%             s.G = this.G;
+%             s.tau = this.tau;
+%             s.TimeDirty = this.TimeDirty;
+%             s.dtscaled = this.dtscaled;
+%         end
+%     end
+%     
+%     methods (Static, Access=protected)
+%         function obj = loadobj(s, obj)
+%             % Loads the BaseModel part of the current class.
+%             %
+%             % See also: ALoadable
+%             if nargin < 2
+%                 m = metaclass(s);
+%                 error('Error loading class of type %s. Cannot infer subclass in class models.BaseModel, have you implemented loadobj static methods for all classes in the hierarchy?',m.Name);
+%             end
+%             obj = loadobj@KerMorObject(s, obj);
+%             ALoadable.loadProps(mfilename('class'), obj, s);
+% %             % Simple data type properties first
+% %             obj.Name = s.Name;
+% %             obj.T = s.T;
+% %             obj.dt = s.dt;
+% %             obj.G = s.G;
+% %             obj.tau = s.tau;
+% %             obj.TimeDirty = s.TimeDirty;
+% %             obj.dtscaled = s.dtscaled;
+% %             
+% %             % Class instances next
+% %             obj.System = s.System;
+% %             obj.ODESolver = s.ODESolver;
+%         end
+%     end
 end
 

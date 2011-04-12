@@ -54,10 +54,12 @@ classdef ExplEuler < solvers.BaseSolver
             steps = length(times);
             y = [x0 zeros(length(x0),steps-1)];
             dt = times(2:end)-times(1:end-1);
+            
             % Solve for each time step
             for idx = 2:steps;
                 y(:,idx) = y(:,idx-1) + dt(idx-1)*odefun(times(idx-1),y(:,idx-1));
             end
+
             %y = this.solveMex(odefun, times, x0);
             
             % Extract wanted values

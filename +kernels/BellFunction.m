@@ -4,6 +4,17 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
     %
     % @todo export different estimator strategies into external classes =>
     % simulation speedup, separation of concerns..
+    %
+    % @todo investigate why the newton iteration sometimes exceeds max
+    % iteration limit (example: intermittently test_LinearModelParams is
+    % such a case)
+    %
+    % @docupdate Properties and class description
+    %
+    % @new{0,3,dw,2011-04-06} Added a new property
+    % kernels.BellFunction.MaxNewtonIterations that avoids computations to
+    % hang if the newton iteration does not come to a hold. An error will
+    % be thrown as finding the correct minima is necessary.
     
     properties
         x0;
@@ -11,6 +22,8 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
         PenaltyFactor = 2;
         
         NewtonTolerance = 1e-7;
+        
+        MaxNewtonIterations = 5000;
     end
     
     properties(Dependent)
@@ -147,12 +160,17 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
             nxr = df(this.xR) - (f(this.xR)-f(y))./(this.xR-y);
             
             p = this.PenaltyFactor;
-            while any(abs(xtmp-x) > this.NewtonTolerance)
+            cnt = 0;
+            while any(abs(xtmp-x) > this.NewtonTolerance) && cnt < this.MaxNewtonIterations
                 
                 [g,dg] = optFun(x,y);
                 
                 xtmp = x;
                 x = x - g./dg;
+                cnt = cnt + 1;
+            end
+            if cnt == this.MaxNewtonIterations
+                error('Bellfunction->ModifiedNewton: Max iterations of %d reached',this.MaxNewtonIterations);
             end
             
             function [g,dg] = optFun(x,y)
