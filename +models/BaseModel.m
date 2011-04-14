@@ -38,7 +38,7 @@ classdef BaseModel < KerMorObject
         % The name of the Model
         Name = 'Base Model';
                 
-        % The final timestep up to which to simulate.
+        % The final timestep `T` up to which to simulate.
         %
         % NOTE: When changing this property any offline computations have
         % to be repeated in order to obtain a new reduced model.
@@ -52,7 +52,7 @@ classdef BaseModel < KerMorObject
         % See also: solvers BaseSolver ode23 ode45 ode113
         ODESolver;
         
-        % The custom scalar product matrix
+        % The custom scalar product matrix `G`
         %
         % In some settings the state variables have a special meaning (like
         % DOF's in FEM simulations) where the pure `L^2`-norm has less
@@ -69,21 +69,20 @@ classdef BaseModel < KerMorObject
     end
     
     properties(Dependent)
-        % Evaluation points of the model as increasing array
+        % Evaluation points `\{0=t_0,\ldots,t_n=T\}` of the model 
         Times;
         
-        % The time steps in scaled time units
+        % The time steps Times in scaled time units `\tilde{t_i} = \frac{t_i}{\tau}`
         %
         % See also: tau
         scaledTimes;
         
-        % The scaled end time T
+        % The scaled end time `\tilde{T} = \frac{T}{\tau}`
         %
-        % If tau is used, this value is `\tilde{T} = T/\tau`
         % See also: tau T
         Tscaled;
         
-        % Time scaling factor
+        % Time scaling factor `\tau`
         %
         % If used, the values from T and dt are getting scaled by tau when
         % calling simulate.
@@ -91,7 +90,7 @@ classdef BaseModel < KerMorObject
         % @default 1
         tau;
         
-        % The desired time-stepsize for simulations
+        % The desired time-stepsize `\Delta t` for simulations
         %
         % NOTE: When changing this property any offline computations have
         % to be repeated in order to obtain a new reduced model.
@@ -104,11 +103,13 @@ classdef BaseModel < KerMorObject
     properties(Access=protected)
         % Flag that indicates changes in either T or dt after
         % offlineGenerations have been performed.
+        %
+        % @todo check if this property still makes sense
         TimeDirty;
     end
     
     properties(SetAccess=private)
-        % The scaled timestep dt
+        % The scaled timestep `\tilde{\Delta t} = \frac{\Delta t}{\tau}`
         %
         % @note Due to performance reasons this property is not computed
         % dependently but fitted any time dt or tau are changed.

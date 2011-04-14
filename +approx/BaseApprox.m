@@ -9,6 +9,10 @@ classdef BaseApprox < dscomponents.ACoreFun
     %
     % @author Daniel Wirtz @date 2010-03-11
     %
+    % @new{0,3,dw,2011-04-12} New property
+    % approx.BaseApprox.TrainDataSelector. Allows to choose different
+    % strategies for training data selection.
+    %
     % @change{0,3,dw,2011-04-01} Removed the gen_approximation_data
     % template method as it basically only compiled the single xi,ti,mui
     % values which will be re-joined into the
@@ -16,32 +20,23 @@ classdef BaseApprox < dscomponents.ACoreFun
     % implemented approximation strategies. Some similar intermediate
     % method may be reintroduced later.
     
-    methods        
-        
-        function atd = selectTrainingData(this, modeldata)%#ok
-            % Default approx training data generation method.
-            %
-            % Simply takes ALL the projection training data.
-            %
-            % Important:
-            % Note that the selected training data is projected into the
-            % precomputed subspace if spacereduction is performed.
-            %
-            % Override in subclasses to tailor the selection behaviour to
-            % specific approximation functions' needs.
-            %
-            % See also:
-            % models.BaseFullModel.off4_genApproximationTrainData
-            
-            % Validity checks
-            sn = modeldata.TrainingData;
-            if isempty(sn)
-                error('No projection training data available to take approximation training data from.');
-            end
-
-            atd = sn;
+    properties
+        % The algorithm that selects the approximation training data.
+        %
+        % See also: DefaultSelector LinspaceSelector TimeSelector
+        % @default approx.selection.TimeSelector
+        TrainDataSelector;
+    end
+    
+    methods
+        function this = BaseApprox
+            this.TrainDataSelector = approx.selection.TimeSelector;
         end
         
+        function copy = clone(this, copy)
+            copy = clone@dscomponents.ACoreFun(this, copy);
+            copy.TrainDataSelector = this.TrainDataSelector;
+        end
     end
     
     methods(Abstract)

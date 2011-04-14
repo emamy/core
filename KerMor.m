@@ -4,39 +4,38 @@ classdef KerMor < handle
     % Software documentation can be found at
     % http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
     %
-    % Any KerMor developers should check out the pages @ref development for
-    % coding guidelines and conventions.
+    % Any KerMor developers should check out the pages @ref development for coding guidelines and
+    % conventions.
     %
-    % @date 04.03.2011 @author Daniel Wirtz
+    % @author Daniel Wirtz @date 2011-03-04
     %
-    % @new{0,3,dw,2011-04-05} Added a new property KerMor.DesktopLayout. As
-    % with KDE4 matlab seems to start with a pretty random layout this
-    % property enables the developer to specify a (previously saved)
-    % desktop layout to be associated with KerMor.
+    % @change{0,3,dw,2011-04-12} 
+    % - Included the setup script for Devel in the installation procedure.
+    % - Added new properties MainVersion and SubVersion to this class for global versioning.
     %
-    % @change{0,3,dw,2011-03-22} Modified the GIT repository so that
-    % branches now reflect the KerMor versions.
+    % @new{0,3,dw,2011-04-05} Added a new property KerMor.DesktopLayout. As with KDE4 matlab seems
+    % to start with a pretty random layout this property enables the developer to specify a
+    % (previously saved) desktop layout to be associated with KerMor.
     %
-    % @change{0,2,dw,2011-03-21} Nicer color output for the
-    % KerMor.createDocs command and the log file is printed directly in
-    % MatLab.
+    % @change{0,3,dw,2011-03-22} Modified the GIT repository so that branches now reflect the KerMor
+    % versions.
     %
-    % @new{0,2,dw,2011-03-17} Added the fields @ref KerMor.Hasrbmatlab and
-    % KerMor.rbmatlabDirectory. This allows to register a copy of rbmatlab
-    % located at the 'rbmatlabDirectory' with KerMor. Without having setup
-    % this directory any models.rbmatlab classes will not work correctly.
+    % @change{0,2,dw,2011-03-21} Nicer color output for the KerMor.createDocs command and the log
+    % file is printed directly in MatLab.
     %
-    % @change{0,2,dw,2011-03-09} Included a developer key parameter into
-    % the '@@new' and '@@change{0' tags to create a link to the author of the
-    % new features or changes.
+    % @new{0,2,dw,2011-03-17} Added the fields @ref KerMor.Hasrbmatlab and KerMor.rbmatlabDirectory.
+    % This allows to register a copy of rbmatlab located at the 'rbmatlabDirectory' with KerMor.
+    % Without having setup this directory any models.rbmatlab classes will not work correctly.
+    %
+    % @change{0,2,dw,2011-03-09} Included a developer key parameter into the '@@new' and
+    % '@@change{0' tags to create a link to the author of the new features or changes.
     %
     % @new{0,2,dw,2011-03-09}
-    % - Added installation routines for unix systems.
-    % Now one can download the sources from a git repository and simply
-    % call KerMor.install to prepare the environment & compile any
-    % included mex files.
-    % - Added a KerMor.createDocs static method to create the
-    % documentation from within the matlab environment.
+    % - Added installation routines for unix systems. Now one can download the sources from a git
+    % repository and simply call KerMor.install to prepare the environment & compile any included
+    % mex files.
+    % - Added a KerMor.createDocs static method to create the documentation from within the matlab
+    % environment.
     %
     % @new{0,2,dw,2011-03-08} Created a new Doxygen keyword '@@new' for new
     % feature versioning lists
@@ -175,6 +174,24 @@ classdef KerMor < handle
     %
     % @todo !!!!!!!!!!!!!!!!!! include kernel expansion offset 'b' into
     % error estimators! (yet only valid for b=0)
+    
+    properties(Constant)
+        % The current KerMor main version number
+        %
+        % Change only AFTER committing the final last version's state.
+        % Used in Devel to fill the new class templates etc.
+        %
+        % See also: SubVersion
+        MainVersion = '0';
+        
+        % The current KerMor sub version number
+        %
+        % Change only AFTER committing the final last version's state.
+        % Used in Devel to fill the new class templates etc.
+        %
+        % See also: MainVersion
+        SubVersion = '3';
+    end
     
     properties
         % The directory to use for simulation data storage
@@ -542,6 +559,15 @@ classdef KerMor < handle
                 KerMor.installUnix;
             elseif ispc
                 KerMor.installWindows;
+            end
+            
+            %% Setup KerMor development
+            if isempty(getpref('KERMOR_DEVEL','author',''))
+                str = sprintf('Do you want to setup variables for KerMor development?\n(Y)es/(N)o: ');
+                ds = lower(input(str,'s'));
+                if isequal(ds,'y')
+                    Devel.setup;
+                end
             end
             
             %% Optional: rbmatlab

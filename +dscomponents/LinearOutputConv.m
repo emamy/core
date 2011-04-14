@@ -1,11 +1,14 @@
 classdef LinearOutputConv < dscomponents.AOutputConv
-    %STDOUTPUTCONV Standard linear output converter.
+    % Standard linear output converter.
     %
-    %   Simply forwards the system's states to the output.
-    %   If projected, the states are projected back into the original sized
-    %   state space.
+    % Simply forwards the system's states to the output.
+    % If projected, the states are projected back into the original sized
+    % state space.
     %
     % @author Daniel Wirtz @date 15.03.2010
+    %
+    % @change{0,3,dw,2011-04-11} Due to the new inheritance IProjectable <
+    % ICloneable the clone method is implemented here now, too.
     
     properties(Access=private)
         C;
@@ -23,10 +26,13 @@ classdef LinearOutputConv < dscomponents.AOutputConv
         
         function copy = project(this, V, W)%#ok
             % Performs projection for the standard output conversion.
-            %
-            % Simply creates a new instance (to keep the full model
-            % running) and sets the projection matrix.
-            copy = dscomponents.LinearOutputConv(this.C*V);
+            copy = this.clone;
+            copy.C = this.C*V;
+        end
+        
+        function copy = clone(this)
+            copy = dscomponents.LinearOutputConv(this.C);
+            copy = clone@dscomponents.AOutputConv(this, copy);
         end
         
         function C = evaluate(this, t, mu)%#ok

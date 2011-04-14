@@ -53,6 +53,10 @@ classdef AOutputConv < dscomponents.IProjectable
                 y = this.evaluate([],mu)*x;
             end
         end
+        
+        function copy = clone(this, copy)
+            copy.TimeDependent = this.TimeDependent;
+        end
     end
     
     methods(Abstract)

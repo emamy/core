@@ -12,12 +12,6 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
     % @new{0,3,dw,2011-04-01} Added this class.
     
     properties
-        % The maximum size of the approximation training data set.
-        %
-        % @default 5000
-        % See also: selectTrainingData
-        MaxTrainingSize = 5000;
-        
         % The maximum size of the expansion to produce.
         %
         % Equals the maximum number of iterations to perform during
@@ -27,10 +21,43 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
         % @default 200
         MaxExpansionSize = 150;
         
-        dfact = .05; % 2;
-        gameps = .7; %.5;
+        % The number of different Gamma values to try
+        NumGammas = 20;
+        
+        % Value for initial Gamma choice.
+        gameps = .6;
+        
+        % Stopping condition property. Maximum relative error that may occur
+        %
+        % @default 1e-5
+        MaxRelErr = 1e-5;
+        
+        % Stopping condition property. 
+        %
+        % Factor for maximum absolute error that may occur. Factor means that this value will be
+        % multiplied by the maximum value of the approximation training data f-Values used to train
+        % this approximation. This way, one defines the fraction of the maximum error that is
+        % maximally allowed.
+        %
+        % @default 1e-5
+        MaxAbsErrFactor = 1e-5;
+        
+        % The error functional to use
+        % 1 = `L^\infty`-Error (max diff over all vecs & dimensions)
+        % 2 = `L^2`-Error (vector-wise L^2, then max)
+        ErrFun = 1;
     end
-
+    
+    properties(Transient, SetAccess=private)
+        % Contains the maximum errors for each iteration/center extension step performed by the last
+        % run of this algorithm.
+        MaxErrors = [];
+    end
+    
+    properties(Transient, Access=private)
+        effabs;
+    end
+    
     methods
         
         function approximateCoreFun(this, model)
@@ -39,6 +66,16 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             % @docupdate
             % @todo Think about suitable stopping condition (relative error
             % change?)
+            
+            %% Experimental settings
+            fac = 4;
+            minfac = .001; % min factor for BB diameters at initial gamma choice
+            dfun = @logsp; % gamma distances comp fun (linsp / logsp)
+            if this.ErrFun == 1
+                errfun = @getLInftyErr; % L^inf error function
+            else
+                errfun = @getL2Err; % L^2 error function
+            end
             
             %% Checks
             % This algorithm so far works only with Gaussian kernels
@@ -68,25 +105,26 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             %% Compute bounding boxes & center
             [BXmin, BXmax] = general.Utils.getBoundingBox(atd(4:end,:));
             Btmin = min(atd(3,:)); Btmax = max(atd(3,:));
+            % Get bounding box diameters
+            bxdia = norm(BXmax - BXmin);
+            btdia = Btmax-Btmin;
             if hasparams
                 [BPmin, BPmax] = general.Utils.getBoundingBox(...
                     model.Data.getParams(unique(atd(1,:))));
                 thecenter = [BXmin+BXmax; Btmin+Btmax; BPmin + BPmax]/2;
                 B = [atd(3:end,:); params];
+                bpdia = norm(BPmax - BPmin);
             else
                 thecenter = [BXmin+BXmax; Btmin+Btmax]/2;
                 B = atd(3:end,:);
             end
             
             %% Select initial center x0
-            % Strategy A: Take the point that is closest to the bounding
+            % Strategy: Take the point that is closest to the bounding
             % box center!
             A = repmat(thecenter, 1, size(atd,2));
             [dummy, inIdx] = min(sum((A-B).^2,1));
             clear A B;
-            
-            % Strategy B: Select point in indices-middle
-            %inIdx = round(size(atd,2)/2);
             
             initial = atd(:,inIdx);
             this.Centers.xi = initial(4:end);
@@ -105,34 +143,209 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             this.Ma = fx(:,inIdx);
             this.off = [];
             
-            %% Choose initial gamma
-            % Current strategy: Choose Gammas that make Gaussians equal .5
-            % over half the shortest bounding boxes dimension!
-            def_dx = norm(BXmax - BXmin) / this.dfact;
-            this.SystemKernel.setGammaForDistance(def_dx,this.gameps);
+            %% Choose initial gammas
+            dists = [dfun(minfac*bxdia, fac*bxdia); dfun(minfac*btdia, fac*btdia)];
+            if hasparams
+                dists = [dists; dfun(minfac*bpdia, fac*bpdia)];
+            end
+            minerr = Inf; gt = []; gp = [];
+            for idx = 1:size(dists,2)
+                gx = this.SystemKernel.setGammaForDistance(dists(1,idx),this.gameps);
+                if ~isa(this.TimeKernel,'kernels.NoKernel')
+                    gt = this.TimeKernel.setGammaForDistance(dists(2,idx),this.gameps);
+                end
+                if hasparams && ~isa(this.ParamKernel,'kernels.NoKernel')
+                    gp = this.ParamKernel.setGammaForDistance(dists(3,idx),this.gameps);
+                end
+                
+                val = errfun();
+                if val < minerr
+                    minerr = val;
+                    bestgx = gx;
+                    bestgt = gt;
+                    bestgp = gp;
+                end
+            end
+            %% Assign best values
+            this.SystemKernel.Gamma = bestgx;
             if ~isa(this.TimeKernel,'kernels.NoKernel')
-                def_dt = (Btmax - Btmin) / this.dfact;
-                this.TimeKernel.setGammaForDistance(def_dt,this.gameps);
+                this.TimeKernel.Gamma = bestgt;
             end
             if hasparams && ~isa(this.ParamKernel,'kernels.NoKernel')
-                def_dp = norm(BPmax - BPmin) / this.dfact;
-                this.ParamKernel.setGammaForDistance(def_dp,this.gameps);
+                this.ParamKernel.Gamma = bestgp;
+            end
+            if KerMor.App.Verbose > 1
+                fprintf('Initial gammas: SK:%e, TK:%e, PK:%e\n',bestgx,bestgt,bestgp);
             end
             
             %% Outer control loop
-            cnt = 0;
+            cnt = 1;
+            % Stopping condition preps
+            this.effabs = this.MaxAbsErrFactor * max(abs(model.Data.ApproxfValues(:)));
+            
+            % Keep track of maximum errors
+            this.MaxErrors = zeros(size(1,this.MaxExpansionSize));
             while true
                 
                 %% Determine maximum error over training data
-                fhat = this.evaluate(atd(4:end,:),atd(3,:),params);
-                errs = sum((model.Data.ApproxfValues - fhat).^2);
-                [val, maxidx] = max(errs);
+                [val, maxidx, errs] = errfun();
                 rel = val / (norm(model.Data.ApproxfValues(maxidx))+eps);
+                this.MaxErrors(cnt) = val;
                 
-                if KerMor.App.Verbose > 1
+                %% Verbose stuff
+                if KerMor.App.Verbose > 2
+                    doPlots;
+                end
+                
+                %% Stopping condition
+                if this.checkStop(cnt, rel, val)
+                    break;
+                end
+
+                % Add maxidx to list of used centers
+                used(end+1) = maxidx;%#ok
+                
+                %% Extend centers
+                new = atd(:,maxidx);
+                this.Centers.xi(:,end+1) = new(4:end);
+                this.Centers.ti(end+1) = new(3);
+                if hasparams
+                    this.Centers.mui(:,end+1) = params(:,maxidx);
+                    np.addPoint(params(:,maxidx));
+                end
+                % Add points to nearest neighbor trackers (for gamma comp)
+                nx.addPoint(new(4:end));
+                nt.addPoint(new(3));
+                
+                %% Compute new approximation
+                dists = [dfun(nx.getMinNN/2, fac*bxdia); dfun(nt.getMinNN/2, fac*btdia)];
+                if hasparams
+                    minnn = bpdia/this.NumGammas;
+                    if ~isinf(np.getMinNN)
+                        minnn = np.getMinNN/2;
+                    end
+                    dists = [dists; dfun(minnn, fac*bpdia)];%#ok
+                end
+                
+                if KerMor.App.Verbose > 2
+                    %dists%#ok
+                end
+                
+                minerr = Inf; gt = []; gp = [];
+                for gidx = 1:size(dists,2)
+                    d = dists(:,gidx);
+                    % Update Kernels Gamma values
+                    gx = this.SystemKernel.setGammaForDistance(d(1),this.gameps);
+                    %if KerMor.App.Verbose > 2
+                        %fprintf('Kernels - Sys:%10f => gamma=%f',d(1),gx);
+                        fprintf('xg:%.5e',gx);
+                    %end
+                    if ~isa(this.TimeKernel,'kernels.NoKernel')
+                        gt = this.TimeKernel.setGammaForDistance(d(2),this.gameps);
+                        %if KerMor.App.Verbose > 2
+                            %fprintf(', Time:%10f => gamma=%10f',d(2),gt);
+                            fprintf(', tg:%.5e',gx);
+                        %end
+                    end
+                    if hasparams && ~isa(this.ParamKernel,'kernels.NoKernel')
+                        gp = this.ParamKernel.setGammaForDistance(d(3),this.gameps);
+                        %if KerMor.App.Verbose > 2
+                            fprintf(', pg=%.5e',gp);
+                        %end
+                    end
+
+                    %% Compute coefficients
+                    warning('off','MATLAB:nearlySingularMatrix');
+                    % Call coeffcomp preparation method and pass kernel matrix
+                    K = this.getKernelMatrix;
+                    this.CoeffComp.init(K);
+                    %figure(2);
+                    %surf(K); pause;
+                    %v = sort(eig(K),'descend');
+                    v = 1;
+
+                    % Call protected method
+                    this.computeCoeffs(model.Data.ApproxfValues(:,used));
+                    warning('on','MATLAB:nearlySingularMatrix');
+                    
+                    val = errfun();
+                    impro = (val / minerr) * 100;
+                    if val < minerr
+                        minerr = val;
+                        bestgx = gx;
+                        bestgt = gt;
+                        bestgp = gp;
+                        bestMa = this.Ma;
+                        bestoff = this.off;
+                        %if KerMor.App.Verbose > 2
+                            fprintf(' b: %.5e, %f%%',val,impro);
+                        %end
+                    else
+                        %if KerMor.App.Verbose > 2
+                            %break;
+                            fprintf(' w: %.5e, %f%%',val,impro);
+                        %end
+                    end
+                    
+                    %if KerMor.App.Verbose > 2
+                        fprintf(' Ma-norms:%.5e, eigs:%s\n',sum(sqrt(sum(this.Ma.^2,1))),num2str(v'));
+                    %end
+                
+                end
+                fprintf('\n');
+                
+                %% Assign best values
+                this.SystemKernel.Gamma = bestgx;
+                if ~isa(this.TimeKernel,'kernels.NoKernel')
+                    this.TimeKernel.Gamma = bestgt;
+                end
+                if hasparams && ~isa(this.ParamKernel,'kernels.NoKernel')
+                    this.ParamKernel.Gamma = bestgp;
+                end
+                this.Ma = bestMa;
+                this.off = bestoff;
+                
+                %if KerMor.App.Verbose > 1
+                    fprintf('-- It: %d ---- Minerr: %f ----- Best values: System:%f, Time:%f, Param:%f ----------\n',cnt,minerr,bestgx,bestgt,bestgp);
+                %end
+                
+                cnt = cnt+1;
+            end
+            
+            if KerMor.App.Verbose > 1
+                figure;
+                plot(this.MaxErrors,'r');
+            end
+            
+            function [val,idx,errs] = getLInftyErr
+                % computes the 'L^\infty'-approximation error over the
+                % training set for the current approximation
+                fhat = this.evaluate(atd(4:end,:),atd(3,:),params);
+                errs = max(abs(model.Data.ApproxfValues - fhat));
+                [val, idx] = max(errs);
+            end
+            
+            function [val,idx,errs] = getL2Err
+                % computes the 'L^\infty'-approximation error over the
+                % training set for the current approximation
+                fhat = this.evaluate(atd(4:end,:),atd(3,:),params);
+                errs = sqrt(sum((model.Data.ApproxfValues - fhat).^2));
+                [val, idx] = max(errs);
+            end
+            
+            function linsp(from, to)%#ok
+                d = linspace(from,to,this.NumGammas);
+            end
+            
+            function d = logsp(from, to)%#ok
+                d = logspace(log10(from),log10(to),this.NumGammas);
+            end
+            
+            function doPlots
+                figure(1);
                     fprintf('Max error over training data: %5.20f (relative: %10.20f)\n',val,rel);
                     pos = [1 3];
-                    if KerMor.App.Verbose > 2
+                    if KerMor.App.Verbose > 3
                         pos = 1;
                     end
                     subplot(2,2,pos);
@@ -149,7 +362,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                     plot(this.Centers.xi(:,end),'r*','MarkerSize',3);
                     
                     % Plot params & time also
-                    if KerMor.App.Verbose > 2
+                    if KerMor.App.Verbose > 3
                         subplot(2,2,3); hold off;
                         plot([Btmin, Btmax],'black');
                         axis tight;
@@ -168,132 +381,11 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                         plot(this.Centers.mui(:,end),'r*','MarkerSize',3);
                     end
                     
-                    pause;
-                end
-                
-                %% Stopping condition
-                if cnt == this.MaxExpansionSize || rel < 1e-9
-                    %pdata = [1 used size(atd,2)];
-                    %plot(pdata,1,'r*');
-                    break;
-                end
-                % Add maxidx to list of used centers
-                used(end+1) = maxidx;%#ok
-                
-                %% Extend centers
-                new = atd(:,maxidx);
-                this.Centers.xi(:,end+1) = new(4:end);
-                this.Centers.ti(end+1) = new(3);
-                if hasparams
-                    this.Centers.mui(:,end+1) = params(:,maxidx);
-                    np.addPoint(params(:,maxidx));
-                end
-                % Add points to nearest neighbor trackers (for gamma comp)
-                nx.addPoint(new(4:end));
-                nt.addPoint(new(3));
-                
-                %% Compute new gamma
-                % Update Kernels Gamma values
-                d = nx.getMaxNN/this.dfact;
-                gs = this.SystemKernel.setGammaForDistance(d,this.gameps);
-                if KerMor.App.Verbose > 2
-                    fprintf('NN state space distances: %s\n',num2str(nx.NNDists));
-                    fprintf('Kernel distances - System:%10f => gamma=%f',d,gs);
-                end
-%                 if ~isa(this.TimeKernel,'kernels.NoKernel')
-%                     if isinf(nt.getMaxNN)
-%                         distt = def_dt;
-%                     else
-%                         distt = nt.getMaxNN;
-%                     end
-%                     gt = this.TimeKernel.setGammaForDistance(distt/this.dfact,this.gameps);
-%                     if KerMor.App.Verbose > 2
-%                         fprintf(', Time:%10f => gamma=%10f',distt/this.dfact,gt);
-%                     end
-%                 end
-                if hasparams && ~isa(this.ParamKernel,'kernels.NoKernel')
-                    if isinf(np.getMaxNN)
-                        distp = def_dp;
-                    else
-                        distp = np.getMaxNN;
-                    end
-                    gp = this.ParamKernel.setGammaForDistance(distp/this.dfact,this.gameps);
-                    if KerMor.App.Verbose > 2
-                        fprintf(', Param:%10f => gamma=%10f',distp/this.dfact,gp);
-                    end
-                end
-                if KerMor.App.Verbose > 2
-                    fprintf('\n');
-                end
-                                
-                %% Compute coefficients
-                % Call coeffcomp preparation method and pass kernel matrix
-                this.CoeffComp.init(this.getKernelMatrix);
-
-                % Call protected method
-                this.computeCoeffs(model.Data.ApproxfValues(:,used));
-                
-                cnt = cnt+1;
+                   pause;
             end
-            
-                    
-%             % Reduce the snapshot array and coeff data to the
-%             % really used ones! This means if any snapshot x_n is
-%             % not used in any dimension, it is kicked out at this
-%             % stage.
-%             hlp = sum(this.Ma ~= 0,1);
-%             usedidx = find(hlp > 0);
-%             if length(usedidx) < n
-%                 this.Ma = this.Ma(:,usedidx);
-%                 this.Centers.xi = xi(:,usedidx);
-%                 if ~isempty(ti)
-%                     this.Centers.ti = ti(:,usedidx);
-%                 end
-%                 if ~isempty(mui)
-%                     this.Centers.mui = mui(:,usedidx);
-%                 end
-%             end
-%             
-%             % @todo find out when sparse representation is more
-%             % efficient!
-%             if sum(hlp) / numel(this.Ma) < .5
-%                 this.Ma = sparse(this.Ma);
-%             end
-%             
-%             % dont use offset vector if none are given
-%             if all(this.off == 0)
-%                 this.off = [];
-%             end     
+     
         end
-                
-        function atd = selectTrainingData(this, modeldata)
-            % Selects a subset of the projection training data if the size
-            % exceeds the value given in the MaxTrainingSize property.
-            % If so, MaxTrainingSize samples are taken linearly spaced over
-            % the whole training data.
-            %
-            % Important:
-            % Note that the selected training data is projected into the
-            % precomputed subspace if spacereduction is performed.
-            %
-            % Overrides the default method in BaseApprox.
-            %
-            % See also:
-            % models.BaseFullModel.off4_genApproximationTrainData
-            
-            % Validity checks
-            sn = modeldata.TrainingData;
-            if isempty(sn)
-                error('No projection training data available to take approximation training data from.');
-            end
-            if (size(sn,2) > this.MaxTrainingSize)
-                selection = round(linspace(1,size(sn,2),this.MaxTrainingSize));
-                atd = sn(:,selection);
-            else
-                atd = sn;
-            end
-        end
-        
+                        
         function target = clone(this)
             % Clones the instance.
             
@@ -305,12 +397,32 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             target = clone@approx.BaseCompWiseKernelApprox(this, target);
             
             % copy local props
-            copy.MaxTrainingSize = this.MaxTrainingSize;
             copy.MaxExpansionSize = this.MaxExpansionSize;
-            copy.dfact = this.dfact;
+            copy.NumGammas = this.NumGammas;
+            %copy.dfact = this.dfact;
             copy.gameps = this.gameps;
+            copy.MaxRelErr = this.MaxRelErr;
+            copy.MaxAbsErrFactor = this.MaxAbsErrFactor;
+            copy.MaxErrors = this.MaxErrors;
         end       
-    end   
+    end
+    
+    methods(Access=private)
+        function bool = checkStop(this,cnt,rel,val)
+            % Checks the stopping conditions 
+            bool = false;
+            if cnt == this.MaxExpansionSize
+                disp('Stopping reason: Max expansion size reached.');
+                bool = true;
+            elseif rel < this.MaxRelErr
+                fprintf('Stopping reason: relative error %.7e < %.7e\n',rel,this.MaxRelErr);
+                bool = true;
+            elseif val < this.effabs
+                fprintf('Stopping reason: absolute error %.7e < %.7e\n',val,this.effabs);
+                bool = true;
+            end
+        end
+    end
 end
 
 

@@ -174,51 +174,56 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 %% Non-parallel computation
             else
                 sn = zeros(dims+3,trajlen*num_s*num_in);
-                try
-                    wh = waitbar(0,'Initializing...');
-                    
-                    % Assume no parameters or inputs
-                    mu = [];
-                    munum = 0;
-                    inputidx = [];
-                    innum = 0;
-                    
-                    cnt = 0;
-                    % Iterate through all input functions
-                    for inidx = 1:num_in
-                        % Iterate through all parameter samples
-                        for pidx = 1:num_s
-                            
-                            % Display
+
+                % Assume no parameters or inputs
+                mu = [];
+                munum = 0;
+                inputidx = [];
+                innum = 0;
+
+                if KerMor.App.Verbose > 0
+                    fprintf('Generating projection training data...');
+                    p = 0;
+                end
+                cnt = 0;
+                % Iterate through all input functions
+                for inidx = 1:num_in
+                    % Iterate through all parameter samples
+                    for pidx = 1:num_s
+
+                        % Display
+                        if KerMor.App.Verbose > 0
                             perc = cnt/(num_in*num_s);
-                            waitbar(perc,wh,sprintf('Generating projection training data... %2.0f%%',round(perc*100)));
-                            
-                            % Check for parameters
-                            if this.Data.SampleCount > 0
-                                mu = this.Data.getParams(pidx);
-                                munum = pidx;
+                            if perc > p
+                                fprintf(' %2.0f%%',round(perc*100));
+                                p = ceil(perc*10)/10;
                             end
-                            % Check for inputs
-                            if this.System.InputCount > 0
-                                inputidx = inidx;
-                                innum = inidx;
-                            end
-                            
-                            % Get trajectory
-                            [t, x] = this.computeTrajectory(mu, inputidx);
-                            
-                            % Assign snapshot values
-                            curpos = cnt*trajlen+1;
-                            sn(:,curpos:curpos+trajlen-1) = ...
-                                [ones(1,trajlen)*munum; ones(1,trajlen)*innum; t; x];
-                            
-                            cnt=cnt+1;
                         end
+                        
+                        % Check for parameters
+                        if this.Data.SampleCount > 0
+                            mu = this.Data.getParams(pidx);
+                            munum = pidx;
+                        end
+                        % Check for inputs
+                        if this.System.InputCount > 0
+                            inputidx = inidx;
+                            innum = inidx;
+                        end
+
+                        % Get trajectory
+                        [t, x] = this.computeTrajectory(mu, inputidx);
+
+                        % Assign snapshot values
+                        curpos = cnt*trajlen+1;
+                        sn(:,curpos:curpos+trajlen-1) = ...
+                            [ones(1,trajlen)*munum; ones(1,trajlen)*innum; t; x];
+
+                        cnt=cnt+1;
                     end
-                    close(wh);
-                catch ME
-                    close(wh);
-                    rethrow(ME);
+                end
+                if KerMor.App.Verbose > 0
+                    fprintf(' complete!\n');
                 end
                 this.Data.TrainingData = sn;
             end
@@ -255,11 +260,14 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % Generates the training data `x_i` for the
             % `\hat{f}`-approximation and precomputes `f(x_i)` values.
             %
+            % @todo 
+            % - include/check MultiArgumentEvaluations-possibility in parallel execution code
+            % - Deactivated due to immense overhead and matlab crashes. investigate further
             time = tic;
             if ~isempty(this.Approx)
                 
                 % Select subset of projection training data
-                atd = this.Approx.selectTrainingData(this.Data);
+                atd = this.Approx.TrainDataSelector.selectTrainingData(this);
                 
                 % If projection is used, train approximating function in
                 % centers projected into the subspace.
@@ -269,8 +277,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 this.Data.ApproxTrainData = atd;
                 
                 % Compute f-Values at training data
-                % Deactivated due to immense overhead and matlab crashes.
-                % investigate further
                 if this.ComputeParallel
                     fval = zeros(size(this.Data.TrainingData,1)-3,size(atd,2));
                     atddata = atd(4:end,:);
@@ -290,12 +296,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     if KerMor.App.Verbose > 0
                         fprintf('Serial computation of f-values at %d points ...\n',size(atd,2));
                     end
-                    for sidx=1:size(atd,2)
-                        this.Data.ApproxfValues(:,sidx) = ...
-                            this.System.f.evaluate(atd(4:end,sidx),... % x
-                            atd(3,sidx),... % t
-                            this.Data.getParams(atd(1,sidx))); % mu
-                    end
+                    this.Data.ApproxfValues = ...
+                            this.System.f.evaluate(atd(4:end,:),... % x
+                            atd(3,:),... % t
+                            this.Data.getParams(atd(1,:))); % mu
                 end                
             end
             time = toc(time);

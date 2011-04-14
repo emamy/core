@@ -22,7 +22,7 @@ function varargout = ApproxVisualizer(varargin)
 
 % Edit the above text to modify the response to help ApproxVisualizer
 
-% Last Modified by GUIDE v2.5 12-Oct-2010 14:44:47
+% Last Modified by GUIDE v2.5 14-Apr-2011 10:44:16
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -73,6 +73,9 @@ end
 % Store data
 r = varargin{1};
 m = r.FullModel;
+if isempty(m.Approx)
+    error('The Approx field of the reduced models full model must not be empty.');
+end
 setappdata(handles.main,'r',r);
 setappdata(handles.main,'atd',m.Data.ApproxTrainData);
 
@@ -101,10 +104,10 @@ plotCurrent(handles);
 function modelToGUI(r, h)
 m = r.FullModel;
 % Disable controls specific to model settings
-if m.System.ParamCount == 0
+pc = size(r.ParamSamples,2);
+if m.System.ParamCount == 0 || pc <= 1
     set(h.pslide,'Enable','off');
 else
-    pc = size(r.ParamSamples,2);
     set(h.pslide,'Max',pc,'Min',1,'Value',1);
     set(h.pslide,'SliderStep',[1/(pc-1) 10/(pc-1)]);
 end
@@ -188,7 +191,12 @@ inidx = getappdata(h.main,'inidx');
 
 if get(h.rbS,'Value') == 1
     d = r.FullModel.Data;
-    sn = d.ApproxTrainData;
+    
+    if get(h.chkFullData,'Value') == 1
+        sn = d.TrainingData;
+    else
+        sn = d.ApproxTrainData;
+    end
     % Select required subset of training data
     pidx = getappdata(h.main,'pidx');
     
@@ -203,56 +211,41 @@ if get(h.rbS,'Value') == 1
         isel = true(1,size(sn,2));
     end
     sel = logical(psel .* isel);
+    
+    if get(h.chkFullData,'Value') == 1
+        fx = getappdata(h.main,'fxall');
+    else
+        fx = d.ApproxfValues;
+    end
     sn = sn(:,sel);
+    fx = fx(:,sel);
+    
     xi = sn(4:end,:);
     ti = sn(3,:);
-
-    % Compute relation to non-extended atd base
-    factor = getappdata(h.main,'factor');
-    nz = factor*size(sn,2);
-    oldidx = 1:factor:nz;
-    XI(:,oldidx) = xi;
-    TI(oldidx) = ti;
-    mui(oldidx) = sn(1,:);
-    fx(:,oldidx) = d.ApproxfValues(:,sel);
-    if factor > 1
-        di = (xi(:,2:end)-xi(:,1:end-1))/factor;
-        di(:,end+1) = 0;
-        dti = (ti(2:end)-ti(1:end-1))/factor;
-        dti(end+1) = 0;
-
-        for fac = 1:factor-1
-            newidx = oldidx+fac;
-            % xi
-            XI(:,newidx) = xi+di*fac;
-            % ti
-            TI(newidx) = ti+dti*fac;
-            % mui
-            mui(newidx) = sn(1,:);
-
-            % Evaluate original function at middle points
-            for idx=newidx
-                fx(:,idx) = r.FullModel.System.f.evaluate(XI(:,idx),TI(idx),d.getParams(mui(idx)));
-            end
-        end
+    mui = d.getParams(sn(1,:));
+    
+    % Find the currently used center vectors of the expansion, if set
+    centers = unique(general.Utils.findVecInMatrix(xi,r.FullModel.Approx.Centers.xi));
+    if centers(1) == 0
+        centers(1) = [];
     end
-    MUI = d.getParams(mui);    
+    setappdata(h.main,'centers',centers);
+
 else
     mu = getappdata(h.main,'mu');
-    [TI,XI] = r.FullModel.computeTrajectory(mu,inidx);
-    n = length(TI);
-    MUI = repmat(mu,1,n);
+    [ti,xi] = r.FullModel.computeTrajectory(mu,inidx);
+    n = length(ti);
+    mui = repmat(mu,1,n);
     
-    fx = zeros(size(XI,1),n);
-    for idx=1:n
-        fx(:,idx) = r.FullModel.System.f.evaluate(XI(:,idx),TI(idx),MUI(:,idx));
-    end
+    fx = r.FullModel.System.f.evaluate(xi,ti,mui);
 end
 
-afx = r.FullModel.Approx.evaluate(XI,TI,MUI);
+afx = r.FullModel.Approx.evaluate(xi,ti,mui);
 setappdata(h.main,'fx',fx);
 setappdata(h.main,'afx',afx);
-setappdata(h.main,'ti',TI);
+setappdata(h.main,'ti',ti);
+setappdata(h.main,'xi',xi);
+setappdata(h.main,'mui',mui);
 
 plotCurrentFxi(h)
 
@@ -266,6 +259,7 @@ fxi = fx(fidx,:);
 afxi = afx(fidx,:);
 
 err = sqrt(sum((fxi-afxi).^2));
+errinf = max(abs(fxi-afxi));
 
 plot(ti,fxi,'r',ti,afxi,'b');
 
@@ -274,13 +268,18 @@ if get(h.rbS,'Value') == 1
     factor = getappdata(h.main,'factor');
     nz = size(ti,2);
     oldidx = 1:factor:nz;
-    newidx = setdiff(1:nz,oldidx);
-    hold on;
-    plot(ti(oldidx),fxi(oldidx),'rs',ti(newidx),fxi(newidx),'blackx');
-    hold off;
+    if get(h.chkCenters,'Value')
+        centers = getappdata(h.main,'centers');
+        if ~isempty(centers)
+            hold on;
+            plot(ti(oldidx(centers)),fxi(oldidx(centers)),'o','MarkerEdgeColor','black',...
+                'MarkerFaceColor','r','MarkerSize',4);
+            hold off;
+        end
+    end
 end
 axis tight;
-title(sprintf('f,f'' at dimension %d. L2-Error:%f',fidx,err));
+title(sprintf('f,f'' at dimension %d. Linf-Err:%5.3e, L2-Err:%5.3e',fidx,errinf,err));
 xlabel('t');
 ylabel('f(x)');
 
@@ -381,43 +380,116 @@ if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColo
     set(hObject,'BackgroundColor',[.9 .9 .9]);
 end
 
-
-% --- Executes on slider movement.
-function factorslide_Callback(hObject, eventdata, handles)
-% hObject    handle to factorslide (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-setappdata(handles.main,'factor',round(get(hObject,'Value')));
-plotCurrent(handles);
-
-
-% --- Executes during object creation, after setting all properties.
-function factorslide_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to factorslide (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: slider controls usually have a light gray background.
-if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor',[.9 .9 .9]);
-end
-
-
 % --- Executes on button press in rbS.
 function rbS_Callback(hObject, eventdata, handles)
 set(handles.rbU,'Value',0);
 set(handles.pnlParams,'Visible','off');
 set(handles.pslide,'Enable','on');
-set(handles.factorslide,'Enable','on');
+set(handles.chkGlobal,'Visible','on');
 plotCurrent(handles);
 
-% --- Executes on button press in rbU.
 function rbU_Callback(hObject, eventdata, handles)
 set(handles.rbS,'Value',0);
 set(handles.pnlParams,'Visible','on');
 set(handles.pslide,'Enable','off');
-set(handles.factorslide,'Enable','off');
+set(handles.chkGlobal,'Visible','off','Value',0);
 updateUserParam(handles);
+
+function chkFullData_Callback(hObject, eventdata, handles)
+if get(hObject,'Value') == 1 && isempty(getappdata(handles.main,'fxall'))
+    r = getappdata(handles.main,'r');
+    d = r.FullModel.Data;
+    sn = d.TrainingData;
+    atdidx = r.FullModel.Approx.TrainDataSelector.LastUsed;
+    
+    fxall = zeros(size(sn)-[3 0]);
+    fxall(:,atdidx) = d.ApproxfValues;
+    [tocomp, pos] = setdiff(1:size(sn,2),atdidx);
+    if ~isempty(tocomp)
+        fxall(:,pos) = r.FullModel.System.f.evaluate(sn(4:end,tocomp),sn(3,tocomp),...
+            d.getParams(sn(1,tocomp)));
+    end
+    setappdata(handles.main,'fxall',fxall);
+end
+plotCurrent(handles)
+
+function chkCenters_Callback(hObject, eventdata, handles)
+plotCurrentFxi(handles)
+
+function btnShowErr_Callback(hObject, eventdata, handles)
+% hObject    handle to btnShowErr (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+h = handles;
+if get(h.rbS,'Value') == 1
+    if get(h.chkFullData,'Value') == 1
+        showErrors(h, 'Full training data');
+    else
+        showErrors(h, 'Approx training data');
+    end
+else
+    showErrors(h, 'Current trajectory');
+end
+
+function showErrors(h, name)
+r = getappdata(h.main,'r');
+m = r.FullModel;
+
+if get(h.rbS,'Value') == 1 && get(h.chkGlobal,'Value') == 1
+    name = [name ' [global]'];
+    d = m.Data;
+    if get(h.chkFullData,'Value')
+        f = getappdata(h.main,'fxall');
+        sn = d.TrainingData;
+    else
+        f = d.ApproxfValues;
+        sn = d.ApproxTrainData;
+    end
+    xi = sn(4:end,:);
+    ti = sn(3,:);
+    mui = d.getParams(sn(1,:));
+else
+    ti = getappdata(h.main,'ti');
+    xi = getappdata(h.main,'xi');
+    mui = getappdata(h.main,'mui');
+    f = getappdata(h.main,'fx');
+end
+
+fa = m.Approx.evaluate(xi,ti,mui);
+fap = r.System.f.evaluate(xi,ti,mui);
+
+if get(h.rbLinf,'Value')
+    errfun = @getLInftyErr;
+    fun = 'Linf';
+elseif get(h.rbL2,'Value')
+    errfun = @getL2Err;
+    fun = 'L2';
+end
+figure;
+[v,i,e] = errfun(f,fa);
+plotit(e,1)
+title(sprintf('%s\nFull vs full approx %s-errors\nMax: %5.3e, mean: %5.3e',name,fun,v,mean(e)));
+
+[v,i,e] = errfun(f,fap);
+plotit(e,2)
+title(sprintf('%s\nFull vs projected approx %s-errors\nMax: %5.3e, mean: %5.3e',name,fun,v,mean(e)));
+
+[v,i,e] = errfun(fa,fap);
+plotit(e,3)
+title(sprintf('%s\nFull approx vs projected approx %s-errors\nMax: %5.3e, mean: %5.3e',name,fun,v,mean(e)));
+    
+function plotit(e,nr)
+subplot(1,3,nr);
+plot(e,'r.','MarkerSize',.5);
+
+function [val,idx,errs] = getLInftyErr(a,b)
+% computes the 'L^\infty'-approximation error over the
+% training set for the current approximation
+errs = max(abs(a-b),[],1);
+[val, idx] = max(errs);
+
+function [val,idx,errs] = getL2Err(a,b)
+% computes the 'L^\infty'-approximation error over the
+% training set for the current approximation
+errs = sqrt(sum((a-b).^2));
+[val, idx] = max(errs);

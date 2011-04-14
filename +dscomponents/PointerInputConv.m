@@ -10,6 +10,9 @@ classdef PointerInputConv < dscomponents.IInputConv
     % See also: PointerCoreFun PointerOutputConv
     %
     % @author Daniel Wirtz @date 16.03.2010
+    %
+    % @change{0,3,dw,2011-04-11} Implemented the clone method from
+    % ICloneable
     
     properties(Access=private)
         Target;
@@ -38,7 +41,10 @@ classdef PointerInputConv < dscomponents.IInputConv
             newfun = @(t,mu)W' * this.Target(t,mu);
             proj = dscomponents.PointerInputConv(newfun);
         end
-    end
-    
+        
+        function copy = clone(this)
+            copy = dscomponents.PointerInputConv(this.Target);
+        end
+    end    
 end
 

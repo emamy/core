@@ -1,0 +1,22 @@
+classdef $name
+% $name: 
+%
+%
+%
+% @author $author @date $date
+%
+% @new{$mainver,$subver,$authorshort,$date} Added this class.
+%
+% This class is part of the framework
+% KerMor - Model Order Reduction using Kernels:
+% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+% - \c License @ref licensing
+    
+    properties
+    end
+    
+    methods
+    end
+    
+end

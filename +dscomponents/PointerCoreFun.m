@@ -1,5 +1,5 @@
 classdef PointerCoreFun < dscomponents.ACoreFun
-    %POINTERCOREFUN Allows for core functions provided by function handles.
+    % Allows for core functions provided by function handles.
     %   
     % In many contexts the creation of a specific class implementing
     % ACoreFun is not necessary due to the simplicity of the core function
@@ -23,6 +23,7 @@ classdef PointerCoreFun < dscomponents.ACoreFun
             elseif nargin(funPtr) ~= 3
                 error('funPtr nargin must equal three (= x,t,mu).');
             end
+            this.CustomProjection = false;
             this.target = funPtr;
         end
         

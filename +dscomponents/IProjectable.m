@@ -1,5 +1,5 @@
-classdef IProjectable < handle
-    % IPROJECTABLE Interface for all components that can be projected.
+classdef IProjectable < ICloneable
+    %  Interface for all components that can be projected.
     %
     %  Projection in the KerMor context means restriction of the system's
     %  state space to a lower dimension. Therefore an biorthogonal Matrix
@@ -9,6 +9,9 @@ classdef IProjectable < handle
     %  to the components' underlying data. Thus, when calling project a NEW
     %  instance of the implementing class has to be returned for which all
     %  functions behave according to the changes caused by the projection.
+    %  Due to this every projectable class also implements ICloneable in
+    %  order to allow to create instance copies upon which the projection
+    %  process can be performed.
     %
     %  A special case is the approx.BaseApprox class which also implements
     %  this interface. Since the approx classes approximate the system's
@@ -20,6 +23,9 @@ classdef IProjectable < handle
     % See also: approx BaseApprox
     %
     % @author Daniel Wirtz @date 17.03.2010
+    %
+    % @change{0,3,dw,2011-04-11} Inheriting from ICloneable now in order to
+    % ensure cloning capabilities for any projectable class.
     %
     % @change{0,3,dw,2011-04-01} Updated documentation.
         

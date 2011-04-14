@@ -145,17 +145,22 @@ classdef ReducedModel < models.BaseModel
             end
         end
         
-        function save(this, filename)
-           a = this.FullModel.Approx;
-           d = this.FullModel.Data;
-           
-           this.FullModel.Approx = [];
-           this.FullModel.Data = [];
-           
-           save(filename, 'this');
-           
-           this.FullModel.Approx = a;
-           this.FullModel.Data = d;
+        function saveFinal(this, filename)
+            % Saves this reduced model for final use.
+            %
+            % Using this method produces a small-sized file only suitable for online simulations.
+            % Most other functionalities or analysis will not work anymore as all large data has
+            % been discarded during the saving process.
+            a = this.FullModel.Approx;
+            d = this.FullModel.Data;
+            
+            this.FullModel.Approx = [];
+            this.FullModel.Data = [];
+            
+            save(filename, 'this');
+            
+            this.FullModel.Approx = a;
+            this.FullModel.Data = d;
         end
         
 %         function [t,e,est] = getError(this, varargin)

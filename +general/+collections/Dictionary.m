@@ -19,7 +19,8 @@ classdef Dictionary < handle
     %
     % @new{0,3,dw,2011-04-06} Added this class. Used e.g. for the
     % customized save/load process to keep integrity of cross-class
-    % references.
+    % references (Update 2011-04-07: Customized save/load discontinued, so
+    % this class is not used at the moment)
     
     properties(Access=private)
         % The internal List structure

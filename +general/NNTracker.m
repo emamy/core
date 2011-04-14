@@ -94,6 +94,15 @@ classdef NNTracker < handle
             % d: The maximum nearest neighbor distance
             d = max(this.NNDists);
         end
+        
+        function d = getMinNN(this)
+            % Returns the maximum nearest neighbor distance for all
+            % currently registered points.
+            %
+            % Return values:
+            % d: The maximum nearest neighbor distance
+            d = min(this.NNDists);
+        end
     end
     
 end

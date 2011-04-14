@@ -64,7 +64,7 @@ classdef KernelInterpol < approx.IKernelCoeffComp
             b = mean(fxi);
             if all(abs(fxi - b) < 10*eps)
                 a = zeros(size(fxi))';
-                if KerMor.App.Verbose > 1
+                if KerMor.App.Verbose > 3
                     fprintf('KernelInterpol note: All mean-cleaned fxi values < 10eps, assuming zero coefficients!\n');
                 end
             else

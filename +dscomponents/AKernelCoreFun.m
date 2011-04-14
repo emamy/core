@@ -84,6 +84,12 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
             %
             % Initializes default kernels.
             
+            % Set custom projection to true as the project method is
+            % overridden
+            this.CustomProjection = true;
+            % Kernel based core functions allow for multi-argument evaluations by nature.
+            this.MultiArgumentEvaluations = true;
+            
             this.fSK = kernels.GaussKernel(10);
             % The default kernels for time and parameters are neutral (=1)
             % kernels as not all models have time or parameter dependent
@@ -125,9 +131,9 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
                 V = this.V;
             end
             K = this.SubKernelCombinationFun(...
-                this.TimeKernel.evaluate(this.Centers.ti, t), ...
-                this.SystemKernel.evaluate(this.Centers.xi, V*x), ...
-                this.ParamKernel.evaluate(this.Centers.mui, mu));
+                this.fTK.evaluate(this.Centers.ti, t), ...
+                this.fSK.evaluate(this.Centers.xi, V*x), ...
+                this.fPK.evaluate(this.Centers.mui, mu));
             % Checked alternative: not much faster so more general method
             % preferrable
 %             K = this.TimeKernel.evaluate(this.Centers.ti, t).* ...
@@ -146,9 +152,9 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
             %
             % See also: evaluateAtCenters
             K = this.SubKernelCombinationFun(...
-                this.TimeKernel.evaluate(this.Centers.ti), ...
-                this.SystemKernel.evaluate(this.Centers.xi), ...
-                this.ParamKernel.evaluate(this.Centers.mui));
+                this.fTK.evaluate(this.Centers.ti), ...
+                this.fSK.evaluate(this.Centers.xi), ...
+                this.fPK.evaluate(this.Centers.mui));
         end
         
         function target = clone(this, target)

@@ -13,7 +13,9 @@ classdef Utils
     methods(Static)
         
         function idx = findVecInMatrix(A,b)
-            % Finds a column vector inside a matrix.
+            % Finds column vectors inside a matrix.
+            %
+            % For multiple occurences, the first found index is used.
             %
             % See
             % http://www.mathworks.com/matlabcentral/newsreader/view_thread/174277
@@ -22,16 +24,25 @@ classdef Utils
             %
             % Parameters:
             % A: A `n\times m` matrix of `m` column vectors
-            % b: A `n\times 1` vector
+            % b: A `n\times p` vector, where each column is regarded as one vector to search
             %
             % Return values:
-            % idx: The column index idx `\in \{1 \ldots m\}` if the vector
-            % b is contained in A, [] otherwise.
-            if size(b,2) ~= 1 || size(A,1) ~= size(b,1)
+            % idx: A `1 \times p` vector containing the first found positions indices if a vector
+            % from b is contained in A, zero otherwise.
+            %
+            % @change{0,3,dw,2011-04-12} Added support for multi vector search.
+            % @change{0,3,dw,2011-04-13} Fixed errors when multiple occurences appear.
+            
+            if size(A,1) ~= size(b,1)
                 error('Invalid arguments.');
             end
-            idx = strfind(reshape(A,1,[]),b');
-            idx = (idx+length(b)-1)/length(b);
+            idx = zeros(1,size(b,2));
+            for n = 1:size(b,2)
+                tmp = strfind(reshape(A,1,[]),b(:,n)');
+                if ~isempty(tmp)
+                    idx(n) = (tmp(1)+size(b,1)-1)/size(b,1);
+                end
+            end
         end
         
         function [bmin, bmax] = getBoundingBox(vectors)
@@ -248,6 +259,24 @@ classdef Utils
             res = res && isempty(general.Utils.createCombinations(1:3,1:2,[],1:54));
             
             res = res && isequal(1:20,general.Utils.createCombinations(1:20));
+        end
+        
+        function res = test_findVec
+            % Tests the findVecInMatrix function.
+            % @author Daniel Wirtz @date 2011-04-12
+            a = rand(40,40);
+            idx = randperm(40);
+            idx = idx(1:10);
+            b = a(:,idx);
+            
+            % Add nonexistent
+            b(:,end+1) = rand(40,1);
+            idx = [idx 0];
+            
+            % Add multiples
+            a(:,end+1:end+2) = a(:,[idx(1) idx(5)]);
+            
+            res = all(idx - general.Utils.findVecInMatrix(a,b) == 0);
         end
     end
     

@@ -70,7 +70,10 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
             m = this.fMa;
         end
         
-        function set.Ma(this, value)            
+        function set.Ma(this, value)
+            if ~isempty(find(isnan(value),1))
+                error('Invalid coefficient values (NaN)');
+            end
             this.machanged = true;
             this.fMa = value;
         end

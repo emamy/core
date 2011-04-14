@@ -73,32 +73,7 @@ classdef DefaultCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                 this.off = [];
             end     
         end
-                
-        function atd = selectTrainingData(this, modeldata)
-            % Selects a subset of the projection training data linearly
-            % spaced. The number of samples taken is determined by the
-            % ApproxExpansionSize number.
-            %
-            % Important:
-            % Note that the selected training data is projected into the
-            % precomputed subspace if spacereduction is performed.
-            %
-            % Overrides the default method in BaseApprox.
-            %
-            % See also:
-            % models.BaseFullModel.off4_genApproximationTrainData
-            
-            % Validity checks
-            sn = modeldata.TrainingData;
-            if isempty(sn)
-                error('No projection training data available to take approximation training data from.');
-            end
-            
-            selection = round(linspace(1,size(sn,2),...
-                    min(this.ApproxExpansionSize,size(sn,2))));
-            atd = sn(:,selection);
-        end
-        
+                        
         function target = clone(this)
             % Clones the instance.
             
