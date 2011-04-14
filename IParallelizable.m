@@ -8,14 +8,18 @@ classdef IParallelizable < handle
     end    
     
     methods
-        function set.ComputeParallel(this, h)
-            if h == true
-                a = KerMor.App;
-                if a.UseMatlabParallelComputing == true
-                    this.ComputeParallel = h;
+        function set.ComputeParallel(this, value)
+            if ~islogical(value)
+                error('IParallelizable.ComputeParallel is a flag and should be set either true or false');
+            end
+            if value
+                if KerMor.App.UseMatlabParallelComputing
+                    this.ComputeParallel = value;
                 else
-                    disp('WARNING : Matlab Parallel Processing toolbox not activated');
+                    warning('MatlabParallelComputing:NOT_ENABLED','WARNING : Matlab Parallel Processing toolbox not activated. Refer to the property KerMor.App.UseMatlabParallelComputing');
                 end
+            else
+                this.ComputeParallel = value;
             end    
         end
     end

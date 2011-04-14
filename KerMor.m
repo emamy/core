@@ -229,8 +229,8 @@ classdef KerMor < handle
         % Flag whether to enable use of the Matlab Parallel Computing
         % Toolbox.
         %
-        % @default false
-        UseMatlabParallelComputing = false;
+        % @default empty
+        UseMatlabParallelComputing = '';
     end
     
     properties(SetAccess=private)
@@ -261,34 +261,48 @@ classdef KerMor < handle
     end
     
     methods
-        function set.UseMatlabParallelComputing(this, umpc)
-            if umpc == true
-                t = which('matlabpool');
-                if isempty(t) == 0
-                   this.UseMatlabParallelComputing = true;
-                   setpref('KERMOR','USEMATLABPARALLELCOMPUTING',umpc);
-                end    
+        function set.UseMatlabParallelComputing(this, value)
+            if ~islogical(value)
+                error('KerMor.App.UseMatlabParallelComputing is logical and should be set either true or false');
+            end
+            t = which('matlabpool');
+            if ~isempty(t)
+                s = matlabpool('size');
+            end
+            if value                
+                if ~isempty(t)
+                   this.UseMatlabParallelComputing = value;
+                   setpref('KERMOR','USEMATLABPARALLELCOMPUTING',value);
+                   if s == 0
+                   matlabpool open;
+                   end                
+                end
+            else
+                this.UseMatlabParallelComputing = value;
+                if s > 0
+                   matlabpool close;
+                end
             end
         end
           
-        function set.DataStoreDirectory(this, ds)
-            if ~isempty(ds) && ~isdir(ds)
-                fprintf('Creating directory %s\n',ds);
+        function set.DataStoreDirectory(this, value)
+            if ~isempty(value) && ~isdir(value)
+                fprintf('Creating directory %s\n',value);
                 mkdir(ds);
             end
-            setpref('KERMOR','DATASTORE',ds);
-            this.DataStoreDirectory = ds;
-            fprintf('Simulation and model data: %s\n',ds);
+            setpref('KERMOR','DATASTORE',value);
+            this.DataStoreDirectory = value;
+            fprintf('Simulation and model data: %s\n',value);
         end
         
-        function set.TempDirectory(this, tmp)
-            if ~isempty(tmp) && ~isdir(tmp)
-                fprintf('Creating directory %s\n',tmp);
-                mkdir(tmp);
+        function set.TempDirectory(this, value)
+            if ~isempty(value) && ~isdir(value)
+                fprintf('Creating directory %s\n',value);
+                mkdir(value);
             end
-            setpref('KERMOR','TMPDIR',tmp);
-            this.TempDirectory = tmp;
-            fprintf('Temporary files: %s\n',tmp);
+            setpref('KERMOR','TMPDIR',value);
+            this.TempDirectory = value;
+            fprintf('Temporary files: %s\n',value);
         end
         
         function set.DesktopLayout(this, value)
@@ -296,7 +310,7 @@ classdef KerMor < handle
             this.DesktopLayout = value;
         end
         
-        function set.rbmatlabDirectory(this, ds)
+        function set.rbmatlabDirectory(this, value)
             % Sets the rbmatlab source directory
             %
             % Parameters:
@@ -305,32 +319,28 @@ classdef KerMor < handle
             %
             % Throws an exception if the path is invalid or does not
             % contain the rbmatlab startup script.
-            if ~isempty(ds)
-                if ~isdir(ds)
-                    error('Invalid directory: %s',ds);
+            if ~isempty(value)
+                if ~isdir(value)
+                    error('Invalid directory: %s',value);
                 end
                 if ~exist(fullfile(ds,'startup_rbmatlab.m'),'file')
-                    error('Invalid rbmatlab directory (no startup script found): %s',ds);
+                    error('Invalid rbmatlab directory (no startup script found): %s',value);
                 end
             end
-            setpref('KERMOR','RBMATLABDIR',ds);
-            this.rbmatlabDirectory = ds;
-            fprintf('rbmatlab root directory: %s\n',ds);
+            setpref('KERMOR','RBMATLABDIR',value);
+            this.rbmatlabDirectory = value;
+            fprintf('rbmatlab root directory: %s\n',value);
         end
         
-        function h = get.UseMatlabParallelComputing(this)
+        function value = get.UseMatlabParallelComputing(this)
             
             % recover values if clear classes has been issued or Matlab
-            % Parallel processing toolbox deleted
-            if this.UseMatlabParallelComputing ~= true
-                h = getpref('KERMOR','USEMATLABPARALLELCOMPUTING','');
-                t = which('matlabpool');
-                if ~isempty(h) || ~isempty(t)
-                    this.UseMatlabParallelComputing = h;
-                end
-            else
-                h = this.UseMatlabParallelComputing;
-            end            
+            % Parallel processing toolbox deleted            
+            value = getpref('KERMOR','USEMATLABPARALLELCOMPUTING','');
+            t = which('matlabpool');
+            if ~isempty(value) && ~isempty(t)
+                this.UseMatlabParallelComputing = value;
+            end                       
         end
         
         function h = get.HomeDirectory(this)
@@ -438,7 +448,7 @@ classdef KerMor < handle
             
             initDirectories;
             init3rdparty;            
-            this.initParallelization;
+            initParallelization;
             
             disp('Entering startup path..');
             cd(p);
@@ -524,11 +534,9 @@ classdef KerMor < handle
                 end
                 
                 %addpath(fullfile(p,'3rdparty','pardiso'));
-            end            
+            end   
             
-        end
-        
-        function initParallelization(this)%& ok
+            function initParallelization
                 % Checks if the parallel computing toolbox is available
                 %                              
                 % @todo wrap with try-catch and set flag in KerMor.App
@@ -541,19 +549,29 @@ classdef KerMor < handle
                 
                 % Open matlabpool only if UseMatlabParallelComputing is set to
                 % true
-                if (this.UseMatlabParallelComputing == true)
+                if KerMor.App.UseMatlabParallelComputing == true
+                    if matlabpool('size') == 0
                     matlabpool open;         
+                    end
                 end                                   
                 
                 % Sets the maximum number of threads to create by OpenMP
                 % binaries according to the number of cores available on
                 % the machine.
                 setenv('OMP_NUM_THREADS',num2str(feature('numCores')));
-        end
+            end
             
+        end        
+                  
         function shutdown(this)%#ok
-            % @todo only close if parallel computing is available!
-            matlabpool close;
+            % only close if parallel computing is available and matlabpool is running!
+            t = which('matlabpool');
+            if ~isempty(t)
+                s = matlabpool('size');
+                if s > 0
+                    matlabpool close;
+                end
+            end           
         end
     end
     
@@ -599,6 +617,16 @@ classdef KerMor < handle
                 end
             end
             
+            %% SETPREF for Matlab Parallel processing
+            if ~isempty(which('matlabpool'));
+                str = sprintf('Do you want to Use Matlab Parallel Processing?\n(Y)es/(N)o: ');
+                value = lower(input(str,'s'));
+                if isequal(value,'y')
+                    setpref('KERMOR','USEMATLABPARALLELCOMPUTING','true');
+                else
+                    setpref('KERMOR','USEMATLABPARALLELCOMPUTING','false');
+                end
+            end
             %% Optional: rbmatlab
             a = KerMor.App;
             if isempty(a.rbmatlabDirectory)
