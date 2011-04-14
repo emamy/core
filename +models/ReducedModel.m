@@ -94,6 +94,7 @@ classdef ReducedModel < models.BaseModel
             % Copy common values from the full model
             this.T = fullmodel.T;
             this.dt = fullmodel.dt;
+            this.tau = fullmodel.tau;
             this.ODESolver = fullmodel.ODESolver;
             this.G = fullmodel.G;
             

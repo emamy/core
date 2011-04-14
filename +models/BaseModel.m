@@ -129,7 +129,7 @@ classdef BaseModel < KerMorObject
     methods
         
         function this = BaseModel
-             this.System = models.BaseDynSystem;
+             this.System = models.BaseDynSystem(this);
              this.ODESolver = solvers.MLWrapper(@ode23);
         end
         
@@ -240,7 +240,7 @@ classdef BaseModel < KerMorObject
             end
             odefun = this.System.getODEFun(mu, inputidx);
             
-            % Get initial x0
+            % Get scaled initial x0
             x0 = this.getX0(mu);
             
             % Solve ODE
@@ -249,7 +249,7 @@ classdef BaseModel < KerMorObject
                 this.ODESolver.MaxStep = this.System.MaxTimestep;
                 this.ODESolver.InitialStep = .5*this.System.MaxTimestep;
             end
-            [t,x] = this.ODESolver.solve(odefun, this.scaledTimes, x0);
+            [t, x] = this.ODESolver.solve(odefun, this.scaledTimes, x0);
             % Scale times back to real units
             t = t*this.tau;
         end

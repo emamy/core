@@ -6,6 +6,11 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
     %
     % See also: BaseApprox BaseCompWiseKernelApprox
     %
+    % @change{0,3,dw,2011-04-14}
+    % - Implemented some setters
+    % - New property approx.AdaptiveCompWiseKernelApprox.ValidationPercent enabling a validation set
+    % to check for best gammas
+    %
     % @change{0,3,dw,2011-04-06} Now works with models that dont have any
     % parameters.
     %
@@ -21,8 +26,15 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
         % @default 200
         MaxExpansionSize = 150;
         
-        % The number of different Gamma values to try
+        % The number of different Gamma values to try.
         NumGammas = 20;
+        
+        % Percentage `p` of the training data to use as validation data
+        %
+        % Admissible values are `p\in]0,\frac{1}{2}]`.
+        %
+        % @default .2
+        ValidationPercent = .2;
         
         % Value for initial Gamma choice.
         gameps = .6;
@@ -87,14 +99,25 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             
             %% Initializations
             atd = model.Data.ApproxTrainData;
+            % get validation data set vd
+            vnum = round(size(atd,2)*this.ValidationPercent);
+            sel = round(linspace(1,size(atd,2),vnum));
+            vd = atd(:,sel);
+            atd(:,sel) = [];
+            
             fx = model.Data.ApproxfValues;
+            vdfx = fx(:,sel);
+            fx(:,sel) = [];
+            
             % check if training data contains parameters
             if any(atd(1,:) ~= 0)
                 hasparams = true;
                 params = model.Data.getParams(atd(1,:));
+                vdparams = model.Data.getParams(vd(1,:));
             else
                 hasparams = false;
                 params = [];
+                vdparams = [];
             end
             nx = general.NNTracker;
             nt = general.NNTracker;
@@ -158,7 +181,8 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                     gp = this.ParamKernel.setGammaForDistance(dists(3,idx),this.gameps);
                 end
                 
-                val = errfun();
+                fhat = this.evaluate(atd(4:end,:),atd(3,:),params);
+                val = errfun(fx,fhat);
                 if val < minerr
                     minerr = val;
                     bestgx = gx;
@@ -188,7 +212,8 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             while true
                 
                 %% Determine maximum error over training data
-                [val, maxidx, errs] = errfun();
+                fhat = this.evaluate(atd(4:end,:),atd(3,:),params);
+                [val, maxidx, errs] = errfun(fx,fhat);
                 rel = val / (norm(model.Data.ApproxfValues(maxidx))+eps);
                 this.MaxErrors(cnt) = val;
                 
@@ -259,17 +284,19 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                     % Call coeffcomp preparation method and pass kernel matrix
                     K = this.getKernelMatrix;
                     this.CoeffComp.init(K);
-                    %figure(2);
-                    %surf(K); pause;
-                    %v = sort(eig(K),'descend');
-                    v = 1;
 
                     % Call protected method
-                    this.computeCoeffs(model.Data.ApproxfValues(:,used));
+                    this.computeCoeffs(fx(:,used));
                     warning('on','MATLAB:nearlySingularMatrix');
                     
-                    val = errfun();
+                    % get error on training data
+                    fhat = this.evaluate(atd(4:end,:),atd(3,:),params);
+                    val = errfun(fx, fhat);
                     impro = (val / minerr) * 100;
+                    
+                    % get error on validation set
+                    fvali = this.evaluate(vd(4:end,:),vd(3,:),vdparams);
+                    vdval = errfun(vdfx, fvali);
                     if val < minerr
                         minerr = val;
                         bestgx = gx;
@@ -278,17 +305,17 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                         bestMa = this.Ma;
                         bestoff = this.off;
                         %if KerMor.App.Verbose > 2
-                            fprintf(' b: %.5e, %f%%',val,impro);
+                            fprintf(' b: %.5e, %3.2f%%',val,impro);
                         %end
                     else
                         %if KerMor.App.Verbose > 2
                             %break;
-                            fprintf(' w: %.5e, %f%%',val,impro);
+                            fprintf(' w: %.5e, %3.2f%%',val,impro);
                         %end
                     end
                     
                     %if KerMor.App.Verbose > 2
-                        fprintf(' Ma-norms:%.5e, eigs:%s\n',sum(sqrt(sum(this.Ma.^2,1))),num2str(v'));
+                        fprintf(' ||Ma||:%.5e, vd-err:%.5e, prod:%.5e\n',sum(sqrt(sum(this.Ma.^2,1))),vdval,val*vdval);
                     %end
                 
                 end
@@ -317,19 +344,17 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                 plot(this.MaxErrors,'r');
             end
             
-            function [val,idx,errs] = getLInftyErr
+            function [val,idx,errs] = getLInftyErr(a,b)
                 % computes the 'L^\infty'-approximation error over the
                 % training set for the current approximation
-                fhat = this.evaluate(atd(4:end,:),atd(3,:),params);
-                errs = max(abs(model.Data.ApproxfValues - fhat));
+                errs = max(abs(a-b));
                 [val, idx] = max(errs);
             end
             
-            function [val,idx,errs] = getL2Err
+            function [val,idx,errs] = getL2Err(a,b)
                 % computes the 'L^\infty'-approximation error over the
                 % training set for the current approximation
-                fhat = this.evaluate(atd(4:end,:),atd(3,:),params);
-                errs = sqrt(sum((model.Data.ApproxfValues - fhat).^2));
+                errs = sqrt(sum((a-b).^2));
                 [val, idx] = max(errs);
             end
             
@@ -405,6 +430,20 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             copy.MaxAbsErrFactor = this.MaxAbsErrFactor;
             copy.MaxErrors = this.MaxErrors;
         end       
+        
+        function set.ValidationPercent(this, value)
+            if ~isposrealscalar(value) || value > .5
+                error('The value must be a positive scalar inside the interval ]0,.5[');
+            end
+            this.ValidationPercent = value;
+        end
+        
+        function set.NumGammas(this,value)
+            if ~isposintscalar(value)
+                error('Value must be a positive integer.');
+            end
+            this.NumGammas = value;
+        end
     end
     
     methods(Access=private)

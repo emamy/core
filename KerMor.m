@@ -528,7 +528,7 @@ classdef KerMor < handle
             
         end
         
-        function initParallelization(this)%& ok
+        function initParallelization(this)
                 % Checks if the parallel computing toolbox is available
                 %                              
                 % @todo wrap with try-catch and set flag in KerMor.App
@@ -542,7 +542,7 @@ classdef KerMor < handle
                 % Open matlabpool only if UseMatlabParallelComputing is set to
                 % true
                 if (this.UseMatlabParallelComputing == true)
-                    matlabpool open;         
+                    matlabpool open;
                 end                                   
                 
                 % Sets the maximum number of threads to create by OpenMP
@@ -551,9 +551,13 @@ classdef KerMor < handle
                 setenv('OMP_NUM_THREADS',num2str(feature('numCores')));
         end
             
-        function shutdown(this)%#ok
-            % @todo only close if parallel computing is available!
-            matlabpool close;
+        function shutdown(this)
+            % Terminates the KerMor application
+            %
+            % So far only parallel computing workers are closed if used.
+            if this.UseMatlabParallelComputing
+                matlabpool close;
+            end
         end
     end
     

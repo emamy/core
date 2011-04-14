@@ -57,6 +57,10 @@ classdef BaseSolver < handle
             %
             % @todo InitialStep mit einbauen!
             %
+            % @change{0,3,dw,2011-04-14} Fixed a problem that would cause useless long computation
+            % times that occured when a MaxStep is set but is larger than any time-step passed in
+            % the t vector.
+            %
             % @change{0,2,dw,2011-03-11} Removed 'tout' from the return
             % parameters since it can be computed either way via 'tout =
             % times(outputtimes)'.
@@ -75,7 +79,7 @@ classdef BaseSolver < handle
                     outputtimes = true(1,length(times));
                 else    
                     % Find refinement indices
-                    idx = fliplr(find(abs(t(2:end)-t(1:end-1)-this.MaxStep)>100*eps));
+                    idx = fliplr(find(t(2:end)-t(1:end-1)-this.MaxStep>100*eps));
                     % If any "gaps" are present, fill up with MaxStep's
                     if ~isempty(idx)
                         for i=idx
@@ -105,9 +109,10 @@ classdef BaseSolver < handle
         % dimensional, strictly monotoneously increasing vector explicitly
         % setting the desired output times. Depending on the MaxStep
         % property, the solver can work with a finer time step internally.
-        solve(this, odefun, t, x0, opts);
+        % x0: The initial value
+        solve(this, odefun, t, x0);
         
-        %[t,y] = solve(odefun, t, x0, opts);
+        %[t,y] = solve(odefun, t, x0);
     end
     
     methods

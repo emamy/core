@@ -16,7 +16,7 @@ classdef IParallelizable < handle
                 else
                     disp('WARNING : Matlab Parallel Processing toolbox not activated');
                 end
-            end    
+            end
         end
     end
      

@@ -70,31 +70,35 @@ classdef BaseDynSystem < KerMorObject
         
         % The number of the system's parameters.
         ParamCount;
-        
+    end
+    
+    properties(SetAccess=private)
         % The Model this System is attached to.
         Model;
     end
     
-    properties(Access=private)
-        fModel;
-    end
+%     properties(Access=private)
+%         fModel;
+%     end
     
     methods
         
-        function m = get.Model(this)
-            m = this.fModel;
-        end
+%         function m = get.Model(this)
+%             m = this.fModel;
+%         end
+%         
+%         function set.Model(this, value)
+%             
+%             this.fModel = value;
+%         end
         
-        function set.Model(this, value)
-            this.validateModel(value);
-            this.fModel = value;
-        end
-        
-        function this = BaseDynSystem
+        function this = BaseDynSystem(model)
             % Creates a new base dynamical system class instance.
             %
             % Uses default output mapping: state variables are output.
             % Initial conditions are set to zero.
+            this.validateModel(model);
+            this.Model = model;
             this.C = dscomponents.LinearOutputConv(1);
             this.x0 = @(mu)0;
         end

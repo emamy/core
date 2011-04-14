@@ -100,7 +100,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             %             this.PODFix = p;
             this.Approx = approx.AdaptiveCompWiseKernelApprox;
             this.Data = models.ModelData;
-            this.System = models.BaseDynSystem;
+            this.System = models.BaseDynSystem(this);
         end
         
         function time = off1_createParamSamples(this)
