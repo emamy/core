@@ -13,6 +13,7 @@ classdef ReducedSystem < models.BaseDynSystem
             % Parameters:
             % rmodel: [Optional] The reduced model to create the reduced
             % system from.
+            this = this@models.BaseDynSystem(rmodel);
             if nargin == 1
                 this.setReducedModel(rmodel);
             end
@@ -38,7 +39,6 @@ classdef ReducedSystem < models.BaseDynSystem
             % See also: models.BaseFullModel#buildReducedModel
             disp('Start building reduced system...');
             fullmodel = rmodel.FullModel;
-            this.Model = rmodel;
             
             fullsys = fullmodel.System;
             
@@ -47,6 +47,7 @@ classdef ReducedSystem < models.BaseDynSystem
             this.Params = fullsys.Params;
             this.Inputs = fullsys.Inputs;
             this.MaxTimestep = fullsys.MaxTimestep;
+            this.StateScaling = fullsys.StateScaling;
             
             % Copy component handles (it's NOT cloning them!)
             % This is the default as if no reduction methods are

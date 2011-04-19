@@ -1,5 +1,5 @@
 classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
-        dscomponents.IGlobalLipschitz
+        dscomponents.IGlobalLipschitz & dscomponents.IJacobian
     %COMPWISEKERNELCOREFUN Summary of this class goes here
     %   Detailed explanation goes here
     %
@@ -34,10 +34,21 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
             % @todo: check for correct usage of the sets from kernel
             % expansions in error estimators! (not yet considered)
             if ~isempty(this.off)
-                fx = this.Ma * this.evaluateAtCenters(x, t, mu) + repmat(this.off,1,size(x,2));
+                fx = this.Ma * this.evaluateAtCenters(x, t, mu)' + repmat(this.off,1,size(x,2));
             else
-                fx = this.Ma * this.evaluateAtCenters(x, t, mu);
+                fx = this.Ma * this.evaluateAtCenters(x, t, mu)';
             end
+        end
+        
+        function J = getStateJacobian(this, x, t, mu)
+            % Evaluates the jacobian matrix of this function at the given point.
+            %
+            % As this is a component-wise kernel expansion, the jacobian is easily computed using
+            % the coefficient vectors and the state variable nablas.
+            %
+            % See also: dscomponents.IJacobian kernels.BaseKernel
+            N = this.evaluateStateNabla(x, t, mu);
+            J = this.Ma * N'; 
         end
         
         function c = getGlobalLipschitz(this, t, mu)

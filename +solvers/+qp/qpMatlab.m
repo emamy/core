@@ -1,4 +1,4 @@
-classdef qpMatlab < solvers.BaseQPSolver
+classdef qpMatlab < solvers.qp.BaseQPSolver
     % Quadratic program solver using matlab's quadprog subroutine.
     %
     % The specific behaviour of quadprog can be steered by using the 
@@ -17,8 +17,8 @@ classdef qpMatlab < solvers.BaseQPSolver
         end
         
         function copy = clone(this)
-            copy = solvers.qpMatlab;
-            copy = clone@solvers.BaseQPSolver(this, copy);
+            copy = solvers.qp.qpMatlab;
+            copy = clone@solvers.qp.BaseQPSolver(this, copy);
             copy.QuadProgOpts = this.QuadProgOpts;
         end
     end

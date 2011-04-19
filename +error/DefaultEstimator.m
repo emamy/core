@@ -44,11 +44,9 @@ classdef DefaultEstimator < error.BaseEstimator
                 diff = xf-xr;
             end
             
-            % Compute state columns norm
-            if length(this.ReducedModel.G) > 1
-                warning('DefaultEstimator:process','Correct error norm for G <> 1 not implemented.');
-            end
-            y = sqrt(sum(diff.^2,1));
+            % Re-scale
+            %diff = bsxfun(@times,diff,this.ReducedModel.System.StateScaling);
+            y = sqrt(sum(diff.*(this.ReducedModel.GScaled*diff),1));
             
             % Convert to exact error on output level
 %             diffy = m.System.C.computeOutput(t,diff,mu);

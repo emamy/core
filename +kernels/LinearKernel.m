@@ -12,6 +12,11 @@ classdef LinearKernel < kernels.BaseKernel
             c = 1;
         end
         
+        function Nabla = getNabla(this, x, y)%#ok
+            % Partial derivatives of scalar product is simply the second argument vector.
+            Nabla = y;
+        end
+        
         function K = evaluate(this, x, y)%#ok
             if nargin == 2
                 y = x;

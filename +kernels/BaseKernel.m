@@ -41,6 +41,19 @@ classdef BaseKernel < handle
         % implementer handle the check.
         K = evaluate(x,y);
         
+        % Computes the partial derivatives with respect to each component of the first argument.
+        %
+        % Parameters:
+        % x: The point where to evaluate the partial derivatives. Must be a single column `d\times 1` vector.
+        % y: The corresponding center points at which the partial derivatives with respect to the
+        % first argument are to be computed. Can be either a column vector `d\times 1` or a matrix `d\times n` containing
+        % `n` multiple centers.
+        %
+        % Return values:
+        % Nabla: A `d \times n` matrix of partial derivatives with respect to the first argument
+        % evaluated using all second arguments.
+        Nabla = getNabla(x,y)
+        
         c = getGlobalLipschitz(this);
     end
     

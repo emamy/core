@@ -164,7 +164,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     end
                     
                     % Get trajectory
-                    [t, x] = this.computeTrajectory(mu, inputidx);
+                    [t, x] = this.computeTrajectory(mu, inputidx);                    
                     
                     % Assign snapshot values
                     sn(:,:,idx) = [ones(1,trajlen)*munum; ones(1,trajlen)*innum; t; x];
@@ -213,7 +213,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 
                         % Get trajectory
                         [t, x] = this.computeTrajectory(mu, inputidx);
-
+                                                
                         % Assign snapshot values
                         curpos = cnt*trajlen+1;
                         sn(:,curpos:curpos+trajlen-1) = ...
@@ -227,7 +227,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 end
                 this.Data.TrainingData = sn;
             end
-            
             
             time = toc(time);
         end

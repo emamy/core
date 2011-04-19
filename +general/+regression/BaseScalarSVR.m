@@ -34,14 +34,14 @@ classdef BaseScalarSVR < ICloneable & approx.IKernelCoeffComp
         
         % The quadratic solver internally used
         %
-        % Defaults to solvers.qpOASES
-        % @type solvers.BaseQPSolver
+        % Defaults to solvers.qp.qpOASES
+        % @type solvers.qp.BaseQPSolver
         QPSolver;
     end
     
     methods
         function this = BaseScalarSVR
-            this.QPSolver = solvers.qpOASES;
+            this.QPSolver = solvers.qp.qpOASES;
         end
         
         function target = clone(this, target)
@@ -71,4 +71,3 @@ classdef BaseScalarSVR < ICloneable & approx.IKernelCoeffComp
     end
     
 end
-

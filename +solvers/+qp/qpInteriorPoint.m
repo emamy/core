@@ -7,15 +7,15 @@ classdef qpInteriorPoint
     
     methods
         function copy = clone(this)
-            copy = solvers.qpInteriorPoint;
-            copy = clone@solvers.BaseQPSolver(this, copy);
+            copy = solvers.qp.qpInteriorPoint;
+            copy = clone@solvers.qp.BaseQPSolver(this, copy);
         end
     end
     
     methods(Access=protected)
         
-        function [p,d,cflag,info] = internal_solve(this,Q,c,lb,ub,A,lbA,ubA,x0)
-            
+        function [p,d,cflag,info] = solve(this,Q,c,lb,ub,A,lbA,ubA,x0)
+            error('Not implemented correctly (mess doesnt work!)');
         end
         
         function [ai,b] = quadprog(this, fxi)

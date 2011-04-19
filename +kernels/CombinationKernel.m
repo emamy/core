@@ -37,6 +37,12 @@ classdef CombinationKernel < kernels.BaseKernel
         end
         
         function c = getGlobalLipschitz(this)%#ok
+            % @todo implement
+            error('Not implemented yet');
+        end
+        
+        function Nabla = getNabla(this, x, y)%#ok
+            % @todo implement
             error('Not implemented yet');
         end
         
@@ -56,10 +62,10 @@ classdef CombinationKernel < kernels.BaseKernel
     methods(Static)
         function test_CombinationKernels
             k1 = kernels.CombinationKernel;
-            k1.addKernel(kernels.GaussKernel(1));
-            k1.addKernel(kernels.GaussKernel(8));
+            k1.addKernel(kernels.GaussKernel(.7));
+            k1.addKernel(kernels.GaussKernel(.5));
             %k1.addKernel(kernels.PolyKernel(3),3);
-            k1.addKernel(kernels.PolyKernel(4),2);
+            k1.addKernel(kernels.PolyKernel(2),2);
             k1.CombOp = @(a,b)a.*b;
             k2 = kernels.CombinationKernel;
             k2.addKernel(kernels.LinearKernel,4);
@@ -73,7 +79,7 @@ classdef CombinationKernel < kernels.BaseKernel
             fx = sinc(x);
             
             svr = general.regression.ScalarEpsSVR;
-            svr.QPSolver = solvers.qpMatlab;
+            svr.QPSolver = solvers.qp.qpOASES;
             svr.eps = .3;
             svr.C = 2;
             svr.K = k.evaluate(x,x);

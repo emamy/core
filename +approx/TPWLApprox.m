@@ -17,13 +17,15 @@ classdef TPWLApprox < approx.BaseApprox
         % threshold in order to restrict globally supported weight
         % functions (i.e. the Gaussian) to a local support.
         MinWeightValue = 1e-10;
+        
+        % The centers
+        xi;
     end
     
     properties(Access=private)
         % The gradient matrix
         Ai;
         bi;
-        xi;
     end
     
     methods
@@ -128,7 +130,7 @@ classdef TPWLApprox < approx.BaseApprox
                 xipt = this.xi(:,sel);
                 if isempty(mui); mu = []; else mu = mui(:,sel); end
                 tmp = (model.Data.ApproxfValues(:,sel)-...
-                    model.f.evaluate(xipt+dh,ti(sel),mu))/h;
+                    model.System.f.evaluate(xipt+dh,ti(sel),mu))/h;
                 this.Ai{i} = tmp;
                 this.bi(:,i) = model.Data.ApproxfValues(:,i) - tmp*this.xi(:,i);
             end

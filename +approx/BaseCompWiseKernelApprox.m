@@ -60,6 +60,7 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
             
             target = clone@dscomponents.CompwiseKernelCoreFun(this, target);
             target = clone@approx.BaseApprox(this, target);
+            
             % copy local props
             copy.CoeffComp = this.CoeffComp;
         end

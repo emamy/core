@@ -37,8 +37,8 @@ classdef BaseLipKernelEstimator < error.BaseEstimator
                 % Compute projection part matrices, without creating a
                 % d x d matrix (too big!)
                 M = rmodel.V*(rmodel.W'*Ma);
-                G1 = Ma'*rmodel.G;
-                this.M1 = G1*Ma - 2*G1*M + M'*(rmodel.G*M);
+                G1 = Ma'*rmodel.GScaled;
+                this.M1 = G1*Ma - 2*G1*M + M'*(rmodel.GScaled*M);
                 
                 % Only linear input conversion (B = const. matrix) allowed so
                 % far! mu,0 is only to let
@@ -51,9 +51,9 @@ classdef BaseLipKernelEstimator < error.BaseEstimator
                     end
                     
                     B2 = rmodel.V*(rmodel.W'*B);
-                    G2 = B'*rmodel.G;
-                    this.M2 = 2*(G1*B - M'*G2' - G1*B2 + M'*(rmodel.G*B2));
-                    this.M3 = G2*B - 2*G2*B2 + B2'*(rmodel.G*B2);
+                    G2 = B'*rmodel.GScaled;
+                    this.M2 = 2*(G1*B - M'*G2' - G1*B2 + M'*(rmodel.GScaled*B2));
+                    this.M3 = G2*B - 2*G2*B2 + B2'*(rmodel.GScaled*B2);
                     clear B2 G2;
                 end
                 clear M G1;

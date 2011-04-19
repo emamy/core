@@ -22,10 +22,10 @@ classdef GlobalLipKernelEstimator < error.BaseLipKernelEstimator
             
             % An input function u is set
             if nargin == 5
-                e = phi'*this.M1*phi + phi'*this.M2*ut + ut'*this.M3*ut;
+                e = phi*this.M1*phi' + phi*this.M2*ut + ut'*this.M3*ut;
                 % No input case
             else
-                e = phi'*this.M1*phi;
+                e = phi*this.M1*phi';
             end
             e = sqrt(max(e,0));
         end

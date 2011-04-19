@@ -96,7 +96,11 @@ classdef ACoreFun < dscomponents.IProjectable
             % if no time is used.
             % mu: The parameter(s) to use. Set to [] if the function does not
             % support parameters.
-            proj = ~(this.CustomProjection || isempty(this.V) || isempty(this.W));
+            %
+            % @change{0,3,dw,2011-04-19} Fixed an error when no MultiArgumentEvaluations were supported and
+            % no parameter `\mu` was given (Crashed due to index out of bounds)
+            
+            proj = ~this.CustomProjection && ~isempty(this.V) && ~isempty(this.W);
             if proj
                 x = this.V*x;
             end
@@ -106,8 +110,14 @@ classdef ACoreFun < dscomponents.IProjectable
             else
                 % evaluate each point extra
                 fx = zeros(size(x));
-                for idx = 1:size(x,2)
-                    fx(:,idx) = this.evaluateCoreFun(x(:,idx), t(idx), mu(:,idx));
+                if isempty(mu)
+                    for idx = 1:size(x,2)
+                        fx(:,idx) = this.evaluateCoreFun(x(:,idx), t(idx), []);
+                    end
+                else
+                    for idx = 1:size(x,2)
+                        fx(:,idx) = this.evaluateCoreFun(x(:,idx), t(idx), mu(:,idx));
+                    end
                 end
             end
             if proj

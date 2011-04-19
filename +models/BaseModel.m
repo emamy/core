@@ -11,6 +11,9 @@ classdef BaseModel < KerMorObject
     %
     % @author Daniel Wirtz @date 19.03.2010
     %
+    % @change{0,3,dw,2011-04-15} Added a dependent GScaled property that returns the norm-inducing
+    % matrix G scaled with the current System.StateScaling property.
+    %
     % @change{0,3,dw,2011-04-05} 
     % - Removed the getConfigStr-Method and moved it to
     % general.Utils.getObjectConfig
@@ -45,9 +48,9 @@ classdef BaseModel < KerMorObject
         T = 1;
         
         % The solver to use for the ODE.
-        % Must be an instance of any solvers.BaseSolver subclass.
+        % Must be an instance of any solvers.ode.BaseSolver subclass.
         %
-        % Default: @code solvers.MLWrapper(@ode23) @endcode
+        % Default: @code solvers.ode.MLWrapper(@ode23) @endcode
         %
         % See also: solvers BaseSolver ode23 ode45 ode113
         ODESolver;
@@ -90,14 +93,26 @@ classdef BaseModel < KerMorObject
         % @default 1
         tau;
         
-        % The desired time-stepsize `\Delta t` for simulations
+        % The desired time-stepsize `\Delta t` for simulations.
         %
-        % NOTE: When changing this property any offline computations have
+        % @attention - This property is influencing the resulting output-times at which the
+        % dynamical system is computed. If you need to set a maximum time-step size due to CFL
+        % conditions, for example, use the models.BaseDynSystem.MaxTimeStep property.
+        % - When changing this property any offline computations have
         % to be repeated in order to obtain a new reduced model.
         %
         % @default 0.1
         % See also: dtscaled
         dt;
+        
+        % The scaled version of G.
+        %
+        % Equals `\tilde{G} = D'GD` for `D=diag(s)` and `s` being the System.StateScaling property.
+        %
+        % Use this whenever having to take the real G-norm of some scaled state variables
+        %
+        % See also: G System.StateScaling
+        GScaled;
     end
     
     properties(Access=protected)
@@ -130,7 +145,7 @@ classdef BaseModel < KerMorObject
         
         function this = BaseModel
              this.System = models.BaseDynSystem(this);
-             this.ODESolver = solvers.MLWrapper(@ode23);
+             this.ODESolver = solvers.ode.MLWrapper(@ode23);
         end
         
         function [t,y,sec,x] = simulate(this, mu, inputidx)
@@ -173,8 +188,12 @@ classdef BaseModel < KerMorObject
             
             starttime = tic;
             
-            % Get state trajectory
+            % Get scaled state trajectory
             [t,x] = this.computeTrajectory(mu, inputidx);
+            
+            % Scale times back to real units
+            x = bsxfun(@times,x,this.System.StateScaling);
+            t = t*this.tau;
             
             % Convert to output
             y = this.System.C.computeOutput(t,x,mu);
@@ -202,7 +221,8 @@ classdef BaseModel < KerMorObject
         end
         
         function [t,x] = computeTrajectory(this, mu, inputidx)
-            % Computes a solution/trajectory for the given mu and inputidx.
+            % Computes a solution/trajectory for the given mu and inputidx in the SCALED state
+            % space.
             %
             % Parameters:
             % mu: The parameter `\mu` for the simulation
@@ -213,9 +233,7 @@ classdef BaseModel < KerMorObject
             % Return values:
             % t: The times at which the model was evaluated. Will equal
             % the property Times
-            % x: Depending on the existance of an output converter, this
-            %    either returns the full trajectory or the processed output
-            %    at times t.
+            % x: The state variables at the corresponding times t.
             
             % Validity checks
             if this.System.InputCount > 0 && isempty(inputidx)
@@ -226,7 +244,7 @@ classdef BaseModel < KerMorObject
                 end
             end
             
-            % Setup simulation-time constant data (if available)
+            %% Setup simulation-time constant data (if available)
             if isa(this.System,'ISimConstants')
                 this.System.updateSimConstants;
             end
@@ -234,24 +252,31 @@ classdef BaseModel < KerMorObject
                 this.System.f.updateSimConstants;
             end
 
-            % Get target ODE function
+            %% Get target ODE function
             if isempty(this.System.f)
                 error('No system''s core function specified. ODE function creation impossible; first set "f" property.');
             end
             odefun = this.System.getODEFun(mu, inputidx);
             
-            % Get scaled initial x0
+            %% Get scaled initial x0
             x0 = this.getX0(mu);
             
-            % Solve ODE
+            %% Solve ODE
             if ~isempty(this.System.MaxTimestep)
                 % Remember: When scaling is used, these are the 
                 this.ODESolver.MaxStep = this.System.MaxTimestep;
                 this.ODESolver.InitialStep = .5*this.System.MaxTimestep;
             end
+            % Assign jacobian evaluation function if available
+            if isa(this.ODESolver,'solvers.ode.BaseImplSolver')
+                if isa(this.System.f,'dscomponents.IJacobian')
+                    this.ODESolver.JacFun = @(t,x)this.System.f.getStateJacobian(x, t, mu);
+                else
+                    this.ODESolver.JacFun = [];
+                end
+            end
+            % Call solve
             [t, x] = this.ODESolver.solve(odefun, this.scaledTimes, x0);
-            % Scale times back to real units
-            t = t*this.tau;
         end
         
 %         function target = clone(this, target)            
@@ -284,7 +309,7 @@ classdef BaseModel < KerMorObject
             % Parameters:
             % mu: The parameter `\mu` to evaluate `x_0(\mu)`. Use [] for
             % none.
-            x0 = this.System.x0(mu);
+            x0 = this.System.x0(mu) ./ this.System.StateScaling;
         end
     end
     
@@ -306,6 +331,10 @@ classdef BaseModel < KerMorObject
             else
                 value = this.T/this.tau;
             end
+        end
+        
+        function gs = get.GScaled(this)
+            gs = diag(this.System.StateScaling) * this.G * diag(this.System.StateScaling);
         end
         
         function dt = get.dt(this)
@@ -364,7 +393,7 @@ classdef BaseModel < KerMorObject
         end
         
         function set.ODESolver(this, value)
-            this.checkType(value,'solvers.BaseSolver');%#ok
+            this.checkType(value,'solvers.ode.BaseSolver');%#ok
             this.ODESolver = value;
         end
         

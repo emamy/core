@@ -13,6 +13,12 @@ classdef NoKernel < kernels.BaseKernel
             K = 1;
         end
         
+        function Nablax = getNabla(this, x, y)%#ok
+            % Return zero as this kernel is a constant one.
+            warning('KerMor:uninvestigated','Using this function may cause unpredictable behaviour.');
+            Nablax = 0;
+        end
+        
         function c = getGlobalLipschitz(this)%#ok
             c = 1;
         end
