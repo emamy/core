@@ -62,6 +62,12 @@ classdef BaseDynSystem < KerMorObject
         %
         % See also: BaseModel BaseModel.tau BaseModel.dtscaled
         MaxTimestep = [];
+        
+        % The scaling for the state vectors
+        %
+        % Can either be a scalar that will be used for every `f`-dimension, or a vector of the same
+        % dimension as the system's core function `f` which will then be applied component-wise
+        StateScaling = 1;
     end
     
     properties(Dependent)
@@ -77,21 +83,7 @@ classdef BaseDynSystem < KerMorObject
         Model;
     end
     
-%     properties(Access=private)
-%         fModel;
-%     end
-    
-    methods
-        
-%         function m = get.Model(this)
-%             m = this.fModel;
-%         end
-%         
-%         function set.Model(this, value)
-%             
-%             this.fModel = value;
-%         end
-        
+    methods       
         function this = BaseDynSystem(model)
             % Creates a new base dynamical system class instance.
             %

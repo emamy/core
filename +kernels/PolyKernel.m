@@ -20,8 +20,14 @@ classdef PolyKernel < kernels.BaseKernel
             this.RotationInvariant = true;
         end
         
-        function c = getGlobalLipschitz(this)
+        function c = getGlobalLipschitz(this)%#ok
+            % @todo implement
             error('Not implemented yet!');
+        end
+        
+        function Nabla = getNabla(this, x, y)
+            % Partial derivatives of scalar product is simply the second argument vector.
+            Nabla = this.Degree*bsxfun(@times, y, x'*y.^(this.Degree-1));
         end
         
         function K = evaluate(this, x, y)

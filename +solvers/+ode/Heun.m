@@ -1,4 +1,4 @@
-classdef Heun < solvers.BaseSolver
+classdef Heun < solvers.ode.BaseSolver
     % ODE solver implementing the method of heun
     %
     % Method description:

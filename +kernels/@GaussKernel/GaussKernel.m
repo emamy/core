@@ -2,10 +2,13 @@ classdef GaussKernel < kernels.BellFunction
     % Radial Basis Function Kernel
     %   
     % Uses the notation
-    % ``\Phi(x,y) = e^{\frac{||x-y||^2}{\gamma}},``
+    % ``\Phi(x,y) = e^{\frac{||x-y||^2}{\gamma^2}},``
     % so be careful with the `\gamma` constant.
     %
     % @author Daniel Wirtz @date 11.03.2011
+    %
+    % @change{0,3,dw,2011-04-15} Changed the Gamma property to compute into the kernel evaluation
+    % being squared instead of linear. This way the Gamma becomes a more geometrical meaning
     %
     % @change{0,2,dw,2011-03-11} Added new speed tests for one and two
     % argument calls to 'evaluate'. The tests are run 'iter' times and the
@@ -38,52 +41,62 @@ classdef GaussKernel < kernels.BellFunction
             end;
             K = (ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*x'*y;
             K(K<0) = 0;
-            K = exp(-K/this.Gamma);
+            K = exp(-K/this.Gamma^2);
         end
         
-        function K = evaluateIntel(this, x, varargin)
-            % Experimental function that automatically calls the mex openmp
-            % implementation code if the vectors are small enough.
-            %
-            % @todo write c code more efficient (use blas/lapack?)
-            
-            % Evaluate MEX function if sizes are small!
-            if numel(x) < 500000
-                 K = this.evaluateMex(x,varargin{:});
-                 return;
+        function Nablax = getNabla(this, x, y)
+            % Method for first derivative evaluation
+            if size(x,2) > 1 && size(y,2) > 1
+                error('One argument must be a vector.');
             end
-            
-            n1sq = sum(x.^2,1);
-            n1 = size(x,2);
-
-            if nargin == 2;
-                n2sq = n1sq;
-                n2 = n1;
-                y = x;
-            else
-                y = varargin{1};
-                n2sq = sum(y.^2,1);
-                n2 = size(y,2);
-            end;
-            K = (ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*x'*y;
-            K(K<0) = 0;
-            K = exp(-K/this.Gamma);
-        end
+            hlp = bsxfun(@minus,x,y);
+            hlp = -2*hlp/this.Gamma^2;
+            Nablax = bsxfun(@times,hlp,this.evaluate(x, y));
+        end 
+        
+%         function K = evaluateIntel(this, x, varargin)
+%             % Experimental function that automatically calls the mex openmp
+%             % implementation code if the vectors are small enough.
+%             %
+%             % @todo write c code more efficient (use blas/lapack?)
+%             
+%             % Evaluate MEX function if sizes are small!
+%             if numel(x) < 500000
+%                  K = this.evaluateMex(x,varargin{:});
+%                  return;
+%             end
+%             
+%             n1sq = sum(x.^2,1);
+%             n1 = size(x,2);
+% 
+%             if nargin == 2;
+%                 n2sq = n1sq;
+%                 n2 = n1;
+%                 y = x;
+%             else
+%                 y = varargin{1};
+%                 n2sq = sum(y.^2,1);
+%                 n2 = size(y,2);
+%             end;
+%             K = (ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*x'*y;
+%             K(K<0) = 0;
+%             K = exp(-K/this.Gamma^2);
+%         end
                 
         function dx = evaluateD1(this, x)
             % Method for first derivative evaluation
-            dx = -2*x/this.Gamma .* exp(-x.^2/this.Gamma);
+            dx = -2*x/this.Gamma^2 .* exp(-x.^2/this.Gamma^2);
         end
         
         function ddx = evaluateD2(this, x)
             % Method for second derivative evaluation
-            ddx = (2/this.Gamma) * (2*x.^2/this.Gamma-1) .* exp(-x.^2/this.Gamma);
+            ddx = (2/this.Gamma^2) * (2*x.^2/this.Gamma^2-1) .* exp(-x.^2/this.Gamma^2);
         end
         
         function Kx = evaluateScalar(this, x)
             % Implements the required method from the IRotationInvariant
             % interface
-            Kx = exp(-x.^2/this.Gamma);
+            Kx = exp(-x.^2/this.Gamma^2);
         end
         
         function set.Gamma(this, value)
@@ -114,7 +127,7 @@ classdef GaussKernel < kernels.BellFunction
             if nargin == 2
                 ep = eps;
             end
-            g = -(dist^2)/log(ep);
+            g = dist/sqrt(-log(ep));
             this.Gamma = g;
             
             if KerMor.App.Verbose > 3
@@ -125,16 +138,7 @@ classdef GaussKernel < kernels.BellFunction
     
     methods(Static)
         
-        function res = test_InterpolGamma
-            
-% Algorithmus
-% evaluate f over whole validationdata (subset projdata) and store
-% select initial training set from projdata
-%   find optimal kernel config (for all dims!)
-%   compute position of max error (normdiff f-evals)
-%   add pos to training set
-% while numcenters < maxnum || err < tol
-            
+        function res = test_InterpolGamma            
             ki = general.interpolation.KernelInterpol;
             %ki.UseLU = true;
             k = kernels.GaussKernel;

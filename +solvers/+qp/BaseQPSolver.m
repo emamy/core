@@ -114,16 +114,16 @@ classdef BaseQPSolver < ICloneable
             c = [1; 4; -1];
             x0 = [1; 50; 0];
             
-            qp{1} = solvers.qpMatlab;
-            qp{2} = solvers.qpOASES;
-            qp{3} = solvers.qpMosek;
-%             ip = solvers.qpIPOPT;
+            qp{1} = solvers.qp.qpMatlab;
+            qp{2} = solvers.qp.qpOASES;
+            qp{3} = solvers.qp.qpMosek;
+%             ip = solvers.qp.qpIPOPT;
 %             ip.UserOptions.ipopt.linear_solver = 'ma27';
 %             qp{4} = ip;
-%             ip = solvers.qpIPOPT;
+%             ip = solvers.qp.qpIPOPT;
 %             ip.UserOptions.ipopt.linear_solver = 'ma57';
 %             qp{5} = ip;
-%             ip = solvers.qpIPOPT;
+%             ip = solvers.qp.qpIPOPT;
 %             ip.UserOptions.ipopt.linear_solver = 'mumps';
 %             qp{6} = ip;
             

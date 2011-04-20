@@ -1,4 +1,4 @@
-classdef qpIPOPT < solvers.BaseQPSolver
+classdef qpIPOPT < solvers.qp.BaseQPSolver
     % Quadratic program solver using IPOPT subroutines.
     %
     % @author Daniel Wirtz @date 27.10.2010
@@ -22,8 +22,8 @@ classdef qpIPOPT < solvers.BaseQPSolver
         end
         
         function copy = clone(this)
-            copy = solvers.qpIPOPT;
-            copy = clone@solvers.BaseQPSolver(this, copy);
+            copy = solvers.qp.qpIPOPT;
+            copy = clone@solvers.qp.BaseQPSolver(this, copy);
             copy.UserOptions = this.UserOptions;
         end
     end

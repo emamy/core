@@ -1,4 +1,4 @@
-classdef MLWrapper < solvers.BaseSolver
+classdef MLWrapper < solvers.ode.BaseSolver
     % Allows to wrap a MatLab ODE solver into the KerMor framework.
     
     properties

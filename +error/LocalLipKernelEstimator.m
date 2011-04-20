@@ -126,10 +126,10 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
             phi = this.ReducedModel.System.f.evaluateAtCenters(x(1:end-this.ExtraODEDims), t, mu);
             % An input function u is set
             if nargin == 5
-                e(1) = phi'*this.M1*phi + phi'*this.M2*ut + ut'*this.M3*ut;
+                e(1) = phi*this.M1*phi' + phi*this.M2*ut + ut'*this.M3*ut;
                 % No input case
             else
-                e(1) = phi'*this.M1*phi;
+                e(1) = phi*this.M1*phi';
             end
             if ~this.neg_e1 && e(1) < 0
                 this.neg_e1 = true;
@@ -209,7 +209,7 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
         end
         
         function set.Iterations(this, value)
-            if value > 0 && isa(this.ReducedModel.ODESolver,'solvers.MLWrapper')%#ok
+            if value > 0 && (isa(this.ReducedModel.ODESolver,'solvers.ode.MLWrapper') || isa(this.ReducedModel.ODESolver,'solvers.ode.MLode15i'))%#ok
                 warning('errorEst:LocalLipEst',...
                     'Build-In Matlab solvers cannot be use with this Error Estimator if Iterations are turned on.\nSetting Iterations = 0.');
                 this.Iterations = 0;
@@ -294,14 +294,14 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
             r.ErrorEstimator = error.LocalLipKernelEstimator(r);
             
 %             try
-%                 m.ODESolver = solvers.MLWrapper(@ode23);
+%                 m.ODESolver = solvers.ode.sMLWrapper(@ode23);
 %                 r.ErrorEstimator = error.LocalLipKernelEstimator(r);
 %                 r.ErrorEstimator.Iterations = 1;
 %             catch ME%#ok
 %                 res = true;
 %             end
             
-            m.ODESolver = solvers.Heun;
+            m.ODESolver = solvers.ode.Heun;
             r.ErrorEstimator = error.LocalLipKernelEstimator(r);
             r.ErrorEstimator.Iterations = 4;
             

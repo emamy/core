@@ -3,6 +3,8 @@ classdef Utils
     %
     % @author Daniel Wirtz @date 11.10.2010
     %
+    % @new{0,3,dw,2011-04-18} Added the 'saveFigure' and 'saveAxes' methods from SegMedix.
+    %
     % @change{0,3,dw,2011-04-04} Moved the general.Utils.getObjectConfig
     % method here from models.BaseModel
     %
@@ -12,38 +14,7 @@ classdef Utils
     
     methods(Static)
         
-        function idx = findVecInMatrix(A,b)
-            % Finds column vectors inside a matrix.
-            %
-            % For multiple occurences, the first found index is used.
-            %
-            % See
-            % http://www.mathworks.com/matlabcentral/newsreader/view_thread/174277
-            % and the test function testing.find_vec_in_matrix_speedtest
-            % for further information.
-            %
-            % Parameters:
-            % A: A `n\times m` matrix of `m` column vectors
-            % b: A `n\times p` vector, where each column is regarded as one vector to search
-            %
-            % Return values:
-            % idx: A `1 \times p` vector containing the first found positions indices if a vector
-            % from b is contained in A, zero otherwise.
-            %
-            % @change{0,3,dw,2011-04-12} Added support for multi vector search.
-            % @change{0,3,dw,2011-04-13} Fixed errors when multiple occurences appear.
-            
-            if size(A,1) ~= size(b,1)
-                error('Invalid arguments.');
-            end
-            idx = zeros(1,size(b,2));
-            for n = 1:size(b,2)
-                tmp = strfind(reshape(A,1,[]),b(:,n)');
-                if ~isempty(tmp)
-                    idx(n) = (tmp(1)+size(b,1)-1)/size(b,1);
-                end
-            end
-        end
+        
         
         function [bmin, bmax] = getBoundingBox(vectors)
             % Gets the bounding box for a matrix containing column vectors.
@@ -222,6 +193,39 @@ classdef Utils
             str = sprintf(str);
         end
         
+        function idx = findVecInMatrix(A,b)
+            % Finds column vectors inside a matrix.
+            %
+            % For multiple occurences, the first found index is used.
+            %
+            % See
+            % http://www.mathworks.com/matlabcentral/newsreader/view_thread/174277
+            % and the test function testing.find_vec_in_matrix_speedtest
+            % for further information.
+            %
+            % Parameters:
+            % A: A `n\times m` matrix of `m` column vectors
+            % b: A `n\times p` vector, where each column is regarded as one vector to search
+            %
+            % Return values:
+            % idx: A `1 \times p` vector containing the first found positions indices if a vector
+            % from b is contained in A, zero otherwise.
+            %
+            % @change{0,3,dw,2011-04-12} Added support for multi vector search.
+            % @change{0,3,dw,2011-04-13} Fixed errors when multiple occurences appear.
+            
+            if size(A,1) ~= size(b,1)
+                error('Invalid arguments.');
+            end
+            idx = zeros(1,size(b,2));
+            for n = 1:size(b,2)
+                tmp = strfind(reshape(A,1,[]),b(:,n)');
+                if ~isempty(tmp)
+                    idx(n) = (tmp(1)+size(b,1)-1)/size(b,1);
+                end
+            end
+        end
+        
         function y = preparePlainPlot(y)
             % Memory-saving plotting for plain result plots.
             %
@@ -245,6 +249,74 @@ classdef Utils
                     y = y(round(1:sy/4000:sy),:);
                 end
             end
+        end
+        
+        function saveFigure(fig, title)
+            % Opens a matlab save dialog and saves the given figure to the
+            % file selected.
+            %
+            % Supported formats: eps, jpg, fig
+            if (nargin == 1)
+                title = 'Save figure as';
+            end
+            
+            ExportDPI = 200;        
+            JPEGQuality = 90;
+            
+            [filename, pathname, filteridx] = ...
+            uiputfile({'*.eps','Extended PostScript (*.eps)';...
+                       '*.jpg','JPEG Image (*.jpg)';...
+                       '*.fig','Figures (*.fig)'}, title);
+            if ~isempty(filename) && ~isempty(pathname)
+                ffile = [pathname filename];
+                if (filteridx == 1)
+                    %print(fig,[pathname filename],'-depsc',['-r' num2str(Config.ExportDPI)],'-tiff');
+                    print(fig,ffile,'-depsc',['-r' num2str(ExportDPI)],'-tiff');
+                    system(ffile);
+                elseif filteridx == 2
+                    %print(fig,[pathname filename],['-djpeg' num2str(Config.JPEGQuality)],['-r' num2str(Config.ExportDPI)]);
+                    print(fig,ffile,['-djpeg' num2str(JPEGQuality)],['-r' num2str(ExportDPI)]);
+                    system(ffile);
+                elseif filteridx == 3
+                    saveas(fig, ffile, 'fig');
+                    openfig(ffile,'new','visible');
+                end
+                %if (Config.OpenAfterExport)
+                    
+                %end
+            end
+        end
+        
+        function saveAxes(ax, title)
+            % Convenience function. Allows to save a custom axes instead of
+            % a whole figure which allows to drop any unwanted uiobjects
+            % contained on the source figure.
+            
+            fig = figure('Visible','off','MenuBar','none','ToolBar','none');
+            newax = copyobj(ax, fig);
+            
+            %% Fit style
+            % Just copy the colormap
+            set(fig,'Colormap',get(get(ax,'Parent'),'Colormap'));
+            
+            u = 'pixels';
+            old_units = get(ax,'Units');
+            set(ax,'Units',u);
+            axpos = get(ax,'Position');
+            tin = get(ax,'TightInset');
+            set(ax,'Units',old_units);
+            
+            % Put figure in correct size
+            set(fig,'Position',[1 1 axpos(3:4)+tin(1:2)+tin(3:4)]);
+            set(newax,'Units',u);
+            set(newax,'Position',[tin(1:2) axpos(3:4)]);
+            
+            %% Save
+            if nargin == 1
+                title='Save axes as';
+            end
+            general.Utils.saveFigure(fig, title);
+            close(fig);
         end
     end
     

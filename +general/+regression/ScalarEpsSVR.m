@@ -86,12 +86,12 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             svr.eps = .1;
             svr.C = 10;
             %svr.QPSolver.MaxIterations = 1000;
-            %svr.QPSolver = solvers.qpMatlab;
-            %svr.QPSolver = solvers.qpMosek;
-            svr.QPSolver = solvers.qpOASES;
+            %svr.QPSolver = solvers.qp.qpMatlab;
+            %svr.QPSolver = solvers.qp.qpMosek;
+            svr.QPSolver = solvers.qp.qpOASES;
             %kernel = kernels.PolyKernel(2);
             %kernel = kernels.LinearKernel;
-            kernel = kernels.GaussKernel(1);
+            kernel = kernels.GaussKernel(.7);
             svr.K = kernel.evaluate(x,x);
             
             figure;
@@ -99,12 +99,12 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             
             [ai,b,svidx,epsi] = svr.regress(fx);
             sv = x(:,svidx);
-            svfun = @(x)ai'*kernel.evaluate(sv,x) + b;
+            svfun = @(x)ai'*(kernel.evaluate(x,sv)') + b;
             
             fsvr = svfun(x);
             
             fdiff = abs(fsvr(svidx)-fx(svidx));
-            errors = find(fdiff  < .9999*svr.eps);
+            errors = find(fdiff  < .999*svr.eps);
             res = isempty(errors);
             
             % Plot approximated function

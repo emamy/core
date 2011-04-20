@@ -1,4 +1,4 @@
-classdef qpOASES < solvers.BaseQPSolver
+classdef qpOASES < solvers.qp.BaseQPSolver
     % Solves a quadratic program following the active set qp solving
     % algorithms described in the literature:
     %
@@ -33,8 +33,8 @@ classdef qpOASES < solvers.BaseQPSolver
         end
         
         function copy = clone(this)
-            copy = solvers.qpOASES;
-            copy = clone@solvers.BaseQPSolver(this, copy);
+            copy = solvers.qp.qpOASES;
+            copy = clone@solvers.qp.BaseQPSolver(this, copy);
         end
         
     end

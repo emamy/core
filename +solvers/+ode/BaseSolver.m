@@ -32,7 +32,11 @@ classdef BaseSolver < handle
     methods(Access=protected)
         function [times, outputtimes] = getCompTimes(this, t)
             % Computes the computation and effective output times for a
-            % given input time vector t. 
+            % given input time vector t.
+            %
+            % This method is thought of as a convenience method for custom solver implementations
+            % that merges the desired evaluation times with the times resulting from a possible
+            % MaxStep setting.
             %
             % As maximum execution speed is wanted, MaxStep is used as `dt`
             % time-step size. So in order to set `dt` use the MaxStep
@@ -101,6 +105,9 @@ classdef BaseSolver < handle
     methods(Abstract)
         % The abstract solve function for the ODE solver.
         %
+        % If you implement your own solver you can use the solvers.ode.BaseSolver.getCompTimes method to
+        % get the times effectively needed in order to comply with any MaxStep setting.
+        %
         % Parameters:
         % odefun: A function handle to the ode's function. Signature is
         % 'odefun(t,x)'
@@ -110,9 +117,11 @@ classdef BaseSolver < handle
         % setting the desired output times. Depending on the MaxStep
         % property, the solver can work with a finer time step internally.
         % x0: The initial value
+        %
+        % See also: getCompTimes
         solve(this, odefun, t, x0);
         
-        %[t,y] = solve(odefun, t, x0);
+        %[t,x] = solve(odefun, t, x0);
     end
     
     methods
@@ -140,10 +149,10 @@ classdef BaseSolver < handle
         
         function res = test_SolverSpeedTest
             m = models.synth.KernelTest(200);
-            perform(solvers.ExplEuler);
-            perform(solvers.MLWrapper(@ode23));
-            perform(solvers.MLWrapper(@ode45));
-            perform(solvers.Heun);
+            perform(solvers.ode.ExplEuler);
+            perform(solvers.ode.MLWrapper(@ode23));
+            perform(solvers.ode.MLWrapper(@ode45));
+            perform(solvers.ode.Heun);
             
             res = 1;
             

@@ -24,7 +24,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
         % center.
         %
         % @default 200
-        MaxExpansionSize = 150;
+        MaxExpansionSize = 200;
         
         % The number of different Gamma values to try.
         NumGammas = 20;
@@ -80,8 +80,8 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             % change?)
             
             %% Experimental settings
-            fac = 4;
-            minfac = .001; % min factor for BB diameters at initial gamma choice
+            fac = 50;
+            minfac = .01; % min factor for BB diameters at initial gamma choice
             dfun = @logsp; % gamma distances comp fun (linsp / logsp)
             if this.ErrFun == 1
                 errfun = @getLInftyErr; % L^inf error function
@@ -243,11 +243,11 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                 nt.addPoint(new(3));
                 
                 %% Compute new approximation
-                dists = [dfun(nx.getMinNN/2, fac*bxdia); dfun(nt.getMinNN/2, fac*btdia)];
+                dists = [dfun(nx.getMinNN, fac*bxdia); dfun(nt.getMinNN, fac*btdia)];
                 if hasparams
                     minnn = bpdia/this.NumGammas;
                     if ~isinf(np.getMinNN)
-                        minnn = np.getMinNN/2;
+                        minnn = np.getMinNN;
                     end
                     dists = [dists; dfun(minnn, fac*bpdia)];%#ok
                 end
@@ -347,14 +347,16 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             function [val,idx,errs] = getLInftyErr(a,b)
                 % computes the 'L^\infty'-approximation error over the
                 % training set for the current approximation
-                errs = max(abs(a-b));
+                
+                %errs = max(abs((a-b) ./ (a+eps)));
+                errs = max(abs(a-b),[],1);
                 [val, idx] = max(errs);
             end
             
             function [val,idx,errs] = getL2Err(a,b)
                 % computes the 'L^\infty'-approximation error over the
                 % training set for the current approximation
-                errs = sqrt(sum((a-b).^2));
+                errs = sqrt(sum((a-b).^2,1));
                 [val, idx] = max(errs);
             end
             

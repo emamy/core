@@ -22,7 +22,7 @@ function varargout = ApproxVisualizer(varargin)
 
 % Edit the above text to modify the response to help ApproxVisualizer
 
-% Last Modified by GUIDE v2.5 14-Apr-2011 10:44:16
+% Last Modified by GUIDE v2.5 18-Apr-2011 13:05:28
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -225,8 +225,16 @@ if get(h.rbS,'Value') == 1
     mui = d.getParams(sn(1,:));
     
     % Find the currently used center vectors of the expansion, if set
-    centers = unique(general.Utils.findVecInMatrix(xi,r.FullModel.Approx.Centers.xi));
-    if centers(1) == 0
+    a = r.FullModel.Approx;
+    if isa(a, 'approx.AKernelCoreFun')
+        cen = a.Centers.xi;
+    elseif isa(a, 'approx.TPWLApprox')
+        cen = a.xi;
+    else
+        cen = [];
+    end
+    centers = unique(general.Utils.findVecInMatrix(xi,cen));
+    if ~isempty(centers) && centers(1) == 0
         centers(1) = [];
     end
     setappdata(h.main,'centers',centers);
@@ -480,7 +488,9 @@ title(sprintf('%s\nFull approx vs projected approx %s-errors\nMax: %5.3e, mean: 
     
 function plotit(e,nr)
 subplot(1,3,nr);
-plot(e,'r.','MarkerSize',.5);
+%plot(e,'r.','MarkerSize',.5);
+plot(e,'r');
+axis tight;
 
 function [val,idx,errs] = getLInftyErr(a,b)
 % computes the 'L^\infty'-approximation error over the
@@ -493,3 +503,11 @@ function [val,idx,errs] = getL2Err(a,b)
 % training set for the current approximation
 errs = sqrt(sum((a-b).^2));
 [val, idx] = max(errs);
+
+
+% --- Executes on button press in btnSave.
+function btnSave_Callback(hObject, eventdata, handles)
+% hObject    handle to btnSave (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+general.Utils.saveAxes(handles.image, '');

@@ -29,6 +29,12 @@ classdef SigmoidKernel < kernels.BaseKernel
         end
         
         function c = getGlobalLipschitz(this)%#ok
+            % @todo implement
+            error('Not implemented yet!');
+        end
+        
+        function Nabla = getNabla(this, x, y)%#ok
+            % @todo implement
             error('Not implemented yet!');
         end
         

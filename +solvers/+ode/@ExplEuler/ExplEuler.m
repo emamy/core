@@ -1,4 +1,4 @@
-classdef ExplEuler < solvers.BaseSolver
+classdef ExplEuler < solvers.ode.BaseSolver
     % Explicit forward euler ODE solver
     %
     % This solver uses the MaxStep property as timestep to be most
@@ -14,7 +14,7 @@ classdef ExplEuler < solvers.BaseSolver
     % @new{0,2,dw,2011-03-11} Added a c/mex implementation of the
     % algorithm. Turns out it is double the times slower than the matlab
     % native code version, so leaving it only in there for speed test
-    % purposes (solvers.ExplEuler.test_solveMex).
+    % purposes (solvers.ode.ExplEuler.test_solveMex).
     
     methods
         
@@ -82,7 +82,7 @@ classdef ExplEuler < solvers.BaseSolver
     
     methods(Static)
         function res = test_solveMex
-            s = solvers.ExplEuler;
+            s = solvers.ode.ExplEuler;
             
             times = 0:.05:1;
             iter = 100;

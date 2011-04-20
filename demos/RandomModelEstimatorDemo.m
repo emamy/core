@@ -43,9 +43,9 @@ classdef RandomModelEstimatorDemo < EstimatorDemo
             fm.Approx = [];
             fm.Sampler = [];
             
-            %this.ODESolver = solvers.MLWrapper(@ode45);
-            fm.ODESolver = solvers.ExplEuler(fm.dt);
-            %fm.ODESolver = solvers.Heun(fm.dt);
+            %this.ODESolver = solvers.ode.MLWrapper(@ode45);
+            fm.ODESolver = solvers.ode.ExplEuler(fm.dt);
+            %fm.ODESolver = solvers.ode.Heun(fm.dt);
             
             %% Core function
             cf = dscomponents.CompwiseKernelCoreFun;
@@ -55,7 +55,7 @@ classdef RandomModelEstimatorDemo < EstimatorDemo
             cf.Centers.mui = [];
             
             %% System settings
-            fm.System = models.BaseDynSystem;
+            fm.System = models.BaseDynSystem(fm);
             fm.System.f = cf;
             this.Model = fm;
             
