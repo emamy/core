@@ -7,6 +7,8 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
     % combined using the function handle set by the property
     % SubKernelCombinationFun.
     %
+    % @change{0,3,sa,2011-04-16} Implemented Setter for the property 'Centers'
+    %
     % @change{0,3,dw,2011-04-6} Set the kernel properties to dependent and
     % introduced private storage members for them. Also improved the setter
     % for the SubKernelCombinationFun (checks for 3 args now)
@@ -237,6 +239,18 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
                 error('SubKernelCombinationFun must take exactly three input arguments.');
             end
             this.SubKernelCombinationFun = fhandle;
+        end
+        
+        function set.Centers(this, value)
+            C = {'xi','ti','mui'};            
+            if isfield(value, C) == 1
+                this.Centers = value ;
+                if isempty(value.xi)
+                    warning('REQUIRED_FIELD:Empty','xi is a required field, which is left empty');
+                end
+            else
+                error('Value passed is not a valid struct. Should have the three fields xi,ti,mui');
+            end            
         end
         
         function k = get.ParamKernel(this)

@@ -10,6 +10,8 @@ classdef ACoreFun < dscomponents.IProjectable
     %
     % @author Daniel Wirtz @date 17.03.2010
     %
+    % @change{0,3,sa,2011-04-15} Implemented Setters for the properties of this class 
+    %
     % @change{0,3,dw,2011-04-13} the evaluate function supports multiargument evaluation now.
     %
     % @new{0,3,dw,2011-04-12} Added a new set-protected property
@@ -117,9 +119,16 @@ classdef ACoreFun < dscomponents.IProjectable
 
         function set.CustomProjection(this, value)
             if ~islogical(value)
-                error('Property "CustomProjection" must be logical/boolean.');
+                error('Property must be logical/boolean. either true or false');
             end
             this.CustomProjection = value;
+        end
+        
+        function set.MultiArgumentEvaluations(this, value)
+            if ~islogical(value)
+                error('Property must be logical/boolean. either true or false');
+            end
+            this.MultiArgumentEvaluations = value;
         end
         
         function copy = clone(this, copy)

@@ -8,6 +8,8 @@ classdef AOutputConv < dscomponents.IProjectable
     % See also: ACoreFun IInputConv
     %
     % @author Daniel Wirtz @date 17.03.2010
+    %
+    % @change{0,3,sa,2011-04-15} Implemented Setter for the class property 
     
     properties(SetAccess=protected)
         % Flag whether the output converter actually depends on a time
@@ -52,6 +54,13 @@ classdef AOutputConv < dscomponents.IProjectable
                 % can be preformed much faster.
                 y = this.evaluate([],mu)*x;
             end
+        end
+        
+        function set.TimeDependent(this, value)
+            if ~islogical(value)
+                error('Property is logical. Must be set either true or false');
+            end
+            this.TimeDependent = value;
         end
         
         function copy = clone(this, copy)

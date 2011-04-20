@@ -4,6 +4,8 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
     %   Detailed explanation goes here
     %
     % @todo IMPORTANT: Allow different kernels for different centers!
+    %
+    % @change{0,3,sa,2011-04-16} Implemented Setter for the property 'off'
     
     properties
         % The `b_k` offsets for each dimension.
@@ -76,6 +78,13 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
             end
             this.machanged = true;
             this.fMa = value;
+        end
+        
+        function set.off(this, value)
+            if ~isempty(find(isnan(value),1))
+                error('Invalid offset values (NaN)');
+            end
+            this.off = value;
         end
     end
         
