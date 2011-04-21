@@ -13,6 +13,8 @@ classdef AOutputConv < KerMorObject & dscomponents.IProjectable
     % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
     % extended constructor registering any user-relevant properties using
     % KerMorObject.registerProps.
+    %
+    % @change{0,3,sa,2011-04-15} Implemented Setter for the class property 
     
     properties(SetObservable,SetAccess=protected)
         % Flag whether the output converter actually depends on a time
@@ -64,6 +66,13 @@ classdef AOutputConv < KerMorObject & dscomponents.IProjectable
                 % can be preformed much faster.
                 y = this.evaluate([],mu)*x;
             end
+        end
+        
+        function set.TimeDependent(this, value)
+            if ~islogical(value)
+                error('Property is logical. Must be set either true or false');
+            end
+            this.TimeDependent = value;
         end
         
         function copy = clone(this, copy)

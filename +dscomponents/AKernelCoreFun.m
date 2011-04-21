@@ -12,6 +12,8 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
     % extended constructor registering any user-relevant properties using
     % KerMorObject.registerProps.
     %
+    % @change{0,3,sa,2011-04-16} Implemented Setter for the property 'Centers'
+    %
     % @new{0,3,dw,2011-04-15} Added the dscomponents.AKernelCoreFun.evaluateStateNabla method to
     % allow efficient computation of kernel expansion jacobians.
     %
@@ -238,6 +240,18 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
                 error('SubKernelCombinationFun must take exactly three input arguments.');
             end
             this.SubKernelCombinationFun = fhandle;
+        end
+        
+        function set.Centers(this, value)
+            C = {'xi','ti','mui'};            
+            if isfield(value, C) == 1
+                this.Centers = value ;
+                if isempty(value.xi)
+                    warning('REQUIRED_FIELD:Empty','xi is a required field, which is left empty');
+                end
+            else
+                error('Value passed is not a valid struct. Should have the three fields xi,ti,mui');
+            end            
         end
         
         function k = get.ParamKernel(this)

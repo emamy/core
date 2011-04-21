@@ -15,6 +15,8 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
     % extended constructor registering any user-relevant properties using
     % KerMorObject.registerProps.
     %
+    % @change{0,3,sa,2011-04-15} Implemented Setters for the properties of this class 
+    %
     % @change{0,3,dw,2011-04-13} The evaluate function supports multiargument evaluation now.
     %
     % @new{0,3,dw,2011-04-12} Added a new set-protected property
@@ -160,9 +162,16 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
 
         function set.CustomProjection(this, value)
             if ~islogical(value)
-                error('Property "CustomProjection" must be logical/boolean.');
+                error('Property must be logical/boolean. either true or false');
             end
             this.CustomProjection = value;
+        end
+        
+        function set.MultiArgumentEvaluations(this, value)
+            if ~islogical(value)
+                error('Property must be logical/boolean. either true or false');
+            end
+            this.MultiArgumentEvaluations = value;
         end
         
         function copy = clone(this, copy)
