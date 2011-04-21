@@ -1,4 +1,4 @@
-classdef BaseSampler < handle
+classdef BaseSampler < KerMorObject
     %BASESAMPLER Summary of this class goes here
     %   Detailed explanation goes here
     

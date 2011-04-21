@@ -1,4 +1,4 @@
-classdef KernelInterpol < approx.IKernelCoeffComp
+classdef KernelInterpol < KerMorObject & approx.IKernelCoeffComp
     % Provides kernel interpolation.
     %
     % The basic interpolation form is 
@@ -12,25 +12,37 @@ classdef KernelInterpol < approx.IKernelCoeffComp
     %
     % @author Daniel Wirtz @date 01.04.2010
     %
+    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+    % extended constructor registering any user-relevant properties using
+    % KerMorObject.registerProps.
+    %
     % @change{0,2,dw,2011-03-21} 
     % - Added the general.interpolation.KernelInterpol.UseLU property. With
     % this subsequent calls to interpolate using the same kernel matrix is
     % more efficient.
     % - Updated the documentation
     
-    properties
+    properties(Dependent)
         % The kernel matrix K to use within interpolation.
+        %
+        % @propclass{data} Required for any interpolation computation.
         %
         % See also: UseLU
         K;
+    end
         
+    properties(Dependent, SetObservable)
         % Flag that indicates whether to use LU decomposition of the kernel
         % matrix of not. Ideally set this property ''after'' you assigned
         % the kernel matrix K
         %
+        % @propclass{optional} Speedup maybe gained if subsequent calls to interpolate using the
+        % same kernel matrix are made.
+        %
         % @default false
         % See also: K
-        UseLU = false;
+        UseLU;
     end
     
     properties(Access=private)
@@ -47,7 +59,18 @@ classdef KernelInterpol < approx.IKernelCoeffComp
         U;
     end
     
+    properties(Access=private)
+        fUseLU = false;
+        fK;
+    end
+    
     methods
+        
+        function this = KernelInterpol
+            this = this@KerMorObject;
+            this.registerProps('K','UseLU');
+        end
+        
         function [a,b] = interpolate(this, fxi)
             % Computes the kernel expansion coefficients `\alpha_i` and
             % offset `\beta` as described in the class documentation.
@@ -68,12 +91,10 @@ classdef KernelInterpol < approx.IKernelCoeffComp
                     fprintf('KernelInterpol note: All mean-cleaned fxi values < 10eps, assuming zero coefficients!\n');
                 end
             else
-                if this.UseLU
+                if this.fUseLU
                     a = this.U\(this.L\(fxi-b)');
-%                     a2 = this.K\(fxi-b)';
-%                     fprintf('maxdiff: %1.20f\n',max((a-a2) ./ a));
                 else
-                    a = this.K\(fxi-b)';
+                    a = this.fK\(fxi-b)';
                 end
             end
         end
@@ -82,21 +103,28 @@ classdef KernelInterpol < approx.IKernelCoeffComp
             % Sets the UseLU property and ensures that if it was set after
             % the kernel matrix was assigned the LU decomposition is
             % computed in each case.
-            this.UseLU = value;
-            if value && ~isempty(this.K) && isempty(this.L)%#ok
-                [this.L, this.U] = lu(value);%#ok
+            this.fUseLU = value;
+            if value && ~isempty(this.K)
+                [this.L, this.U] = lu(this.K);
             end
         end
         
         function set.K(this, value)
             % Sets the kernel matrix property and computes the LU
             % decomposition if the UseLU flag is set to true.
-            if this.UseLU%#ok
-                [this.L, this.U] = lu(value);%#ok
+            if this.UseLU
+                [this.L, this.U] = lu(value);
             end
-            this.K = value;
+            this.fK = value;
         end
         
+        function K = get.K(this)
+            K = this.fK;
+        end
+        
+        function flag = get.UseLU(this)
+            flag = this.fUseLU;
+        end
         
         %% approx.IKernelCoeffComp interface members
         function init(this, K)

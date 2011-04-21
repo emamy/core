@@ -1,4 +1,4 @@
-classdef AffLinInputConv < general.AffLinFcn & dscomponents.IInputConv
+classdef AffLinInputConv < general.AffLinFcn & dscomponents.AInputConv
     %AFFLININPUTCONV Summary of this class goes here
     %   Detailed explanation goes here
     

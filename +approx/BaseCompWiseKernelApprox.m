@@ -14,6 +14,11 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
     % function. (No matter how many originally have been used for the
     % approximation computation)
     %
+    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+    % extended constructor registering any user-relevant properties using
+    % KerMorObject.registerProps.
+    %
     % @change{0,3,dw,2011-03-31} 
     % - Added a new property approx.BaseCompWiseKernelApprox.CoeffComp
     % which allows to use the strategy pattern for computing kernel
@@ -28,12 +33,15 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
     %
     % See also: BaseKernelApprox
 
-    properties
+    properties(SetObservable)
         % An instance of a class implementing the approx.IKernelCoeffComp
         % interface.
         %
         % This properties class will be used to compute the kernel
         % coefficients for each dimension.
+        %
+        % @propclass{important} The correct coefficient computation strategy might make the
+        % difference.
         %
         % @default general.interpolation.KernelInterpol
         CoeffComp;
@@ -42,7 +50,12 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
     methods
         
         function this = BaseCompWiseKernelApprox
+            this = this@approx.BaseApprox;
+            this = this@dscomponents.CompwiseKernelCoreFun;
+            
             this.CoeffComp = general.interpolation.KernelInterpol;
+            
+            this.registerProps('CoeffComp');
         end
         
         function target = clone(this, target)

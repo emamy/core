@@ -1,4 +1,4 @@
-classdef BaseQPSolver < ICloneable
+classdef BaseQPSolver < KerMorObject & ICloneable
     % Base class for any KerMor QP-Solver or QP-Wrapper
     %
     % Solvers solve quadratic programming problems of the form

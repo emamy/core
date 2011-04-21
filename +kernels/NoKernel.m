@@ -1,15 +1,15 @@
-classdef NoKernel < kernels.BaseKernel
+classdef NoKernel < kernels.BaseKernel & kernels.IRotationInvariant
     % Neutral Kernel which has no effect.
     %
     % A call to evaluate just returns 1.
     
     methods
         
-        function this = NoKernel
-            this.RotationInvariant = true;
+        function K = evaluate(this, x, y)%#ok
+            K = 1;
         end
         
-        function K = evaluate(this, x, y)%#ok
+        function K = evaluateScalar(this, x)%#ok
             K = 1;
         end
         

@@ -1,4 +1,4 @@
-classdef ACoreFun < dscomponents.IProjectable
+classdef ACoreFun < KerMorObject & dscomponents.IProjectable
     % Basic interface for all dynamical system's core functions
     % Inherits the IProjectable interface.
     %
@@ -10,7 +10,12 @@ classdef ACoreFun < dscomponents.IProjectable
     %
     % @author Daniel Wirtz @date 17.03.2010
     %
-    % @change{0,3,dw,2011-04-13} the evaluate function supports multiargument evaluation now.
+    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+    % extended constructor registering any user-relevant properties using
+    % KerMorObject.registerProps.
+    %
+    % @change{0,3,dw,2011-04-13} The evaluate function supports multiargument evaluation now.
     %
     % @new{0,3,dw,2011-04-12} Added a new set-protected property
     % dscomponents.ACoreFun.MultiArgumentEvaluations. Allows for speedup in case the target function
@@ -18,14 +23,15 @@ classdef ACoreFun < dscomponents.IProjectable
     %
     % @todo Add test for non-custom projection (model with `W'f(x,t,\mu)V`)
     
-    properties(Access=protected)
+    properties(SetObservable, SetAccess=protected)
         % Set this property if the projection process is customized by
         % overriding the default project method. This affects the
         % evaluation method of the ACoreFun.
+        %
+        % @propclass{optional} If the structure of the underlying function allows more efficient
+        % projection set this flag to true in the subclass constructor.
         CustomProjection = false;
-    end
-    
-    properties(SetAccess=protected)
+        
         % Flag that indicates whether this core function can be evaluated passing a matrix of
         % vectors instead of a single vector
         %
@@ -35,6 +41,9 @@ classdef ACoreFun < dscomponents.IProjectable
         % @note Regarding parameters and their processing in multiargument-evaluations, the bsxfun
         % method from matlab may be of great help. See the models.pcd.CoreFun1D class for an
         % example.
+        %
+        % @propclass{optional} Speedup can be gained if subclasses allow matrices to be passed
+        % instead of single vectors.
         %
         % @default false
         %
@@ -48,6 +57,11 @@ classdef ACoreFun < dscomponents.IProjectable
     end
 
     methods
+        
+        function this = ACoreFun
+            this = this@KerMorObject;
+            this.registerProps('CustomProjection','MultiArgumentEvaluations');
+        end
         
         function target = project(this, V, W, target)
             % Sets the protected V,W matrices that can be utilized on core
@@ -71,6 +85,25 @@ classdef ACoreFun < dscomponents.IProjectable
             % also cater for the noncustomized projection case by cloning
             % the current instance (dscomponents.IProjectable now inherits
             % from ICloneable per default).
+            %
+            
+            % Evaluates the f-approximation. Depending on a possible
+            % projection and the CustomProjection-property the function
+            % either calls the inner evaluation directly which assumes
+            % `f = f^r(z)` or projects the reduced state variable z into
+            % the original space and evaluates the function there, so via
+            % `f = V'f(Vz)`
+            %
+            % Parameters:
+            % x: The state variable vector/matrix (with colum state
+            % vectors)
+            % t: The corresponding times for each state vector. Set to []
+            % if no time is used.
+            % mu: The parameter(s) to use. Set to [] if the function does not
+            % support parameters.
+            %
+            % @change{0,3,dw,2011-04-19} Fixed an error when no MultiArgumentEvaluations were supported and
+            % no parameter `\mu` was given (Crashed due to index out of bounds)
             if nargin < 4
                 if this.CustomProjection
                     error('The target parameter must be given if custom projection is used.');

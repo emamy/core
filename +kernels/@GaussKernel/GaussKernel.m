@@ -16,12 +16,23 @@ classdef GaussKernel < kernels.BellFunction
     % kernels.GaussKernel.test_GaussMexSpeedTest1Arg and @ref
     % kernels.GaussKernel.test_GaussMexSpeedTest2Arg)
     
-    properties
+    properties(SetObservable)
+        % Univariate scaling
+        %
+        % @propclass{critical} Greatly influences the kernels behaviour.
         Gamma = 1;
-    end
+        
+        % Multivariate scaling (under investigation)
+        %
+        % @propclass{experimental} Greatly influences the kernels behaviour.
+        Sigma = 1;
+    end    
     
     methods
         function this = GaussKernel(Gamma)
+            this = this@kernels.BellFunction;
+            this.registerProps('Gamma','Sigma');
+            
             if nargin == 1
                 this.Gamma = Gamma;
             end
@@ -42,6 +53,25 @@ classdef GaussKernel < kernels.BellFunction
             K = (ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*x'*y;
             K(K<0) = 0;
             K = exp(-K/this.Gamma^2);
+        end
+        
+        function K = evaluateMV(this, x, y)
+            % Multivariate evaluation
+            sx = this.Sigma.^2*x;
+            n1sq = sum(x.*sx,1);
+            n1 = size(x,2);
+
+            if nargin == 2;
+                n2sq = n1sq;
+                n2 = n1;
+                y = x;
+            else
+                n2sq = sum(y.*(this.Sigma.^2*y),1);
+                n2 = size(y,2);
+            end;
+            K = (ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*sx'*y;
+            K(K<0) = 0;
+            K = exp(-K);
         end
         
         function Nablax = getNabla(this, x, y)

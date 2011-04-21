@@ -1,11 +1,19 @@
 classdef MLWrapper < solvers.ode.BaseSolver
     % Allows to wrap a MatLab ODE solver into the KerMor framework.
+    %
+    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+    % extended constructor registering any user-relevant properties using
+    % KerMorObject.registerProps.
     
-    properties
+    properties(SetObservable)
         % The wrapped Matlab-Solver
         % Function handle.
         %
-        % Default: ode23
+        % @propclass{critical} The correct underlying MatLab builtin solver can make the difference.
+        %
+        % @default ode23
+        %
         % See also: ode23 ode45
         MLSolver = @ode23;
     end
@@ -13,7 +21,10 @@ classdef MLWrapper < solvers.ode.BaseSolver
     methods
         
         function this = MLWrapper(solver)
-            % Creates the wrapper class taking 
+            
+            this = this@solvers.ode.BaseSolver;
+            this.registerProps('MLSolver');
+            
             if nargin > 0
                 this.MLSolver = solver;
             end

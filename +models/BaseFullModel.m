@@ -9,40 +9,60 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
     % For the implementation of custom dynamical systems, refer to
     % BaseDynSystem.
     %
+    % Setting default values for properties that are handle classes will have the negative
+    % side-effect of having each instance of BaseFullModel initialized with the SAME instance of the
+    % Sampler, Approx etc. instances which of course is NOT desireable.
+    % See http://www.mathworks.com/access/helpdesk/help/techdoc/matlab_oop/bsdtcz7.html#bsdu1g9-1
+    % for details.
+    %
     % @todo build in time-tracking for offline phase etc
     %
     % See also: models BaseModel BaseDynSystem
     %
     % @author Daniel Wirtz @date 16.03.2010
+    %
+    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+    % extended constructor registering any user-relevant properties using
+    % KerMorObject.registerProps.
+    %
+    % @new{0,3,dw,2011-04-21} - Implemented the recursive property changed search on a
+    % per-BaseFullModel basis as made possible by the changes in KerMorObject.
+    % - Added a new method models.BaseFullModel.printPropertyChangedReport that gives detailed
+    % information about any properties of the model and its subclasses that remained set to their
+    % default value since initialization.
+    % - Overloaded the models.BaseModel.computeTrajectory method in order to previously run the
+    % property changed checks
     
     properties
+        % The full model's data container.
+        % Defaults to an empty container.
+        %
+        % @propclass{data}
+        %
+        % See also: ModelData
+        Data;
+    end
+    
+    properties(SetObservable)
         % The sampling strategy the Model uses
+        %
+        % @propclass{important}
         %
         % See also: sampling BaseSampler
         Sampler;
         
-        % The full model's data container.
-        % Defaults to an empty container.
-        %
-        % See also: ModelData
-        Data;
-        
-        % The general.PODFixspace instance used to compute the new snapshot
-        % vectors for a given trajectory.
-        %
-        % The default is to use the mode 'abs' and value '1' for a new
-        % snaphsot from a given trajectory.
-        %
-        % See also: general.POD general.Orthonormalizer
-        %PODFix;
-        
         % The reduction algorithm for subspaces
+        %
+        % @propclass{important}
         %
         % @default spacereduction.PODReducer
         % See also: spacereduction BaseSpaceReducer
         SpaceReducer;
         
         % The approximation method for the CoreFunction
+        %
+        % @propclass{important}
         %
         % @default approx.AdaptiveCompWiseKernelApprox
         Approx;
@@ -60,6 +80,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % model, which is in fact homogeneous in y-direction. Thus, only
         % distinct x-direction points have to be trained for.
         %
+        % @propclass{optional}
+        %
         % @todo create class events from this
         preApproximationTrainingCallback;
         
@@ -69,27 +91,23 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % The handle is invoked at the end of the off4_computeApproximation
         % method.
         %
+        % @propclass{optional}
+        %
         % See also: preApproximationTrainingCallback
         postApproximationTrainingCallback;
     end
     
-%     properties(Access=private)
-%         phase = [0 0 0 0 0];
-%     end
-    
+    properties(Access=private)
+        msg;
+        pstats;
+    end
+           
     methods
         
         function this = BaseFullModel
             % Creates a new instance of a full model.
             
-            % Setting default values for properties that are handle classes
-            % will have the negative side-effect of having each instance of
-            % BaseFullModel initialized with the SAME instance of the
-            % Sampler, Approx etc. instances which of course is NOT
-            % desireable.
-            % See
-            % http://www.mathworks.com/access/helpdesk/help/techdoc/matlab_oop/bsdtcz7.html#bsdu1g9-1
-            % for details.
+            this = this@models.BaseModel;
             
             % Setup default values for the full model's components
             this.Sampler = sampling.RandomSampler;
@@ -100,7 +118,11 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             %             this.PODFix = p;
             this.Approx = approx.AdaptiveCompWiseKernelApprox;
             this.Data = models.ModelData;
-            this.System = models.BaseDynSystem(this);
+            
+            % Register default properties
+            this.registerProps('Sampler','SpaceReducer','Approx',...
+                'preApproximationTrainingCallback','postApproximationTrainingCallback',...
+                'Data');
         end
         
         function time = off1_createParamSamples(this)
@@ -381,51 +403,67 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             time = toc;
         end
         
-        % Not longer used as complete trajectories aren't stored in the
-        % Data.Snapshot array
-        %         function [t,x] = computeTrajectory(this, mu, inputidx)
-        %             % Overrides the base method in BaseModel. For speed reasons any
-        %             % already computed trajectories are returned without being
-        %             %
-        %             % Parameters:
-        %             % mu: The parameter `\mu` to use. Set [] for none.
-        %             % inputidx: The input function `u(t)` index to use. Set [] for
-        %             % none.
-        %             %
-        %             % See also: models.BaseModel#computeTrajectory(mu, inputidx);
-        %             %
-        %             % @todo Possibly save the later computed trajectories in the
-        %             % ModelData class?
-        %
-        %             if ~isempty(this.Data) && ~isempty(this.Data.TrainingData)
-        %                 x = this.Data.getTrajectory(mu,inputidx);
-        %                 if ~isempty(x)
-        %                     t = this.Times;
-        %                     return;
-        %                 end
-        %             end
-        %             [t,x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
-        %
-        %             % HERE: Save new trajectory in ModelData!
-        %         end
+        function [t,x] = computeTrajectory(this, mu, inputidx)
+            % Computes a solution/trajectory for the given mu and inputidx in the SCALED state
+            % space.
+            %
+            % Parameters:
+            % mu: The parameter `\mu` for the simulation
+            % inputidx: The integer index of the input function to use. If
+            % more than one inputs are specified this is a necessary
+            % argument.
+            %
+            % Return values:
+            % t: The times at which the model was evaluated. Will equal
+            % the property Times
+            % x: The state variables at the corresponding times t.
+            
+            this.checkProperties;
+            
+            [t,x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
+        end
         
+        function printPropertyChangedReport(this,levels)           
+            % Prints a detailed report about the properties which have not been changed from their
+            % default setting.
+            %
+            % Call this method after any calls to models.BaseModel.simulate or
+            % models.BaseModel.getTrajectory
+            %
+            % Parameters:
+            % levels: [Optional] The property levels to print reports for. A list of admissible
+            % values can be obtained by KerMorObject.getPropClasses. Default is to print ''all''
+            % data.
+            if ~isempty(this.pstats)
+                c = this.pstats;
+                total = sum(c,2);
+                total(3) = total(3)/size(c,2);
+                
+                col = [1-total(3)/100 total(3)/100 0];
+                cprintf(col,'Total changed properties: %d of %d (%2.2f)\n',total);
+                for lidx = 1:length(levels)
+                    col = [1-c(3,lidx)/100 c(3,lidx)/100 0];
+                    cprintf(col, '%s properties: %d of %d (%2.2f)\n',levels{lidx},c(:,lidx));
+                end
+            end
+            if ~isempty(this.msg)
+                if nargin < 2
+                    levels = KerMorObject.getPropClasses;
+                elseif ischar(levels)
+                    levels = {levels};
+                end
+                for idx = 1:length(levels)
+                    m = this.msg.(levels{idx});
+                    if ~isempty(m)
+                        cprintf([.5 .5 0],'Messages for property class %s:\n',levels{idx});
+                        fprintf('%s\n',m{:});
+                        fprintf('\n');
+                    end
+                end
+            end
+        end
     end
-    
-    %     methods(Access=protected,Sealed)
-    %         function opts = trajectoryCompInit(this, mu, inputidx)%#ok
-    %             % Implements the template method from models.BaseModel
-    %             %
-    %             % Here in the full model nothing is to do yet as only error
-    %             % computation for reduced systems is performed so far in
-    %             % ReducedModel.
-    %             %
-    %             % See also: models.BaseModel models.ReducedModel
-    %
-    %             % Nothing to do here yet.
-    %             opts = [];
-    %         end
-    %     end
-    
+        
     %% Getter & Setter
     methods
         function set.Sampler(this, value)
@@ -447,49 +485,79 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.checkType(value, 'approx.BaseApprox');%#ok
             this.Approx = value;
         end
-        
-%         function s = saveobj(this, full)
-%             % Saves this full model to a struct.
-%             
-%             if nargin < 2
-%                 full = true;
-%             end
-%             s.Sampler = this.Sampler;
-%             s.SpaceReducer = this.SpaceReducer;
-%             s.preApproximationTrainingCallback = this.preApproximationTrainingCallback;
-%             s.postApproximationTrainingCallback = this.postApproximationTrainingCallback;
-%             if full
-%                 s.Approx = this.Approx;    
-%                 s.Data = this.Data;
-%             end
-%         end
     end
     
-%     methods (Static, Access=protected)
-%         function obj = loadobj(s, obj)
-%             % Loads the properties for the BaseFullModel part of this
-%             % class.
-%             %
-%             % See also: ALoadable BaseModel.loadobj
-%             if nargin < 2
-%                 m = metaclass(s);
-%                 error('Error loading class of type %s. Cannot infer subclass in class models.BaseFullModel, have you implemented loadobj static methods for all classes in the hierarchy?',m.Name);
-%             end
-%             % Call superclass load
-%             obj = loadobj@models.BaseModel(s, obj);
-%             
-%             % Set local values in an order that wont throw errors at the
-%             % setter methods
-%             ALoadable.loadProps(mfilename('class'), obj, s);
-% %             obj.Data = s.Data;
-% %             obj.Approx = s.Approx;
-% %             obj.Sampler = s.Sampler;
-% %             obj.SpaceReducer = s.SpaceReducer;
-% %             obj.preApproximationTrainingCallback = s.preApproximationTrainingCallback;
-% %             obj.postApproximationTrainingCallback = s.postApproximationTrainingCallback;
-%         end
-%     end
-    
+    methods(Access=private)        
+         function checkProperties(this)
+             % Checks all the model's properties recursively for unchanged default settings
+             counts = struct;
+             notchanged = struct;
+             messages = struct;
+             levels = KerMorObject.getPropClasses;
+             for lidx=1:length(levels)
+                 counts.(levels{lidx}) = 0;
+                 messages.(levels{lidx}) = {};
+             end
+             notchanged = counts;
+             
+             %% Run recursive check
+             recurCheck(this, general.collections.Dictionary, this.Name);
+             
+             % Store collected messages
+             this.msg = messages;
+             
+             % Some total stats now
+             c = [struct2array(notchanged); struct2array(counts)];
+             c(3,:) = round(10000 * c(1,:) ./ c(2,:))/100;
+             this.pstats = c;
+             
+             total = sum(c,2);
+             total(3) = total(3)/size(c,2);
+             
+             col = [1-total(3)/100 total(3)/100 0];
+             cprintf(col,'Total changed properties: %d of %d (%2.2f)\n',total);
+             
+             % Issue warning if some critical properties are still unchanged
+             if notchanged.critical > 0
+                 cprintf('red',['ATTENTION: Some critical properties are still at their default value.\n'...
+                     'Type <modelname>.printPropertyChangedReport(''critical'') for a detailed report.\n']);
+             end
+             
+             function recurCheck(obj, done, lvl)
+                 mc = metaclass(obj);
+                 done(obj.ID) = true;
+                 % Check the local properties
+                 pc = obj.PropertiesChanged;
+                 keys = pc.Keys;
+                 for idx = 1:pc.Count
+                     p = pc(keys{idx});
+                     counts.(p.Level) = counts.(p.Level) + 1;
+                     if ~p.Changed 
+                         notchanged.(p.Level) = notchanged.(p.Level) + 1;
+                         if ~any(strcmp(p.Level,{'passive','data'}))
+                            hlp = messages.(p.Level);
+                            hlp{end+1} = sprintf('%s is still unchanged!\nProperty brief: %s\nPropclass tag description:\n%s\n',[lvl '-> ' p.Name],p.Short,p.Text);%#ok
+                            messages.(p.Level) = hlp;
+                         end
+                     end
+                 end
+                 for pidx = 1:length(mc.Properties)
+                     p = mc.Properties{pidx};
+                     if strcmp(p.GetAccess,'public') && ~p.Constant && ~p.Transient && ~strcmp(p.SetAccess,'private')
+                         if ~p.SetObservable && ~pc.containsKey([p.DefiningClass.Name '.' p.Name])
+                             cprintf('red','Warning: Property %s of class %s is not SetObservable but a candidate for a user-definable public property!\nPlease register the property or check if the property suits either the Constant or SetAccess=private flags.\n\n',p.Name,p.DefiningClass.Name);
+                         end
+                         pobj = obj.(p.Name);
+                         % Recursively register subobject's properties
+                         if isa(pobj, 'KerMorObject') && isempty(done(pobj.ID))
+                             recurCheck(pobj, done, [lvl '-> ' p.Name]);
+                         end
+                     end
+                 end
+             end
+        end
+    end
+           
     methods(Static)
         function test_BaseModels
             m = models.BaseFullModel;

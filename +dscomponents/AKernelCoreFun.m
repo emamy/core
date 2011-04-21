@@ -7,6 +7,11 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
     % combined using the function handle set by the property
     % SubKernelCombinationFun.
     %
+    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+    % extended constructor registering any user-relevant properties using
+    % KerMorObject.registerProps.
+    %
     % @new{0,3,dw,2011-04-15} Added the dscomponents.AKernelCoreFun.evaluateStateNabla method to
     % allow efficient computation of kernel expansion jacobians.
     %
@@ -26,13 +31,28 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
     % - Added set method for
     % dscomponents.AKernelCoreFun.SubKernelCombinationFun property.
     
-    properties
+    properties(SetObservable)
         % The function that combines the sub (time/system/param) kernels.
         % Must be a function handle that takes three arguments.
+        %
+        % @propclass{optional} Standard kernel combination is pointwise multiplication.
+        %
+        % @default @code @(t,s,p)t .* s .* p @endcode
+        %
+        % See also: StateNablaCombinationFun
         SubKernelCombinationFun = @(t,s,p)t .* s .* p;
         
+        % The combination function for the nabla of the system/state kernel with the other kernels.
+        %
+        % Depends directly on the SubKernelCombinationFun
+        %
+        % @propclass{optional} Adjust this whenever the SubKernelCombinationFun is changed.
+        %
+        % See also: SubKernelCombinationFun
         StateNablaCombinationFun = @(t,s,p)bsxfun(@times, s, t.*p);
-        
+    end
+    
+    properties
         % The kernel centers used in the approximation.
         %
         % This is the union of all center data used within the kernel
@@ -45,26 +65,40 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
         % The only required field is xi, others can be set to [] if not
         % used.
         %
+        % @propclass{data}
+        %
         % @default @code struct('xi',[],'ti',[],'mui',[]) @endcode
         Centers;
     end
     
-    properties(Dependent)
+    properties(SetObservable, Dependent)
         % The Kernel to use for time variables
         %
+        % @propclass{critical} Correct choice of the time kernel greatly influences the function
+        % behaviour.
+        %
         % @default kernels.NoKernel
+        %
         % See also: SystemKernel ParamKernel
         TimeKernel;
         
         % The Kernel to use for system variables
         %
+        % @propclass{critical} Correct choice of the system kernel greatly influences the function
+        % behaviour.
+        %
         % @default kernels.GaussKernel
+        %
         % See also: TimeKernel ParamKernel
         SystemKernel;
         
         % The Kernel to use for parameter variables
         %
+        % @propclass{critical} Correct choice of the system kernel greatly influences the function
+        % behaviour.
+        %
         % @default kernels.NoKernel
+        %
         % See also: TimeKernel SystemKernel
         ParamKernel;
     end
@@ -91,6 +125,8 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
             
             % Set custom projection to true as the project method is
             % overridden
+            this = this@dscomponents.ACoreFun;
+            
             this.CustomProjection = true;
             % Kernel based core functions allow for multi-argument evaluations by nature.
             this.MultiArgumentEvaluations = true;
@@ -105,6 +141,9 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
             % DONT CHANGE THIS LINE unless you know what you are doing or
             % you are me :-)
             this.updateRotInv;
+            
+            this.registerProps('TimeKernel','SystemKernel','ParamKernel',...
+                'SubKernelCombinationFun','StateNablaCombinationFun','Centers');
         end
         
         function target = project(this, V, W, target)
@@ -180,6 +219,7 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
             % Copy local variables
             target.Centers = this.Centers;
             target.SubKernelCombinationFun = this.SubKernelCombinationFun;
+            target.StateNablaCombinationFun = this.StateNablaCombinationFun;
             
             % @todo Implement cloning for kernels too
             target.fTK = this.fTK;
@@ -245,9 +285,9 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
             % Updates the RotationInvariant property of this CoreFun by
             % checking all registered kernels.
             this.RotationInvariant = ...
-                this.fTK.RotationInvariant &&...
-                this.fSK.RotationInvariant && ...
-                this.fPK.RotationInvariant;
+                isa(this.fTK,'kernels.IRotationInvariant') &&...
+                isa(this.fSK,'kernels.IRotationInvariant') && ...
+                isa(this.fPK,'kernels.IRotationInvariant');
         end
     end
 end

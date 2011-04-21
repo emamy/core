@@ -3,6 +3,13 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
     %COMPWISEKERNELCOREFUN Summary of this class goes here
     %   Detailed explanation goes here
     %
+    % @docupdate
+    %
+    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+    % extended constructor registering any user-relevant properties using
+    % KerMorObject.registerProps.
+    %
     % @todo IMPORTANT: Allow different kernels for different centers!
     
     properties
@@ -10,11 +17,17 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
         %
         % Set to empty if no offsets are used. This property is
         % preinitialized to [].
+        %
+        % @propclass{data}
+        %
+        % See also: Ma
         off = [];
     end
     
     properties(Dependent)
         % The coefficient data for each dimension.
+        %
+        % @propclass{data}
         Ma;
     end
     
@@ -27,7 +40,10 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
     methods
         
         function this = CompwiseKernelCoreFun
+            this = this@dscomponents.AKernelCoreFun;
             this.CustomProjection = true;
+            
+            this.registerProps('off','Ma');
         end
         
         function fx = evaluateCoreFun(this, x, t, mu)

@@ -6,7 +6,7 @@ classdef IParallelizable < handle
     %
     % @change{0,3,sa,2011-04-14} Implemented UseMatlabParallelComputing functionality
     
-    properties
+    properties(SetObservable)
         % Flag whether the code should be run in parallel or not.
         ComputeParallel = false; 
     end    

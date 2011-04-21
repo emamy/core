@@ -1,8 +1,8 @@
-classdef PointerInputConv < dscomponents.IInputConv
+classdef PointerInputConv < dscomponents.AInputConv
     %POINTERINPUTCONV Allows for input converters provided by function handles.
     %   
     % In many contexts the creation of a specific class implementing
-    % IInputConv is not necessary due to the simplicity of the conversion
+    % AInputConv is not necessary due to the simplicity of the conversion
     % or because no function-specific properties have to be modeled. In
     % this case use this class and pass a function handle to the
     % constructor which will be used as the actual function.

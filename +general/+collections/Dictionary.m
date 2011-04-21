@@ -17,10 +17,14 @@ classdef Dictionary < handle
     % 
     % @author Daniel Wirtz @date 2011-04-06
     %
-    % @new{0,3,dw,2011-04-06} Added this class. Used e.g. for the
-    % customized save/load process to keep integrity of cross-class
-    % references (Update 2011-04-07: Customized save/load discontinued, so
-    % this class is not used at the moment)
+    % @change{0,3,dw,2011-04-20} - Improved the subsref and subsasgn methods to forward eventual
+    % further sub-assignments to the respective underlying values. Now i.e. assignments of the type
+    % @code d('t').Somefield @endcode natively creates a struct at @code d('t') @endcode.
+    % - Added a method general.collections.Dictionary.containsKey
+    % - Added two properties general.collections.Dictionary.Keys and
+    % general.collections.Dictionary.Values
+    %
+    % @new{0,3,dw,2011-04-06} Added this class.
     
     properties(Access=private)
         % The internal List structure
@@ -28,9 +32,9 @@ classdef Dictionary < handle
     end
     
     properties(Dependent)
-        %Keys;
+        Keys;
         
-        %Values;
+        Values;
         
         Count;
     end
@@ -53,14 +57,30 @@ classdef Dictionary < handle
             this.List = struct('Key',{},'Value',{});
         end
         
+        function bool = containsKey(this, key)
+            if ~isa(key,'char')
+                error('Key must be a string.');
+            end
+            bool = false;
+            for i=1:length(this.List)
+                if strcmp(this.List(i).Key,key)
+                    bool = true;
+                    return;
+                end
+            end
+        end
+        
         function value = subsref(this, key)
             % Implements subscripted value retrieval.
             %
             % See also: subsref
-            if (isequal(key.type,'()'))
-                value = this.get_(key.subs{1});
+            if (isequal(key(1).type,'()'))
+                value = this.get_(key(1).subs{1});
+                if length(key) > 1
+                    value = builtin('subsref', value, key(2:end));
+                end
             else
-                builtin('subsref', this, key);
+                value = builtin('subsref', this, key);
             end
         end
         
@@ -68,8 +88,11 @@ classdef Dictionary < handle
             % Implements subscripted assignment.
             %
             % See also: subsasgn
-            if (isequal(key.type,'()'))
-                this.set_(key.subs{1}, value);
+            if (isequal(key(1).type,'()'))
+                if length(key) > 1
+                    value = builtin('subsasgn', this.get_(key(1).subs{1}), key(2:end), value);
+                end
+                this.set_(key(1).subs{1}, value);
             else
                 builtin('subsasgn', this, key, value);
             end
@@ -78,6 +101,19 @@ classdef Dictionary < handle
         function c = get.Count(this)
             c = length(this.List);
         end
+        
+        function k = get.Keys(this)
+            k = {this.List(:).Key};
+        end
+        
+        function k = get.Values(this)
+            k = {this.List(:).Value};
+        end
+        
+        function display(this)
+            fprintf('general.collections.Dictionary with %d elements.\n',this.Count);
+            arrayfun(@(kv)(disp({'Key:' kv.Key 'Value:' kv.Value})),this.List);
+        end
     end
         
     methods(Access=private)
@@ -85,33 +121,48 @@ classdef Dictionary < handle
             % Default: []
             value = [];
             if isempty(key)
-                return;
-            elseif ~isa(key, 'char')
-                error('The key must be a string');
-            end            
-            for i=1:length(this.List)
-                if isequal(this.List(i).Key,key)
-                    % Return found value
-                    value = this.List(i).Value;
-                    return;
-                end
+                return;    
             end
+            if isa(key, 'char')
+                for i=1:length(this.List)
+                    if isequal(this.List(i).Key,key)
+                        % Return found value
+                        value = this.List(i).Value;
+                        break;
+                    end
+                end
+                return;
+            elseif isposintscalar(key)
+                if key < 1 || key > this.Count
+                    error('Key index exceeds dictionary.');
+                end
+                value = this.List(key).Value;
+                return;
+            end
+            error('The key must be a string or integer');
         end
         
         function set_(this, key, value)
-            cl = class(value);
-            fprintf('Set class %s for key %s\n',cl,key);
-            
-            for i=1:length(this.List)
-                if isequal(this.List(i).Key,key)
-                    % Set value if already in list
-                    this.List(i).Value = value;
-                    return;
+            %cl = class(value);
+            %fprintf('Set class %s for key %s\n',cl,key);
+            if isa(key, 'char')
+                for i=1:length(this.List)
+                    if isequal(this.List(i).Key,key)
+                        % Set value if already in list
+                        this.List(i).Value = value;
+                        return;
+                    end
                 end
-            end
-            % Otherwise: Extend!
-            this.List(end+1).Key = key;
-            this.List(end).Value = value;
+                % Otherwise: Extend!
+                this.List(end+1).Key = key;
+                this.List(end).Value = value;
+            elseif isposintscalar(key)
+                if key < 1 || key > this.Count
+                    error('Setting per numerical index only allowed within existing items; use a char key for automatic insertions.');
+                end
+                this.List(key).Value = value;
+                return;
+            end   
         end
     end
     

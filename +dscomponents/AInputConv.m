@@ -1,5 +1,5 @@
-classdef IInputConv < dscomponents.IProjectable
-    %BASEINPUTCONV Base class for input conversion "B".
+classdef AInputConv < KerMorObject & dscomponents.IProjectable
+    %AInputConv: Base class for input conversion "B".
     %   For simpler input conversions, it will be convenient to simply use
     %   the Pointer versions and pass the target function. For more complex
     %   input calculations which require local setup for example subclass

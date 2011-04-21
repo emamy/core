@@ -1,4 +1,4 @@
-classdef BaseSpaceReducer < handle
+classdef BaseSpaceReducer < KerMorObject
     % Base class for all space reduction algorithms.
     %
     % @author Daniel Wirtz

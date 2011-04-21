@@ -1,4 +1,4 @@
-classdef AffLinFcn < handle
+classdef AffLinFcn < KerMorObject
     %AFFLINFCN Summary of this class goes here
     %   Detailed explanation goes here
     % @ingroup general

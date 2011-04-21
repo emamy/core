@@ -10,22 +10,28 @@ classdef SigmoidKernel < kernels.BaseKernel
     
     properties
         % The factor for the scalar product inside tanh
+        %
+        % @propclass{critical} Greatly influences the kernels behaviour.
         kappa = 1;
         
         % The constant inside tanh
+        %
+        % @propclass{critical} Greatly influences the kernels behaviour.
         nu = -1;
     end
     
     methods
         
         function this = SigmoidKernel(kappa, nu)
+            
+            this.registerProps('kappa','nu');
+            
             if nargin > 0
                 this.kappa = kappa;
                 if nargin > 1
                     this.nu = nu;
                 end
             end
-            this.RotationInvariant = true;
         end
         
         function c = getGlobalLipschitz(this)%#ok

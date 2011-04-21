@@ -1,4 +1,4 @@
-classdef Orthonormalizer < handle
+classdef Orthonormalizer < KerMorObject
     % Class that supports orthonormalization of vectors.
     %
     % At the orthonormalization process a matrix G can be defined that

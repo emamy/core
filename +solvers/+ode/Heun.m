@@ -19,16 +19,13 @@ classdef Heun < solvers.ode.BaseSolver
             %
             % Parameters:
             % MaxStep: Maximum time step. Optional.
+            
+            this = this@solvers.ode.BaseSolver;
+            
             this.Name = 'Explicit Heun''s method';
             if nargin == 1
                 this.MaxStep = MaxStep;
             end
-%             if nargin == 0
-%                 warning('solvers:Heun:No_dt_given','Explicit solvers should get a time stepsize. Using dt=0.05');
-%                 this.MaxStep = 0.05;
-%             else
-%                 this.MaxStep = dt;
-%             end
         end
         
         function [tout,y] = solve(this, odefun, t, x0)
