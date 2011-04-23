@@ -9,6 +9,8 @@ classdef BaseApprox < dscomponents.ACoreFun
     %
     % @author Daniel Wirtz @date 2010-03-11
     %
+    % --? @change{0,3,sa,2011-04-21} Implemented Setter for the property
+    %
     % @new{0,3,dw,2011-04-12} New property
     % approx.BaseApprox.TrainDataSelector. Allows to choose different
     % strategies for training data selection.
@@ -29,9 +31,16 @@ classdef BaseApprox < dscomponents.ACoreFun
     end
     
     methods
+       % function set.TrainDataSelector(this, value)
+       %     if ~isa(value, 'approx.selection')
+       %        error('Value should be a valid Matlab object that gives the required algorithm'); 
+       %     end
+       %     this.TrainDataSelector = value;
+       % end
+            
         function this = BaseApprox
             this.TrainDataSelector = approx.selection.TimeSelector;
-        end
+        end              
         
         function copy = clone(this, copy)
             copy = clone@dscomponents.ACoreFun(this, copy);

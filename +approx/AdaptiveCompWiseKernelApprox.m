@@ -6,6 +6,9 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
     %
     % See also: BaseApprox BaseCompWiseKernelApprox
     %
+    % @change{0,3,sa,2011-04-21} Implemented Setters for all the properties
+    % other than NumGammas and ValidationPercent
+    %
     % @change{0,3,dw,2011-04-14}
     % - Implemented some setters
     % - New property approx.AdaptiveCompWiseKernelApprox.ValidationPercent enabling a validation set
@@ -364,7 +367,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                 d = linspace(from,to,this.NumGammas);
             end
             
-            function d = logsp(from, to)%#ok
+            function d = logsp(from, to)%# ok
                 d = logspace(log10(from),log10(to),this.NumGammas);
             end
             
@@ -433,6 +436,13 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             copy.MaxErrors = this.MaxErrors;
         end       
         
+        function set.MaxExpansionSize(this, value)
+            if ~isposintscalar(value)
+                error('Value must be a positive integer.');
+            end
+            this.MaxExpansionSize = value;
+        end
+        
         function set.ValidationPercent(this, value)
             if ~isposrealscalar(value) || value > .5
                 error('The value must be a positive scalar inside the interval ]0,.5[');
@@ -445,6 +455,34 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                 error('Value must be a positive integer.');
             end
             this.NumGammas = value;
+        end
+        
+        function set.gameps(this, value)
+            if ~isposrealscalar(value)
+                error('The value must be a positive scalar');
+            end
+            this.gameps = value;
+        end
+        
+        function set.MaxRelErr(this, value)
+            if ~isposrealscalar(value)
+                error('The value must be a positive scalar');
+            end
+            this.MaxRelErr = value;
+        end
+        
+        function set.MaxAbsErrFactor(this, value)
+            if ~isposrealscalar(value)
+                error('The value must be a positive scalar');
+            end
+            this.MaxAbsErrFactor = value;
+        end
+        
+        function set.ErrFun(this, value)
+            if ~(value == 1 || value == 2)
+                error('Value must be either integer 1 or 2.');
+            end
+            this.ErrFun = value;
         end
     end
     

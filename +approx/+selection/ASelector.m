@@ -10,6 +10,9 @@ classdef ASelector < handle
     % 
     % @author Daniel Wirtz @date 2011-04-12
     %
+    % @change{0,3,sa,2011-04-20} Implemented Setter for the property
+    % LastUsed
+    %
     % @new{0,3,dw,2011-04-12} Added this class to implement strategy
     % pattern for training data selection.
     
@@ -47,7 +50,14 @@ classdef ASelector < handle
                 error('The subclass does not set the LastUsed property after selection. Please implement in order for other KerMor classes to work properly.');
             end
         end
-    end
+        
+        function set.LastUsed(this, value)
+            if isempy(value)
+                error('The LastUsed property is empty by default. Please change in order for other KerMor classes to work properly.');
+            end
+            this.LastUsed = value;
+        end
+    end   
     
     methods(Abstract, Access=protected)
         % Template method for subclasses to specify selection behaviour.

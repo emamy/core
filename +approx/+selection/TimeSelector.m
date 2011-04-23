@@ -8,6 +8,8 @@ classdef TimeSelector < approx.selection.ASelector
 %
 % @author Daniel Wirtz @date 2011-04-12
 %
+% @change{0,3,sa,2011-04-20} Implemented Setters for the class properties
+%
 % @new{0,3,dw,2011-04-12} Added this class for a selection of training samples that utilizes time
 % information.
 %
@@ -65,6 +67,22 @@ classdef TimeSelector < approx.selection.ASelector
                 atd = sn;
                 this.LastUsed = 1:size(sn,2);
             end
+        end
+    end
+    
+    methods           
+        function set.MaxSize(this, value)
+            if ~isposintscalar(value)
+                error('The value must be a finite positive integer.');
+            end
+            this.MaxSize = value;
+        end
+        
+        function set.Seed(this, value)
+            if ~isposintscalar(value)
+                error('The value must be a finite positive integer.');
+            end
+            this.Seed = value;
         end
     end
 end

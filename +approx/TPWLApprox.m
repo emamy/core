@@ -2,6 +2,8 @@ classdef TPWLApprox < approx.BaseApprox
     % Trajectory-piecewise function approximation
     %
     % @todo NOT FINISHED YET!
+    %
+    % @change(0,3,sa,2011-04-21) Implemented Setters for the properties
     
     properties
         % The weight function `w`
@@ -29,6 +31,33 @@ classdef TPWLApprox < approx.BaseApprox
     end
     
     methods
+        function set.WeightFun(this, value)
+            if ~isa(value, 'kernels.GaussKernel')
+                error('The value must be an object of class kernels.GaussKernel');
+            end
+            this.WeightFun = value;
+        end
+        
+        function set.EpsRad(this, value)
+            if ~isposrealscalar(value)
+                error('The value must be a positive scalar');
+            end
+            this.EpsRad = value;
+        end
+        
+        function set.MinWeightValue(this, value)
+            if ~isposrealscalar(value)
+                error('The value must be a positive scalar');
+            end
+            this.MinWeightValue = value;
+        end
+        
+        function set.xi(this, value)
+            if ~isposrealscalar(value)
+                error('The value must be a positive scalar');
+            end
+            this.xi = value;
+        end
         
         function this = TPWLApprox
             this.WeightFun = kernels.GaussKernel(25);
