@@ -1,4 +1,4 @@
-classdef LinearInputConv < dscomponents.IInputConv
+classdef LinearInputConv < dscomponents.AInputConv
     % Simple linear (=matrix) input conversion
     
     properties(Access=private)

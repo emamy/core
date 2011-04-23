@@ -10,6 +10,11 @@ classdef BaseImplSolver < solvers.ode.BaseSolver
 %
 % @author Daniel Wirtz @date 2011-04-19
 %
+% @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+% supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+% extended constructor registering any user-relevant properties using
+% KerMorObject.registerProps.
+%
 % @new{0,3,dw,2011-04-19} Added this class to have a base for implicit solvers and wrap to the
 % normal odefun interface from the explicit ones.
 %
@@ -19,7 +24,7 @@ classdef BaseImplSolver < solvers.ode.BaseSolver
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
     
-    properties
+    properties(SetObservable)
         % A function handle to compute the core function's jacobian
         %
         % Optional, any implementations must also work with this property set to [].
@@ -30,6 +35,9 @@ classdef BaseImplSolver < solvers.ode.BaseSolver
         % Returned must be the jacobian matrix `\frac{\partial f}{\partial x}(t,x)` at the point
         % `x`.
         %
+        % @propclass{important} If available, supply a jacobian function evaluation handle to
+        % improve speed and reliability of implicit solvers.
+        %
         % See also: odeset
         JacFun = [];
     end
@@ -38,7 +46,11 @@ classdef BaseImplSolver < solvers.ode.BaseSolver
         
         function this = BaseImplSolver
             % Constructor. Sets the default name.
+            this = this@solvers.ode.BaseSolver;
+            
             this.Name = 'Base implicit solver';
+            
+            this.registerProps('JacFun');
         end
         
         function [t,x] = solve(this, odefun, t, x0)

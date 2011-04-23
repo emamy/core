@@ -4,10 +4,6 @@ classdef LinearKernel < kernels.BaseKernel
     
     methods
         
-        function this = LinearKernel
-            this.RotationInvariant = true;
-        end
-        
         function c = getGlobalLipschitz(this)%#ok
             c = 1;
         end

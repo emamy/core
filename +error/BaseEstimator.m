@@ -1,4 +1,4 @@
-classdef BaseEstimator < ICloneable
+classdef BaseEstimator < KerMorObject & ICloneable
     % Base class for all error estimators.
     %
     %   In KerMor any error estimators have the chance to add additionaly

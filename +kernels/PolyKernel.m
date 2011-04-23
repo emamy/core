@@ -3,10 +3,12 @@ classdef PolyKernel < kernels.BaseKernel
     %
     % @author Daniel Wirtz @date 12.03.2010
     
-    properties
+    properties(SetObservable)
         % The degree of the polynomial kernel.
         %
-        % Defaults to 2.
+        % @propclass{critical} Greatly influences the kernels behaviour.
+        %
+        % @default 2
         Degree = 2;
     end
     
@@ -17,7 +19,6 @@ classdef PolyKernel < kernels.BaseKernel
                 % TODO validity checks
                 this.Degree = deg;
             end
-            this.RotationInvariant = true;
         end
         
         function c = getGlobalLipschitz(this)%#ok

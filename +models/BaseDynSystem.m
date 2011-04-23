@@ -21,35 +21,47 @@ classdef BaseDynSystem < KerMorObject
     % @new{0,3,dw,2011-04-05} Added a setter for property BaseDynSystem.f
     % that checks for self references.
     
-    properties
+    properties(SetObservable)
         % The core f function from the dynamical system.
+        %
+        % @propclass{important}
         %
         % @type dscomponents.ACoreFun
         f;
         
         % The input conversion
+        %
+        % @propclass{optional}
         B;
         
         % The output conversion
         % Defaults to an LinearOutputConv instance using a 1-matrix, which
         % just forwards the state variables and supports projection.
         %
-        % @sa LinearOutputConv::project(V)
+        % @propclass{optional}
+        %
+        % See also: dscomponents.LinearOutputConv.project
         C;
         
         % See also: dscomponents.LinearOutputConv/project
         
         % The system's possible input functions.
         % A cell array of function handles, each taking a time argument t.
+        %
+        % @propclass{optional}
         Inputs = {};
         
         % The parameters usable for the dynamical system.
+        %
+        % @propclass{optional}
         Params = models.ModelParam.empty;
         
         % The initial value function.
         % A function handle taking the parameter argument mu.
         % The argument mu may be empty if no parameters are used within the
         % dynamic system.
+        %
+        % @propclass{critical}
         x0;
         
         % The maximum timestep allowed for any ODE solvers.
@@ -60,6 +72,8 @@ classdef BaseDynSystem < KerMorObject
         % @note If any time scaling is used within the model, this value
         % must correspond to the ''scaled'' maximum timestep.
         %
+        % @propclass{critical}
+        %
         % See also: BaseModel BaseModel.tau BaseModel.dtscaled
         MaxTimestep = [];
         
@@ -67,10 +81,12 @@ classdef BaseDynSystem < KerMorObject
         %
         % Can either be a scalar that will be used for every `f`-dimension, or a vector of the same
         % dimension as the system's core function `f` which will then be applied component-wise
+        %
+        % @propclass{scaling}
         StateScaling = 1;
     end
     
-    properties(Dependent)
+    properties(SetAccess=private, Dependent)
         % The number of inputs available.
         InputCount;
         
@@ -93,6 +109,9 @@ classdef BaseDynSystem < KerMorObject
             this.Model = model;
             this.C = dscomponents.LinearOutputConv(1);
             this.x0 = @(mu)0;
+            
+            % Register default properties
+            this.registerProps('f','B','C','x0','Inputs','Params','MaxTimestep','StateScaling');
         end
         
         function odefun = getODEFun(this, mu, inputidx)
@@ -209,8 +228,8 @@ classdef BaseDynSystem < KerMorObject
         end
         
         function set.B(this,value)
-            if ~isempty(value) && ~isa(value, 'dscomponents.IInputConv')
-                error('The property "B" has to be a class implementing dscomponents.IInputConv');
+            if ~isempty(value) && ~isa(value, 'dscomponents.AInputConv')
+                error('The property "B" has to be a class implementing dscomponents.AInputConv');
             end
             this.B = value;
         end
@@ -260,25 +279,6 @@ classdef BaseDynSystem < KerMorObject
             value = length(this.Inputs);
         end
     end
-    
-%     methods(Static,Access=protected)
-%         function obj = loadobj(s, obj)
-%             % Loads the BaseDynSystem part from a saved subclass.
-%             if nargin < 2
-%                 m = metaclass(s);
-%                 error('Error loading class of type %s. Cannot infer subclass in class models.BaseDynSystem, have you implemented loadobj static methods for all subclasses in the hierarchy?',m.Name);
-%             end
-%             obj = loadobj@KerMorObject(s, obj);
-%             ALoadable.loadProps(mfilename('class'), obj, s);
-% %             obj.f = s.f;
-% %             obj.B = s.B;
-% %             obj.C = s.C;
-% %             obj.Inputs = s.Inputs;
-% %             obj.Params = s.Params;
-% %             obj.x0 = s.x0;
-% %             obj.MaxTimestep = s.MaxTimestep;
-%         end
-%     end
-    
+        
 end
 

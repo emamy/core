@@ -1,4 +1,4 @@
-classdef POD < handle
+classdef POD < KerMorObject
     %POD Implements proper orthogonal decomposition
     %
     % See also: #Mode #Value

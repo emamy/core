@@ -2,15 +2,17 @@ classdef CombinationKernel < kernels.BaseKernel
     %SUMKERNEL Summary of this class goes here
     %   Detailed explanation goes here
     
-    properties
+    properties(SetObservable)
         % The combination operation for each kernel.
         %
         % Has to be a function handle taking two arguments:
         % first: The current accumulation result
         % second: The last kernel's evaluation
-        CombOp = @(a,b)a+b;
+        %
+        % @propclass{optional} Default combination method is pointwise multiplication.
+        CombOp = @(a,b)a.*b;
         
-        %CombOp = @(a,b)a.*b;
+        %CombOp = @(a,b)a+b;
         %CombOp = @(a,b)a.^b;
     end
     
@@ -22,8 +24,8 @@ classdef CombinationKernel < kernels.BaseKernel
     methods
         
         function this = CombinationKernel
-            % Invariance true as long as no kernel is assigned :-)
-            this.RotationInvariant = true;
+            this = this@kernels.BaseKernel;
+            this.registerProps('CombOp');
         end
         
         function K = evaluate(this, x, varargin)

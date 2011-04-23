@@ -11,6 +11,11 @@ classdef BaseModel < KerMorObject
     %
     % @author Daniel Wirtz @date 19.03.2010
     %
+    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+    % extended constructor registering any user-relevant properties using
+    % KerMorObject.registerProps.
+    %
     % @change{0,3,dw,2011-04-15} Added a dependent GScaled property that returns the norm-inducing
     % matrix G scaled with the current System.StateScaling property.
     %
@@ -34,17 +39,24 @@ classdef BaseModel < KerMorObject
     % @new{0,1,dw} String output of all model settings via method
     % getObjectConfig
     
-    properties
+    properties(SetObservable)
         % The actual dynamical system used in the model.
+        %
+        % @propclass{critical} With the default system there is no custom behaviour.
         System;
         
         % The name of the Model
+        %
+        % @propclass{optional}
         Name = 'Base Model';
                 
         % The final timestep `T` up to which to simulate.
         %
         % NOTE: When changing this property any offline computations have
         % to be repeated in order to obtain a new reduced model.
+        %
+        % @propclass{important} Defines the end time `T` up to which the dynamical system has to be
+        % simulated.
         T = 1;
         
         % The solver to use for the ODE.
@@ -53,6 +65,8 @@ classdef BaseModel < KerMorObject
         % Default: @code solvers.ode.MLWrapper(@ode23) @endcode
         %
         % See also: solvers BaseSolver ode23 ode45 ode113
+        %
+        % @propclass{important}
         ODESolver;
         
         % The custom scalar product matrix `G`
@@ -64,14 +78,15 @@ classdef BaseModel < KerMorObject
         % variables (i.e. dimensions of `x(t)`), then we must have
         % `G\in\mathbb{R}^{d\times d}`.
         %
-        % Leave at `1` if `G=I_d` should be assumed.
+        % Leave at default value `1` if `G=I_d` should be assumed.
         %
-        % Default:
-        % 1
+        % @propclass{optional}
+        %
+        % @default 1
         G = 1;
     end
     
-    properties(Dependent)
+    properties(SetAccess=private, Dependent)
         % Evaluation points `\{0=t_0,\ldots,t_n=T\}` of the model 
         Times;
         
@@ -85,10 +100,23 @@ classdef BaseModel < KerMorObject
         % See also: tau T
         Tscaled;
         
+        % The scaled version of G.
+        %
+        % Equals `\tilde{G} = D'GD` for `D=diag(s)` and `s` being the System.StateScaling property.
+        %
+        % Use this whenever having to take the real G-norm of some scaled state variables
+        %
+        % See also: G System.StateScaling
+        GScaled;
+    end
+    
+    properties(Dependent, SetObservable)
         % Time scaling factor `\tau`
         %
         % If used, the values from T and dt are getting scaled by tau when
         % calling simulate.
+        %
+        % @propclass{scaling}
         %
         % @default 1
         tau;
@@ -101,18 +129,12 @@ classdef BaseModel < KerMorObject
         % - When changing this property any offline computations have
         % to be repeated in order to obtain a new reduced model.
         %
+        % @propclass{critical}
+        %
         % @default 0.1
+        %
         % See also: dtscaled
         dt;
-        
-        % The scaled version of G.
-        %
-        % Equals `\tilde{G} = D'GD` for `D=diag(s)` and `s` being the System.StateScaling property.
-        %
-        % Use this whenever having to take the real G-norm of some scaled state variables
-        %
-        % See also: G System.StateScaling
-        GScaled;
     end
     
     properties(Access=protected)
@@ -144,8 +166,17 @@ classdef BaseModel < KerMorObject
     methods
         
         function this = BaseModel
-             this.System = models.BaseDynSystem(this);
-             this.ODESolver = solvers.ode.MLWrapper(@ode23);
+            
+            % Call superclass constructor first
+            % (not necessary in this version as automatically called first, but one never knows..)
+            this = this@KerMorObject;
+            
+            % Init defaults
+            this.System = models.BaseDynSystem(this);
+            this.ODESolver = solvers.ode.MLWrapper(@ode23);
+            
+            % Register default properties
+            this.registerProps('System','T','ODESolver','dt','G','tau');
         end
         
         function [t,y,sec,x] = simulate(this, mu, inputidx)
@@ -313,7 +344,20 @@ classdef BaseModel < KerMorObject
         end
     end
     
-    
+    methods(Static)
+        function pd = getPropDescription
+            pd = general.collections.Dictionary;
+            p = meta.PCCritical('The Model'' system');
+            p.Default = ?models.BaseDynSystem;
+            pd('System') = p; 
+            p = meta.PCMisc('The name of the Model');
+            p.Default = 'Base Model';
+            pd('Name') = p;
+            p = meta.PCMisc('The end time T of the simulation');
+            p.Default = 1;
+            pd('T') = p;
+        end
+    end
     
     %% Getter & Setter
     methods
@@ -398,49 +442,5 @@ classdef BaseModel < KerMorObject
         end
         
     end
-    
-%     methods(Access=protected)
-%         function s = saveobj(this)
-%             % Saves this BaseModel instance to a struct.
-%             %
-%             % This method is protected as 
-%             s.System = this.System;
-%             s.Name = this.Name;
-%             s.Verbose = this.Verbose;
-%             s.T = this.T;
-%             s.dt = this.dt;
-%             s.ODESolver = this.ODESolver;
-%             s.G = this.G;
-%             s.tau = this.tau;
-%             s.TimeDirty = this.TimeDirty;
-%             s.dtscaled = this.dtscaled;
-%         end
-%     end
-%     
-%     methods (Static, Access=protected)
-%         function obj = loadobj(s, obj)
-%             % Loads the BaseModel part of the current class.
-%             %
-%             % See also: ALoadable
-%             if nargin < 2
-%                 m = metaclass(s);
-%                 error('Error loading class of type %s. Cannot infer subclass in class models.BaseModel, have you implemented loadobj static methods for all classes in the hierarchy?',m.Name);
-%             end
-%             obj = loadobj@KerMorObject(s, obj);
-%             ALoadable.loadProps(mfilename('class'), obj, s);
-% %             % Simple data type properties first
-% %             obj.Name = s.Name;
-% %             obj.T = s.T;
-% %             obj.dt = s.dt;
-% %             obj.G = s.G;
-% %             obj.tau = s.tau;
-% %             obj.TimeDirty = s.TimeDirty;
-% %             obj.dtscaled = s.dtscaled;
-% %             
-% %             % Class instances next
-% %             obj.System = s.System;
-% %             obj.ODESolver = s.ODESolver;
-%         end
-%     end
 end
 

@@ -1,15 +1,19 @@
-classdef InvMultiquadrics < kernels.BaseKernel
+classdef InvMultiquadrics < kernels.BaseKernel & kernels.IRotationInvariant
     %InvMULTIQUADRICS Summary of this class goes here
     %   Detailed explanation goes here
     %
     % @todo check for what params the inv multiquadrics are a bell function
     % and implement bell function methods!
     
-    
-    properties
+    properties(SetObservable)
         % The negative exponent
+        %
+        % @propclass{critical} Greatly influences the kernels behaviour.
         beta=-1;
+        
         % The offset value
+        %
+        % @propclass{critical} Greatly influences the kernels behaviour.
         c=1;
     end
     
@@ -18,6 +22,10 @@ classdef InvMultiquadrics < kernels.BaseKernel
         function this =  InvMultiquadrics(beta, c)
             % Constructor offering the possibility to initialize kernel
             % specifics at creation time.
+            
+            % Register before processing arguments, because if set that's a custom user option.
+            this.registerProps('beta','c');
+            
             if nargin > 0
                 this.beta = beta;
                 if nargin > 1
@@ -51,6 +59,10 @@ classdef InvMultiquadrics < kernels.BaseKernel
             end;
             r = (ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*x'*y;
             K = (this.c^2 + r.^2).^this.beta;
+        end
+        
+        function Ks = evaluateScalar(this, x)
+            Ks = (this.c^2 + x^2).^this.beta;
         end
     end
     

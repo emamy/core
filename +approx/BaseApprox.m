@@ -11,6 +11,11 @@ classdef BaseApprox < dscomponents.ACoreFun
     %
     % --? @change{0,3,sa,2011-04-21} Implemented Setter for the property
     %
+    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+    % extended constructor registering any user-relevant properties using
+    % KerMorObject.registerProps.
+    %
     % @new{0,3,dw,2011-04-12} New property
     % approx.BaseApprox.TrainDataSelector. Allows to choose different
     % strategies for training data selection.
@@ -22,11 +27,15 @@ classdef BaseApprox < dscomponents.ACoreFun
     % implemented approximation strategies. Some similar intermediate
     % method may be reintroduced later.
     
-    properties
+    properties(SetObservable)
         % The algorithm that selects the approximation training data.
         %
-        % See also: DefaultSelector LinspaceSelector TimeSelector
+        % @propclass{important} Determines the strategy used to select the approximation training
+        % data
+        %
         % @default approx.selection.TimeSelector
+        %
+        % See also: DefaultSelector LinspaceSelector TimeSelector
         TrainDataSelector;
     end
     
@@ -40,8 +49,8 @@ classdef BaseApprox < dscomponents.ACoreFun
             
         function this = BaseApprox
             this.TrainDataSelector = approx.selection.TimeSelector;
-        end              
-        
+        end 
+  
         function copy = clone(this, copy)
             copy = clone@dscomponents.ACoreFun(this, copy);
             copy.TrainDataSelector = this.TrainDataSelector;

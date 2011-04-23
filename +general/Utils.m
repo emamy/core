@@ -3,6 +3,9 @@ classdef Utils
     %
     % @author Daniel Wirtz @date 11.10.2010
     %
+    % @new{0,3,dw,2011-04-20} Added a new function general.Utils.getHelpShort to extract the first
+    % line(s) of a help text in matlab style (text until first emtpy line = short)
+    %
     % @new{0,3,dw,2011-04-18} Added the 'saveFigure' and 'saveAxes' methods from SegMedix.
     %
     % @change{0,3,dw,2011-04-04} Moved the general.Utils.getObjectConfig
@@ -14,7 +17,21 @@ classdef Utils
     
     methods(Static)
         
-        
+        function short = getHelpShort(txt)
+            % Gets the first block of a text that goes until the first blank line.
+            pos = regexp(txt,sprintf('\n[ ]*\n'));
+            short = '';
+            if ~isempty(pos)
+                short = txt(1:pos(1)-1);
+            else
+                % Maybe only one line?
+                pos = strfind(txt,char(10));
+                if ~isempty(pos)
+                    short = txt(1:pos(1)-1);
+                end
+            end
+            short = strtrim(short);
+        end
         
         function [bmin, bmax] = getBoundingBox(vectors)
             % Gets the bounding box for a matrix containing column vectors.

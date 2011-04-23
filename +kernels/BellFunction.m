@@ -16,17 +16,35 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
     % hang if the newton iteration does not come to a hold. An error will
     % be thrown as finding the correct minima is necessary.
     
-    properties
+    properties(SetObservable)
+        % Point of maximum first derivative on scalar evaluation.
+        %
+        % @propclass{critical} This value is essential for any bell function.
         x0;
         
+        % Penalty factor for modified newton iteration.
+        %
+        % @propclass{optional} Value is set to 2 by developer (empirically).
+        %
+        % @default 2
         PenaltyFactor = 2;
         
+        % Error tolerance for modified newton iteration
+        %
+        % @propclass{optional} The default precision is sufficient for all cases encountered so far.
+        %
+        % @default 1e-7
         NewtonTolerance = 1e-7;
         
+        % Hard break for iteration count of modified newton algorithm
+        %
+        % @propclass{alglimit} Emergency break if iteration does not converge.
+        %
+        % @default 5000
         MaxNewtonIterations = 5000;
     end
     
-    properties(Dependent)
+    properties(SetAccess=private, Dependent)
         % The maximum ("right") value for any `x_y`.
         xR;
     end
@@ -40,6 +58,11 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
     end
     
     methods
+        
+        function this = BellFunction
+            this = this@kernels.BaseKernel;
+            this.registerProps('x0','PenaltyFactor','NewtonTolerance','MaxNewtonIterations');
+        end
         
         function fcn = getLipschitzFunction(this)
             % Overrides the method from the base class kernels.BaseKernel

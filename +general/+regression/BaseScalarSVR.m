@@ -1,4 +1,4 @@
-classdef BaseScalarSVR < ICloneable & approx.IKernelCoeffComp
+classdef BaseScalarSVR < KerMorObject & ICloneable & approx.IKernelCoeffComp
     %SCALARSVR Scalar support vector regression.
     %
     % Base class for any scalar SVR algorithm.

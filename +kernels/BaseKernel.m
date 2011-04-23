@@ -1,21 +1,14 @@
-classdef BaseKernel < handle
+classdef BaseKernel < KerMorObject
     %BASEKERNEL Basic KerMor Kernel
     %
     % All Kernels have to inherit from this class.
-    % @todo remove RotInv property and replace for check of interface
-    % IRotInv implementation instead
     %
     % @author Daniel Wirtz @date 12.03.2010
-    
-    properties(SetAccess = protected)
-        % Flag whether this kernel is rotation-invariant.
-        RotationInvariant;
-    end
+    %
+    % @change{0,3,dw,2011-04-21} Removed the RotationInvariant property as it is now replaced by the
+    % IRotationInvariant interface.
     
     methods
-        function this = BaseKernel
-            this.RotationInvariant = isa(this, 'kernels.IRotationInvariant');
-        end
         
         function fcn = getLipschitzFunction(this)
             % Method that allows error estimators to obtain a lipschitz

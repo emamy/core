@@ -1,32 +1,52 @@
-classdef BaseSolver < handle
+classdef BaseSolver < KerMorObject
     % Base class for all KerMor ODE solvers
     %
     % Simply defines an interfaces for a solve function and provides common
     % ODE solver properties.
     %
+    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+    % extended constructor registering any user-relevant properties using
+    % KerMorObject.registerProps.
+    %
     % @todo Write tests for solvers.
     % @todo Rename BaseSolver to BaseODESolver
     
-    properties
+    properties(SetObservable)
         % Maximum time step for solver.
         %
         % Upon time-step computation via getCompTimes this value is used as
         % `dt` inner time-step.
         %
-        % Default: [] (Use solver's default settings)
+        % @propclass{critical} Too large steps due to high time-step distances in the passed times
+        % vector `t` may lead to errorneous results. This property limits the maximum time-step size
+        % used in the implementations. Set to [] in order to rely on the times `t`.
+        %
+        % @default [] (Use solver's default settings)
         MaxStep = [];
         
         % The initial step size for the solver.
         % So far only used by the MLWrapper class for the native matlab
         % solvers.
         %
-        % Default: [] (User solver's default settings)
+        % @propclass{important} Some odes require a certain (small) initial step. 
+        %
+        % @default [] (User solver's default settings)
         InitialStep = [];
     end
     
-    properties(SetAccess=protected)
+    properties(SetObservable, SetAccess=protected)
         % The solver's name
-        Name = 'KerMor BaseSolver';
+        %
+        % @propclass{optional} Define your own solver name!
+        Name = 'KerMor BaseSolver class';
+    end
+    
+    methods
+        function this = BaseSolver
+            this = this@KerMorObject;
+            this.registerProps('MaxStep','InitialStep','Name');
+        end
     end
     
     methods(Access=protected)

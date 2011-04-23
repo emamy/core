@@ -8,6 +8,10 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
     %
     % @change{0,3,sa,2011-04-21} Implemented Setters for all the properties
     % other than NumGammas and ValidationPercent
+    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+    % extended constructor registering any user-relevant properties using
+    % KerMorObject.registerProps.
     %
     % @change{0,3,dw,2011-04-14}
     % - Implemented some setters
@@ -19,30 +23,41 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
     %
     % @new{0,3,dw,2011-04-01} Added this class.
     
-    properties
+    properties(SetObservable)
         % The maximum size of the expansion to produce.
         %
         % Equals the maximum number of iterations to perform during
         % adaptive approximation computation as each iteration yields a new
         % center.
         %
+        % @propclass{alglimit} 
+        % Some text describing the importance of this property.
+        %
         % @default 200
         MaxExpansionSize = 200;
         
         % The number of different Gamma values to try.
+        %
+        % @propclass{important} 
         NumGammas = 20;
         
         % Percentage `p` of the training data to use as validation data
         %
         % Admissible values are `p\in]0,\frac{1}{2}]`.
         %
+        % @propclass{optional} 
+        %
         % @default .2
         ValidationPercent = .2;
         
         % Value for initial Gamma choice.
+        %
+        % @propclass{experimental} 
         gameps = .6;
         
         % Stopping condition property. Maximum relative error that may occur
+        %
+        % @propclass{critical}
         %
         % @default 1e-5
         MaxRelErr = 1e-5;
@@ -54,12 +69,16 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
         % this approximation. This way, one defines the fraction of the maximum error that is
         % maximally allowed.
         %
+        % @propclass{critical}
+        %
         % @default 1e-5
         MaxAbsErrFactor = 1e-5;
         
         % The error functional to use
         % 1 = `L^\infty`-Error (max diff over all vecs & dimensions)
         % 2 = `L^2`-Error (vector-wise L^2, then max)
+        %
+        % @propclass{experimental} 
         ErrFun = 1;
     end
     
@@ -74,6 +93,14 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
     end
     
     methods
+        
+        function this = AdaptiveCompWiseKernelApprox
+            this = this@approx.BaseCompWiseKernelApprox;
+            
+            % Register default property changed listeners
+            this.registerProps('MaxExpansionSize','NumGammas','ValidationPercent',...
+                'gameps','MaxRelErr','MaxAbsErrFactor','ErrFun');
+        end
         
         function approximateCoreFun(this, model)
             % Performs adaptive approximation generation.
