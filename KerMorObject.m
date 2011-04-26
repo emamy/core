@@ -23,18 +23,29 @@ classdef KerMorObject < handle
     
     properties(SetAccess=private)
         % An ID that allows to uniquely identify this KerMorObject
-        ID;
+        ID = [];
     end
     
     properties(SetAccess=private)
-        PropertiesChanged;
+        PropertiesChanged = [];
     end
     
     methods
         function this = KerMorObject
-            this = this@handle;
-            this.ID = general.IDGenerator.generateID;
-            this.PropertiesChanged = general.collections.Dictionary;
+            % Constructs a new KerMor object.
+            %
+            % Important notice at this stage: Due to possible multiple inheritance any object's
+            % constructor should check if any custom properties that are assigned during
+            % construction are already present / different from the default value given at property
+            % declaration. If so, chances are that the constructor is called again for the same
+            % object; in this case, assigning a new ID and property changed dictionary caused any
+            % old registered properties to be overwritten!
+            
+            % Check if a constructor for this object has already been called!
+            if isempty(this.ID)
+                this.ID = general.IDGenerator.generateID;
+                this.PropertiesChanged = general.collections.Dictionary;
+            end
         end
     end
     
@@ -161,7 +172,7 @@ classdef KerMorObject < handle
             keys = obj.PropertiesChanged.Keys;
             for idx = 1:obj.PropertiesChanged.Count
                 ps = obj.PropertiesChanged(keys{idx});
-                if ~any(strcmp(ps.Level,{'passive','data'}))
+                if ~any(strcmp(ps.Level,'data'))
                     addlistener(obj,ps.Name,'PostSet',@(src,evd)obj.PropPostSetCallback(src,evd));
                 end
             end

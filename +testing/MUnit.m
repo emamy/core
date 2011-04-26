@@ -18,6 +18,9 @@ classdef MUnit
     %
     % @author Daniel Wirtz @date 12.03.2010
     %
+    % @change{0,3,dw,2011-04-26} Added linebreaks after each message to avoid loss of lines when
+    % using cprintf.
+    %
     % @todo 08.10.10: extend test method signature by a verbose flag; v=0 means
     % quiet, v=1 means text output and v=2 means with plots
     % @todo 08.10.10: apply changes of extended test method signature to all already
@@ -127,7 +130,7 @@ classdef MUnit
                             % check if the method is static [non-statics
                             % cant be run without instances.. :-)]
                             if m.Static
-                                cprintf(testing.MUnit.GreenCol,['Running ' mc.Name ' -> ' m.Name(6:end) '... ']);
+                                cprintf(testing.MUnit.GreenCol,['Running test ' mc.Name ' -> ' m.Name(6:end) '...\n']);
                                 try
                                     eval(['outargs = nargout(@' mc.Name '.' m.Name ');']);
                                     if outargs > 0
@@ -137,7 +140,7 @@ classdef MUnit
                                     end
                                     eval(command);
                                     if outargs == 0 || succ
-                                        cprintf(testing.MUnit.GreenCol,'Success!\n');
+                                        cprintf(testing.MUnit.GreenCol,['Test' mc.Name ' -> ' m.Name(6:end) ' succeeded!\n']);
                                         s = s+1;
                                     elseif ~succ
                                         cprintf('Red','Failure!\n');
@@ -145,9 +148,8 @@ classdef MUnit
                                     end
                                 catch ME
                                     f = f+1;
-                                    cprintf('Red','Failure due to Exception!\n');
+                                    cprintf('Red',['Test' mc.Name ' -> ' m.Name(6:end) ' failed!\nExeption information:\n']);
                                     disp(getReport(ME));
-                                    %rethrow(ME);
                                 end
                             else
                                 warning('MUnit:NonstaticTest',...

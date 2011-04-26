@@ -36,7 +36,7 @@ function count = cprintf(style,format,varargin)
 %    STYLE is case-insensitive and accepts unique partial strings just
 %    like handle property names.
 %
-% Examples:
+% Example:
 %    cprintf('text',   'regular black text');
 %    cprintf('hyper',  'followed %s','by');
 %    cprintf('k',      '%d colored', 4);
@@ -78,6 +78,8 @@ function count = cprintf(style,format,varargin)
 %       R14 also appends a single space after underlined segments.
 %
 % Change log:
+%    2011-03-04: Performance improvement
+%    2010-06-27: Fix for R2010a/b; fixed edge case reported by Sharron; CPRINTF with no args runs the demo
 %    2009-09-28: Fixed edge-case problem reported by Swagat K
 %    2009-05-28: corrected nargout behavior sugegsted by Andreas Gäb
 %    2009-05-13: First version posted on <a href="http://www.mathworks.com/matlabcentral/fileexchange/authors/27420">MathWorks File Exchange</a>
@@ -89,11 +91,17 @@ function count = cprintf(style,format,varargin)
 % referenced and attributed as such. The original author maintains the right to be solely associated with this work.
 
 % Programmed and Copyright by Yair M. Altman: altmany(at)gmail.com
-% $Revision: 1.00 $  $Date: 2009/09/28 19:14:38 $
+% $Revision: 1.05 $  $Date: 2011/03/04 17:07:38 $
+
+%fprintf(2,format,varargin{:});
+%return;
+
+  persistent majorVersion minorVersion
 
   % The following is for debug use only:
   %global docElement txt el
   if ~exist('el','var') || isempty(el),  el=handle([]);  end  %#ok mlint short-circuit error ("used before defined")
+  if nargin<1, showDemo; return;  end
   if isempty(style),  return;  end
   if all(ishandle(style)) && length(style)~=3
       dumpElement(style);
@@ -102,25 +110,28 @@ function count = cprintf(style,format,varargin)
 
   % Process the text string
   error(nargchk(2, inf, nargin, 'struct'));
-  if (numel(varargin) > 0)
-      str = sprintf(format,varargin{:});
-  else
-      str = format;
-  end
+  %str = sprintf(format,varargin{:});
 
   % Get the normalized style name and underlining flag
   [underlineFlag, style] = processStyleInfo(style);
 
   % Set hyperlinking, if so requested
   if underlineFlag
-      str = ['<a href=" ">' str '</a>'];
-      v = version;
+      format = ['<a href=" ">' format '</a>'];
       
       % Matlab 7.1 R14 (possibly a few newer versions as well?)
       % have a bug in rendering consecutive hyperlinks
       % This is fixed by appending a single non-linked space
-      if str2double(v(1:3)) <= 7.1
-          str(end+1) = ' ';
+      if isempty(majorVersion)
+          %v = version; if str2double(v(1:3)) <= 7.1
+          %majorVersion = str2double(regexprep(version,'^(\d+).*','$1'));
+          %minorVersion = str2double(regexprep(version,'^\d+\.(\d+).*','$1'));
+          [a,b,c,d,versionIdStrs]=regexp(version,'^(\d+)\.(\d+).*');  %#ok unused
+          majorVersion = str2double(versionIdStrs{1}{1});
+          minorVersion = str2double(versionIdStrs{1}{2});
+      end
+      if majorVersion < 7 || minorVersion <= 1
+          format(end+1) = ' ';
       end
   end
 
@@ -138,7 +149,7 @@ function count = cprintf(style,format,varargin)
       else
           fprintf(' ');  %fprintf(' \b');
       end
-      drawnow;
+      %drawnow;
       bolFlag = 1;
   %end
 
@@ -153,7 +164,7 @@ function count = cprintf(style,format,varargin)
   com.mathworks.services.Prefs.setColorPref('CW_BG_Color',xCmdWndView.getBackground);
 
   % Display the text in the Command Window
-  count1 = fprintf(2,str);
+  count1 = fprintf(2,format,varargin{:});
   %awtinvoke(cmdWinDoc,'remove',lastPos,1);   % TODO: find out how to remove the extra '_'
   drawnow;
   docElement = cmdWinDoc.getParagraphElement(lastPos+1);
@@ -168,6 +179,7 @@ function count = cprintf(style,format,varargin)
 
   % Fix a problem with some hidden hyperlinks becoming unhidden...
   fixHyperlink(docElement);
+  %dumpElement(docElement);
 
   % Get the Document Element(s) corresponding to the latest fprintf operation
   while docElement.getStartOffset < cmdWinDoc.getLength
@@ -376,6 +388,8 @@ function dumpElement(docElements)
       end
       lastTokenStartOffset = docElement.getStartOffset + tokenLengths(end);
       txt{end+1} = cmdWinDoc.getText(lastTokenStartOffset, docElement.getEndOffset-lastTokenStartOffset).char;  %#ok
+      %cmdWinDoc.uiinspect
+      %docElement.uiinspect
       txt = strrep(txt',sprintf('\n'),'\n');
       try
           data = [tokens(2).cell m2c(tokens(1)) m2c(links) m2c(urls(1)) cell(urls(2)) txt];
@@ -399,8 +413,23 @@ function dumpElement(docElements)
 
 % Utility function to convert matrix => cell
 function cells = m2c(data)
-  datasize = size(data);
-  cells = mat2cell(data,ones(1,datasize(1)),ones(1,datasize(2)));
+  %datasize = size(data);  cells = mat2cell(data,ones(1,datasize(1)),ones(1,datasize(2)));
+  cells = num2cell(data);
+
+% Display the help and demo
+function showDemo
+  fprintf('cprintf displays formatted text in the Command Window.\n\n');
+  fprintf('Syntax: count = cprintf(style,format,...);  click <a href="matlab:help cprintf">here</a> for details.\n\n');
+  fprintf('Demo:\n');
+  cprintf('text',    'regular black text');
+  cprintf('hyper',   'followed %s','by');
+  cprintf('k',       '%d colored',4);
+  cprintf('-comment','& underlined');
+  cprintf('err',     'elements:\n');
+  cprintf('cyan',    'cyan');
+  cprintf('-green',  'underlined green');
+  cprintf(-[1,0,1],  'underlined magenta');
+  cprintf([1,0.5,0], 'and multi-\nline orange\n');
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% TODO %%%%%%%%%%%%%%%%%%%%%%%%%
@@ -408,3 +437,4 @@ function cells = m2c(data)
 % - Fix: Find workaround for multi-line quirks/limitations
 % - Fix: Non-\n-terminated segments are displayed as black
 % - Fix: Check whether the hyperlink fix for 7.1 is also needed on 7.2 etc.
+% - Enh: Add font support

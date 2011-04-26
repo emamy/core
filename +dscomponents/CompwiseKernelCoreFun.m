@@ -43,6 +43,7 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
         
         function this = CompwiseKernelCoreFun
             this = this@dscomponents.AKernelCoreFun;
+            
             this.CustomProjection = true;
             
             this.registerProps('off','Ma');

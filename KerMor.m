@@ -9,6 +9,8 @@ classdef KerMor < handle
     %
     % @author Daniel Wirtz @date 2011-03-04
     %
+    % @new{0,3,dw,2011-04-26} Added a new property DocumentationLocation.
+    %
     % @change{0,3,sa,2011-04-14} Implemented UseMatlabParallelComputing functionality
     %
     % @change{0,3,dw,2011-04-12} 
@@ -262,6 +264,13 @@ classdef KerMor < handle
         Hasrbmatlab = false;
     end
     
+    properties(Dependent)
+        % Returns where the documentation is located.
+        %
+        % This is either a web-site or the local documentation.
+        DocumentationLocation;
+    end
+    
     methods
         function set.UseMatlabParallelComputing(this, value)
             if ~islogical(value)
@@ -359,6 +368,13 @@ classdef KerMor < handle
                 this.HomeDirectory = fileparts(which('KerMor'));
             end
             h = this.HomeDirectory;
+        end
+        
+        function d = get.DocumentationLocation(this)%#ok
+            d = getenv('KERMOR_DOCS');
+            if isempty(d) || ~exist(fullfile(d,'index.html'),'file')
+                d = 'http://www.agh.ians.uni-stuttgart.de/documentation/kermor';
+            end
         end
         
         function h = get.DataStoreDirectory(this)

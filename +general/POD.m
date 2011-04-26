@@ -1,11 +1,21 @@
 classdef POD < KerMorObject
-    %POD Implements proper orthogonal decomposition
+    % POD: Implements proper orthogonal decomposition
     %
-    % See also: #Mode #Value
+    % Mainly relies on the matlab builtin functions svd and svds. This class wraps their
+    % functionality to a class integrable with KerMor.
     %
-    % @author Daniel Wirtz @date 24.08.2010
+    % @author Daniel Wirtz @date 2010-08-24
+    %
+    % See also: Mode Value
+    %
+    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+    % extended constructor registering any user-relevant properties using
+    % KerMorObject.registerProps.
+    %
+    % @todo Create fixed random number stream for reproducable results!
     
-    properties
+    properties(SetObservable)
         % The modus used to generate the reduced space.
         %
         % Possible choices are:
@@ -21,14 +31,20 @@ classdef POD < KerMorObject
         % 'sign' and 'eps' all singular values are computed and the
         % dimension is computed using these singular values.
         %
-        % Defaults to 'rel'.
+        % @propclass{important} Choices 'sign' and 'eps' can lead to long computation times if the
+        % input samples are large as the full decomposition must be computed.
+        %
+        % @default 'rel'
         %
         % See also: Value
         Mode = 'rel';
         
         % The value associated with the selected Mode
         %
-        % Defaults to .3
+        % @propclass{important} Determines the size of the reduced space. Has different effects
+        % depending on the choice of the general.POD.Mode property.
+        %
+        % @default .3
         %
         % See also: Mode
         Value = .3;
@@ -41,11 +57,21 @@ classdef POD < KerMorObject
         % IMPORTANT: The results when using svds are NOT REPRODUCABLE as
         % svds uses an randomly initialized Arnoldi algorithm.
         %
-        % Default: false
+        % @propclass{critical} Allows for dramatic reduction of computational costs for the price of
+        % less accuracy. See the matlab docs for svds and svd.
+        %
+        % @default false
         UseSVDS = false;
     end
     
     methods
+        
+        function this = POD
+            this = this@KerMorObject;
+            
+            this.registerProps('Mode','Value','UseSVDS');
+        end
+        
         function podvec = computePOD(this, vec)
             % Computes the POD vectors according to the specified settings
             %

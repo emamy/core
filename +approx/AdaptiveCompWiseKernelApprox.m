@@ -90,8 +90,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
         effabs;
     end
     
-    methods
-        
+    methods    
         function this = AdaptiveCompWiseKernelApprox
             this = this@approx.BaseCompWiseKernelApprox;
             
@@ -99,8 +98,44 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             this.registerProps('MaxExpansionSize','NumGammas','ValidationPercent',...
                 'gameps','MaxRelErr','MaxAbsErrFactor','ErrFun');
         end
+                        
+        function target = clone(this)
+            % Clones the instance.
+            
+            % Create instance as this is the final class so far. If
+            % subclassed, this clone method has to be given an additional
+            % target argument.
+            target = approx.AdaptiveCompWiseKernelApprox;
+            
+            target = clone@approx.BaseCompWiseKernelApprox(this, target);
+            
+            % copy local props
+            copy.MaxExpansionSize = this.MaxExpansionSize;
+            copy.NumGammas = this.NumGammas;
+            %copy.dfact = this.dfact;
+            copy.gameps = this.gameps;
+            copy.MaxRelErr = this.MaxRelErr;
+            copy.MaxAbsErrFactor = this.MaxAbsErrFactor;
+            copy.MaxErrors = this.MaxErrors;
+        end       
         
-        function approximateCoreFun(this, model)
+        function set.ValidationPercent(this, value)
+            if ~isposrealscalar(value) || value > .5
+                error('The value must be a positive scalar inside the interval ]0,.5[');
+            end
+            this.ValidationPercent = value;
+        end
+        
+        function set.NumGammas(this,value)
+            if ~isposintscalar(value)
+                error('Value must be a positive integer.');
+            end
+            this.NumGammas = value;
+        end
+    end
+    
+    methods(Access=protected, Sealed)
+        function computeCompwiseApprox(this, model, fx)
             % Performs adaptive approximation generation.
             %
             % @docupdate
@@ -123,7 +158,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                     (~isa(this.TimeKernel,'kernels.GaussKernel') && ~isa(this.TimeKernel,'kernels.NoKernel')) || ...
                     (~isa(this.ParamKernel,'kernels.GaussKernel') && ~isa(this.ParamKernel,'kernels.NoKernel'))
                 error('Any kernels used have to be Gaussian kernels for this approximation algorithm so far');
-            end    
+            end
             
             %% Initializations
             atd = model.Data.ApproxTrainData;
@@ -133,7 +168,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             vd = atd(:,sel);
             atd(:,sel) = [];
             
-            fx = model.Data.ApproxfValues;
+            %fx = fx; % Now passed as argument
             vdfx = fx(:,sel);
             fx(:,sel) = [];
             
@@ -233,7 +268,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             %% Outer control loop
             cnt = 1;
             % Stopping condition preps
-            this.effabs = this.MaxAbsErrFactor * max(abs(model.Data.ApproxfValues(:)));
+            this.effabs = this.MaxAbsErrFactor * max(abs(fx(:)));
             
             % Keep track of maximum errors
             this.MaxErrors = zeros(size(1,this.MaxExpansionSize));
@@ -242,7 +277,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                 %% Determine maximum error over training data
                 fhat = this.evaluate(atd(4:end,:),atd(3,:),params);
                 [val, maxidx, errs] = errfun(fx,fhat);
-                rel = val / (norm(model.Data.ApproxfValues(maxidx))+eps);
+                rel = val / (norm(fx(maxidx))+eps);
                 this.MaxErrors(cnt) = val;
                 
                 %% Verbose stuff
@@ -254,7 +289,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                 if this.checkStop(cnt, rel, val)
                     break;
                 end
-
+                
                 % Add maxidx to list of used centers
                 used(end+1) = maxidx;%#ok
                 
@@ -289,30 +324,30 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                     d = dists(:,gidx);
                     % Update Kernels Gamma values
                     gx = this.SystemKernel.setGammaForDistance(d(1),this.gameps);
-                    %if KerMor.App.Verbose > 2
+                    if KerMor.App.Verbose > 2
                         %fprintf('Kernels - Sys:%10f => gamma=%f',d(1),gx);
                         fprintf('xg:%.5e',gx);
-                    %end
+                    end
                     if ~isa(this.TimeKernel,'kernels.NoKernel')
                         gt = this.TimeKernel.setGammaForDistance(d(2),this.gameps);
-                        %if KerMor.App.Verbose > 2
+                        if KerMor.App.Verbose > 2
                             %fprintf(', Time:%10f => gamma=%10f',d(2),gt);
                             fprintf(', tg:%.5e',gx);
-                        %end
+                        end
                     end
                     if hasparams && ~isa(this.ParamKernel,'kernels.NoKernel')
                         gp = this.ParamKernel.setGammaForDistance(d(3),this.gameps);
-                        %if KerMor.App.Verbose > 2
+                        if KerMor.App.Verbose > 2
                             fprintf(', pg=%.5e',gp);
-                        %end
+                        end
                     end
-
+                    
                     %% Compute coefficients
                     warning('off','MATLAB:nearlySingularMatrix');
                     % Call coeffcomp preparation method and pass kernel matrix
                     K = this.getKernelMatrix;
                     this.CoeffComp.init(K);
-
+                    
                     % Call protected method
                     this.computeCoeffs(fx(:,used));
                     warning('on','MATLAB:nearlySingularMatrix');
@@ -332,22 +367,22 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                         bestgp = gp;
                         bestMa = this.Ma;
                         bestoff = this.off;
-                        %if KerMor.App.Verbose > 2
+                        if KerMor.App.Verbose > 2
                             fprintf(' b: %.5e, %3.2f%%',val,impro);
-                        %end
+                        end
                     else
-                        %if KerMor.App.Verbose > 2
-                            %break;
+                        if KerMor.App.Verbose > 2
                             fprintf(' w: %.5e, %3.2f%%',val,impro);
-                        %end
+                        end
                     end
                     
-                    %if KerMor.App.Verbose > 2
+                    if KerMor.App.Verbose > 2
                         fprintf(' ||Ma||:%.5e, vd-err:%.5e, prod:%.5e\n',sum(sqrt(sum(this.Ma.^2,1))),vdval,val*vdval);
-                    %end
-                
+                    end
                 end
-                fprintf('\n');
+                if KerMor.App.Verbose > 2
+                    fprintf('\n');
+                end
                 
                 %% Assign best values
                 this.SystemKernel.Gamma = bestgx;
@@ -360,9 +395,9 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                 this.Ma = bestMa;
                 this.off = bestoff;
                 
-                %if KerMor.App.Verbose > 1
+                if KerMor.App.Verbose > 1
                     fprintf('-- It: %d ---- Minerr: %f ----- Best values: System:%f, Time:%f, Param:%f ----------\n',cnt,minerr,bestgx,bestgt,bestgp);
-                %end
+                end
                 
                 cnt = cnt+1;
             end
@@ -398,81 +433,46 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             
             function doPlots
                 figure(1);
-                    fprintf('Max error over training data: %5.20f (relative: %10.20f)\n',val,rel);
-                    pos = [1 3];
-                    if KerMor.App.Verbose > 3
-                        pos = 1;
-                    end
-                    subplot(2,2,pos);
-                    plot(1:length(errs),errs,'r',used,val,'r*',maxidx,val,'b*');
-                    subplot(2,2,pos+1);
-                    hold off;
-                    plot([BXmin, BXmax],'black');
+                fprintf('Max error over training data: %5.20f (relative: %10.20f)\n',val,rel);
+                pos = [1 3];
+                if KerMor.App.Verbose > 3
+                    pos = 1;
+                end
+                subplot(2,2,pos);
+                plot(1:length(errs),errs,'r',used,val,'r*',maxidx,val,'b*');
+                subplot(2,2,pos+1);
+                hold off;
+                plot([BXmin, BXmax],'black');
+                axis tight;
+                hold on;
+                %plot((BXmin+BXmax)/2,'g');
+                if size(this.Centers.xi,2) > 1
+                    plot(this.Centers.xi(:,1:end-1),'.','MarkerSize',2);
+                end
+                plot(this.Centers.xi(:,end),'r*','MarkerSize',3);
+                
+                % Plot params & time also
+                if KerMor.App.Verbose > 3
+                    subplot(2,2,3); hold off;
+                    plot([Btmin, Btmax],'black');
                     axis tight;
                     hold on;
-                    %plot((BXmin+BXmax)/2,'g');
-                    if size(this.Centers.xi,2) > 1
-                        plot(this.Centers.xi(:,1:end-1),'.','MarkerSize',2);
+                    if size(this.Centers.ti,2) > 1
+                        plot(this.Centers.ti(:,1:end-1),'.','MarkerSize',2);
                     end
-                    plot(this.Centers.xi(:,end),'r*','MarkerSize',3);
-                    
-                    % Plot params & time also
-                    if KerMor.App.Verbose > 3
-                        subplot(2,2,3); hold off;
-                        plot([Btmin, Btmax],'black');
-                        axis tight;
-                        hold on;
-                        if size(this.Centers.ti,2) > 1
-                            plot(this.Centers.ti(:,1:end-1),'.','MarkerSize',2);
-                        end
-                        plot(this.Centers.ti(:,end),'r*','MarkerSize',3);
-                        subplot(2,2,4); hold off;
-                        plot([BPmin, BPmax],'black');
-                        axis tight;
-                        hold on;
-                        if size(this.Centers.mui,2) > 1
-                            plot(this.Centers.mui(:,1:end-1),'.','MarkerSize',2);
-                        end
-                        plot(this.Centers.mui(:,end),'r*','MarkerSize',3);
+                    plot(this.Centers.ti(:,end),'r*','MarkerSize',3);
+                    subplot(2,2,4); hold off;
+                    plot([BPmin, BPmax],'black');
+                    axis tight;
+                    hold on;
+                    if size(this.Centers.mui,2) > 1
+                        plot(this.Centers.mui(:,1:end-1),'.','MarkerSize',2);
                     end
-                    
-                   pause;
+                    plot(this.Centers.mui(:,end),'r*','MarkerSize',3);
+                end
+                
+                pause;
             end
-     
-        end
-                        
-        function target = clone(this)
-            % Clones the instance.
-            
-            % Create instance as this is the final class so far. If
-            % subclassed, this clone method has to be given an additional
-            % target argument.
-            target = approx.AdaptiveCompWiseKernelApprox;
-            
-            target = clone@approx.BaseCompWiseKernelApprox(this, target);
-            
-            % copy local props
-            copy.MaxExpansionSize = this.MaxExpansionSize;
-            copy.NumGammas = this.NumGammas;
-            %copy.dfact = this.dfact;
-            copy.gameps = this.gameps;
-            copy.MaxRelErr = this.MaxRelErr;
-            copy.MaxAbsErrFactor = this.MaxAbsErrFactor;
-            copy.MaxErrors = this.MaxErrors;
-        end       
-        
-        function set.ValidationPercent(this, value)
-            if ~isposrealscalar(value) || value > .5
-                error('The value must be a positive scalar inside the interval ]0,.5[');
-            end
-            this.ValidationPercent = value;
-        end
-        
-        function set.NumGammas(this,value)
-            if ~isposintscalar(value)
-                error('Value must be a positive integer.');
-            end
-            this.NumGammas = value;
         end
     end
     
@@ -481,13 +481,13 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             % Checks the stopping conditions 
             bool = false;
             if cnt == this.MaxExpansionSize
-                disp('Stopping reason: Max expansion size reached.');
+                disp('AdaptiveCompWiseKernelApprox finished. Max expansion size reached.');
                 bool = true;
             elseif rel < this.MaxRelErr
-                fprintf('Stopping reason: relative error %.7e < %.7e\n',rel,this.MaxRelErr);
+                fprintf('AdaptiveCompWiseKernelApprox finished. Relative error %.7e < %.7e\n',rel,this.MaxRelErr);
                 bool = true;
             elseif val < this.effabs
-                fprintf('Stopping reason: absolute error %.7e < %.7e\n',val,this.effabs);
+                fprintf('AdaptiveCompWiseKernelApprox finished. Absolute error %.7e < %.7e\n',val,this.effabs);
                 bool = true;
             end
         end

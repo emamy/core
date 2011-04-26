@@ -2,7 +2,7 @@ function BellFcnLocalLipschitzDemo( x0, C )
 %ERRORESTDEMO Demo for the monotone radial basis functions error estimator.
 
 h = figure(1);
-dt = 0.05;
+dt = 0.5;
 b = 6;
 
 if nargin < 2
@@ -29,8 +29,8 @@ fx = f(x);
 maxR = K.x0;
 
 % precompute xfeats-vector
-xfeats = newton(maxR+sign(maxR-x),x,f,df,ddf,...
-    K.NewtonTolerance,K.x0,K.PenaltyFactor);
+%xfeats = newton(maxR+sign(maxR-x),x,f,df,ddf,...
+%    K.NewtonTolerance,K.x0,K.PenaltyFactor);
 
 for C = Cint
     maxder = ones(size(x))*abs(df(K.x0));

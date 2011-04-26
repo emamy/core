@@ -21,6 +21,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
     %
     % @author Daniel Wirtz @date 16.03.2010
     %
+    % @change{0,3,dw,2011-04-26} The property changed descriptions now contain links to the
+    % respective classes containing the property.
+    %
     % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
     % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
     % extended constructor registering any user-relevant properties using
@@ -204,7 +207,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 innum = 0;
 
                 if KerMor.App.Verbose > 0
-                    fprintf('Generating projection training data...');
+                    fprintf('Generating projection training data...\n');
                     p = 0;
                 end
                 cnt = 0;
@@ -217,7 +220,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         if KerMor.App.Verbose > 0
                             perc = cnt/(num_in*num_s);
                             if perc > p
-                                fprintf(' %2.0f%%',round(perc*100));
+                                fprintf('%2.0f%%\n',round(perc*100));
                                 p = ceil(perc*10)/10;
                             end
                         end
@@ -243,9 +246,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 
                         cnt=cnt+1;
                     end
-                end
-                if KerMor.App.Verbose > 0
-                    fprintf(' complete!\n');
                 end
                 this.Data.TrainingData = sn;
             end
@@ -423,9 +423,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             [t,x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
         end
         
-        function printPropertyChangedReport(this,levels)           
-            % Prints a detailed report about the properties which have not been changed from their
-            % default setting.
+        function printPropertyChangedSummary(this,levels)
+            % Prints a summary about the properties of different levels which have not been changed
+            % from their default setting.
             %
             % Call this method after any calls to models.BaseModel.simulate or
             % models.BaseModel.getTrajectory
@@ -434,24 +434,45 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % levels: [Optional] The property levels to print reports for. A list of admissible
             % values can be obtained by KerMorObject.getPropClasses. Default is to print ''all''
             % data.
+            if nargin < 2
+                levels = KerMorObject.getPropClasses;
+            elseif ischar(levels)
+                levels = {levels};
+            end
             if ~isempty(this.pstats)
                 c = this.pstats;
                 total = sum(c,2);
                 total(3) = total(3)/size(c,2);
                 
                 col = [1-total(3)/100 total(3)/100 0];
-                cprintf(col,'Total changed properties: %d of %d (%2.2f)\n',total);
+                cprintf(col,'Total unchanged properties: %d of %d (%2.2f%%%%)\n',total);
                 for lidx = 1:length(levels)
                     col = [1-c(3,lidx)/100 c(3,lidx)/100 0];
-                    cprintf(col, '%s properties: %d of %d (%2.2f)\n',levels{lidx},c(:,lidx));
+                    lvidx = find(strcmp(levels{lidx},KerMorObject.getPropClasses),1);
+                    cprintf(col, 'Unchanged ''%s'': %d of %d (%2.2f%%%%)\n',levels{lidx},c(:,lvidx));
                 end
             end
+        end
+        
+        function printPropertyChangedReport(this,levels)
+            % Prints a detailed report about the properties at each level which have not been
+            % changed from their default setting.
+            %
+            % Call this method after any calls to models.BaseModel.simulate or
+            % models.BaseModel.getTrajectory
+            %
+            % Parameters:
+            % levels: [Optional] The property levels to print reports for. A list of admissible
+            % values can be obtained by KerMorObject.getPropClasses. Default is to print ''all''
+            % data.
+            
+            if nargin < 2
+                levels = KerMorObject.getPropClasses;
+            elseif ischar(levels)
+                levels = {levels};
+            end
+            this.printPropertyChangedSummary(levels);
             if ~isempty(this.msg)
-                if nargin < 2
-                    levels = KerMorObject.getPropClasses;
-                elseif ischar(levels)
-                    levels = {levels};
-                end
                 for idx = 1:length(levels)
                     m = this.msg.(levels{idx});
                     if ~isempty(m)
@@ -509,24 +530,41 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
              % Some total stats now
              c = [struct2array(notchanged); struct2array(counts)];
              c(3,:) = round(10000 * c(1,:) ./ c(2,:))/100;
+             c(3,isnan(c(3,:))) = 100;
              this.pstats = c;
              
-             total = sum(c,2);
-             total(3) = total(3)/size(c,2);
-             
-             col = [1-total(3)/100 total(3)/100 0];
-             cprintf(col,'Total changed properties: %d of %d (%2.2f)\n',total);
+             if KerMor.App.Verbose > 1
+                 total = sum(c,2);
+                 total(3) = total(3)/size(c,2);
+
+                 col = [total(3)/100 1-total(3)/100 0];
+                 cprintf(col,'Total unchanged properties: %d of %d (%2.2f%%%%)\n',total);
+             end
              
              % Issue warning if some critical properties are still unchanged
              if notchanged.critical > 0
-                 cprintf('red',['ATTENTION: Some critical properties are still at their default value.\n'...
-                     'Type <modelname>.printPropertyChangedReport(''critical'') for a detailed report.\n']);
+                 link = 'critical properties';
+                 if ~isempty(this.WorkspaceVariableName)
+                    link = sprintf('<a href="matlab:%s.printPropertyChangedReport(''critical'')">critical properties</a>',this.WorkspaceVariableName);
+                 end
+                 fprintf(['SIMULATION RESULTS QUESTIONABLE: %d of %d ' link ' are still at their default value.\n'],...
+                     notchanged.critical,counts.critical); %'Type <modelvarname>.printPropertyChangedReport(''critical'') for a detailed report.\n'],...
              end
              
              function recurCheck(obj, done, lvl)
                  mc = metaclass(obj);
                  done(obj.ID) = true;
-                 % Check the local properties
+                 
+                 %% Link name preparations
+                 dotpos = strfind(mc.Name,'.');
+                 if ~isempty(dotpos)
+                     lname = mc.Name(dotpos(end)+1:end);
+                 else
+                     lname = mc.Name;
+                 end
+                 objlink = sprintf('<a href="matlab:edit %s">%s</a>',mc.Name,lname);
+                 
+                 %% Check the local properties
                  pc = obj.PropertiesChanged;
                  keys = pc.Keys;
                  for idx = 1:pc.Count
@@ -534,9 +572,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                      counts.(p.Level) = counts.(p.Level) + 1;
                      if ~p.Changed 
                          notchanged.(p.Level) = notchanged.(p.Level) + 1;
-                         if ~any(strcmp(p.Level,{'passive','data'}))
-                            hlp = messages.(p.Level);
-                            hlp{end+1} = sprintf('%s is still unchanged!\nProperty brief: %s\nPropclass tag description:\n%s\n',[lvl '-> ' p.Name],p.Short,p.Text);%#ok
+                         if ~any(strcmp(p.Level,'data'))
+                            hlp = messages.(p.Level);           
+                            hlp{end+1} = sprintf('%s is still unchanged!\nProperty brief: %s\nPropclass tag description:\n%s\n',...
+                                [lvl '[' objlink '] -> ' p.Name],p.Short,p.Text);%#ok
                             messages.(p.Level) = hlp;
                          end
                      end
@@ -545,12 +584,12 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                      p = mc.Properties{pidx};
                      if strcmp(p.GetAccess,'public') && ~p.Constant && ~p.Transient && ~strcmp(p.SetAccess,'private')
                          if ~p.SetObservable && ~pc.containsKey([p.DefiningClass.Name '.' p.Name])
-                             cprintf('red','Warning: Property %s of class %s is not SetObservable but a candidate for a user-definable public property!\nPlease register the property or check if the property suits either the Constant or SetAccess=private flags.\n\n',p.Name,p.DefiningClass.Name);
+                             fprintf('WARNING: Property %s of class %s is not <a href="matlab:docsearch SetObservable">SetObservable</a> but a candidate for a user-definable public property!\nFor more details see <a href="%s/propclasses.html">Property classes and levels</a>\n\n',p.Name,objlink,KerMor.App.DocumentationLocation);
                          end
                          pobj = obj.(p.Name);
                          % Recursively register subobject's properties
                          if isa(pobj, 'KerMorObject') && isempty(done(pobj.ID))
-                             recurCheck(pobj, done, [lvl '-> ' p.Name]);
+                             recurCheck(pobj, done, [lvl '[' objlink '] -> ' p.Name]);
                          end
                      end
                  end
@@ -566,6 +605,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             af.addSummand(@(t,mu)sum(mu)*5, rand(4,4)*3);
             m.System.f = af;
             m.System.x0 = @(mu)sin(1:4)';
+            %m.Approx = approx.DefaultCompWiseKernelApprox;
             m.offlineGenerations;
             red = m.buildReducedModel;
             % Test simulations
@@ -577,20 +617,23 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             clear af m red;
         end
         
-        function test_BareModel
+        function res = test_BareModel
             m = models.BaseFullModel;
             m.SpaceReducer = [];
             m.Approx = [];
             m.Sampler = [];
             A = rand(2,2);
+            m.System = models.BaseDynSystem(m);
             m.System.f = dscomponents.PointerCoreFun(@(x,t,mu)A*x);
             m.System.x0 = @(mu)sin(1:2);
             m.offlineGenerations;
             red = m.buildReducedModel;
             red.simulate();
+            
             % dont forget to free resources! (static handles seem to
             % persist over several method calls)
             clear af m red;
+            res = true;
         end
         
         function test_LinearModel

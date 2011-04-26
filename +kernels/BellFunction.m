@@ -158,6 +158,11 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
             this.oldxfeat = [];%#ok
         end
         
+        function set.PenaltyFactor(this, value)
+            this.PenaltyFactor = value;
+            keyboard;
+        end
+        
         function value = get.xR(this)
             if isempty(this.priv_xr)
                 this.priv_xr = this.evaluateScalar(0)*this.x0 /...
@@ -191,10 +196,36 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
                 xtmp = x;
                 x = x - g./dg;
                 cnt = cnt + 1;
+                
+                %showNewton;
             end
             if cnt == this.MaxNewtonIterations
                 error('Bellfunction->ModifiedNewton: Max iterations of %d reached',this.MaxNewtonIterations);
             end
+            
+%             function showNewton
+%                 % Fix an identical y for all iterations
+%                 si = 200;
+%                 for i=1:5
+%                     
+%                     X = linspace(.5*min(min([x; xtmp],[],1)),2*max(max([x; xtmp],[],1)),si);
+%                     gs = zeros(length(y),si);
+%                     for idx = 1:length(y)
+%                         gs(idx,:) = kernels.BellFunction.optFun(X,repmat(y(idx),size(X)),f,df,ddf,this.x0,this.PenaltyFactor);
+%                     end
+%                     
+%                     [g,dg] = kernels.BellFunction.optFun(x,y,f,df,ddf,this.x0,this.PenaltyFactor);
+%                     xtmp = x;
+%                     x = x - g./dg;
+%                     %plot(xs,gs,'r');%,'LineWidth',2
+%                     plot(X,gs,'b',X,0,'black-');
+%                     hold on;
+%                     plot([xtmp; x],[g; zeros(size(g))],x,0,'rx',xtmp,g,'rx');
+%                     hold off;
+%                     axis tight;
+%                     pause;
+%                 end
+%             end
             
             function [g,dg] = optFun(x,y)
                 g = zeros(size(x));
@@ -263,14 +294,14 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
             df = @bell.evaluateD1;
             ddf = @bell.evaluateD2;
             
-            %showNewton(x,x0,c,f,df,ddf);
+            %kernels.BellFunction.showNewton(x,bell.x0,y,bell.PenaltyFactor,f,df,ddf);
             
             for k=1:length(x)
                 y = x(k);
                 % Get precomputed values
                 dxf = df(xfeats);
                 
-                %showNewton(x,x0,y,c,f,df,ddf);
+                kernels.BellFunction.showNewton(x,bell.x0,y,bell.PenaltyFactor,f,df,ddf);
                 
                 % Get optimization function
                 opt = kernels.BellFunction.optFun(x,repmat(y,1,size(x,2)),f,df,ddf,bell.x0,bell.PenaltyFactor);
@@ -330,24 +361,24 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
             end
         end
         
-        %         function showNewton(x, x0, ybase, c, f, df, ddf)
-        %             % Fix an identical y for all iterations
-        %             y = repmat(ybase,1,size(x,2));
-        %             gs = optFun(x,y,x0,c,f,df,ddf);
-        %             xs = x;
-        %             for i=1:2
-        %                 [g,dg] = optFun(x,y,x0,c,f,df,ddf);
-        %                 xtmp = x;
-        %                 x = x - g./dg;
-        %                 plot(xs,gs,'r','LineWidth',2);
-        %                 hold on;
-        %                 plot([xtmp; x],[g; zeros(size(g))],x,0,'rx');
-        %                 hold off;
-        %                 title(sprintf('ybase=%f',ybase));
-        %                 %axis([min(xs) max(xs) min(gs)*1.5 max(gs)*1.5]);
-        %                 pause;
-        %             end
-        %         end
+        function showNewton(x, x0, ybase, p, f, df, ddf)
+            % Fix an identical y for all iterations
+            y = repmat(ybase,1,size(x,2));
+            gs = kernels.BellFunction.optFun(x,y,f,df,ddf,x0,p);
+            xs = x;
+            for i=1:5
+                [g,dg] = kernels.BellFunction.optFun(x,y,f,df,ddf,x0,p);
+                xtmp = x;
+                x = x - g./dg;
+                plot(xs,gs,'r');%,'LineWidth',2
+                hold on;
+                plot([xtmp; x],[g; zeros(size(g))],x,0,'rx');
+                hold off;
+                title(sprintf('ybase=%f',ybase));
+                %axis([min(xs) max(xs) min(gs)*1.5 max(gs)*1.5]);
+                pause;
+            end
+        end
     end
 end
 

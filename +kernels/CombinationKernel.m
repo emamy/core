@@ -57,7 +57,7 @@ classdef CombinationKernel < kernels.BaseKernel
             end
             this.Kernels{end+1} = kernel;
             this.Weights(end+1) = weight;
-            this.RotationInvariant = this.RotationInvariant && kernel.RotationInvariant;
+            %this.RotationInvariant = this.RotationInvariant && kernel.RotationInvariant;
         end
     end
     
@@ -81,7 +81,7 @@ classdef CombinationKernel < kernels.BaseKernel
             fx = sinc(x);
             
             svr = general.regression.ScalarEpsSVR;
-            svr.QPSolver = solvers.qp.qpOASES;
+            svr.QPSolver = solvers.qp.qpMatlab;
             svr.eps = .3;
             svr.C = 2;
             svr.K = k.evaluate(x,x);
