@@ -15,6 +15,10 @@ classdef BaseDynSystem < KerMorObject
     %
     % @author Daniel Wirtz @date 17.03.2010
     %
+    % @change{0,3,dw,2011-05-03} Moved the x0 property into an abstract function. This way
+    % subclasses must implmement the x0 function and is not only warned by the DPCS that it should
+    % be set.
+    %
     % @change{0,3,dw,2011-04-6} This class inherits from KerMorObject now
     % in order to enable correct saving/loading
     %
@@ -56,14 +60,6 @@ classdef BaseDynSystem < KerMorObject
         % @propclass{optional}
         Params = models.ModelParam.empty;
         
-        % The initial value function.
-        % A function handle taking the parameter argument mu.
-        % The argument mu may be empty if no parameters are used within the
-        % dynamic system.
-        %
-        % @propclass{critical}
-        x0;
-        
         % The maximum timestep allowed for any ODE solvers.
         %
         % This might be necessary if the Core function encapsulates a
@@ -99,7 +95,7 @@ classdef BaseDynSystem < KerMorObject
         Model;
     end
     
-    methods       
+    methods      
         function this = BaseDynSystem(model)
             % Creates a new base dynamical system class instance.
             %
@@ -108,10 +104,9 @@ classdef BaseDynSystem < KerMorObject
             this.validateModel(model);
             this.Model = model;
             this.C = dscomponents.LinearOutputConv(1);
-            this.x0 = @(mu)0;
             
             % Register default properties
-            this.registerProps('f','B','C','x0','Inputs','Params','MaxTimestep','StateScaling');
+            this.registerProps('f','B','C','Inputs','Params','MaxTimestep','StateScaling');
         end
         
         function odefun = getODEFun(this, mu, inputidx)
@@ -215,6 +210,17 @@ classdef BaseDynSystem < KerMorObject
         end
     end
     
+    methods(Abstract)
+        % Returns the initial value `x(0) = x_0` for the ODE solver to start simulations from.
+        %
+        % Parameters:
+        % mu: The current parameter `\mu`
+        %
+        % Return values:
+        % x: The initial system state `x_0`
+        x = x0(mu);
+    end
+    
     %% Getter & Setter
     methods
         function set.f(this,value)
@@ -241,15 +247,6 @@ classdef BaseDynSystem < KerMorObject
                 error('The property "C" has to be a class implementing dscomponents.AOutputConv');
             end
             this.C = value;
-        end
-        
-        function set.x0(this,value)
-            if ~isa(value,'function_handle')
-                error('Argument funPtr must be a function handle.');
-            elseif nargin(value) ~= 1
-                error('funPtr nargin must equal one (= mu).');
-            end
-            this.x0 = value;
         end
         
         function set.Inputs(this, value)

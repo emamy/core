@@ -56,7 +56,7 @@ classdef ReducedSystem < models.BaseDynSystem
             this.f = fullsys.f;
             this.B = fullsys.B;
             this.C = fullsys.C;
-            this.x0 = fullsys.x0;
+            
             % Set the plot-wrapper (uses the plot method from the full
             % system)
             this.plotPtr = @fullsys.plot;
@@ -86,13 +86,6 @@ classdef ReducedSystem < models.BaseDynSystem
                     % function.
                     this.f = fullsys.f.project(V,W);
                 end
-                
-                % Project the initial value function
-                % Dont use this.Data.V but reduced.V since the function
-                % handle stores the local workspace and after loading the
-                % reduced model the Data field will be [].
-                % See ReducedModel.save for details.
-                this.x0 = @(mu)W'*fullsys.x0(mu);
             else
                 % Only use approximated version if set
                 if ~isempty(fullmodel.Approx)
@@ -126,6 +119,14 @@ classdef ReducedSystem < models.BaseDynSystem
             % If no estimator is used or is disabled just call the "normal" ODE
             % function generator from the base class.
             odefun = getODEFun@models.BaseDynSystem(this, mu, inputidx);
+        end
+        
+        function x = x0(this, mu)
+            % Forwards the x0 evaluation to the original model's x0 function.
+            x = this.Model.FullModel.System.x0(mu);
+            if ~isempty(this.Model.W)
+                x = this.Model.W'*x;    
+            end
         end
         
         function plot(this, model, t, y)

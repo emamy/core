@@ -42,8 +42,10 @@ classdef BaseModel < KerMorObject
     properties(SetObservable)
         % The actual dynamical system used in the model.
         %
-        % @propclass{critical} With the default system there is no custom behaviour.
-        System;
+        % @propclass{critical} No simulations without dynamical system.
+        %
+        % @default []
+        System = [];
         
         % The name of the Model
         %
@@ -185,7 +187,6 @@ classdef BaseModel < KerMorObject
             this = this@KerMorObject;
             
             % Init defaults
-            this.System = models.BaseDynSystem(this);
             this.ODESolver = solvers.ode.MLWrapper(@ode23);
             
             % Register default properties
