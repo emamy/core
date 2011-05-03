@@ -293,7 +293,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 % If projection is used, train approximating function in
                 % centers projected into the subspace.
                 if ~isempty(this.Data.V) && ~isempty(this.Data.W)
-                    atd(4:end,:) = (this.Data.V*this.Data.W')*atd(4:end,:);
+                    atd(4:end,:) = this.Data.V*(this.Data.W'*atd(4:end,:));
                 end
                 this.Data.ApproxTrainData = atd;
                 

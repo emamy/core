@@ -16,6 +16,8 @@ classdef LinearOutputConv < dscomponents.AOutputConv
     
     methods
         function this = LinearOutputConv(C)
+            this = this@dscomponents.AOutputConv;
+            
             % Standard constructor.
             this.C = C;
             

@@ -81,7 +81,11 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
             S = 1;
             if this.UsefScaling
                 [fm,fM] = general.Utils.getBoundingBox(fxi);
-                S = diag(fM);
+                if any(fM == 0)
+                    warning('KerMor:Approx','Minimum one max fxi value is zero, cannot scale f.');
+                else
+                    S = diag(fM);
+                end
             end
             
             % Call template method for component wise approximation

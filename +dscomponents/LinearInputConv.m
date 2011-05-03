@@ -18,6 +18,10 @@ classdef LinearInputConv < dscomponents.AInputConv
         function proj = project(this, V, W)%#ok
             proj = dscomponents.LinearInputConv(W' * this.B);
         end
+        
+        function copy = clone(this)
+            copy = dscomponents.LinearInputConv(this.B);
+        end
     end
     
 end

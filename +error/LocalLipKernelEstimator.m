@@ -1,10 +1,25 @@
 classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
-    %LocalLipKernelEstimator Summary of this class goes here
+    % LocalLipKernelEstimator: A-posteriori error estimator for kernel-based systems using local
+    % lipschitz constants.
     %
-    %   Requirements:
-    %   ReducedModel.System.f is an instance of AKernelCoreFun
-    %   FullModel.Approx is an instance of CompwiseKernelCoreFun
+    % Implementation as in [WH10], but with updated ExtraODEDims and numerical computation.
     %
+    % Model requirements:
+    % ReducedModel.System.f is an instance of AKernelCoreFun
+    % FullModel.Approx is an instance of CompwiseKernelCoreFun
+    %
+    % @author Daniel Wirtz @date 2010-08-10
+    %
+    % @new{0,1,dw,2010-08-10} Added this class.
+    %
+    % @change{0,3,dw,2011-05-02} Changed the implementation of the evalODEPart so that only two
+    % extra ODE dimensions are needed. This avoids NaN entries when exponential values grow too big.
+    %
+    % This class is part of the framework
+    % KerMor - Model Order Reduction using Kernels:
+    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % - \c License @ref licensing
     
     properties
         % The internal kernel Lipschitz function to use.
@@ -61,7 +76,7 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
     
     methods
         function this = LocalLipKernelEstimator(rmodel)
-            this.ExtraODEDims = 3;
+            this.ExtraODEDims = 2;
             if nargin == 1
                 this.setReducedModel(rmodel);
             end
@@ -120,7 +135,7 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
         function e = evalODEPart(this, x, t, mu, ut)
             % extract current error
             eold = x(end-this.ExtraODEDims+1:end);
-            e = zeros(3,1);
+            e = zeros(this.ExtraODEDims,1);
             
             % Compute \alpha(t)
             phi = this.ReducedModel.System.f.evaluateAtCenters(x(1:end-this.ExtraODEDims), t, mu);
@@ -134,8 +149,8 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
             if ~this.neg_e1 && e(1) < 0
                 this.neg_e1 = true;
             end
-            %e(1) = sqrt(abs(e(1)));
-            e(1) = sqrt(max(e(1),0));
+            e(1) = sqrt(abs(e(1)));
+            %e(1) = sqrt(max(e(1),0));
             
             % Compute the local lipschitz constant estimations
             if this.ReducedModel.System.f.RotationInvariant
@@ -151,15 +166,10 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
             Ct = Inf;
             % Time-discrete computation
             if this.UseTimeDiscreteC
-                Ct = eold(1) + exp(eold(2)).*eold(3);
+                Ct = eold(1) + eold(2);
             end
-%             try 
-                beta = this.Ma_norms * this.KernelLipschitzFcn(di,Ct,t,mu)';
-%             catch ME
-%                 keyboard;
-%             end
-            e(2) = beta;
-            e(3) = eold(1)*beta*exp(-eold(2));
+            beta = this.Ma_norms * this.KernelLipschitzFcn(di,Ct,t,mu)';
+            e(2) = beta*(eold(1) + eold(2));
             
             % Iteration stuff
             if this.Iterations > 0
@@ -174,7 +184,7 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
             if all(eint == 0)
                 warning('CompWiseErrorEstimator:process','Integral part is all zero. Attention!');
             end
-            this.LastError = eint(1,:) + exp(eint(2,:)).*eint(3,:);
+            this.LastError = eint(1,:) + eint(2,:);
             
             if this.neg_e1
                 disp('LocalLipKernelEstimator: Negative alpha(t) norms occurred. Used zero instead.');
@@ -198,7 +208,7 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
         
         function e0 = getE0(this, mu)
             % Returns the initial error at `t=0` of the integral part.
-            e0 = [this.ReducedModel.getExo(mu); 0; 0];
+            e0 = [this.ReducedModel.getExo(mu); 0];
         end 
         
         function clear(this)
@@ -248,7 +258,7 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
                 % Expand the C error to fit the times
                 this.errEst = this.errEst(idx);
                 [ti, eint] = solver.solve(odefun, t, this.getE0(mu));
-                this.errEst = eint(1,:) + exp(eint(2,:)).*eint(3,:);         
+                this.errEst = eint(1,:) + eint(2,:);         
             end
             this.LastError = this.errEst;
         end
@@ -266,12 +276,11 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
                 error('The ODE solver does not work as required by the iterative scheme.');
             end
             
-            e = zeros(3,1);
+            e = zeros(this.ExtraODEDims,1);
             e(1) = this.e1vals(idx);
             beta = this.Ma_norms * this.KernelLipschitzFcn(...
                 this.divals(idx,:),this.errEst(idx),t,mu)';
-            e(2) = beta;
-            e(3) = eold(1)*beta*exp(-eold(2));
+            e(2) = beta*(eold(1) + eold(2));
             
             this.stepcnt = this.stepcnt+1;
         end

@@ -13,7 +13,8 @@ classdef POD < KerMorObject
     % extended constructor registering any user-relevant properties using
     % KerMorObject.registerProps.
     %
-    % @todo Create fixed random number stream for reproducable results!
+    % @todo - Create fixed random number stream for reproducable results!
+    % - make Value property dependent and check in setter depending on Mode value!
     
     properties(SetObservable)
         % The modus used to generate the reduced space.
@@ -165,6 +166,13 @@ classdef POD < KerMorObject
                 error(['Unknown POD reduction mode: ''' value '''\nAllowed: sign, eps, abs, rel']);
             end
             this.Mode = lower(value);
+        end
+        
+        function set.Value(this, value)
+            if ~isposrealscalar(value)
+                error('Value property must be a positive real scalar.');
+            end
+            this.Value = value;
         end
     end
     

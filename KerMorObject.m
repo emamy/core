@@ -24,9 +24,7 @@ classdef KerMorObject < handle
     properties(SetAccess=private)
         % An ID that allows to uniquely identify this KerMorObject
         ID = [];
-    end
-    
-    properties(SetAccess=private)
+        
         PropertiesChanged = [];
     end
     
@@ -59,6 +57,7 @@ classdef KerMorObject < handle
             % - include a disable propchange listening flag for use during simulations.
             % - maybe move the Text and Short property extractions to the printPropertyChangedReport
             % method? -> speedup
+            % - include DefaultConfirmed flag into output!
             
             %% Validity checks
             % Find property in class
@@ -152,8 +151,9 @@ classdef KerMorObject < handle
             if isempty(ps)
                 warning('KerMor:devel','PostSet called on property %s but dict does not contain key',key);
             else
-                if ~ps.Changed && ~isequal(ps.Default,evd.AffectedObject.(p.Name))
+                if ~ps.Changed
                     this.PropertiesChanged(key).Changed = true;
+                    this.PropertiesChanged(key).DefaultConfirmed = isequal(ps.Default,evd.AffectedObject.(p.Name));
                     % Save some space!
                     this.PropertiesChanged(key).Default = [];
                     this.PropertiesChanged(key).Text = [];
@@ -172,7 +172,7 @@ classdef KerMorObject < handle
             keys = obj.PropertiesChanged.Keys;
             for idx = 1:obj.PropertiesChanged.Count
                 ps = obj.PropertiesChanged(keys{idx});
-                if ~any(strcmp(ps.Level,'data'))
+                if ~ps.Changed && ~any(strcmp(ps.Level,'data'))
                     addlistener(obj,ps.Name,'PostSet',@(src,evd)obj.PropPostSetCallback(src,evd));
                 end
             end

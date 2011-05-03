@@ -1,6 +1,15 @@
 classdef BaseLipKernelEstimator < error.BaseEstimator
-    %BASELIPKERNELESTIMATOR Summary of this class goes here
-    %   Detailed explanation goes here
+    % BaseLipKernelEstimator: Base class for local lipschitz error estimators.
+    %
+    % @author Daniel Wirtz @date 2010-08-10
+    %
+    % @new{0,1,dw,2010-08-10} Added this class.
+    %
+    % This class is part of the framework
+    % KerMor - Model Order Reduction using Kernels:
+    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % - \c License @ref licensing
     
     properties(SetAccess=private, GetAccess=protected)
         M1 = [];
@@ -36,9 +45,14 @@ classdef BaseLipKernelEstimator < error.BaseEstimator
                 
                 % Compute projection part matrices, without creating a
                 % d x d matrix (too big!)
-                M = rmodel.V*(rmodel.W'*Ma);
-                G1 = Ma'*rmodel.GScaled;
-                this.M1 = G1*Ma - 2*G1*M + M'*(rmodel.GScaled*M);
+                M = Ma - rmodel.V*(rmodel.W'*Ma);
+                hlp = M'*(rmodel.GScaled*M);
+                % Check if matrix needs to be made symmetric
+                if any(any(abs(hlp-hlp') > 1e-5))
+                    hlp = (hlp + hlp')/2;
+                    warning('KerMor:errorest','M1 matrix not sufficiently symmetric, updating (M+M'')/2');
+                end
+                this.M1 = hlp;
                 
                 % Only linear input conversion (B = const. matrix) allowed so
                 % far! mu,0 is only to let
@@ -50,13 +64,12 @@ classdef BaseLipKernelEstimator < error.BaseEstimator
                         warning('Some:Id','Error estimator for current system will not work correctly! (B is not linear and mu-independent!');
                     end
                     
-                    B2 = rmodel.V*(rmodel.W'*B);
-                    G2 = B'*rmodel.GScaled;
-                    this.M2 = 2*(G1*B - M'*G2' - G1*B2 + M'*(rmodel.GScaled*B2));
-                    this.M3 = G2*B - 2*G2*B2 + B2'*(rmodel.GScaled*B2);
-                    clear B2 G2;
+                    B2 = B-rmodel.V*(rmodel.W'*B);
+                    this.M2 = M'*(rmodel.GScaled*B2);
+                    this.M3 = B2'*(rmodel.GScaled*B2);
+                    clear B2;
                 end
-                clear M G1;
+                clear M;
             else
                 % No projection means no projection error!
                 this.M1 = 0;
