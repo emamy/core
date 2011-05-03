@@ -9,6 +9,12 @@ classdef KerMor < handle
     %
     % @author Daniel Wirtz @date 2011-03-04
     %
+    % @change{0,4,dw,2011-05-03} 
+    % - Committed KerMor version 0.3 to GIT.
+    % - Different documentation creation subroutines for unix and windows now, windows not supported
+    % yet
+    % - Version Number now gets passed to the documentation creation script
+    %
     % @new{0,3,dw,2011-04-26} Added a new property DocumentationLocation.
     %
     % @change{0,3,sa,2011-04-14} Implemented UseMatlabParallelComputing functionality
@@ -194,7 +200,7 @@ classdef KerMor < handle
         % Used in Devel to fill the new class templates etc.
         %
         % See also: MainVersion
-        SubVersion = '3';
+        SubVersion = '4';
     end
     
     properties
@@ -691,32 +697,11 @@ classdef KerMor < handle
                 end
             end
             
-            cmd = fullfile(KerMor.App.HomeDirectory,'documentation','make.sh');
-            if uml
-                cmd = [cmd ' uml'];
-            end
-            [s,r] = system(cmd);
-            wpos = strfind(r,'Logged warnings:');
-            if ~isempty(wpos)
-                endpos = strfind(r,'Complete log file');
-                cprintf([0 .5 0],r(1:wpos-1));
-                cprintf([1,.4,0],strrep(r(wpos:endpos-1),'\','\\')); 
-                cprintf([0 .5 0],r(endpos:end));
-            else
-                cprintf([0 .5 0],strrep(r,'\','\\'));
-            end
-            fprintf('\n');
-            index = fullfile(getenv('KERMOR_DOCS'), 'index.html');
-            if open
-                % Try to use iceweasel per default (nasty, uhm?)
-                [s,r] = system('which iceweasel');
-                if ~isempty(r)
-                    cmd = 'iceweasel ';
-                else
-                    % Otherwise: use user preferred browser
-                    cmd = 'xdg-open ';
-                end
-                system([cmd index]);
+            %% Operation-system dependent actions
+            if isunix
+                KerMor.createDocsUnix(uml, open);
+            elseif ispc
+                KerMor.createDocsWindows(uml, open);
             end
         end
         
@@ -754,6 +739,44 @@ classdef KerMor < handle
     end
     
     methods(Static,Access=private)
+        
+        function createDocsUnix(uml, open)
+            cmd = fullfile(KerMor.App.HomeDirectory,'documentation','make.sh');
+            % Add version argument
+            cmd = [cmd ' ' KerMor.MainVersion '.' KerMor.SubVersion];
+            % Add uml argument
+            if uml
+                cmd = [cmd ' uml'];
+            end
+            [s,r] = system(cmd);
+            wpos = strfind(r,'Logged warnings:');
+            if ~isempty(wpos)
+                endpos = strfind(r,'Complete log file');
+                cprintf([0 .5 0],r(1:wpos-1));
+                cprintf([1,.4,0],strrep(r(wpos:endpos-1),'\','\\')); 
+                cprintf([0 .5 0],r(endpos:end));
+            else
+                cprintf([0 .5 0],strrep(r,'\','\\'));
+            end
+            fprintf('\n');
+            index = fullfile(getenv('KERMOR_DOCS'), 'index.html');
+            if open
+                % Try to use iceweasel per default (nasty, uhm?)
+                [s,r] = system('which iceweasel');
+                if ~isempty(r)
+                    cmd = 'iceweasel ';
+                else
+                    % Otherwise: use user preferred browser
+                    cmd = 'xdg-open ';
+                end
+                system([cmd index]);
+            end
+        end
+        
+        function createDocsWindows(uml, open)%#ok
+            error('Creating documentation on Windows is currently not supported.');
+        end
+        
         function installUnix
             % Install script for unix systems
             %

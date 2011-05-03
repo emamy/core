@@ -10,7 +10,7 @@ classdef KerMorObject < handle
     % 
     % @author Daniel Wirtz @date 2011-04-05
     %
-    % @new{0,3,dw,2011-04-21} - Implemented the property default changed supervision system as
+    % @new{0,3,dw,2011-04-21} Implemented the property default changed supervision system as
     % described in @ref propclasses. Those changes affect most KerMor classes.
     %
     % @change{0,3,dw,2011-04-07} 
