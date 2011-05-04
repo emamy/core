@@ -2,9 +2,6 @@ classdef BaseSampler < KerMorObject
     %BASESAMPLER Summary of this class goes here
     %   Detailed explanation goes here
     
-    properties
-    end
-    
     methods
         function samples = generateSamples(this, model)
             if model.System.ParamCount == 0

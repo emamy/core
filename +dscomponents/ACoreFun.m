@@ -88,24 +88,6 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             % the current instance (dscomponents.IProjectable now inherits
             % from ICloneable per default).
             %
-            
-            % Evaluates the f-approximation. Depending on a possible
-            % projection and the CustomProjection-property the function
-            % either calls the inner evaluation directly which assumes
-            % `f = f^r(z)` or projects the reduced state variable z into
-            % the original space and evaluates the function there, so via
-            % `f = V'f(Vz)`
-            %
-            % Parameters:
-            % x: The state variable vector/matrix (with colum state
-            % vectors)
-            % t: The corresponding times for each state vector. Set to []
-            % if no time is used.
-            % mu: The parameter(s) to use. Set to [] if the function does not
-            % support parameters.
-            %
-            % @change{0,3,dw,2011-04-19} Fixed an error when no MultiArgumentEvaluations were supported and
-            % no parameter `\mu` was given (Crashed due to index out of bounds)
             if nargin < 4
                 if this.CustomProjection
                     error('The target parameter must be given if custom projection is used.');
@@ -180,6 +162,7 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             end
             % Copy local properties
             copy.CustomProjection = this.CustomProjection;
+            copy.MultiArgumentEvaluations = this.MultiArgumentEvaluations;
             copy.V = this.V;
             copy.W = this.W;
         end

@@ -111,7 +111,7 @@ else
     set(h.pslide,'Max',pc,'Min',1,'Value',1);
     set(h.pslide,'SliderStep',[1/(pc-1) 10/(pc-1)]);
 end
-if m.System.InputCount == 0
+if m.System.InputCount <= 1 
     set(h.islide,'Enable','off');
 else
     set(h.islide,'Max',m.System.InputCount,'Min',1,'Value',1);
@@ -226,7 +226,7 @@ if get(h.rbS,'Value') == 1
     
     % Find the currently used center vectors of the expansion, if set
     a = r.FullModel.Approx;
-    if isa(a, 'approx.AKernelCoreFun')
+    if isa(a, 'dscomponents.AKernelCoreFun')
         cen = a.Centers.xi;
     elseif isa(a, 'approx.TPWLApprox')
         cen = a.xi;
@@ -464,7 +464,11 @@ else
 end
 
 fa = m.Approx.evaluate(xi,ti,mui);
-fap = r.System.f.evaluate(xi,ti,mui);
+if ~isempty(m.SpaceReducer)
+    fap = r.V*r.System.f.evaluate(r.W'*xi,ti,mui);
+else
+    fap = r.System.f.evaluate(xi,ti,mui);
+end
 
 if get(h.rbLinf,'Value')
     errfun = @getLInftyErr;

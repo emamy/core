@@ -14,6 +14,10 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
     % function. (No matter how many originally have been used for the
     % approximation computation)
     %
+    % @change{0,3,dw,2011-04-26} Implementing the approximateCoreFun in this class so that rescaling
+    % of the function f values `f_{x_i}` can be used. Subclasses now implement the template method
+    % approx.BaseCompWiseKernelApprox.computeCompwiseApprox.
+    %
     % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
     % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
     % extended constructor registering any user-relevant properties using
@@ -45,6 +49,15 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
         %
         % @default general.interpolation.KernelInterpol
         CoeffComp;
+        
+        % Flag that determines whether the approximation center f values should be scaled to [-1,1]
+        % before the approximation is computed.
+        %
+        % @propclass{optional} This option makes sense when using univariate rotation-invariant
+        % kernels as different dimensions might have different scales
+        %
+        % @default true
+        UsefScaling = true;
     end
     
     methods
@@ -55,7 +68,54 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
             
             this.CoeffComp = general.interpolation.KernelInterpol;
             
-            this.registerProps('CoeffComp');
+            this.registerProps('CoeffComp','UsefScaling');
+        end
+        
+        function approximateCoreFun(this, model)
+            % 
+            % @todo find out when sparse representation is more
+            % efficient!
+            
+            fxi = model.Data.ApproxfValues;
+            % Scale f-values if wanted
+            S = 1;
+            if this.UsefScaling
+                [fm,fM] = general.Utils.getBoundingBox(fxi);
+                if any(fM == 0)
+                    warning('KerMor:Approx','Minimum one max fxi value is zero, cannot scale f.');
+                else
+                    S = diag(fM);
+                end
+            end
+            
+            % Call template method for component wise approximation
+            this.computeCompwiseApprox(model,S\fxi);
+            
+            % Rescale if set
+            this.Ma = S*this.Ma;
+            
+            % Reduce the snapshot array and coeff data to the
+            % really used ones! This means if any snapshot x_n is
+            % not used in any dimension, it is kicked out at this
+            % stage.
+            n = size(this.Centers.xi,2);
+            hlp = sum(this.Ma ~= 0,1);
+            usedidx = find(hlp > 0);
+            if length(usedidx) < n
+                this.Ma = this.Ma(:,usedidx);
+                this.Centers.xi = this.Centers.xi(:,usedidx);
+                if ~isempty(this.Centers.ti)
+                    this.Centers.ti = this.Centers.ti(:,usedidx);
+                end
+                if ~isempty(this.Centers.mui)
+                    this.Centers.mui = this.Centers.mui(:,usedidx);
+                end
+            end
+            
+            % Create sparse representation if many elements are zero
+            if sum(hlp) / numel(this.Ma) < .5
+                this.Ma = sparse(this.Ma);
+            end
         end
         
         function target = clone(this, target)
@@ -70,12 +130,13 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
             if nargin == 1 || ~(isa(target,'approx.BaseApprox') && isa(target,'dscomponents.CompwiseKernelCoreFun'))
                 error('Invalid clone call. As this class is abstract, a subclass of both BaseApprox and CompwiseKernelCoreFun has to be passed as second argument.');
             end
-            
+                       
             target = clone@dscomponents.CompwiseKernelCoreFun(this, target);
             target = clone@approx.BaseApprox(this, target);
             
             % copy local props
             copy.CoeffComp = this.CoeffComp;
+            copy.UsefScaling = this.UsefScaling;
         end
         
         function set.CoeffComp(this, value)
@@ -105,6 +166,19 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
                 this.computeCoeffsSerial(fxi);
             end
         end
+    end
+    
+    methods(Abstract, Access=protected)
+        % Inner approximation computation
+        %
+        % Instead of accessing model.Data.ApproxfValues those value are pre-processed if scaling is
+        % used and thus passed as argument to the inner approximation computation.
+        %
+        % Parameters:
+        % model: The full model
+        % fxi: The full core function f evaluations at the ApproxTrainData centers. Either scaled or
+        % not scaled.
+        computeCompwiseApprox(this, model, fxi);
     end
     
     methods(Access=private)

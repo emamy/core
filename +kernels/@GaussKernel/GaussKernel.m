@@ -7,6 +7,9 @@ classdef GaussKernel < kernels.BellFunction
     %
     % @author Daniel Wirtz @date 11.03.2011
     %
+    % @change{0,3,dw,2011-04-26} Fixed the x0 computation for the new Gamma property version; so far
+    % a square was missing, rendering the LipschitzEstimator modified newton method useless.
+    %
     % @change{0,3,dw,2011-04-15} Changed the Gamma property to compute into the kernel evaluation
     % being squared instead of linear. This way the Gamma becomes a more geometrical meaning
     %
@@ -130,13 +133,15 @@ classdef GaussKernel < kernels.BellFunction
         end
         
         function set.Gamma(this, value)
+            % @todo check why penalty factor was set here to 1/value! ?!?
             if ~isposrealscalar(value)
                 error('Only positive scalar values allowed for Gamma.');
             end
             this.Gamma = value;
+            
             % Adjust the BellFunctions' x0 value
-            this.x0 = sqrt(value/2); %#ok
-            this.PenaltyFactor = 1/value; %#ok
+            this.x0 = sqrt(value^2/2); %#ok
+            %this.PenaltyFactor = 1/value^2; %#ok
         end
         
         function g = setGammaForDistance(this, dist, ep)

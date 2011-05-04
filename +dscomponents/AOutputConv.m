@@ -32,6 +32,7 @@ classdef AOutputConv < KerMorObject & dscomponents.IProjectable
     
     methods
         function this = AOutputConv
+            this = this@KerMorObject;
             this.registerProps('TimeDependent');
         end
         

@@ -5,7 +5,7 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD
     % Several modes are supported to enable more specific reduced space
     % selection.
     %
-    % See also: general.POD#Mode general.POD#Value
+    % See also: general.POD.Mode general.POD.Value
     %
     % @author Daniel Wirtz @date 19.03.2010
         

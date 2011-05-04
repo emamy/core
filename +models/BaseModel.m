@@ -42,8 +42,10 @@ classdef BaseModel < KerMorObject
     properties(SetObservable)
         % The actual dynamical system used in the model.
         %
-        % @propclass{critical} With the default system there is no custom behaviour.
-        System;
+        % @propclass{critical} No simulations without dynamical system.
+        %
+        % @default []
+        System = [];
         
         % The name of the Model
         %
@@ -145,6 +147,19 @@ classdef BaseModel < KerMorObject
         TimeDirty;
     end
     
+    properties(SetAccess=private, GetAccess=protected)
+        % The variable name of the variable denoting the current model instance.
+        %
+        % Will be set upon calling 'simulate' and will equal '' outside the scope of a simulation.
+        %
+        % Can be used in subclasses to create useful links regarding functions of the model, i.e. is
+        % used in BaseFullModels checkProperties member to create a link for the critical properties
+        % summary.
+        %
+        % @default ''
+        WorkspaceVariableName = '';
+    end
+    
     properties(SetAccess=private)
         % The scaled timestep `\tilde{\Delta t} = \frac{\Delta t}{\tau}`
         %
@@ -172,7 +187,6 @@ classdef BaseModel < KerMorObject
             this = this@KerMorObject;
             
             % Init defaults
-            this.System = models.BaseDynSystem(this);
             this.ODESolver = solvers.ode.MLWrapper(@ode23);
             
             % Register default properties
@@ -217,6 +231,8 @@ classdef BaseModel < KerMorObject
                 error('A model with parameters cannot be simulated without a parameter argument.');
             end
             
+            this.WorkspaceVariableName = inputname(1);
+            
             starttime = tic;
             
             % Get scaled state trajectory
@@ -230,6 +246,8 @@ classdef BaseModel < KerMorObject
             y = this.System.C.computeOutput(t,x,mu);
             
             sec = toc(starttime);
+            
+            this.WorkspaceVariableName = '';
         end
         
         function plot(this, t, y, ax)

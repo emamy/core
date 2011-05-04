@@ -133,7 +133,7 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
             % Kernel based core functions allow for multi-argument evaluations by nature.
             this.MultiArgumentEvaluations = true;
             
-            this.fSK = kernels.GaussKernel(10);
+            this.fSK = kernels.GaussKernel;
             % The default kernels for time and parameters are neutral (=1)
             % kernels as not all models have time or parameter dependent
             % system functions.
@@ -244,13 +244,13 @@ classdef AKernelCoreFun < dscomponents.ACoreFun
         
         function set.Centers(this, value)
             C = {'xi','ti','mui'};            
-            if isfield(value, C) == 1
-                this.Centers = value ;
-                if isempty(value.xi)
-                    warning('REQUIRED_FIELD:Empty','xi is a required field, which is left empty');
-                end
+            if any(isfield(value, C))
+                this.Centers = value;
+%                 if ~isfield(value,'xi')
+%                     warning('REQUIRED_FIELD:Empty','xi is a required field, which is left empty');
+%                 end
             else
-                error('Value passed is not a valid struct. Should have the three fields xi,ti,mui');
+                error('Value passed is not a valid struct. Only the field names xi, ti, mui are allowed');
             end            
         end
         

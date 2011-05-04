@@ -19,10 +19,31 @@ classdef DefaultCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
         % Default: 120
         ApproxExpansionSize = 120;
     end
-
+    
     methods
+        function set.ApproxExpansionSize(this, value)
+            if ~isposintscalar(value)
+                error('The value should be a positive integer');
+            end
+            this.ApproxExpansionSize = value;
+        end
         
-        function approximateCoreFun(this, model)
+        function target = clone(this)
+            % Clones the instance.
+            
+            % Create instance as this is the final class so far. If
+            % subclassed, this clone method has to be given an additional
+            % target argument.
+            target = approx.DefaultCompWiseKernelApprox;
+            
+            target = clone@approx.BaseCompWiseKernelApprox(this, target);
+            % copy local props
+            copy.ApproxExpansionSize = this.ApproxExpansionSize;
+        end
+    end
+
+    methods(Access=protected) 
+        function computeCompwiseApprox(this, model, fx)
             % Load snapshots
             atd = model.Data.ApproxTrainData;
             
@@ -39,62 +60,19 @@ classdef DefaultCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             this.Centers.xi = xi;
             this.Centers.ti = ti;
             this.Centers.mui = mui;
-            n = size(xi,2);
+            
             
             % Call coeffcomp preparation method and pass kernel matrix
             this.CoeffComp.init(this.getKernelMatrix);
             
             % Call protected method
-            this.computeCoeffs(model.Data.ApproxfValues);
-            
-            % Reduce the snapshot array and coeff data to the
-            % really used ones! This means if any snapshot x_n is
-            % not used in any dimension, it is kicked out at this
-            % stage.
-            hlp = sum(this.Ma ~= 0,1);
-            usedidx = find(hlp > 0);
-            if length(usedidx) < n
-                this.Ma = this.Ma(:,usedidx);
-                this.Centers.xi = xi(:,usedidx);
-                if ~isempty(ti)
-                    this.Centers.ti = ti(:,usedidx);
-                end
-                if ~isempty(mui)
-                    this.Centers.mui = mui(:,usedidx);
-                end
-            end
-            
-            % @todo find out when sparse representation is more
-            % efficient!
-            if sum(hlp) / numel(this.Ma) < .5
-                this.Ma = sparse(this.Ma);
-            end
-            
+            this.computeCoeffs(fx);
+             
             % dont use offset vector if none are given
             if all(this.off == 0)
                 this.off = [];
             end     
-        end
-        
-        function set.ApproxExpansionSize(this, value)
-            if ~isposintscalar(value)
-                error('The value should be a positive integer');
-            end
-            this.ApproxExpansionSize = value;
-        end
-                        
-        function target = clone(this)
-            % Clones the instance.
-            
-            % Create instance as this is the final class so far. If
-            % subclassed, this clone method has to be given an additional
-            % target argument.
-            target = approx.DefaultCompWiseKernelApprox;
-            
-            target = clone@approx.BaseCompWiseKernelApprox(this, target);
-            % copy local props
-            copy.ApproxExpansionSize = this.ApproxExpansionSize;
-        end
+        end   
     end
 end
 

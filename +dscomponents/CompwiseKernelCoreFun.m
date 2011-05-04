@@ -43,6 +43,7 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
         
         function this = CompwiseKernelCoreFun
             this = this@dscomponents.AKernelCoreFun;
+            
             this.CustomProjection = true;
             
             this.registerProps('off','Ma');
@@ -50,11 +51,11 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
         
         function fx = evaluateCoreFun(this, x, t, mu)
             % @todo: check for correct usage of the sets from kernel
-            % expansions in error estimators! (not yet considered)
+            % expansions in error estimators! (not yet considered)            
             if ~isempty(this.off)
                 fx = this.Ma * this.evaluateAtCenters(x, t, mu)' + repmat(this.off,1,size(x,2));
             else
-                fx = this.Ma * this.evaluateAtCenters(x, t, mu)';
+                fx = this.Ma * this.evaluateAtCenters(x, t, mu)';      
             end
         end
         
