@@ -5,6 +5,8 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
     %   ReducedModel.System.f is an instance of AKernelCoreFun
     %   FullModel.Approx is an instance of CompwiseKernelCoreFun
     %
+    % @change(0,3,sa,2011-04-23) Implemented Setters for the properties KernelLipschitzFcn
+    % and UseTimeDiscreteC
     
     properties
         % The internal kernel Lipschitz function to use.
@@ -208,6 +210,10 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
             this.divals = [];
         end
         
+        function set.KernelLipschitzFcn(this, value)
+            this.KernelLipschitzFcn = value;
+        end
+        
         function set.Iterations(this, value)
             if value > 0 && (isa(this.ReducedModel.ODESolver,'solvers.ode.MLWrapper') || isa(this.ReducedModel.ODESolver,'solvers.ode.MLode15i'))%#ok
                 warning('errorEst:LocalLipEst',...
@@ -215,6 +221,13 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
                 this.Iterations = 0;
             end
             this.Iterations = value;
+        end
+        
+        function set.UseTimeDiscreteC(this, value)
+            if ~islogical(value)
+                error('The value must be a logical');
+            end
+            this.UseTimeDiscreteC = value;
         end
     end
     

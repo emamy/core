@@ -2,6 +2,9 @@ classdef ExperimentalEstimator < error.BaseEstimator
     %ExperimentalEstimator 
     %
     % Error estimator for the getCFI-attempt (non-gronwall-estimation)
+    %
+    % @change(0,3,sa,2011-04-23) Implemented Setter for MinMatVal as a
+    % comment similar to how the property is defined
     
     properties
         % Minimum threshold for `M_i` matrix values.
@@ -105,6 +108,13 @@ classdef ExperimentalEstimator < error.BaseEstimator
         function e0 = getE0(this, mu)%#ok
             e0 = 0;
         end
+        
+%        function set.MinMatval(this, value)
+%            if ~isfloat(value)
+%                error('Value should be a valid floating-point array');
+%            end
+%            this.MinMatval = value; 
+%        end
         
     end
     

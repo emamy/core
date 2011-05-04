@@ -33,7 +33,7 @@ classdef TPWLApprox < approx.BaseApprox
     methods
         function set.WeightFun(this, value)
             if ~isa(value, 'kernels.GaussKernel')
-                error('The value must be an object of class kernels.GaussKernel');
+                error('The value must be a kernels.GaussKernel instance');
             end
             this.WeightFun = value;
         end
