@@ -3,9 +3,7 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
     % lipschitz constants.
     %
     % Implementation as in [WH10], but with updated ExtraODEDims and numerical computation.
-    %
-    % @change(0,3,sa,2011-04-23) Implemented Setters for the properties KernelLipschitzFcn
-    % and UseTimeDiscreteC
+    %    
     % Model requirements:
     % ReducedModel.System.f is an instance of AKernelCoreFun
     % FullModel.Approx is an instance of CompwiseKernelCoreFun
@@ -14,8 +12,11 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
     %
     % @new{0,1,dw,2010-08-10} Added this class.
     %
-    % @change{0,3,dw,2011-05-02} Changed the implementation of the evalODEPart so that only two
+    % @change{0,3,dw,2011-05-02} CLocalLipKernelEstimator.mLocalLipKernelEstimator.mLocalLipKernelEstimator.mLocalLipKernelEstimator.mLocalLipKernelEstimator.mLocalLipKernelEstimator.mLocalLipKernelEstimator.mLocalLipKernelEstimator.mLocalLipKernelEstimator.mhanged the implementation of the evalODEPart so that only two
     % extra ODE dimensions are needed. This avoids NaN entries when exponential values grow too big.
+    %
+    % @change(0,3,sa,2011-04-23) Implemented Setters for the properties KernelLipschitzFcn
+    % and UseTimeDiscreteC
     %
     % This class is part of the framework
     % KerMor - Model Order Reduction using Kernels:

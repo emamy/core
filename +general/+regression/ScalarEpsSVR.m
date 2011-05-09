@@ -3,10 +3,12 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
     %
     %  Implementation details can be found in Daniel's Scratch
     %  Tex-Collection; it basically combines aspects from the books
-    %  B. Schölkopf & A. Smola's "Learning with Kernels" and
+    %  B. Schï¿½lkopf & A. Smola's "Learning with Kernels" and
     %  "Support Vector Machines" from I. Steinwart & A. Christman
     %
     % @author Daniel Wirtz @date 11.03.2010
+    %
+    % @change{0,3,sa,2011-05-06} Implemented Setter for the property
     
     properties
         
@@ -23,6 +25,13 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             % Default constructor. Calls superconstructor to initialize
             % properties
             this = this@general.regression.BaseScalarSVR;
+        end
+        
+        function set.eps(this, value)
+            if ~isposrealscalar(value)
+                error('Value must be a positive real scalar');
+            end
+            this.eps = value;
         end
         
         function [ai,b,svidx,eps] = regress(this, fxi)

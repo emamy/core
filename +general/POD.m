@@ -13,6 +13,8 @@ classdef POD < KerMorObject
     % extended constructor registering any user-relevant properties using
     % KerMorObject.registerProps.
     %
+    % @change{0,3,sa,2011-05-06} Implemented Setter for UseSVDS flag
+    %
     % @todo - Create fixed random number stream for reproducable results!
     % - make Value property dependent and check in setter depending on Mode value!
     
@@ -159,6 +161,13 @@ classdef POD < KerMorObject
             if any(isnan(podvec(:)))
                 error('NaN values occured in POD vectors.');
             end
+        end
+        
+        function set.UseSVDS(this, value)
+            if ~islogical(value)
+                error('Value should be logical');
+            end
+            this.UseSVDS = value;
         end
         
         function set.Mode(this, value)

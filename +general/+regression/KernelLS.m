@@ -4,9 +4,12 @@ classdef KernelLS < KerMorObject & approx.IKernelCoeffComp
     %   instead of plain inversion.
     %
     % @author Daniel Wirtz 21.03.2010
+    %
+    % @change{0,3,sa,2011-05-07} Implemented Setter for the properties G
+    % and Epsilon
     
     properties
-        % The kernel matrix to use für LS regression
+        % The kernel matrix to use fï¿½r LS regression
         K;
         
         % The regularization term weight
@@ -42,7 +45,7 @@ classdef KernelLS < KerMorObject & approx.IKernelCoeffComp
             if length(y) <= this.MaxStraightInvDim
                 a = M\y;
             else
-                % @TODO: why does pcg not work here? matrix is symmetric!
+                % @TODO: why doepcgs pcg not work here? matrix is symmetric!
                 [a, flag] = bicg(M,y,this.CGTol, this.CGMaxIt);
             end
             
@@ -59,7 +62,43 @@ classdef KernelLS < KerMorObject & approx.IKernelCoeffComp
             svidx = [];
         end
         
+        %% setters
+        
+        function set.K(this, value)
+            if ~isa(value, 'double')
+                error('value must be a double matrix');
+            end
+            % Make matrix symmetric (can be false due to rounding errors)
+            this.K = .5*(value + value');
+        end
+        
+        function set.lambda(this, value)
+            if ~isposintscalar(value)
+                error('value must be a positive integer scalar');
+            end
+            this.lambda = value;
+        end
+        
+        function set.CGMaxIt(this, value)
+            if ~isposintscalar(value)
+                error('value must be a positive integer scalar');                
+            end
+            this.CGMaxIt = value;
+        end
+        
+        function set.CGTol(this, value)
+            if ~isposrealscalar(value)
+                error('value must be a positive real scalar.');                
+            end
+            this.CGTol = value;
+        end
+        
+        function set.MaxStraightInvDim(this, value)
+            if ~isposintscalar(value)
+                error('value must be a positive integer scalar');                
+            end
+            this.MaxStraightInvDim = value;
+        end
     end
     
 end
-

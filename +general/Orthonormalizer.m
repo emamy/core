@@ -9,6 +9,9 @@ classdef Orthonormalizer < KerMorObject
     % See rbmatlabroot/general/vecmat/orthonormalize*.m
     %
     % @author Daniel Wirtz @date 24.08.2010
+    %
+    % @change{0,3,sa,2011-05-07} Implemented Setter for the properties G
+    % and Epsilon
     
     properties
         % The scalar product matrix `<x,x> := x^tGx`
@@ -59,6 +62,20 @@ classdef Orthonormalizer < KerMorObject
             elseif strcmp(this.Algorithm,'ch')
                 onvec = this.ortho_ch(vec);
             end
+        end
+        
+        function set.G(this, value)
+            if ~isa(value, 'double')
+                error('G should be a double matirx');
+            end
+            this.G = value;
+        end
+        
+        function set.Epsilon(this, value)
+            if ~isposrealscalar(value)
+                error('value must be a positive real scalar.');
+            end
+            this.Epsilon = value;
         end
         
         function set.Algorithm(this, value)
