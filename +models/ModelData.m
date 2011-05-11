@@ -2,9 +2,12 @@ classdef ModelData < handle
     % Data class that contains a model's large data
     %
     % @todo Implmement all setters with appropriate checks
-    %
+    %    
     % @change{0,1,dw} More common projection via matrices `V,W` instead of
     % `V,V^t`.
+    %
+    % @change{0,3,sa,2011-05-10} Implemented setters for the properties
+    %
     % @change{0,3,dw,2011-04-01} 
     % - Changed the old 'ProjTrainData' to 'TrainingData', as this property
     % name describes the usage more precisely.
@@ -116,7 +119,50 @@ classdef ModelData < handle
     methods
         function value = get.SampleCount(this)
             value = size(this.ParamSamples,2);
-        end     
+        end
+        
+        function set.ParamSamples(this, value)
+            if ~isempty(value) || ~isposintscalar(value)
+                error('value must be a positive integer scalar if not left empty');
+            end
+            this.ParamSamples = value;
+        end
+        
+        function set.TrainingData(this, value)
+            if ~isa(value, 'double')
+                error('The property must be valid double matrix');
+            end
+            this.TrainingData = value;
+        end
+        
+        function set.ApproxTrainData(this, value)
+            if ~isa(value, 'double')
+                error('The property must be valid double matrix');
+            end
+            this.ApproxTrainData = value;
+        end
+        
+        function set.ApproxfValues(this, value)
+            if ~isnumeric(value) || ~isempty(value)
+                error('value should be numeric if not left empty');
+            end
+            this.ApproxfValues = value;
+        end
+        
+        function set.V(this, value)
+            if ~isa(value, 'double')
+                error('value must be a valid matrix of type double');
+            end
+            this.V = value;
+        end
+        
+        function set.W(this, value)
+            if ~isa(value, 'double')
+                error('value must be a valid matrix of type double');
+            end
+            this.W = value;
+        end
+        
     end
 end
 

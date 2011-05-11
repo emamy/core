@@ -6,6 +6,8 @@ classdef RandomSampler < sampling.BaseSampler
     %
     % @author Daniel Wirtz @date 2010-10-11
     %
+    % @change{0,3,sa,2011-05-10} Implemented property setter
+    %
     % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
     % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
     % extended constructor registering any user-relevant properties using
@@ -25,6 +27,13 @@ classdef RandomSampler < sampling.BaseSampler
         
         function this = RandomSampler
             this.registerProps('Samples');
+        end
+        
+        function set.Samples(this, value)
+            if ~isposintscalar(value)
+                error('Value must be a positive integer scalar');
+            end
+            this.Samples = value;
         end
         
         function samples = performSampling(this, model)

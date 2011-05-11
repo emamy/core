@@ -21,6 +21,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
     %
     % @author Daniel Wirtz @date 16.03.2010
     %
+    % @change{0,3,sa,2011-05-11} Implemented setters for the
+    % preApproximationTrainingCallback and
+    % postApproximationTrainingCallback
+    %
     % @change{0,3,dw,2011-04-26} The property changed descriptions now contain links to the
     % respective classes containing the property.
     %
@@ -505,6 +509,20 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function set.Approx(this, value)
             this.checkType(value, 'approx.BaseApprox');%#ok
             this.Approx = value;
+        end
+        
+        function set.preApproximationTrainingCallback(this, value)
+            if ~isa(value, 'function_handle')
+                error('Value must be a function handle taking the current model instance');
+            end
+            this.preApproximationTrainingCallback = value;
+        end
+        
+        function set.postApproximationTrainingCallback(this, value)
+            if ~isa(value, 'function_handle')
+                error('Value must be a function handle taking the current model instance');
+            end
+            this.postApproximationTrainingCallback = value;
         end
     end
     
