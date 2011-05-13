@@ -143,9 +143,6 @@ classdef KerMor < handle
     %
     % @todo t-partitioning f?r KerMor? ideen mit markus austauschen!
     %
-    % @todo check ob die Norm von kernexpansionen mit offset-term b ?hnlich
-    % bleibt!
-    %
     % @todo MUnit erweitern um benchmark-mode, so das anstelle von "test_"
     % prefix-fkt alle mit "bench_" ausgef?hrt werden; (r?ckgabe ist in dem fall
     % ggf ein struct mit algorithmus und zeiten)
@@ -181,9 +178,6 @@ classdef KerMor < handle
     % trained on largest subspace, so would have to have more
     % approximations. or any possibility to project approximation into
     % sub-subspace??
-    %
-    % @todo !!!!!!!!!!!!!!!!!! include kernel expansion offset 'b' into
-    % error estimators! (yet only valid for b=0)
     
     properties(Constant)
         % The current KerMor main version number

@@ -21,6 +21,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
     %
     % @author Daniel Wirtz @date 16.03.2010
     %
+    % @new{0,4,dw,2011-05-06} Small improvements to the DPCS, the correct links to the properties
+    % defining classes are now used. Further a link to the correct class is created if the property
+    % wsa inherited from a superclass.
+    %
+    % @new{0,4,dw,2011-05-04} Added a new property models.BaseFullModel.TrainingInputs. Now one can
+    % specifiy which defined inputs are to be used within offline generations.
+    %
     % @change{0,3,dw,2011-04-26} The property changed descriptions now contain links to the
     % respective classes containing the property.
     %
@@ -100,9 +107,25 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         postApproximationTrainingCallback;
     end
     
+    properties(SetObservable, Dependent)
+        % The indices of inputs to use for training data generation.
+        %
+        % @propclass{optional} Set subindices to restrict offline generation phase to a subset of
+        % inputs.
+        %
+        % @default 1:InputCount
+        TrainingInputs;
+    end
+    
+    properties(SetAccess=private, Dependent)
+        % Gets the number of inputs used for training.
+        TrainingInputCount;
+    end
+    
     properties(Access=private)
         msg;
         pstats;
+        fTrainingInputs = [];
     end
            
     methods
@@ -125,7 +148,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % Register default properties
             this.registerProps('Sampler','SpaceReducer','Approx',...
                 'preApproximationTrainingCallback','postApproximationTrainingCallback',...
-                'Data');
+                'Data','TrainingInputs');
         end
         
         function time = off1_createParamSamples(this)
@@ -149,7 +172,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             time = tic;
             
             num_s = max(1,this.Data.SampleCount);
-            num_in = max(1,this.System.InputCount);
+            num_in = max(1,this.TrainingInputCount);
             
             % Compute system dimension using x0.
             mu = this.Data.getParams(1);
@@ -164,7 +187,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             
             %% Parallel - computation
             if this.ComputeParallel
-                idxmat = general.Utils.createCombinations(1:num_s,1:num_in);
+                idxmat = general.Utils.createCombinations(1:num_s,this.System.TrainingInputs);
                 sn = zeros(dims+3,trajlen,size(idxmat,2));
                 
                 fprintf('Starting parallel projection training data computation of %d trajectories on %d workers...\n',size(idxmat,2),matlabpool('size'));
@@ -183,7 +206,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     end
                     % Check for inputs
                     inputidx = []; innum = 0;
-                    if this.System.InputCount > 0
+                    if this.TrainingInputCount > 0
                         inputidx = inidx(idx);
                         innum = inputidx;
                     end
@@ -231,9 +254,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                             munum = pidx;
                         end
                         % Check for inputs
-                        if this.System.InputCount > 0
-                            inputidx = inidx;
-                            innum = inidx;
+                        if this.TrainingInputCount > 0
+                            inputidx = this.TrainingInputs(inidx);
+                            innum = inputidx;
                         end
 
                         % Get trajectory
@@ -506,6 +529,26 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.checkType(value, 'approx.BaseApprox');%#ok
             this.Approx = value;
         end
+        
+        function set.TrainingInputs(this, value)
+            if ~isposintmat(value)
+                error('Value may only contain valid indices for the Inputs cell array.');
+            elseif any(value > this.System.InputCount) || any(value < 1)
+                error('Invalid indices for Inputs.');
+            end
+            this.fTrainingInputs = value;
+        end
+        
+        function ti = get.TrainingInputs(this)
+            ti = this.fTrainingInputs;
+            if isempty(ti) && ~isempty(this.System)
+                ti = 1:this.System.InputCount;
+            end
+        end
+        
+        function c = get.TrainingInputCount(this)
+            c = length(this.TrainingInputs);
+        end
     end
     
     methods(Access=private)        
@@ -556,35 +599,30 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                  done(obj.ID) = true;
                  
                  %% Link name preparations
-                 dotpos = strfind(mc.Name,'.');
-                 if ~isempty(dotpos)
-                     lname = mc.Name(dotpos(end)+1:end);
-                 else
-                     lname = mc.Name;
-                 end
-                 objlink = sprintf('<a href="matlab:edit %s">%s</a>',mc.Name,lname);
+                 objlink = editLink(mc.Name);
                  
                  %% Check the local properties
                  pc = obj.PropertiesChanged;
-                 keys = pc.Keys;
-                 for idx = 1:pc.Count
-                     p = pc(keys{idx});
-                     counts.(p.Level) = counts.(p.Level) + 1;
-                     if ~p.Changed 
-                         notchanged.(p.Level) = notchanged.(p.Level) + 1;
-                         if ~any(strcmp(p.Level,'data'))
-                            hlp = messages.(p.Level);           
-                            hlp{end+1} = sprintf('%s is still unchanged!\nProperty brief: %s\nPropclass tag description:\n%s\n',...
-                                [lvl '[' objlink '] -> ' p.Name],p.Short,p.Text);%#ok
-                            messages.(p.Level) = hlp;
-                         end
-                     end
-                 end
                  for pidx = 1:length(mc.Properties)
                      p = mc.Properties{pidx};
                      if strcmp(p.GetAccess,'public') && ~p.Constant && ~p.Transient && ~strcmp(p.SetAccess,'private')
-                         if ~p.SetObservable && ~pc.containsKey([p.DefiningClass.Name '.' p.Name])
-                             fprintf('WARNING: Property %s of class %s is not <a href="matlab:docsearch SetObservable">SetObservable</a> but a candidate for a user-definable public property!\nFor more details see <a href="%s/propclasses.html">Property classes and levels</a>\n\n',p.Name,objlink,KerMor.App.DocumentationLocation);
+                         key = [p.DefiningClass.Name '.' p.Name];
+                         if pc.containsKey(key)
+                             p = pc(key);
+                             counts.(p.Level) = counts.(p.Level) + 1;
+                             if ~p.Changed
+                                 notchanged.(p.Level) = notchanged.(p.Level) + 1;
+                                 if ~any(strcmp(p.Level,'data'))
+                                     hlp = messages.(p.Level);
+                                     %if strcmp(mc.Name,p.)
+                                     hlp{end+1} = sprintf('%s is still unchanged!\nProperty brief: %s\nPropclass tag description:\n%s\n',...
+                                         [lvl '[' objlink '] -> ' p.Name],p.Short,p.Text);%#ok
+                                     messages.(p.Level) = hlp;
+                                 end
+                             end
+                         elseif ~p.SetObservable && ~pc.containsKey([p.DefiningClass.Name '.' p.Name])
+                             link2 = editLink(p.DefiningClass.Name);
+                             fprintf('WARNING: Property %s of class %s is not <a href="matlab:docsearch SetObservable">SetObservable</a> but a candidate for a user-definable public property!\nFor more details see <a href="%s/propclasses.html">Property classes and levels</a>\n\n',p.Name,link2,KerMor.App.DocumentationLocation);
                          end
                          pobj = obj.(p.Name);
                          % Recursively register subobject's properties
@@ -593,6 +631,16 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                          end
                      end
                  end
+             end
+             
+             function l = editLink(classname)
+                 dotpos = strfind(classname,'.');
+                 if ~isempty(dotpos)
+                     lname = classname(dotpos(end)+1:end);
+                 else
+                     lname = classname;
+                 end
+                 l = sprintf('<a href="matlab:edit %s">%s</a>',classname,lname);
              end
         end
     end

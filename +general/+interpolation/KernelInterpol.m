@@ -2,8 +2,8 @@ classdef KernelInterpol < KerMorObject & approx.IKernelCoeffComp
     % Provides kernel interpolation.
     %
     % The basic interpolation form is 
-    % `` f(x) = \sum\limits_{i=1}^N \alpha_i \Phi(x,x_i) + \beta ``
-    % Interpolation finds coefficients and an offset such that 
+    % `` f(x) = \sum\limits_{i=1}^N \alpha_i \Phi(x,x_i)``
+    % Interpolation finds coefficients such that 
     % `fx_i = RHS(x_i)` for `i=1\ldotsN`.
     %
     % There is also a zero-function threshold `10*eps`. If all
@@ -11,6 +11,9 @@ classdef KernelInterpol < KerMorObject & approx.IKernelCoeffComp
     % assumed.
     %
     % @author Daniel Wirtz @date 01.04.2010
+    %
+    % @change{0,4,dw,2011-05-03} Removed the artificial offset term `b` from the interpolation
+    % process (no longer used in kernel expansions)
     %
     % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
     % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
@@ -71,30 +74,24 @@ classdef KernelInterpol < KerMorObject & approx.IKernelCoeffComp
             this.registerProps('K','UseLU');
         end
         
-        function [a,b] = interpolate(this, fxi)
-            % Computes the kernel expansion coefficients `\alpha_i` and
-            % offset `\beta` as described in the class documentation.
-            %
-            % The offset `\beta` equals the mean value over all `fx_i`
-            % values.
+        function a = interpolate(this, fxi)
+            % Computes the kernel expansion coefficients `\alpha_i`.
             %
             % Parameters:
             % fxi: The real function value samples at centers `x_i`
             %
             % Return values:
             % a: The coefficient vector `\alpha`
-            % b: The offset `\beta`
-            b = mean(fxi);
-            if all(abs(fxi - b) < 10*eps)
+            if all(abs(fxi) < 10*eps)
                 a = zeros(size(fxi))';
                 if KerMor.App.Verbose > 3
                     fprintf('KernelInterpol note: All mean-cleaned fxi values < 10eps, assuming zero coefficients!\n');
                 end
             else
                 if this.fUseLU
-                    a = this.U\(this.L\(fxi-b)');
+                    a = this.U\(this.L\fxi');
                 else
-                    a = this.fK\(fxi-b)';
+                    a = this.fK\fxi';
                 end
             end
         end
@@ -132,8 +129,8 @@ classdef KernelInterpol < KerMorObject & approx.IKernelCoeffComp
             this.K = K;
         end
         
-        function [ai, b, svidx] = computeKernelCoefficients(this, yi)
-            [ai,b] = this.interpolate(yi);
+        function [ai, svidx] = computeKernelCoefficients(this, yi)
+            ai = this.interpolate(yi);
             svidx = [];
         end
     end

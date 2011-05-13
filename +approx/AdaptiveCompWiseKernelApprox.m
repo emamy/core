@@ -227,7 +227,6 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             %% Set up initial expansion
             used = inIdx;
             this.Ma = fx(:,inIdx);
-            this.off = [];
             
             %% Choose initial gammas
             dists = [dfun(minfac*bxdia, fac*bxdia); dfun(minfac*btdia, fac*btdia)];
@@ -366,7 +365,6 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                         bestgt = gt;
                         bestgp = gp;
                         bestMa = this.Ma;
-                        bestoff = this.off;
                         if KerMor.App.Verbose > 2
                             fprintf(' b: %.5e, %3.2f%%',val,impro);
                         end
@@ -393,7 +391,6 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                     this.ParamKernel.Gamma = bestgp;
                 end
                 this.Ma = bestMa;
-                this.off = bestoff;
                 
                 if KerMor.App.Verbose > 1
                     fprintf('-- It: %d ---- Minerr: %f ----- Best values: System:%f, Time:%f, Param:%f ----------\n',cnt,minerr,bestgx,bestgt,bestgp);
@@ -481,7 +478,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             % Checks the stopping conditions 
             bool = false;
             if cnt == this.MaxExpansionSize
-                disp('AdaptiveCompWiseKernelApprox finished. Max expansion size reached.');
+                fprintf('AdaptiveCompWiseKernelApprox finished. Max expansion size %d reached.\n',this.MaxExpansionSize);
                 bool = true;
             elseif rel < this.MaxRelErr
                 fprintf('AdaptiveCompWiseKernelApprox finished. Relative error %.7e < %.7e\n',rel,this.MaxRelErr);

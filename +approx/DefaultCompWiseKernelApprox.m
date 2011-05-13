@@ -57,12 +57,7 @@ classdef DefaultCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             this.CoeffComp.init(this.getKernelMatrix);
             
             % Call protected method
-            this.computeCoeffs(fx);
-             
-            % dont use offset vector if none are given
-            if all(this.off == 0)
-                this.off = [];
-            end     
+            this.computeCoeffs(fx);  
         end          
     end
 end

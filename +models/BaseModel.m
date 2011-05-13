@@ -214,23 +214,12 @@ classdef BaseModel < KerMorObject
             % @todo: fix Input checks (set inidx=1 iff one input is
             % there, otherwise error)
             % @todo: switch return arguments sec & x + tests
-            
             if nargin < 3
-                if ~isempty(this.System.Inputs)
-                    warning('BaseModel:NoInputSpecified',['You must specify '...
-                        'an input index if inputs are set up. Using inputidx=1']);
-                    inputidx = 1;
-                else
-                    inputidx = [];
-                end
+                inputidx = [];
                 if nargin < 2
                     mu = [];
                 end
             end
-            if isempty(mu) && ~isempty(this.System.Params)
-                error('A model with parameters cannot be simulated without a parameter argument.');
-            end
-            
             this.WorkspaceVariableName = inputname(1);
             
             starttime = tic;
@@ -283,13 +272,10 @@ classdef BaseModel < KerMorObject
             % t: The times at which the model was evaluated. Will equal
             % the property Times
             % x: The state variables at the corresponding times t.
-            
-            % Validity checks
-            if this.System.InputCount > 0 && isempty(inputidx)
-                if this.System.InputCount == 1
-                    inputidx = 1;
-                else
-                    error('If more than one input u is set you must specify an inputidx.');
+            if nargin < 3
+                inputidx = [];
+                if nargin < 2
+                    mu = [];
                 end
             end
             
@@ -305,27 +291,27 @@ classdef BaseModel < KerMorObject
             if isempty(this.System.f)
                 error('No system''s core function specified. ODE function creation impossible; first set "f" property.');
             end
-            odefun = this.System.getODEFun(mu, inputidx);
             
-            %% Get scaled initial x0
-            x0 = this.getX0(mu);
+            %% Pass mu and input to system
+            this.System.setConfig(mu, inputidx);
             
             %% Solve ODE
+            slv = this.ODESolver;
             if ~isempty(this.System.MaxTimestep)
                 % Remember: When scaling is used, these are the 
-                this.ODESolver.MaxStep = this.System.MaxTimestep;
-                this.ODESolver.InitialStep = .5*this.System.MaxTimestep;
+                slv.MaxStep = this.System.MaxTimestep;
+                slv.InitialStep = .5*this.System.MaxTimestep;
             end
             % Assign jacobian evaluation function if available
-            if isa(this.ODESolver,'solvers.ode.BaseImplSolver')
+            if isa(slv,'solvers.ode.BaseImplSolver')
                 if isa(this.System.f,'dscomponents.IJacobian')
-                    this.ODESolver.JacFun = @(t,x)this.System.f.getStateJacobian(x, t, mu);
+                    slv.JacFun = @(t,x)this.System.f.getStateJacobian(x, t, mu);
                 else
-                    this.ODESolver.JacFun = [];
+                    slv.JacFun = [];
                 end
             end
-            % Call solve
-            [t, x] = this.ODESolver.solve(odefun, this.scaledTimes, x0);
+            % Call solver
+            [t, x] = slv.solve(@(t,x)this.System.ODEFun(t,x), this.scaledTimes, this.getX0(mu));
         end
         
 %         function target = clone(this, target)            

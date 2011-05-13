@@ -3,12 +3,15 @@ classdef IKernelCoeffComp < handle
     %
     % Any algorithm that can compute onedimensional coefficients
     % given a kernel matrix `K` for a kernel expansion of the type
-    % ``f(x) = \sum\limits_{i=1}^N \alpha_i\Phi(x,x_i) + b``
+    % ``f(x) = \sum\limits_{i=1}^N \alpha_i\Phi(x,x_i)``
     % should implement this interface in order to be available as strategy
     % within any approx.BaseCompWiseKernelApprox subclass.
     %
-    %
     % @author Daniel Wirtz @date 2011-03-31
+    %
+    % @chane{0,3,dw,2011-05-03} Removed offset terms from interface as the `b` offsets for kernel
+    % expansions arent used anymore.
+    %
     % @new{0,3,dw,2011-03-31} Added this interface.
     
     methods(Abstract)
@@ -35,12 +38,11 @@ classdef IKernelCoeffComp < handle
         %
         % Return values:
         % ai: The coefficients `\alpha_{k,i}` of `f_k(x)`.
-        % b: The offset for `f_k(x)`.
         % svidx: The used support vector indices `i` of `x_i`. Optional,
         % leave empty if all are used.
         %
         % See also: init
-        [ai, b, svidx] = computeKernelCoefficients(this, yi);
+        [ai, svidx] = computeKernelCoefficients(this, yi);
     end
     
 end

@@ -6,14 +6,19 @@ classdef qpMatlab < solvers.qp.BaseQPSolver
     %
     % @author Daniel Wirtz @date 27.10.2010
     
-    properties
+    properties(SetObservable)
         % Options for quadprog-solver
+        %
+        % @propclass{important} The flags for the matlab builtin quadprog solver.
+        %
+        % See also: quadprog
         QuadProgOpts = optimset('LargeScale','off','Display','off');
     end
     
     methods
         function this = qpMatlab
             this.Name = 'Matlab native quadprog solver';
+            this.registerProps('QuadProgOpts');
         end
         
         function copy = clone(this)

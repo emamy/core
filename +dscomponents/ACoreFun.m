@@ -1,29 +1,35 @@
 classdef ACoreFun < KerMorObject & dscomponents.IProjectable
-    % Basic interface for all dynamical system's core functions
-    % Inherits the IProjectable interface.
-    %
-    % Subclassers have to implement the clone method according to the rules
-    % explained in ICloneable, but only must re-implmement the project
-    % method if a custom projection process takes place, i.e. coefficients
-    % must be recomputed or such. Otherwise, the project implementation in
-    % this method is sufficient to wrap 
-    %
-    % @author Daniel Wirtz @date 17.03.2010
-    %
-    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
-    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
-    % extended constructor registering any user-relevant properties using
-    % KerMorObject.registerProps.
-    %
-    % @change{0,3,sa,2011-04-15} Implemented Setters for the properties of this class 
-    %
-    % @change{0,3,dw,2011-04-13} The evaluate function supports multiargument evaluation now.
-    %
-    % @new{0,3,dw,2011-04-12} Added a new set-protected property
-    % dscomponents.ACoreFun.MultiArgumentEvaluations. Allows for speedup in case the target function
-    % can be called with a matrix of vectors instead of a single vector only.
-    %
-    % @todo Add test for non-custom projection (model with `W'f(x,t,\mu)V`)
+% Basic interface for all dynamical system's core functions
+% Inherits the IProjectable interface.
+%
+% Subclassers have to implement the clone method according to the rules
+% explained in ICloneable, but only must re-implmement the project
+% method if a custom projection process takes place, i.e. coefficients
+% must be recomputed or such. Otherwise, the project implementation in
+% this method is sufficient to wrap 
+%
+% @author Daniel Wirtz @date 17.03.2010
+%
+% @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+% supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+% extended constructor registering any user-relevant properties using
+% KerMorObject.registerProps.
+%
+% @change{0,3,sa,2011-04-15} Implemented Setters for the properties of this class 
+%
+% @change{0,3,dw,2011-04-13} The evaluate function supports multiargument evaluation now.
+%
+% @new{0,3,dw,2011-04-12} Added a new set-protected property
+% dscomponents.ACoreFun.MultiArgumentEvaluations. Allows for speedup in case the target function
+% can be called with a matrix of vectors instead of a single vector only.
+%
+% @todo Add test for non-custom projection (model with `W'f(x,t,\mu)V`)
+%
+% This class is part of the framework
+% KerMor - Model Order Reduction using Kernels:
+% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+% - \c License @ref licensing
     
     properties(SetObservable, SetAccess=protected)
         % Set this property if the projection process is customized by
@@ -123,6 +129,7 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             end
             % check if fast evaluation is possible
             if size(x,2) == 1 || this.MultiArgumentEvaluations
+            %if false && (size(x,2) == 1 || this.MultiArgumentEvaluations)
                 fx = this.evaluateCoreFun(x, t, mu);
             else
                 % evaluate each point extra

@@ -1,37 +1,65 @@
 classdef TPWLApprox < approx.BaseApprox
-    % Trajectory-piecewise function approximation
-    %
-    % @todo NOT FINISHED YET!
+% Trajectory-piecewise function approximation
+%
+% Implements the trajectory-piecewise approximation algorithm proposed in [RW01/Re03],
+% Rewienski, M.: A trajectory piecewise-linear approach to model order reduction of nonlinear
+% dynamical systems. Ph.D. thesis, Citeseer (2003)
+%
+% The implementation is only completely like the proposed one if the approx.selection.EpsSelector is
+% used in conjunction with this class.
+%
+% @author Daniel Wirtz @date 2011-04-01
+%
+% @change{0,4,dw,2011-05-10}
+% - The `A_i` matrices are now sparse if applicable (numel ~= 0 / numel < .5)
+% - Removed the WeightFun property and reintroduced the Beta property, correctly forwarding the
+% setting to the internally used gauss kernel.
+%
+% @new{0,4,dw,2011-05-06} Finished the TPWL implementation. Multiargument-evaluations now work
+% and the WeightFun was set to the TPWL source papers default `e^{-\beta \frac{d_i}{m}}`.
+%
+% This class is part of the framework
+% KerMor - Model Order Reduction using Kernels:
+% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+% - \c License @ref licensing
     
-    properties
-        % The weight function `w`
-        WeightFun;
-        
-        % The distance within there has to be an expansion point for each
-        % x. Gets multiplied by `\sqrt{d}`, where `d` denotes the spatial
-        % dimension of the snapshots (projection training data)
-        EpsRad = .05;
-        
+    properties(SetObservable)        
         % The minimum value a weight needs to have after normalization in
         % order to affect the evaluation. Set this value to a certain
         % threshold in order to restrict globally supported weight
         % functions (i.e. the Gaussian) to a local support.
+        %
+        % @propclass{experimental} Might not be used in the end, so far only for speedup (locality)
         MinWeightValue = 1e-10;
-        
-        % The centers
-        xi;
     end
     
-    properties(Access=private)
+    properties(Dependent, SetObservable)
+        % @propclass{critical}
+        Beta = 25;
+    end
+    
+    properties(SetAccess=private)
+        % The centers
+        xi;
         % The gradient matrix
         Ai;
         bi;
+        GaussWeight;
     end
     
     methods
         
         function this = TPWLApprox
-            this.WeightFun = kernels.GaussKernel(25);
+            this = this@approx.BaseApprox;
+            
+            % Beta from Paper is e^{-25 d/m}, for gauss: e^{d/(m*g^2)}, so g=.2
+            this.GaussWeight = kernels.GaussKernel(1/sqrt(this.Beta));
+            this.registerProps('Beta','MinWeightValue');
+            
+            % Set training data selection to epsselector (default strategy for original TPWL)
+            this.TrainDataSelector = approx.selection.EpsSelector;
+            this.MultiArgumentEvaluations = true;
         end
         
         function copy = clone(this)
@@ -41,13 +69,13 @@ classdef TPWLApprox < approx.BaseApprox
             copy.Ai = this.Ai;
             copy.bi = this.bi;
             copy.xi = this.xi;
-            copy.EpsRad = this.EpsRad;
-            copy.MinWeightValue = this.MinWeightValue;
-            if isa(this.WeightFun,'ICloneable')
-                copy.WeightFun = this.WeightFun.clone;
-            else
-                copy.WeightFun = this.WeightFun;
-            end
+            copy.Beta = this.Beta;
+%             if isa(this.WeightFun,'ICloneable')
+%                 copy.WeightFun = this.WeightFun.clone;
+%             else
+%                 warning('KerMor:cloning','Couldn''t properly clone the WeightFun as it''s not a ICloneable.');
+%                 copy.WeightFun = this.WeightFun;
+%             end
         end
         
         function projected = project(this, V, W)
@@ -63,48 +91,48 @@ classdef TPWLApprox < approx.BaseApprox
         function y = evaluateCoreFun(this, x, t, mu)
             % Implements ACoreFun abstract template method
             as = length(this.Ai);
-            xsel = reshape(meshgrid(1:as,1:size(x,2)),1,[]);
-            diff = repmat(x,1,as)-this.xi(:,xsel);
-            w = this.WeightFun.evaluateScalar(sqrt(sum(diff.^2,1)));
-            
             y = zeros(size(x));
-            for i=1:as
-                % Extract the weights for x and the current xi
-                wl = w((i-1)*size(x,2)+1:i*size(x,2));
+            % Single argument evaluation
+            if (size(x,2) == 1)
+                % Compute all distances
+                di = sqrt(sum((this.xi - repmat(x,1,as)).^2));
+                di(di == 0) = eps;
+                w = this.GaussWeight.evaluateScalar(sqrt(di/min(di)));
                 % Normalize local weights
-                wl = wl / sum(wl);
-                % Find relevant weights
-                rel = find(wl > this.MinWeightValue);
-                % Only update entries for relevant weights
-                y(:,rel) = y(:,rel) ...
-                    +( this.Ai{i}*x(:,rel)...
-                       +this.bi(:,i*ones(1,length(rel)))...
-                     )*diag(wl(rel));
-            end
-        end
-        
-        function atd = selectTrainingData(this, modeldata)
-            sn = modeldata.TrainingData;
-            x = sn(4:end,:);
-            d = sqrt(size(x,1))*this.EpsRad;
-            selidx = 1;
-            idx = 1; 
-            cur = x(:,idx);
-            while idx < size(x,2)
-                while(idx < size(x,2) && norm(x(:,idx)-cur) < d)
-                    idx = idx+1;
+                w = w / sum(w);
+                idx = 1:as;
+                idx = idx(w > this.MinWeightValue);
+                for i=idx
+                    y = y + w(i)*(this.Ai{i}*x + this.bi(:,i));
                 end
-                selidx(end+1) = idx;%#ok
-                cur = x(:,idx);
-                idx = idx+1;
+            % Multi argument evaluation
+            else
+                n = size(x,2);
+                xisel = reshape(meshgrid(1:n,1:as),[],1)';
+                % Compute all distances
+                di = sqrt(sum((repmat(this.xi,1,n)-x(:,xisel)).^2));
+                di = reshape(di',as,[])';
+                di(di == 0) = eps;
+                dimin = min(di,[],2);
+                w = this.GaussWeight.evaluateScalar(sqrt(di./repmat(dimin,1,as)));
+                w = w ./ repmat(sum(w,2),1,as);
+                y = zeros(size(x));
+                for i=1:as
+                    % Find relevant weights
+                    rel = w(:,i) > this.MinWeightValue;
+                    % Normalize local weights
+                    %wl = w(rel,i) ./ s(rel);
+                    % Only update entries for relevant weights
+                    hlp = this.Ai{i}*x(:,rel) + this.bi(:,i*ones(1,sum(rel)));
+                    y(:,rel) = y(:,rel) + hlp*diag(w(rel,i));
+                end
             end
-            atd = sn(:,selidx);
         end
         
         function approximateCoreFun(this, model)
             % Implements BaseApprox abstract template method
             %
-            % @todo parallelize
+            % @todo create sparse matrices if suitable!
             
             % Load snapshots
             atd = model.Data.ApproxTrainData;
@@ -121,7 +149,7 @@ classdef TPWLApprox < approx.BaseApprox
 
             as = size(this.xi,2);
             N = size(this.xi,1);
-            h = 0.01;
+            h = 1e-8;
             
             this.Ai = cell(0,as);
             dh = diag(ones(1,N)*h);
@@ -129,28 +157,14 @@ classdef TPWLApprox < approx.BaseApprox
                 sel = ones(1,N)*i;
                 xipt = this.xi(:,sel);
                 if isempty(mui); mu = []; else mu = mui(:,sel); end
-                tmp = (model.Data.ApproxfValues(:,sel)-...
-                    model.System.f.evaluate(xipt+dh,ti(sel),mu))/h;
+                tmp = (model.System.f.evaluate(xipt+dh,ti(sel),mu)-model.Data.ApproxfValues(:,sel))/h;
+                % Make sparse if applicable
+                if sum(sum(tmp ~= 0)) / numel(tmp) < .5
+                    tmp = sparse(tmp);
+                end
                 this.Ai{i} = tmp;
                 this.bi(:,i) = model.Data.ApproxfValues(:,i) - tmp*this.xi(:,i);
             end
-            
-%             this.Ai = sparse(N*as,N*as);%xi(:,idx) + repmat(diag(ones(1,N))*h,1,as);
-%             dh = diag(ones(1,N)*h);
-%             for i = 1:as
-%                 % compute jacobian at xi
-%                 %fprintf('Iteration %d\n',i);
-%                 %for j=1:N
-%                 sel = ones(1,N)*i;
-%                 xipt = xi(:,sel);
-%                 fxipt = model.Data.ApproxfValues(:,sel);
-%                 if isempty(mui); mu = []; else mu = mui(:,sel); end
-%                 tmp = (fxipt-model.f.evaluate(xipt+dh,ti(sel),mu))/h;
-%                 this.Ai((i-1)*N+1:i*N,(i-1)*N+1:i*N) = tmp;
-%             end
-%             this.xi = xi;
-%             % store as large column vectors
-%             this.bi = reshape(model.Data.ApproxfValues,[],1) - this.Ai*reshape(xi,[],1);
         end
     end
     
@@ -161,7 +175,7 @@ classdef TPWLApprox < approx.BaseApprox
             
             m = models.synth.KernelTest(dims,false);
             m.Approx = approx.TPWLApprox;
-            m.Approx.EpsRad = epsrad;
+            %m.Approx.EpsRad = epsrad;
             d = sqrt(dims)*epsrad;
             k = kernels.GaussKernel;
             k.setGammaForDistance(50*d);

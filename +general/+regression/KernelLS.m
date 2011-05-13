@@ -4,32 +4,53 @@ classdef KernelLS < KerMorObject & approx.IKernelCoeffComp
     %   instead of plain inversion.
     %
     % @author Daniel Wirtz 21.03.2010
+    %
+    % @change{0,4,dw,2011-05-03} Removed `b` offset terms as no longer used in kernel expansions.
+    %
+    % @todo add unit test
     
-    properties
+    properties(SetObservable)
         % The kernel matrix to use für LS regression
+        %
+        % @propclass{data} Needed for LS to work in the first place. 
         K;
         
         % The regularization term weight
-        lambda=1;
+        %
+        % @propclass{important} If the data is badly conditioned increasing lambda can help.
+        %
+        % @default 1
+        lambda = 1;
         
         % Maximum iteration count for the conjugate gradient method
-        % 
+        %
+        % @propclass{alglimit} Limits the iterations for the pcg method.
+        %
         % See also: pcg, bicg
         CGMaxIt = [];
         
         % Tolerance for cg method
-        % 
+        %
+        % @propclass{critical} The error tolerance for the pcg method.
+        %
         % See also: pcg, bicg
         CGTol = 1e-6;
         
         % Maximum dimension of function for which direct inversion is
         % performed instead of pcg
         %
-        % Defaults to 2000.
+        % @propclass{optional} Direct inversion is more precise for small sizes. 
+        %
+        % @default 2000
         MaxStraightInvDim = 2000;
     end
     
     methods
+        
+        function this = KernelLS
+            this = this@KerMorObject;
+            this.registerProps('K','lambda','CGMaxIt','CGTol','MaxStraightInvDim');
+        end
         
         function a = regress(this,fx)
             
@@ -45,7 +66,6 @@ classdef KernelLS < KerMorObject & approx.IKernelCoeffComp
                 % @TODO: why does pcg not work here? matrix is symmetric!
                 [a, flag] = bicg(M,y,this.CGTol, this.CGMaxIt);
             end
-            
         end
         
         %% approx.IKernelCoeffComp interface members
@@ -53,9 +73,8 @@ classdef KernelLS < KerMorObject & approx.IKernelCoeffComp
             this.K = K;
         end
         
-        function [ai, b, svidx] = computeKernelCoefficients(this, yi)
+        function [ai, svidx] = computeKernelCoefficients(this, yi)
             ai = this.regress(yi);
-            b = 0;
             svidx = [];
         end
         

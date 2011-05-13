@@ -1,41 +1,28 @@
 classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
         dscomponents.IGlobalLipschitz & dscomponents.IJacobian
-    %COMPWISEKERNELCOREFUN Summary of this class goes here
-    %   Detailed explanation goes here
+    % Base class for component wise kernel expansion core functions.
     %
-    % @docupdate
+    % @change{0,4,dw,2011-05-03}
+    % - Removed the off property as proper RKHS functions dont have an offset
+    % - No more setter for Ma property - too slow even during offline phase
     %
     % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
     % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
     % extended constructor registering any user-relevant properties using
     % KerMorObject.registerProps.
     %
-    % @todo IMPORTANT: Allow different kernels for different centers!
-    %
     % @change{0,3,sa,2011-04-16} Implemented Setter for the property 'off'
+    %
+    % @todo IMPORTANT: Allow different kernels for different centers!
     
     properties
-        % The `b_k` offsets for each dimension.
-        %
-        % Set to empty if no offsets are used. This property is
-        % preinitialized to [].
-        %
-        % @propclass{data}
-        %
-        % See also: Ma
-        off = [];
-    end
-    
-    properties(Dependent)
         % The coefficient data for each dimension.
         %
         % @propclass{data}
         Ma;
     end
     
-    properties(Access=private)
-        machanged = true;
-        fMa;
+    properties(SetAccess=private, Dependent)
         Ma_norms;
     end
     
@@ -46,17 +33,11 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
             
             this.CustomProjection = true;
             
-            this.registerProps('off','Ma');
+            this.registerProps('Ma');
         end
         
         function fx = evaluateCoreFun(this, x, t, mu)
-            % @todo: check for correct usage of the sets from kernel
-            % expansions in error estimators! (not yet considered)            
-            if ~isempty(this.off)
-                fx = this.Ma * this.evaluateAtCenters(x, t, mu)' + repmat(this.off,1,size(x,2));
-            else
-                fx = this.Ma * this.evaluateAtCenters(x, t, mu)';      
-            end
+            fx = this.Ma * this.evaluateAtCenters(x, t, mu)';
         end
         
         function J = getStateJacobian(this, x, t, mu)
@@ -70,16 +51,11 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
             J = this.Ma * N'; 
         end
         
-        function c = getGlobalLipschitz(this, t, mu)
+        function c = getGlobalLipschitz(this, t, mu)%#ok
             % @todo validate computation
-            
-            %k = abs(this.TimeKernel.evaluate(this.Centers.ti,t).*this.ParamKernel.evaluate(this.Centers.mui,mu));
-            if this.machanged
-                this.Ma_norms = sqrt(sum(this.Ma.^2,1));
-                this.machanged = false;
-            end
+            %abs(this.TimeKernel.evaluate(this.Centers.ti,t).*this.ParamKernel.evaluate(this.Centers.mui,mu));
             c = sum(this.Ma_norms) * this.SystemKernel.getGlobalLipschitz;
-            %warning('some:id','not yet implemented/validated correctly!');
+            warning('KerMor:globallipschitz','not yet implemented/validated correctly!');
         end
         
         function target = clone(this, target)
@@ -92,27 +68,11 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
             target = clone@dscomponents.AKernelCoreFun(this, target);
             
             % Copy local variables
-            target.fMa = this.fMa;
-            target.off = this.off;
+            target.Ma = this.Ma;
         end
         
-        function m = get.Ma(this)
-            m = this.fMa;
-        end
-        
-        function set.Ma(this, value)
-            if ~isempty(find(isnan(value),1))
-                error('Invalid coefficient values (NaN)');
-            end
-            this.machanged = true;
-            this.fMa = value;
-        end
-        
-        function set.off(this, value)
-            if ~isempty(find(isnan(value),1))
-                error('Invalid offset values (NaN)');
-            end
-            this.off = value;
+        function m = get.Ma_norms(this)
+            m = sqrt(sum(this.Ma.^2,1));
         end
     end
         
@@ -141,10 +101,6 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
             
             % Project coefficients & offsets
             copy.Ma = W' * this.Ma;
-            if ~isempty(this.off)
-                copy.off = W' * this.off;
-            end
-            
         end
     end
     

@@ -10,12 +10,12 @@ classdef BaseEstimator < KerMorObject & ICloneable
     %
     % @author Daniel Wirtz @date 24.11.2010
     
-    properties
+    properties(Dependent)
         % Flag that indicates whether error estimation is used or not.
         %
         % Default:
         % true
-        Enabled = true;
+        Enabled;
     end
     
     properties(SetAccess=protected)
@@ -40,6 +40,10 @@ classdef BaseEstimator < KerMorObject & ICloneable
     properties(Access=protected)
         % The reduced model associated with the error estimator.
         ReducedModel;
+    end
+    
+    properties(Access=private)
+        fEnabled = true;
     end
     
     methods
@@ -85,6 +89,19 @@ classdef BaseEstimator < KerMorObject & ICloneable
             end
             this.ReducedModel = value;
         end
+        
+        function set.Enabled(this, value)
+            if ~islogical(value)
+                error('Enabled property must be a boolean flag');
+            elseif ~value
+                this.LastError = [];
+            end
+            this.fEnabled = value;
+        end
+        
+        function value = get.Enabled(this)
+            value = this.fEnabled;
+        end
     end
     
     methods(Abstract)
@@ -121,6 +138,8 @@ classdef BaseEstimator < KerMorObject & ICloneable
             % later on.
             if isempty(error.LocalLipKernelEstimator.validModelForEstimator(model))
                 est = error.LocalLipKernelEstimator(model);
+            elseif isempty(error.TPWLLocalLipEstimator.validModelForEstimator(model))
+                est = error.TPWLLocalLipEstimator(model);
             elseif isempty(error.GlobalLipKernelEstimator.validModelForEstimator(model))
                 est = error.GlobalLipKernelEstimator(model);
             elseif isa(model.System.f,'models.synth.KernelTest')

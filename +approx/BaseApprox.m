@@ -46,7 +46,7 @@ classdef BaseApprox < dscomponents.ACoreFun
         
         function copy = clone(this, copy)
             copy = clone@dscomponents.ACoreFun(this, copy);
-            copy.TrainDataSelector = this.TrainDataSelector;
+            copy.TrainDataSelector = this.TrainDataSelector.clone;
         end
     end
     

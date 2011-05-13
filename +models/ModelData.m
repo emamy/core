@@ -1,14 +1,19 @@
 classdef ModelData < handle
-    % Data class that contains a model's large data
-    %
-    % @todo Implmement all setters with appropriate checks
-    %
-    % @change{0,1,dw} More common projection via matrices `V,W` instead of
-    % `V,V^t`.
-    % @change{0,3,dw,2011-04-01} 
-    % - Changed the old 'ProjTrainData' to 'TrainingData', as this property
-    % name describes the usage more precisely.
-    % - Changes
+% Data class that contains a model's large data
+%
+% @todo Implmement all setters with appropriate checks
+%
+% @change{0,1,dw} More common projection via matrices `V,W` instead of
+% `V,V^t`.
+% @change{0,3,dw,2011-04-01} 
+% - Changed the old 'ProjTrainData' to 'TrainingData', as this property
+% name describes the usage more precisely.
+%
+% This class is part of the framework
+% KerMor - Model Order Reduction using Kernels:
+% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+% - \c License @ref licensing
     
     properties
         % A Model's parameter samples
@@ -43,12 +48,15 @@ classdef ModelData < handle
         ApproxTrainData = [];
         
         % A Model's f (nonlinearity) - values at the snapshot points
+        %
+        % If `x_i` are the snapshot points in ApproxTrainData, this will equal `f(x_i)`. If subspace
+        % projection is used, this will equal `f(Vz_i)`.
         ApproxfValues = [];
         
-        % The projection matrix for the reduced subspace.
+        % The projection matrix `V` for the reduced subspace.
         V;
         
-        % The V-biorthogonal matrix for the reduced subspace (`W^tV=I_d`)
+        % The V-biorthogonal matrix `W` for the reduced subspace (`W^tV=I_d`)
         W;
     end
     

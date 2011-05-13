@@ -2,26 +2,40 @@ classdef BaseQPSolver < KerMorObject & ICloneable
     % Base class for any KerMor QP-Solver or QP-Wrapper
     %
     % Solvers solve quadratic programming problems of the form
-    % `\frac{1}{2}\beta Q\beta + c^t\beta` for `Q` positive definite
-    % @docupdate
+    % `\frac{1}{2}\beta Q\beta + c^t\beta` for `Q` positive definite matrices `Q`.
+    %
+    % @author Daniel Wirtz @date 27.10.2010
+    %
+    % @change{0,4,dw,2011-05-05} Included this class into @ref propclasses. Also set a default value
+    % for solvers.qp.BaseQPSolver.MaxIterations and a suggestion (For Verbose > 0) if it might be too small.
     %
     % @todo write tests for solvers incorporating different constraint
     % settings (equality, inequality, upper, lower etc)
-    %
-    %
-    % @author Daniel Wirtz @date 27.10.2010
     
-    properties
+    properties(SetObservable)
         % The maximum number of iterations.
+        %
         % If set to [], the number is automatically set to
         % <code>100*(size(Q,1)+size(A,1));</code>
-        MaxIterations;
+        %
+        % @propclass{alglimit} Works as an execution limit when the qp does not converge.
+        %
+        % @default 5000
+        MaxIterations = 5000;
         
         % The name of the Solver
+        %
+        % @propclass{optional} The qp solver's name.
         Name = 'Not specified - BaseQPSolver';
     end
     
     methods
+        
+        function this = BaseQPSolver
+            this = this@KerMorObject;
+            
+            this.registerProps('MaxIterations','Name');
+        end
         
         function target = clone(this, target)
             if nargin == 1
@@ -56,11 +70,11 @@ classdef BaseQPSolver < KerMorObject & ICloneable
             % # NumConstraints
             
             % Check for MaxIterations
-            it = this.MaxIterations;
-            if isempty(it)
+            if KerMor.App.Verbose > 0
                 it = 100*(size(Q,1)+size(A,1));
-                fprintf('%s: No MaxIterations set, assuming MaxIterations=%d\n',this.Name,it);
-                this.MaxIterations = it;
+                if this.MaxIterations < it
+                    fprintf('%s: MaxIterations of %d smaller than recommended value %d.\n',this.Name,this.MaxIterations,it);
+                end
             end
             
             if nargin < 9
