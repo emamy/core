@@ -64,7 +64,14 @@ classdef ASelector < KerMorObject & ICloneable
                 %error('The subclass does not set the LastUsed property after selection. Please implement in order for other KerMor classes to work properly.');
             end
         end
-    end
+        
+        function set.LastUsed(this, value)
+            if ~isposintmat(value)
+                error('The LastUsed property must contain a matrix with positive integer indices');
+            end
+            this.LastUsed = value;
+        end
+    end   
     
     methods(Abstract, Access=protected)
         % Template method for subclasses to specify selection behaviour.

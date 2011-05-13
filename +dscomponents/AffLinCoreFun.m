@@ -18,10 +18,6 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLipschitz
             this.afflinfcn = general.AffLinFcn;
         end
         
-        function updateSimConstants(this)%#ok
-            % Nothing to do here.
-        end
-        
         function fx = evaluateCoreFun(this, x, t, mu)
             fx = this.afflinfcn.evaluate(t,mu)*x;
         end

@@ -15,6 +15,8 @@ classdef TimeSelector < approx.selection.ASelector
 % KerMorObject.registerProps.
 % - Also implemented the ICloneable interface.
 %
+% @change{0,3,sa,2011-04-20} Implemented Setters for the class properties.
+%
 % @new{0,3,dw,2011-04-12} Added this class for a selection of training samples that utilizes time
 % information.
 %
@@ -91,6 +93,22 @@ classdef TimeSelector < approx.selection.ASelector
                 atd = sn;
                 this.LastUsed = 1:size(sn,2);
             end
+        end
+    end
+    
+    methods           
+        function set.Size(this, value)
+            if ~isposintscalar(value)
+                error('The value must be a finite positive integer.');
+            end
+            this.Size = value;
+        end
+        
+        function set.Seed(this, value)
+            if ~isreal(value)
+                error('The value must be a real value.');
+            end
+            this.Seed = value;
         end
     end
 end

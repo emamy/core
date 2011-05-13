@@ -33,6 +33,24 @@ classdef ICloneable < handle
     %
     % See also: ALoadable
     
+%     methods(Access=protected)
+%         function cloneLocalProps(this, target, classname)
+%             mc = metaclass(this);
+%             for i=1:length(mc.Properties)
+%                 p = mc.Properties{i};
+%                 % If the property was defined in this class
+%                 if strcmp(p.DefiningClass.Name, classname)
+%                     lp = this.(p.Name);
+%                     if isa(lp,'ICloneable')
+%                         target.(p.Name) = lp.clone;
+%                     else
+%                         target.(p.Name) = lp;
+%                     end
+%                 end
+%             end
+%         end
+%     end
+    
     methods(Abstract)
         copy = clone(this, target)
     end

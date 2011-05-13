@@ -8,6 +8,9 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.IKernelCoeffComp
     % 2002
     %
     % @author Daniel Wirtz @date 11.03.2010
+    %
+    % @change{0,3,sa,2011-05-07} Implemented Setter for the properties of
+    % this class
     
     properties
         % The kernel matrix to use.
@@ -72,8 +75,32 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.IKernelCoeffComp
         end
         
         function set.K(this, value)
+            if ~isa(value, 'double')
+                error('Value must be a double matrix');
+            end
             % Make matrix symmetric (can be false due to rounding errors)
             this.K = .5*(value + value');
+        end
+        
+        function set.C(this, value)
+            if ~isposrealscalar(value)
+                error('Value must be a positive real scalar');
+            end
+            this.C = value;
+        end
+        
+        function set.AlphaMinValue(this, value)
+            if ~isposrealscalar(value)
+                error('Value must be a positive real scalar');
+            end
+            this.AlphaMinValue = value;
+        end
+        
+        function set.QPSolver(this, value)
+            if ~isa(value,'solvers.qp')
+                error('The given value has to be a solvers.qp instance.');
+            end            
+            this.QPSolver = value;
         end
         
         %% approx.IKernelCoeffComp interface members

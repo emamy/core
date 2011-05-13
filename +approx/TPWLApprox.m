@@ -18,6 +18,8 @@ classdef TPWLApprox < approx.BaseApprox
 % @new{0,4,dw,2011-05-06} Finished the TPWL implementation. Multiargument-evaluations now work
 % and the WeightFun was set to the TPWL source papers default `e^{-\beta \frac{d_i}{m}}`.
 %
+% @change(0,3,sa,2011-04-21) Implemented Setters for the properties
+%
 % This class is part of the framework
 % KerMor - Model Order Reduction using Kernels:
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
@@ -46,14 +48,34 @@ classdef TPWLApprox < approx.BaseApprox
         Ai;
         bi;
         GaussWeight;
+        fBeta;
     end
     
-    methods
+    methods        
+        function set.MinWeightValue(this, value)
+            if ~isposrealscalar(value)
+                error('MinWeightValue must be a positive real scalar');
+            end
+            this.MinWeightValue = value;
+        end
         
+        function set.Beta(this, value)
+            if ~isposrealscalar(value)
+                error('Beta must be a positive real scalar.');
+            end
+            this.fBeta = value;
+            this.GaussWeight.Gamma = 1/sqrt(value);
+        end
+        
+        function value = get.Beta(this)
+            value = this.fBeta;
+        end
+                
         function this = TPWLApprox
             this = this@approx.BaseApprox;
             
             % Beta from Paper is e^{-25 d/m}, for gauss: e^{d/(m*g^2)}, so g=.2
+            % Initialize the gaussian weight with what ever Beta is set to
             this.GaussWeight = kernels.GaussKernel(1/sqrt(this.Beta));
             this.registerProps('Beta','MinWeightValue');
             

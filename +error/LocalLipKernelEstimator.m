@@ -3,24 +3,27 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
     % lipschitz constants.
     %
     % Implementation as in [WH10], but with updated ExtraODEDims and numerical computation.
-    %
+    %    
     % Model requirements:
     % ReducedModel.System.f is an instance of AKernelCoreFun
     % FullModel.Approx is an instance of CompwiseKernelCoreFun
     %
     % @author Daniel Wirtz @date 2010-08-10
     %
-    % @new{0,1,dw,2010-08-10} Added this class.
-    %
     % @change{0,3,dw,2011-05-02} Changed the implementation of the evalODEPart so that only two
     % extra ODE dimensions are needed. This avoids NaN entries when exponential values grow too big.
+    %
+    % @change(0,3,sa,2011-04-23) Implemented Setters for the properties KernelLipschitzFcn
+    % and UseTimeDiscreteC
+    %
+    % @new{0,1,dw,2010-08-10} Added this class.
     %
     % This class is part of the framework
     % KerMor - Model Order Reduction using Kernels:
     % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
     % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
     % - \c License @ref licensing
-    
+
     properties
         % The internal kernel Lipschitz function to use.
         %
@@ -218,6 +221,13 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
             this.divals = [];
         end
         
+        function set.KernelLipschitzFcn(this, value)
+            if ~isa(value,'function_handle')
+                error('KernelLipschitzFcn must be a function handle.');
+            end
+            this.KernelLipschitzFcn = value;
+        end
+        
         function set.Iterations(this, value)
             if value > 0 && (isa(this.ReducedModel.ODESolver,'solvers.ode.MLWrapper') || isa(this.ReducedModel.ODESolver,'solvers.ode.MLode15i'))%#ok
                 warning('errorEst:LocalLipEst',...
@@ -225,6 +235,13 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
                 this.Iterations = 0;
             end
             this.Iterations = value;
+        end
+        
+        function set.UseTimeDiscreteC(this, value)
+            if ~islogical(value)
+                error('The value must be a logical');
+            end
+            this.UseTimeDiscreteC = value;
         end
     end
     

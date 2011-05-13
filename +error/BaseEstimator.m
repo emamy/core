@@ -9,6 +9,9 @@ classdef BaseEstimator < KerMorObject & ICloneable
     %   estimates.
     %
     % @author Daniel Wirtz @date 24.11.2010
+    %
+    % @change{0,3,sa,2011-04-23} Implemented Setters for the properties of
+    % this class other than ReducedModel
     
     properties(Dependent)
         % Flag that indicates whether error estimation is used or not.
@@ -81,6 +84,17 @@ classdef BaseEstimator < KerMorObject & ICloneable
             copy.Enabled = this.Enabled;
             % No cloning of the associated reduced model.
             copy.ReducedModel = this.ReducedModel;
+        end
+              
+        function set.LastError(this, value)
+            this.LastError = value;
+        end
+        
+        function set.ExtraODEDims(this, value)
+            if ~isposintscalar(value) && value ~= 0
+                error('The value must be 0 or positive integer');
+            end
+            this.ExtraODEDims = value;            
         end
         
         function set.ReducedModel(this, value)

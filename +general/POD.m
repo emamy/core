@@ -8,6 +8,8 @@ classdef POD < KerMorObject
     %
     % See also: Mode Value
     %
+    % @change{0,4,sa,2011-05-06} Implemented Setter for UseSVDS flag
+    %
     % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
     % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
     % extended constructor registering any user-relevant properties using
@@ -159,6 +161,13 @@ classdef POD < KerMorObject
             if any(isnan(podvec(:)))
                 error('NaN values occured in POD vectors.');
             end
+        end
+        
+        function set.UseSVDS(this, value)
+            if ~islogical(value)
+                error('Value should be logical');
+            end
+            this.UseSVDS = value;
         end
         
         function set.Mode(this, value)

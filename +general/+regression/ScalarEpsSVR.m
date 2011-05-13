@@ -1,16 +1,18 @@
 classdef ScalarEpsSVR < general.regression.BaseScalarSVR
-    %SCALARSVR Scalar support vector regression.
-    %
-    %  Implementation details can be found in Daniel's Scratch
-    %  Tex-Collection; it basically combines aspects from the books
-    %  B. Schölkopf & A. Smola's "Learning with Kernels" and
-    %  "Support Vector Machines" from I. Steinwart & A. Christman
-    %
-    % @author Daniel Wirtz @date 11.03.2010
-    %
-    % @change{0,4,dw,2011-05-03} Removed the `b` offset terms from the SVM formulation (i.e.
-    % removing the equality constraint for the coefficient vectors) as kernel expansions no longer
-    % use offset terms.
+%ScalarEpsSVR: Scalar support vector regression.
+%
+%  Implementation details can be found in Daniel's Scratch
+%  Tex-Collection; it basically combines aspects from the books
+%  B. Schölkopf & A. Smola's "Learning with Kernels" and
+%  "Support Vector Machines" from I. Steinwart & A. Christman
+%
+% @author Daniel Wirtz @date 11.03.2010
+%
+% @change{0,4,sa,2011-05-06} Implemented Setter for the property eps
+%
+% @change{0,4,dw,2011-05-03} Removed the `b` offset terms from the SVM formulation (i.e.
+% removing the equality constraint for the coefficient vectors) as kernel expansions no longer
+% use offset terms.
     
     properties
         % The margin for the approximation-to-source distance.
@@ -21,7 +23,6 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
     end
     
     methods
-        
         function this = ScalarEpsSVR
             % Default constructor. Calls superconstructor to initialize
             % properties
@@ -47,13 +48,20 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             ub = ones(2*m,1)*(this.C/m);
             
             % Call solver
-            [p,d,info] = this.QPSolver.solve(Q,c,lb,ub,[],[],[],x0);
+            p = this.QPSolver.solve(Q,c,lb,ub,[],[],[],x0);
             
             % Convert results
             ai = T*p;
             svidx = find(abs(ai) ./ max(abs(ai)) > this.AlphaRelMinValue);
             ai = ai(svidx);
             ep = this.eps;
+        end
+        
+        function set.eps(this, value)
+            if ~isposrealscalar(value)
+                error('Value must be a positive real scalar');
+            end
+            this.eps = value;
         end
     end
     

@@ -1,25 +1,27 @@
 classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
-    % Adaptive component-wise kernel approximation algorithm
-    %
-    %
-    % @author Daniel Wirtz @date 2011-03-31
-    %
-    % See also: BaseApprox BaseCompWiseKernelApprox
-    %
-    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
-    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
-    % extended constructor registering any user-relevant properties using
-    % KerMorObject.registerProps.
-    %
-    % @change{0,3,dw,2011-04-14}
-    % - Implemented some setters
-    % - New property approx.AdaptiveCompWiseKernelApprox.ValidationPercent enabling a validation set
-    % to check for best gammas
-    %
-    % @change{0,3,dw,2011-04-06} Now works with models that dont have any
-    % parameters.
-    %
-    % @new{0,3,dw,2011-04-01} Added this class.
+% Adaptive component-wise kernel approximation algorithm
+%
+% @author Daniel Wirtz @date 2011-03-31
+%
+% See also: BaseApprox BaseCompWiseKernelApprox
+%
+% @change{0,3,sa,2011-04-21} Implemented Setters for all the properties
+% other than NumGammas and ValidationPercent
+%
+% @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+% supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+% extended constructor registering any user-relevant properties using
+% KerMorObject.registerProps.
+%
+% @change{0,3,dw,2011-04-14}
+% - Implemented some setters
+% - New property approx.AdaptiveCompWiseKernelApprox.ValidationPercent enabling a validation set
+% to check for best gammas
+%
+% @change{0,3,dw,2011-04-06} Now works with models that dont have any
+% parameters.
+%
+% @new{0,3,dw,2011-04-01} Added this class.
     
     properties(SetObservable)
         % The maximum size of the expansion to produce.
@@ -109,28 +111,17 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             
             target = clone@approx.BaseCompWiseKernelApprox(this, target);
             
+            %this.cloneLocalProps(target,mfilename('class'));
             % copy local props
             copy.MaxExpansionSize = this.MaxExpansionSize;
             copy.NumGammas = this.NumGammas;
-            %copy.dfact = this.dfact;
             copy.gameps = this.gameps;
             copy.MaxRelErr = this.MaxRelErr;
             copy.MaxAbsErrFactor = this.MaxAbsErrFactor;
             copy.MaxErrors = this.MaxErrors;
-        end       
-        
-        function set.ValidationPercent(this, value)
-            if ~isposrealscalar(value) || value > .5
-                error('The value must be a positive scalar inside the interval ]0,.5[');
-            end
-            this.ValidationPercent = value;
-        end
-        
-        function set.NumGammas(this,value)
-            if ~isposintscalar(value)
-                error('Value must be a positive integer.');
-            end
-            this.NumGammas = value;
+            copy.ValidationPercent = this.ValidationPercent;
+            copy.ErrFun = this.ErrFun;
+            copy.effabs = this.effabs;
         end
     end
     
@@ -403,6 +394,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                 figure;
                 plot(this.MaxErrors,'r');
             end
+        
             
             function [val,idx,errs] = getLInftyErr(a,b)
                 % computes the 'L^\infty'-approximation error over the
@@ -424,7 +416,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                 d = linspace(from,to,this.NumGammas);
             end
             
-            function d = logsp(from, to)%#ok
+            function d = logsp(from, to)
                 d = logspace(log10(from),log10(to),this.NumGammas);
             end
             
@@ -464,12 +456,62 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                     hold on;
                     if size(this.Centers.mui,2) > 1
                         plot(this.Centers.mui(:,1:end-1),'.','MarkerSize',2);
-                    end
-                    plot(this.Centers.mui(:,end),'r*','MarkerSize',3);
+                    end                  
+                    pause;
                 end
-                
-                pause;
             end
+        end 
+    end
+    
+    %% Getter & Setter
+    methods
+        function set.ValidationPercent(this, value)
+            if ~isposrealscalar(value) || value > .5
+                error('The value must be a positive scalar inside the interval ]0,.5[');
+            end
+            this.ValidationPercent = value;
+        end
+        
+        function set.NumGammas(this,value)
+            if ~isposintscalar(value)
+                error('Value must be a positive integer.');
+            end
+            this.NumGammas = value;
+        end
+        
+        function set.MaxExpansionSize(this, value)
+            if ~isposintscalar(value)
+                error('Value must be a positive integer.');
+            end
+            this.MaxExpansionSize = value;
+        end
+                              
+        function set.gameps(this, value)
+            if ~isposrealscalar(value)
+                error('The value must be a positive scalar');
+            end
+            this.gameps = value;
+        end
+        
+        function set.MaxRelErr(this, value)
+            if ~isposrealscalar(value)
+                error('The value must be a positive scalar');
+            end
+            this.MaxRelErr = value;
+        end
+        
+        function set.MaxAbsErrFactor(this, value)
+            if ~isposrealscalar(value)
+                error('The value must be a positive scalar');
+            end
+            this.MaxAbsErrFactor = value;
+        end
+        
+        function set.ErrFun(this, value)
+            if ~(value == 1 || value == 2)
+                error('Value must be either integer 1 or 2.');
+            end
+            this.ErrFun = value;
         end
     end
     

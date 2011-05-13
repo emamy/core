@@ -3,6 +3,8 @@ classdef DefaultCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
     %
     % @author Daniel Wirtz @date 2011-03-31
     %
+    % @change(0,3,sa,2011-04-21) Implemented Setter for the class property
+    %
     % See also: BaseApprox BaseCompWiseKernelApprox
     %
     % @new{0,3,dw,2011-03-31} Added this class to keep old approximation
@@ -19,6 +21,13 @@ classdef DefaultCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
     end
     
     methods
+        function set.ApproxExpansionSize(this, value)
+            if ~isposintscalar(value)
+                error('The value should be a positive integer');
+            end
+            this.ApproxExpansionSize = value;
+        end
+        
         function target = clone(this)
             % Clones the instance.
             

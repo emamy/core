@@ -161,7 +161,7 @@ classdef BaseDynSystem < KerMorObject
             % See also: setConfig Inputs Params
                         
             y = this.f.evaluate(x,t,this.mu);
-            if isempty(this.u)
+            if ~isempty(this.u)
                 y = y + this.B.evaluate(t,this.mu)*this.u(t);    
             end
         end

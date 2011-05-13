@@ -1,13 +1,15 @@
 classdef BaseApprox < dscomponents.ACoreFun
     % Abstract base class for all core function approximations
     %
-    % Simply provides two methods: 
+    % Simply provides two methods:
     % - selectTrainingData: Used to select a (sub-)set of the training data
     % - approximateCoreFun: Abstract template method that performs the
     % actual approximation. Possible algorithms may be i.e. component-wise
     % approximation, multidimensional approximation or any other.
     %
     % @author Daniel Wirtz @date 2010-03-11
+    %
+    % --? @change{0,3,sa,2011-04-21} Implemented Setter for the property
     %
     % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
     % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
@@ -33,15 +35,20 @@ classdef BaseApprox < dscomponents.ACoreFun
         %
         % @default approx.selection.TimeSelector
         %
+        % @type approx.selection.ASelector
+        %
         % See also: DefaultSelector LinspaceSelector TimeSelector
         TrainDataSelector;
     end
     
     methods
+        function set.TrainDataSelector(this, value)
+            this.checkType(value, 'approx.selection.ASelector');%#ok
+            this.TrainDataSelector = value;
+        end
+        
         function this = BaseApprox
             this.TrainDataSelector = approx.selection.TimeSelector;
-            
-            this.registerProps('TrainDataSelector');
         end
         
         function copy = clone(this, copy)
