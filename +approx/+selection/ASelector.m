@@ -1,4 +1,4 @@
-classdef ASelector < handle
+classdef ASelector < KerMorObject & ICloneable
     % Base interface for any approximation training data selection algorithm
     %
     % @attention Any subclass must set the LastUsed property to the indices corresponding to the
@@ -10,8 +10,10 @@ classdef ASelector < handle
     % 
     % @author Daniel Wirtz @date 2011-04-12
     %
-    % @change{0,3,sa,2011-04-20} Implemented Setter for the property
-    % LastUsed
+    % @new{0,4,dw,2011-05-04} Integrated this class to the property default value changed
+    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+    % extended constructor registering any user-relevant properties using
+    % KerMorObject.registerProps.
     %
     % @new{0,3,dw,2011-04-12} Added this class to implement strategy
     % pattern for training data selection.
@@ -20,11 +22,23 @@ classdef ASelector < handle
         % The indices of the selected approximation training data of the last call to
         % selectTrainingData.
         %
+        % @propclass{data}
+        %
         % @default []
         LastUsed = [];
     end
     
     methods
+        
+        function this = ASelector
+            this = this@KerMorObject;
+            this.registerProps('LastUsed');
+        end
+        
+        function copy = clone(this, copy)
+            copy.LastUsed = this.LastUsed;
+        end
+        
         function atd = selectTrainingData(this, model)
             % Performs the selection procedure
             % 
@@ -44,16 +58,16 @@ classdef ASelector < handle
             end
             atd = this.select(model);
             
-            % too slow on large sets!
-            %this.LastUsed = general.Utils.findVecInMatrix(model.Data.TrainingData,atd);
             if isempty(this.LastUsed)
-                error('The subclass does not set the LastUsed property after selection. Please implement in order for other KerMor classes to work properly.');
+                warning('KerMor:TrainDataSelection','TrainDataSelector did not set the LastUsed property.\nComputing automatically, which ist very slow for large data sets!');
+                this.LastUsed = general.Utils.findVecInMatrix(model.Data.TrainingData,atd);
+                %error('The subclass does not set the LastUsed property after selection. Please implement in order for other KerMor classes to work properly.');
             end
         end
         
         function set.LastUsed(this, value)
-            if isempy(value)
-                error('The LastUsed property is empty by default. Please change in order for other KerMor classes to work properly.');
+            if ~isposintmat(value)
+                error('The LastUsed property must contain a matrix with positive integer indices');
             end
             this.LastUsed = value;
         end

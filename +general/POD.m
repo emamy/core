@@ -8,12 +8,12 @@ classdef POD < KerMorObject
     %
     % See also: Mode Value
     %
+    % @change{0,4,sa,2011-05-06} Implemented Setter for UseSVDS flag
+    %
     % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
     % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
     % extended constructor registering any user-relevant properties using
     % KerMorObject.registerProps.
-    %
-    % @change{0,3,sa,2011-05-06} Implemented Setter for UseSVDS flag
     %
     % @todo - Create fixed random number stream for reproducable results!
     % - make Value property dependent and check in setter depending on Mode value!

@@ -1,7 +1,7 @@
 classdef BaseApprox < dscomponents.ACoreFun
     % Abstract base class for all core function approximations
     %
-    % Simply provides two methods: 
+    % Simply provides two methods:
     % - selectTrainingData: Used to select a (sub-)set of the training data
     % - approximateCoreFun: Abstract template method that performs the
     % actual approximation. Possible algorithms may be i.e. component-wise
@@ -35,25 +35,25 @@ classdef BaseApprox < dscomponents.ACoreFun
         %
         % @default approx.selection.TimeSelector
         %
+        % @type approx.selection.ASelector
+        %
         % See also: DefaultSelector LinspaceSelector TimeSelector
         TrainDataSelector;
     end
     
     methods
-       % function set.TrainDataSelector(this, value)
-       %     if ~isa(value, 'approx.selection')
-       %        error('Value should be a valid Matlab object that gives the required algorithm'); 
-       %     end
-       %     this.TrainDataSelector = value;
-       % end
-            
+        function set.TrainDataSelector(this, value)
+            this.checkType(value, 'approx.selection.ASelector');%#ok
+            this.TrainDataSelector = value;
+        end
+        
         function this = BaseApprox
             this.TrainDataSelector = approx.selection.TimeSelector;
-        end 
-  
+        end
+        
         function copy = clone(this, copy)
             copy = clone@dscomponents.ACoreFun(this, copy);
-            copy.TrainDataSelector = this.TrainDataSelector;
+            copy.TrainDataSelector = this.TrainDataSelector.clone;
         end
     end
     

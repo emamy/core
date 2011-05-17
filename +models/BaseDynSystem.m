@@ -15,6 +15,12 @@ classdef BaseDynSystem < KerMorObject
     %
     % @author Daniel Wirtz @date 17.03.2010
     %
+    % @change{0,4,dw,2011-05-13} Created new transient properties models.BaseDynSystem.mu and
+    % models.BaseDynSystem.u in order to store the current `\mu` and `u(t)` used for simulations on
+    % a higher level. Removed the old 'getODEFun' function and replaced it by a direct
+    % implementation 'ODEFun'. This enables to avoid nested function handles with in turn allow for
+    % a speedup of reduced simulations by almost a factor of 2.
+    %
     % @change{0,3,dw,2011-05-03} Moved the x0 property into an abstract function. This way
     % subclasses must implmement the x0 function and is not only warned by the DPCS that it should
     % be set.
@@ -82,6 +88,14 @@ classdef BaseDynSystem < KerMorObject
         StateScaling = 1;
     end
     
+    properties(SetAccess=private, Transient)
+        % The current parameter `\mu` for simulations, [] is none used.
+        mu = [];
+        
+        % The current input function `u(t)` as function handle, [] if none used.
+        u = [];
+    end
+    
     properties(SetAccess=private, Dependent)
         % The number of inputs available.
         InputCount;
@@ -94,7 +108,7 @@ classdef BaseDynSystem < KerMorObject
         % The Model this System is attached to.
         Model;
     end
-    
+        
     methods      
         function this = BaseDynSystem(model)
             % Creates a new base dynamical system class instance.
@@ -108,24 +122,47 @@ classdef BaseDynSystem < KerMorObject
             % Register default properties
             this.registerProps('f','B','C','Inputs','Params','MaxTimestep','StateScaling');
         end
-        
-        function odefun = getODEFun(this, mu, inputidx)
-            % Generates the ODE function for a specific parameter mu and
-            % given input index.
+       
+        function setConfig(this, mu, inputidx)
+            % Sets the dynamical system's configuration
             %
-            % Depending on the system mu may be [] and is forwarded to the
-            % evaluate function of the system's components.
-            % Analogue the inputidx may be empty to force skipping the
-            % system's input; however, if no inputconv component is set
-            % this is ignored in any case.
+            % With configuration are meant the parameter `\mu` and input `u(t)` that effectively
+            % results in a different dynamical system.
+            %
+            % Parameters:
+            % mu: The current parameter `\mu\in\P`. Must be a column vector of the same length as
+            % configured parameters. Leave empty if none are used.
+            % inputidx: The index of the input function `u(t)` to use. Must be a valid index for one
+            % of the cell elements of the Inputs property. Leave empty of none are used.
+            %
+            % See also: Inputs Params setParam addParam
+            if isempty(mu) && ~isempty(this.Params)
+                error('A model with parameters cannot be simulated without a parameter argument.');
+            elseif size(mu,1) ~= this.ParamCount
+                error('The mu vector size mismatches the defined parameter number.');
+            elseif size(mu,2) > 1
+                error('The mu parameter must be a single column vector.');
+            end
+            this.mu = mu;
+            
+            if isempty(inputidx) && ~isempty(this.Inputs)
+                warning('BaseModel:NoInputSpecified',['You must specify '...
+                    'an input index if inputs are set up. Using inputidx=1']);
+                inputidx = 1;
+            elseif inputidx > length(this.Inputs)
+                error('Invalid input index "%d". There are %d possible inputs configured.',inputidx,length(this.Inputs));
+            end
+            this.u = this.Inputs{inputidx};
+        end
+    
+        function y = ODEFun(this, t, x)
+            % Evaluates the ODE function for the currently set up parameter mu and input u.
+            %
+            % See also: setConfig Inputs Params
                         
-            % System without inputs
-            if this.InputCount == 0 || isempty(this.B)
-                odefun = @(t,x)(this.f.evaluate(x,t,mu));
-            else
-                % generates the ode function for given parameter and input function
-                u = this.Inputs{inputidx};
-                odefun = @(t,x)(this.f.evaluate(x,t,mu) + this.B.evaluate(t,mu)*u(t));
+            y = this.f.evaluate(x,t,this.mu);
+            if ~isempty(this.u)
+                y = y + this.B.evaluate(t,this.mu)*this.u(t);    
             end
         end
         
@@ -262,7 +299,7 @@ classdef BaseDynSystem < KerMorObject
             end
             this.Inputs = value;
         end
-        
+                
         function set.Params(this, value)
             if ~isa(value,'models.ModelParam');
                 error('Params property must be a ModelParam array.');

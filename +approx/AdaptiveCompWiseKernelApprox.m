@@ -1,27 +1,27 @@
 classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
-    % Adaptive component-wise kernel approximation algorithm
-    %
-    %
-    % @author Daniel Wirtz @date 2011-03-31
-    %
-    % See also: BaseApprox BaseCompWiseKernelApprox
-    %
-    % @change{0,3,sa,2011-04-21} Implemented Setters for all the properties
-    % other than NumGammas and ValidationPercent
-    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
-    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
-    % extended constructor registering any user-relevant properties using
-    % KerMorObject.registerProps.
-    %
-    % @change{0,3,dw,2011-04-14}
-    % - Implemented some setters
-    % - New property approx.AdaptiveCompWiseKernelApprox.ValidationPercent enabling a validation set
-    % to check for best gammas
-    %
-    % @change{0,3,dw,2011-04-06} Now works with models that dont have any
-    % parameters.
-    %
-    % @new{0,3,dw,2011-04-01} Added this class.
+% Adaptive component-wise kernel approximation algorithm
+%
+% @author Daniel Wirtz @date 2011-03-31
+%
+% See also: BaseApprox BaseCompWiseKernelApprox
+%
+% @change{0,3,sa,2011-04-21} Implemented Setters for all the properties
+% other than NumGammas and ValidationPercent
+%
+% @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+% supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+% extended constructor registering any user-relevant properties using
+% KerMorObject.registerProps.
+%
+% @change{0,3,dw,2011-04-14}
+% - Implemented some setters
+% - New property approx.AdaptiveCompWiseKernelApprox.ValidationPercent enabling a validation set
+% to check for best gammas
+%
+% @change{0,3,dw,2011-04-06} Now works with models that dont have any
+% parameters.
+%
+% @new{0,3,dw,2011-04-01} Added this class.
     
     properties(SetObservable)
         % The maximum size of the expansion to produce.
@@ -111,28 +111,17 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             
             target = clone@approx.BaseCompWiseKernelApprox(this, target);
             
+            %this.cloneLocalProps(target,mfilename('class'));
             % copy local props
             copy.MaxExpansionSize = this.MaxExpansionSize;
             copy.NumGammas = this.NumGammas;
-            %copy.dfact = this.dfact;
             copy.gameps = this.gameps;
             copy.MaxRelErr = this.MaxRelErr;
             copy.MaxAbsErrFactor = this.MaxAbsErrFactor;
             copy.MaxErrors = this.MaxErrors;
-        end       
-        
-        function set.ValidationPercent(this, value)
-            if ~isposrealscalar(value) || value > .5
-                error('The value must be a positive scalar inside the interval ]0,.5[');
-            end
-            this.ValidationPercent = value;
-        end
-        
-        function set.NumGammas(this,value)
-            if ~isposintscalar(value)
-                error('Value must be a positive integer.');
-            end
-            this.NumGammas = value;
+            copy.ValidationPercent = this.ValidationPercent;
+            copy.ErrFun = this.ErrFun;
+            copy.effabs = this.effabs;
         end
     end
     
@@ -229,7 +218,6 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             %% Set up initial expansion
             used = inIdx;
             this.Ma = fx(:,inIdx);
-            this.off = [];
             
             %% Choose initial gammas
             dists = [dfun(minfac*bxdia, fac*bxdia); dfun(minfac*btdia, fac*btdia)];
@@ -368,7 +356,6 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                         bestgt = gt;
                         bestgp = gp;
                         bestMa = this.Ma;
-                        bestoff = this.off;
                         if KerMor.App.Verbose > 2
                             fprintf(' b: %.5e, %3.2f%%',val,impro);
                         end
@@ -395,7 +382,6 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                     this.ParamKernel.Gamma = bestgp;
                 end
                 this.Ma = bestMa;
-                this.off = bestoff;
                 
                 if KerMor.App.Verbose > 1
                     fprintf('-- It: %d ---- Minerr: %f ----- Best values: System:%f, Time:%f, Param:%f ----------\n',cnt,minerr,bestgx,bestgt,bestgp);
@@ -408,6 +394,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                 figure;
                 plot(this.MaxErrors,'r');
             end
+        
             
             function [val,idx,errs] = getLInftyErr(a,b)
                 % computes the 'L^\infty'-approximation error over the
@@ -429,7 +416,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                 d = linspace(from,to,this.NumGammas);
             end
             
-            function d = logsp(from, to)%# ok
+            function d = logsp(from, to)
                 d = logspace(log10(from),log10(to),this.NumGammas);
             end
             
@@ -472,42 +459,18 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                     end                  
                     pause;
                 end
-     
-        end
-                        
-        function target = clone(this)
-            % Clones the instance.
-            
-            % Create instance as this is the final class so far. If
-            % subclassed, this clone method has to be given an additional
-            % target argument.
-            target = approx.AdaptiveCompWiseKernelApprox;
-            
-            target = clone@approx.BaseCompWiseKernelApprox(this, target);
-            
-            % copy local props
-            copy.MaxExpansionSize = this.MaxExpansionSize;
-            copy.NumGammas = this.NumGammas;
-            %copy.dfact = this.dfact;
-            copy.gameps = this.gameps;
-            copy.MaxRelErr = this.MaxRelErr;
-            copy.MaxAbsErrFactor = this.MaxAbsErrFactor;
-            copy.MaxErrors = this.MaxErrors;
-        end       
-        
-        function set.MaxExpansionSize(this, value)
-            if ~isposintscalar(value)
-                error('Value must be a positive integer.');
             end
-            this.MaxExpansionSize = value;
-        end
-        
+        end 
+    end
+    
+    %% Getter & Setter
+    methods
         function set.ValidationPercent(this, value)
             if ~isposrealscalar(value) || value > .5
                 error('The value must be a positive scalar inside the interval ]0,.5[');
             end
             this.ValidationPercent = value;
-        endd
+        end
         
         function set.NumGammas(this,value)
             if ~isposintscalar(value)
@@ -515,7 +478,14 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             end
             this.NumGammas = value;
         end
-                      
+        
+        function set.MaxExpansionSize(this, value)
+            if ~isposintscalar(value)
+                error('Value must be a positive integer.');
+            end
+            this.MaxExpansionSize = value;
+        end
+                              
         function set.gameps(this, value)
             if ~isposrealscalar(value)
                 error('The value must be a positive scalar');
@@ -550,7 +520,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             % Checks the stopping conditions 
             bool = false;
             if cnt == this.MaxExpansionSize
-                disp('AdaptiveCompWiseKernelApprox finished. Max expansion size reached.');
+                fprintf('AdaptiveCompWiseKernelApprox finished. Max expansion size %d reached.\n',this.MaxExpansionSize);
                 bool = true;
             elseif rel < this.MaxRelErr
                 fprintf('AdaptiveCompWiseKernelApprox finished. Relative error %.7e < %.7e\n',rel,this.MaxRelErr);

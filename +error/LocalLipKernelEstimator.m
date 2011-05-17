@@ -10,13 +10,13 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
     %
     % @author Daniel Wirtz @date 2010-08-10
     %
-    % @new{0,1,dw,2010-08-10} Added this class.
-    %
-    % @change{0,3,dw,2011-05-02} CLocalLipKernelEstimator.mLocalLipKernelEstimator.mLocalLipKernelEstimator.mLocalLipKernelEstimator.mLocalLipKernelEstimator.mLocalLipKernelEstimator.mLocalLipKernelEstimator.mLocalLipKernelEstimator.mLocalLipKernelEstimator.mhanged the implementation of the evalODEPart so that only two
+    % @change{0,3,dw,2011-05-02} Changed the implementation of the evalODEPart so that only two
     % extra ODE dimensions are needed. This avoids NaN entries when exponential values grow too big.
     %
     % @change(0,3,sa,2011-04-23) Implemented Setters for the properties KernelLipschitzFcn
     % and UseTimeDiscreteC
+    %
+    % @new{0,1,dw,2010-08-10} Added this class.
     %
     % This class is part of the framework
     % KerMor - Model Order Reduction using Kernels:
@@ -222,6 +222,9 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
         end
         
         function set.KernelLipschitzFcn(this, value)
+            if ~isa(value,'function_handle')
+                error('KernelLipschitzFcn must be a function handle.');
+            end
             this.KernelLipschitzFcn = value;
         end
         

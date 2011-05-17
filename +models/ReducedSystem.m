@@ -1,6 +1,13 @@
 classdef ReducedSystem < models.BaseDynSystem
-    %REDUCEDSYSTEM Summary of this class goes here
-    %   Detailed explanation goes here
+    %ReducedSystem: A KerMor reduced dynamical system.
+    % 
+    % @author Daniel Wirtz @date 17.03.2010
+    %
+    % @change{0,4,dw,2011-05-13} Removed the old 'getODEFun' function and replaced it by a direct
+    % implementation 'ODEFun'. This enables to avoid nested function handles with in turn allow for
+    % a speedup of reduced simulations by almost a factor of 2.
+    %
+    % See also: models.BaseDynSystem
     
     properties(Access=private)
         plotPtr;
@@ -93,32 +100,25 @@ classdef ReducedSystem < models.BaseDynSystem
                 end
             end
         end
-        
-        function odefun = getODEFun(this, mu, inputidx)
-            % Overrides the default implementation in BaseDynSystem and
-            % extends the functionality of the ODE function if any error
-            % estimators are enabled.
+                
+        function y = ODEFun(this, t, x)
+            % Overrides the default implementation in BaseDynSystem and extends the functionality of
+            % the ODE function if any error estimators are enabled.
             est = this.Model.ErrorEstimator;
-            if ~isempty(est)
-                if est.Enabled
-                    xdims = est.ExtraODEDims;
-                    % System without inputs
-                    if this.InputCount == 0 || isempty(this.B)
-                        odefun = @(t,x)([this.f.evaluate(x(1:end-xdims,:),t,mu); est.evalODEPart(x,t,mu)]);
-                    else
-                        % generates the ode function for given parameter and input function
-                        u = this.Inputs{inputidx};
-                        odefun = @(t,x)([this.f.evaluate(x(1:end-xdims,:),t,mu) + this.B.evaluate(t,mu)*u(t); est.evalODEPart(x,t,mu,u(t))]);
-                    end
-                    return;
-                else
-                    % Clear the last error
-                    est.clear;
+            if ~isempty(est) && est.Enabled
+                % Eval f part
+                y = this.f.evaluate(x(1:end-est.ExtraODEDims,:),t,this.mu);
+                % See if Bu is used
+                if ~isempty(this.u)
+                    y = y + this.B.evaluate(t,this.mu)*this.u(t);
                 end
+                % Extend by error estimator part
+                y = [y; est.evalODEPart(x,t,this.mu)];
+                return;
             end
-            % If no estimator is used or is disabled just call the "normal" ODE
-            % function generator from the base class.
-            odefun = getODEFun@models.BaseDynSystem(this, mu, inputidx);
+            % If no estimator is used or is disabled just call the "normal" ODE function from the
+            % base class.
+            y = ODEFun@models.BaseDynSystem(this, t, x);
         end
         
         function x = x0(this, mu)
@@ -147,16 +147,5 @@ classdef ReducedSystem < models.BaseDynSystem
             end
         end
     end
-    
-%     methods(Static,Access=protected)
-%         function obj = loadobj(s)
-%             obj = models.ReducedSystem;
-%             ALoadable.getObjectDict(s.ID) = obj;
-%             % Load BaseModel's properties
-%             obj = models.BaseDynSystem.loadobj(s, obj);
-%             % Load local properties
-%             obj.plotPtr = s.plotPtr;
-%         end
-%     end
 end
 

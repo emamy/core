@@ -3,16 +3,25 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
     %
     %  Implementation details can be found in Daniel's Scratch
     %  Tex-Collection; it basically combines aspects from the books
-    %  B. Schölkopf & A. Smola's "Learning with Kernels" and
+    %  B. Schölkopf & A. Smola's "Learning with Kernels" (p.260ff) and
     %  "Support Vector Machines" from I. Steinwart & A. Christman
     %
     % @author Daniel Wirtz @date 11.03.2010
+    %
+    % @change{0,4,dw,2011-05-04} Removed offset `b` terms from computations.
     
-    properties
+    properties(SetObservable)
         % The weighting factor for epsilon against slack variables.
         % Value may range between 0 < nu < 1.
         %
-        % Default: .4
+        % The `\nu` SVR parameter determines the resulting `\epsilon` value. `\nu` is an upper bound
+        % on the fraction of errors and a lower bound on the fraction of support vectors.
+        %
+        % @propclass{critical} Too low `\nu` parameters might result in too few support vectors and thus
+        % large `epsilon`. Is closely connected to the C property.
+        %
+        % @default .4
+        %
         % See also: C
         nu = .4;
     end
@@ -21,9 +30,10 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
         
         function this = ScalarNuSVR
             this = this@general.regression.BaseScalarSVR;
+            this.registerProps('nu');
         end
         
-        function [ai,b,svidx,epsi] = regress(this, fxi)
+        function [ai, svidx,epsi] = regress(this, fxi)
             %SCALAR_SVR Performs scalar support vector regression
             %
             % See also: KerMor
@@ -35,14 +45,14 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             fxi = reshape(fxi,m,[]);
             
             % Check for zero function
-            if all(abs(fxi) < eps)
-                svidx = 1;
-                ai = 0;
-                b = 0;
-                epsi = 0;
-                warning('ScalarNuSvr:ZeroFun','All sample y_i values are less than eps. Assuming zero function.');
-                return;
-            end
+%             if all(abs(fxi) < eps)
+%                 svidx = 1;
+%                 ai = 0;
+%                 b = 0;
+%                 epsi = 0;
+%                 warning('ScalarNuSvr:ZeroFun','All sample y_i values are less than eps. Assuming zero function.');
+%                 return;
+%             end
             
             % Problem setup
             
@@ -52,16 +62,15 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             
             Q = T'*this.K*T;
             c = - T'*fxi;
-            A = [ones(1,m) -ones(1,m); 
-                 ones(1,2*m)];
+            A = ones(1,2*m);
             
             % Starting point
             %x0 = ones(2*m,1)*this.C/(2*m);
             x0 = [];
             
             % Bounds
-            lbA = [0; 0];
-            ubA = [0; this.C * this.nu];
+            lbA = 0;
+            ubA = this.C * this.nu;
             lb = zeros(2*m,1);
             ub = ones(2*m,1)*(this.C/m);
             
@@ -70,14 +79,10 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             
             % Convert results
             ai = T*p;
-            b = -d(end-1);
+            %b = -d(end-1);
             epsi = -d(end);
-            svidx = find(abs(ai) >= this.AlphaMinValue);
-            if isempty(svidx) && any(fxi ~= 0)
-                error('No support vectors found. Problem unsolvable with current config?\nQuadprog exit flag:%d\nQuadprog out.message:%s',exitflag,out.message);
-            end
+            svidx = find(abs(ai) ./ max(abs(ai)) > this.AlphaRelMinValue);
             ai = ai(svidx);
-            
             
 %             %% Find "in-bound" SV's for eps/b computation
 %             aiP = a(1:m); % \alpha_i^+
@@ -154,24 +159,24 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             %fx = ones(size(x))*5;
             
             svr = general.regression.ScalarNuSVR;
-            svr.AlphaMinValue = 10*eps;
-            svr.nu = .5;
-            svr.C = 100000;
+            svr.nu = .1;
+            svr.C = 50;
+            %svr.QPSolver = solvers.qp.qpMatlab;
+            %svr.QPSolver = solvers.qp.qpMosek;
+            svr.QPSolver = solvers.qp.qpOASES;
             %kernel = kernels.PolyKernel(2);
             %kernel = kernels.LinearKernel;
             kernel = kernels.GaussKernel(1);
             svr.K = kernel.evaluate(x,x);
             
             figure(2);
-            [ai,b,svidx,epsi] = svr.regress(fx);
+            [ai, svidx,epsi] = svr.regress(fx);
             plot(x,fx,'r',x,[fx-epsi; fx+epsi],'r--');
             
             sv = x(:,svidx);
-            svfun = @(x)ai'*kernel.evaluate(sv,x) + b;
+            svfun = @(x)ai'*kernel.evaluate(sv,x);
             
             fsvr = svfun(x);
-            
-
             
             % Plot approximated function
             hold on;
@@ -180,18 +185,16 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             plot(sv,fx(svidx),'.r',x(skipped),fx(skipped),'xr');
 
             fdiff = abs(fsvr(svidx)-fx(svidx));
-            res = isempty(find(fdiff ./ max(fx(svidx)) > 1e-7,1));
+            errors = find(fdiff  < .999*epsi);
+            res = isempty(errors);
             if ~res
-                errors = find(fdiff > epsi);
                 plot(x(svidx(errors)),fx(svidx(errors)),'blackx','LineWidth',4);
             end
             
-            tit = sprintf('nu = %f, b = %f, epsilon = %f, #SV=%d',svr.nu,b,epsi,length(svidx));
+            tit = sprintf('nu = %f, epsilon = %f, #SV=%d',svr.nu,epsi,length(svidx));
             title(tit);
             disp(tit);
             hold off;
-            
-            
         end
         
         function res = test_ScalarNuSVR_to_EpsSVR

@@ -3,7 +3,7 @@ classdef AffLinFcn < KerMorObject
     %   Detailed explanation goes here
     % @ingroup general
     %
-    % @change{0,3,sa,2011-05-06} Implemented Setters for the class
+    % @change{0,4,sa,2011-05-06} Implemented Setters for the class
     % properties
     
     properties
@@ -34,12 +34,13 @@ classdef AffLinFcn < KerMorObject
             this.Matrices = value;
         end
         
-        function addSummand(this, mat)
-           
-            if ~isa(mat,'double')
-                error('Parameter "mat" must be a double matrix.');
+        function addSummand(this, coeff_fun, mat)
+            if ~isa(coeff_fun,'function_handle')
+                error('Coeff_fun must be a function handle.');
+            elseif ~isrealmat(mat)
+                error('Parameter "mat" must be a real matrix.');
             end
-            
+            this.Coefficients{end+1} = coeff_fun;
             this.Matrices{end+1} = mat;
         end
     end

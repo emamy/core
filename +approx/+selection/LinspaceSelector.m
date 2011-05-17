@@ -6,6 +6,10 @@ classdef LinspaceSelector < approx.selection.ASelector
 %
 % @author Daniel Wirtz @date 2011-04-12
 %
+% @new{0,4,dw,2011-05-06}
+% - Added this class to @ref propclasses.
+% - Implemented ICloneable interface.
+%
 % @new{0,3,dw,2011-04-12} Added this class to allow for homogeneous training data selection.
 %
 % This class is part of the framework
@@ -14,11 +18,33 @@ classdef LinspaceSelector < approx.selection.ASelector
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
     
-    properties
+    properties(SetObservable)
         % The (maximum) number of elements to take
+        %
+        % @propclass{critical} The amount of approximation training data to take.
         %
         % @default `\infty`
         Size = Inf;
+    end
+    
+    methods
+        
+        function this = LinspaceSelector
+            this.registerProps('Size');
+        end
+        
+        function copy = clone(this)
+            copy = approx.selection.LinspaceSelector;
+            copy = clone@approx.selection.ASelector(this, copy);
+            copy.Size = this.Size;
+        end
+        
+        function set.Size(this, value)
+            if ~isposintscalar(value)
+                error('The value must be a positive integer.');
+            end
+            this.Size = value;
+        end
     end
     
     methods(Access=protected,Sealed)
@@ -35,15 +61,5 @@ classdef LinspaceSelector < approx.selection.ASelector
             this.LastUsed = selection;
         end
     end
-    
-    methods
-        function set.Size(this, value)
-            if ~isposintscalar(value)
-                error('The value must be a positive integer.');
-            end
-            this.Size = value;
-        end
-    end
-    
 end
 

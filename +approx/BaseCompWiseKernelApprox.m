@@ -3,16 +3,18 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
     %Base class for component-wise kernel approximations
     %
     % For each dimension `k` there is a representation
-    % ``f_k(x) = \sum\limits_{i=1}^N \alpha_{k,i}\Phi(x,x_i) + b_k``
+    % ``f_k(x) = \sum\limits_{i=1}^N \alpha_{k,i}\Phi(x,x_i)``
     % for the approximation. The property cData contains in row `k` all
-    % indices `\alpha_k` used in the `k`-th dimension. off contains all
-    % `b_k`.
+    % indices `\alpha_k` used in the `k`-th dimension.
     %
     % The property Centers (inherited from
     % dscomponents.CompwiseKernelCoreFun) contains all state variable
     % Centers that are relevant for the evaluation of the approximated
     % function. (No matter how many originally have been used for the
     % approximation computation)
+    %
+    % @change{0,4,dw,2011-05-03} Removed off-property dependencies in computeCoeffs routines as
+    % expansion offsets are no longer used.
     %
     % @change{0,3,dw,2011-04-26} Implementing the approximateCoreFun in this class so that rescaling
     % of the function f values `f_{x_i}` can be used. Subclasses now implement the template method
@@ -78,21 +80,20 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
             
             fxi = model.Data.ApproxfValues;
             % Scale f-values if wanted
-            S = 1;
             if this.UsefScaling
                 [fm,fM] = general.Utils.getBoundingBox(fxi);
-                if any(fM == 0)
-                    warning('KerMor:Approx','Minimum one max fxi value is zero, cannot scale f.');
-                else
-                    S = diag(fM);
-                end
+                s = max(abs(fm),abs(fM));
+                s(s==0) = 1;
+                fxi = fxi ./ repmat(s,1,size(fxi,2));
             end
             
             % Call template method for component wise approximation
-            this.computeCompwiseApprox(model,S\fxi);
+            this.computeCompwiseApprox(model,fxi);
             
             % Rescale if set
-            this.Ma = S*this.Ma;
+            if this.UsefScaling
+                this.Ma = diag(s)*this.Ma;
+            end
             
             % Reduce the snapshot array and coeff data to the
             % really used ones! This means if any snapshot x_n is
@@ -192,19 +193,17 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
             n = size(this.Centers.xi,2);
             fdims = size(fxi,1);
             this.Ma = zeros(fdims, n);
-            this.off = zeros(fdims, 1);
             for fdim = 1:fdims
                 if KerMor.App.Verbose > 3
                     fprintf('Computing approximation for dimension %d/%d ... %2.0f %%\n',fdim,fdims,(fdim/fdims)*100);
                 end
                 % Call template method
-                [ai, b, svidx] = this.CoeffComp.computeKernelCoefficients(fxi(fdim,:));
+                [ai, svidx] = this.CoeffComp.computeKernelCoefficients(fxi(fdim,:));
                 if ~isempty(svidx)
                     this.Ma(fdim,svidx) = ai;
                 else
                     this.Ma(fdim,:) = ai;
                 end
-                this.off(fdim) = b;
             end
         end
         
@@ -214,7 +213,6 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
             fdims = size(fxi,1);
             fprintf('Starting parallel component-wise approximation computation of %d dimensions on %d workers...\n',fdims,matlabpool('size'));
             parAI = cell(fdims, n);
-            parOff = zeros(fdims, 1);
             parSV = cell(1,fdims);
             % Create handle to speedup communications (otherwise the
             % whole object will be copied to each worker)
@@ -223,8 +221,7 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
                 %waitbar(fdim/fdims+10,wh,sprintf('Computing
                 %approximation for dimension %d/%d ... %2.0f %%',fdim,fdims,(fdim/fdims)*100));
                 % Call template method
-                [parAI{fdim}, b, parSV{fdim}] = cfun(fxi(fdim,:));
-                parOff(fdim) = b;
+                [parAI{fdim}, parSV{fdim}] = cfun(fxi(fdim,:));
             end
             
             this.Ma = zeros(fdims, n);
@@ -235,7 +232,6 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
                     this.Ma(idx,:) = parAI{idx};
                 end
             end
-            this.off = parOff;
         end
     end
     

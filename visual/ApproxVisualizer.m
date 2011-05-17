@@ -22,7 +22,7 @@ function varargout = ApproxVisualizer(varargin)
 
 % Edit the above text to modify the response to help ApproxVisualizer
 
-% Last Modified by GUIDE v2.5 18-Apr-2011 13:05:28
+% Last Modified by GUIDE v2.5 05-May-2011 15:32:05
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -91,10 +91,9 @@ end
 if m.System.InputCount == 0
     setappdata(handles.main,'inidx',[]);
 else
-    setappdata(handles.main,'inidx',1);
+    setappdata(handles.main,'inidx',m.TrainingInputs(1));
 end
 setappdata(handles.main,'fidx',1);
-setappdata(handles.main,'factor',1);
 setappdata(handles.main,'mu',[]);
 
 % Plot default visualization
@@ -112,10 +111,16 @@ else
     set(h.pslide,'SliderStep',[1/(pc-1) 10/(pc-1)]);
 end
 if m.System.InputCount <= 1 
-    set(h.islide,'Enable','off');
+    set(h.islideF,'Enable','off');
 else
-    set(h.islide,'Max',m.System.InputCount,'Min',1,'Value',1);
-    set(h.islide,'SliderStep',[1/m.System.InputCount 10/m.System.InputCount]);
+    set(h.islideF,'Max',m.System.InputCount,'Min',1,'Value',1);
+    set(h.islideF,'SliderStep',[1/m.System.InputCount 10/m.System.InputCount]);
+end
+if m.TrainingInputCount <= 1 
+    set(h.islideS,'Enable','off');
+else
+    set(h.islideS,'Max',m.TrainingInputCount,'Min',1,'Value',1);
+    set(h.islideS,'SliderStep',[1/m.TrainingInputCount 10/m.TrainingInputCount]);
 end
 fdims = size(m.Data.ApproxTrainData,1)-3;
 set(h.fslide,'Max',fdims,'Value',1);
@@ -170,18 +175,19 @@ end
 function updateUserParam(h)
 r = getappdata(h.main,'r');
 pc = r.FullModel.System.ParamCount;
-mu = zeros(pc,1);
-slides = findobj(h.pnlParams,'Style','slider');
-for n=1:pc
-    if r.FullModel.System.Params(n).HasRange
-        mu(n) = get(slides(pc-n+1),'Value');
-    else
-        mu(n) = r.FullModel.System.Params(n).MinVal;
+if pc > 0
+    mu = zeros(pc,1);
+    slides = findobj(h.pnlParams,'Style','slider');
+    for n=1:pc
+        if r.FullModel.System.Params(n).HasRange
+            mu(n) = get(slides(pc-n+1),'Value');
+        else
+            mu(n) = r.FullModel.System.Params(n).MinVal;
+        end
     end
+    setappdata(h.main,'mu',mu);
+    currentToGUI(r,h);
 end
-setappdata(h.main,'mu',mu);
-set(h.txtUParam,'String',['[' sprintf('%2.3f ',mu) ']']);
-plotCurrent(h);
 
 function plotCurrent(h)
 
@@ -194,6 +200,9 @@ if get(h.rbS,'Value') == 1
     
     if get(h.chkFullData,'Value') == 1
         sn = d.TrainingData;
+        if ~isempty(r.V) && ~isempty(r.W)
+            sn(4:end,:) = r.V*(r.W'*sn(4:end,:));
+        end        
     else
         sn = d.ApproxTrainData;
     end
@@ -270,17 +279,17 @@ err = sqrt(sum((fxi-afxi).^2));
 errinf = max(abs(fxi-afxi));
 
 plot(ti,fxi,'r',ti,afxi,'b');
+legend('Orig. Fcn','Approx');
 
 % Plot extra markers for sampled data
 if get(h.rbS,'Value') == 1
-    factor = getappdata(h.main,'factor');
     nz = size(ti,2);
-    oldidx = 1:factor:nz;
+    idx = 1:nz;
     if get(h.chkCenters,'Value')
         centers = getappdata(h.main,'centers');
         if ~isempty(centers)
             hold on;
-            plot(ti(oldidx(centers)),fxi(oldidx(centers)),'o','MarkerEdgeColor','black',...
+            plot(ti(idx(centers)),afxi(idx(centers)),'o','MarkerEdgeColor','black',...
                 'MarkerFaceColor','r','MarkerSize',4);
             hold off;
         end
@@ -296,17 +305,28 @@ currentToGUI(getappdata(h.main,'r'),h);
 function currentToGUI(r,h)
 pidx = getappdata(h.main,'pidx');
 if ~isempty(pidx)
-    %set(h.pslide,'Value',pidx);
-    set(h.txtp,'String',['[' sprintf('%2.3f ',r.ParamSamples(:,pidx)) ']']);
+    if get(h.rbS,'Value') == 1
+        set(h.txtPSampled,'String',['Param: [' sprintf('%2.3f ',r.ParamSamples(:,pidx)) ']']);
+    else
+        set(h.txtPFull,'String',['Param: [' sprintf('%2.3f ',getappdata(h.main,'mu')) ']']);
+    end
 end
 inidx = getappdata(h.main,'inidx');
 if ~isempty(inidx)
-    %set(h.islide,'Value',inidx);
-    set(h.txti,'String',sprintf('%d',inidx));
+    r = getappdata(h.main,'r');
+    if get(h.rbS,'Value') == 1
+        % Might have more inputs than have been sampled.
+        if inidx > r.FullModel.TrainingInputCount
+            inidx = r.FullModel.TrainingInputs(end);
+            setappdata(h.main,'inidx',inidx);
+            set(h.txtISampled,'Value',inidx);
+        end
+        set(h.txtISampled,'String',sprintf('Input: %d/%d',inidx,max(r.FullModel.TrainingInputs)));
+    else
+        set(h.txtIFull,'String',sprintf('Input: %d/%d',inidx,r.System.InputCount));
+    end
 end
 set(h.txtf,'String',sprintf('%d',getappdata(h.main,'fidx')));
-set(h.txtg,'String',sprintf('%d',getappdata(h.main,'factor')));
-
 
 % --- Outputs from this function are returned to the command line.
 function varargout = ApproxVisualizer_OutputFcn(hObject, eventdata, handles)
@@ -317,7 +337,6 @@ function varargout = ApproxVisualizer_OutputFcn(hObject, eventdata, handles)
 
 % Get default command line output from handles structure
 varargout{1} = handles.output;
-
 
 % --- Executes on slider movement.
 function pslide_Callback(hObject, eventdata, handles)
@@ -332,7 +351,7 @@ setappdata(handles.main,'pidx',round(get(hObject,'Value')));
 plotCurrent(handles);
 
 % --- Executes during object creation, after setting all properties.
-function pslide_CreateFcn(hObject, eventdata, handles)
+function pslide_CreateFcn(hObject, eventdata, handles) %#ok<*INUSD>
 % hObject    handle to pslide (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
@@ -344,19 +363,22 @@ end
 
 
 % --- Executes on slider movement.
-function islide_Callback(hObject, eventdata, handles)
-% hObject    handle to islide (see GCBO)
+function islideS_Callback(hObject, eventdata, handles) %#ok<*DEFNU>
+% hObject    handle to islideS (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hints: get(hObject,'Value') returns position of slider
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-setappdata(handles.main,'inidx',round(get(hObject,'Value')));
+idx = round(get(hObject,'Value'));
+r = getappdata(handles.main,'r');
+idx = r.FullModel.TrainingInputs(idx);
+setappdata(handles.main,'inidx',idx);
 plotCurrent(handles);
 
 % --- Executes during object creation, after setting all properties.
-function islide_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to islide (see GCBO)
+function islideS_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to islideS (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -389,19 +411,33 @@ if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColo
 end
 
 % --- Executes on button press in rbS.
-function rbS_Callback(hObject, eventdata, handles)
-set(handles.rbU,'Value',0);
-set(handles.pnlParams,'Visible','off');
-set(handles.pslide,'Enable','on');
-set(handles.chkGlobal,'Visible','on');
-plotCurrent(handles);
+function rbS_Callback(hObject, eventdata, h)
+set(h.rbU,'Value',0);
+set(h.pnlParams,'Visible','off');
+r = getappdata(h.main,'r');
+if size(r.ParamSamples,2) > 1
+    set(h.pslide,'Enable','on');
+end
+if r.FullModel.TrainingInputCount > 1
+    set(h.islideS,'Enable','on');
+end
+set(h.chkGlobal,'Visible','on');
+set([h.islideF h.txtIFull h.txtPFull],'Enable','off');
+set([h.txtISampled h.txtPSampled h.chkCenters h.chkFullData],'Enable','on');
+plotCurrent(h);
 
-function rbU_Callback(hObject, eventdata, handles)
-set(handles.rbS,'Value',0);
-set(handles.pnlParams,'Visible','on');
-set(handles.pslide,'Enable','off');
-set(handles.chkGlobal,'Visible','off','Value',0);
-updateUserParam(handles);
+function rbU_Callback(hObject, eventdata, h)
+set(h.rbS,'Value',0);
+set(h.pnlParams,'Visible','on');
+set(h.chkGlobal,'Visible','off','Value',0);
+set([h.txtIFull h.txtPFull],'Enable','on');
+set([h.pslide h.txtISampled h.txtPSampled h.islideS h.chkCenters h.chkFullData],'Enable','off');
+r = getappdata(h.main,'r');
+if r.System.InputCount > 1
+    set(h.islideF,'Enable','on');
+end
+updateUserParam(h);
+plotCurrent(h);
 
 function chkFullData_Callback(hObject, eventdata, handles)
 if get(hObject,'Value') == 1 && isempty(getappdata(handles.main,'fxall'))
@@ -421,7 +457,7 @@ if get(hObject,'Value') == 1 && isempty(getappdata(handles.main,'fxall'))
 end
 plotCurrent(handles)
 
-function chkCenters_Callback(hObject, eventdata, handles)
+function chkCenters_Callback(hObject, eventdata, handles) %#ok<*INUSL>
 plotCurrentFxi(handles)
 
 function btnShowErr_Callback(hObject, eventdata, handles)
@@ -515,3 +551,26 @@ function btnSave_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 general.Utils.saveAxes(handles.image, '');
+
+
+% --- Executes on slider movement.
+function islideF_Callback(hObject, eventdata, handles)
+% hObject    handle to islideF (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+setappdata(handles.main,'inidx',round(get(hObject,'Value')));
+plotCurrent(handles);
+
+% --- Executes during object creation, after setting all properties.
+function islideF_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to islideF (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: slider controls usually have a light gray background.
+if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor',[.9 .9 .9]);
+end

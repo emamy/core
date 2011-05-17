@@ -1,17 +1,20 @@
 classdef ScalarEpsSVR < general.regression.BaseScalarSVR
-    %SCALARSVR Scalar support vector regression.
-    %
-    %  Implementation details can be found in Daniel's Scratch
-    %  Tex-Collection; it basically combines aspects from the books
-    %  B. Schï¿½lkopf & A. Smola's "Learning with Kernels" and
-    %  "Support Vector Machines" from I. Steinwart & A. Christman
-    %
-    % @author Daniel Wirtz @date 11.03.2010
-    %
-    % @change{0,3,sa,2011-05-06} Implemented Setter for the property
+%ScalarEpsSVR: Scalar support vector regression.
+%
+%  Implementation details can be found in Daniel's Scratch
+%  Tex-Collection; it basically combines aspects from the books
+%  B. Schölkopf & A. Smola's "Learning with Kernels" and
+%  "Support Vector Machines" from I. Steinwart & A. Christman
+%
+% @author Daniel Wirtz @date 11.03.2010
+%
+% @change{0,4,sa,2011-05-06} Implemented Setter for the property eps
+%
+% @change{0,4,dw,2011-05-03} Removed the `b` offset terms from the SVM formulation (i.e.
+% removing the equality constraint for the coefficient vectors) as kernel expansions no longer
+% use offset terms.
     
     properties
-        
         % The margin for the approximation-to-source distance.
         % Effectiveness also depends on C
         %
@@ -20,23 +23,13 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
     end
     
     methods
-        
         function this = ScalarEpsSVR
             % Default constructor. Calls superconstructor to initialize
             % properties
             this = this@general.regression.BaseScalarSVR;
         end
         
-        function set.eps(this, value)
-            if ~isposrealscalar(value)
-                error('Value must be a positive real scalar');
-            end
-            this.eps = value;
-        end
-        
-        function [ai,b,svidx,eps] = regress(this, fxi)
-            % Performs regression using the IPOPT package
-            
+        function [ai, svidx, ep] = regress(this, fxi)
             m = size(this.K,1);
             T = [diag(ones(1,m)) -diag(ones(1,m))];
             % Ensure fxi is a column vector
@@ -45,27 +38,30 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             % Problem setup
             Q = T'*this.K*T;
             c = (this.eps*ones(2*m,1) - T'*fxi);
-            A = [ones(1,m) -ones(1,m)];
             
             % Starting point
             %x0 = ones(2*m,1)*this.C/(2*m);
             x0 = [];
             
             % Bounds
-            lbA = 0;
-            ubA = 0;
             lb = zeros(2*m,1);
             ub = ones(2*m,1)*(this.C/m);
             
             % Call solver
-            [p,d,info] = this.QPSolver.solve(Q,c,lb,ub,A,lbA,ubA,x0);
+            p = this.QPSolver.solve(Q,c,lb,ub,[],[],[],x0);
             
             % Convert results
             ai = T*p;
-            b = -d(end);
-            svidx = find(abs(ai) >= this.AlphaMinValue);
+            svidx = find(abs(ai) ./ max(abs(ai)) > this.AlphaRelMinValue);
             ai = ai(svidx);
-            eps = this.eps;
+            ep = this.eps;
+        end
+        
+        function set.eps(this, value)
+            if ~isposrealscalar(value)
+                error('Value must be a positive real scalar');
+            end
+            this.eps = value;
         end
     end
     
@@ -95,9 +91,9 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             svr.eps = .1;
             svr.C = 10;
             %svr.QPSolver.MaxIterations = 1000;
-            %svr.QPSolver = solvers.qp.qpMatlab;
+            svr.QPSolver = solvers.qp.qpMatlab;
             %svr.QPSolver = solvers.qp.qpMosek;
-            svr.QPSolver = solvers.qp.qpOASES;
+            %svr.QPSolver = solvers.qp.qpOASES;
             %kernel = kernels.PolyKernel(2);
             %kernel = kernels.LinearKernel;
             kernel = kernels.GaussKernel(.7);
@@ -106,9 +102,9 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             figure;
             plot(x,fx,'r',x,[fx-svr.eps; fx+svr.eps],'r--');
             
-            [ai,b,svidx,epsi] = svr.regress(fx);
+            [ai,svidx,epsi] = svr.regress(fx);
             sv = x(:,svidx);
-            svfun = @(x)ai'*(kernel.evaluate(x,sv)') + b;
+            svfun = @(x)ai'*(kernel.evaluate(x,sv)');
             
             fsvr = svfun(x);
             
@@ -126,7 +122,7 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
                 plot(x(svidx(errors)),fx(svidx(errors)),'blackx','LineWidth',4);
             end
             
-            tit = sprintf('#SV=%d, eps=%f, b=%f',length(svidx),epsi,b);
+            tit = sprintf('#SV=%d, eps=%f',length(svidx),epsi);
             title(tit);
             disp(tit);
             hold off;
@@ -149,9 +145,9 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             xp = x(1,:);
             plot(xp,fx,'r',xp,[fx-svr.eps; fx+svr.eps],'r--');
             
-            [ai,b,svidx] = svr.regress(fx);
+            [ai,svidx] = svr.regress(fx);
             sv = x(:,svidx);
-            svfun = @(x)ai'*kernel.evaluate(sv,x) + b;
+            svfun = @(x)ai'*kernel.evaluate(sv,x);
             
             fsvr = svfun(x);
             hold on;

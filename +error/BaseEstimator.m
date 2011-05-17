@@ -13,12 +13,12 @@ classdef BaseEstimator < KerMorObject & ICloneable
     % @change{0,3,sa,2011-04-23} Implemented Setters for the properties of
     % this class other than ReducedModel
     
-    properties
+    properties(Dependent)
         % Flag that indicates whether error estimation is used or not.
         %
         % Default:
         % true
-        Enabled = true;
+        Enabled;
     end
     
     properties(SetAccess=protected)
@@ -43,6 +43,10 @@ classdef BaseEstimator < KerMorObject & ICloneable
     properties(Access=protected)
         % The reduced model associated with the error estimator.
         ReducedModel;
+    end
+    
+    properties(Access=private)
+        fEnabled = true;
     end
     
     methods
@@ -81,13 +85,6 @@ classdef BaseEstimator < KerMorObject & ICloneable
             % No cloning of the associated reduced model.
             copy.ReducedModel = this.ReducedModel;
         end
-        
-        function set.Enabled(this, value)
-            if ~islogical(value)
-                error('The value must be a logical');
-            end
-            this.Enabled = value;
-        end   
               
         function set.LastError(this, value)
             this.LastError = value;
@@ -105,6 +102,19 @@ classdef BaseEstimator < KerMorObject & ICloneable
                 error('The given value has to be a models.ReducedModel instance.');
             end
             this.ReducedModel = value;
+        end
+        
+        function set.Enabled(this, value)
+            if ~islogical(value)
+                error('Enabled property must be a boolean flag');
+            elseif ~value
+                this.LastError = [];
+            end
+            this.fEnabled = value;
+        end
+        
+        function value = get.Enabled(this)
+            value = this.fEnabled;
         end
     end
     
@@ -142,6 +152,8 @@ classdef BaseEstimator < KerMorObject & ICloneable
             % later on.
             if isempty(error.LocalLipKernelEstimator.validModelForEstimator(model))
                 est = error.LocalLipKernelEstimator(model);
+            elseif isempty(error.TPWLLocalLipEstimator.validModelForEstimator(model))
+                est = error.TPWLLocalLipEstimator(model);
             elseif isempty(error.GlobalLipKernelEstimator.validModelForEstimator(model))
                 est = error.GlobalLipKernelEstimator(model);
             elseif isa(model.System.f,'models.synth.KernelTest')

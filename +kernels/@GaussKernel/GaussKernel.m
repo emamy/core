@@ -38,6 +38,9 @@ classdef GaussKernel < kernels.BellFunction
             
             if nargin == 1
                 this.Gamma = Gamma;
+            else
+                % Set x0 according to whatever default value for Gamma is currently set
+                this.x0 = sqrt(this.Gamma^2/2);
             end
         end
         

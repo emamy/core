@@ -25,13 +25,17 @@ classdef BaseLipKernelEstimator < error.BaseEstimator
             % Call superclass
             setReducedModel@error.BaseEstimator(this, rmodel);
             
-            % Perform any offline computations/preparations
-            % Only prepare matrices if projection is used
-            if ~isempty(rmodel.V) && ~isempty(rmodel.W)
-                
-                fm = rmodel.FullModel;
-                
-                % Obtain the correct snapshots
+            fm = rmodel.FullModel;
+            if ~isempty(fm.System.B)
+                try
+                    B = fm.System.B.evaluate([],[]);
+                catch ME%#ok
+                    B = fm.System.B.evaluate(0,rmodel.System.getRandomParam);
+                    warning('Some:Id','Error estimator for current system will not work correctly! (B is not linear and mu-independent!');
+                end
+            end
+            
+            % Obtain the correct snapshots
                 % Standard case: the approx function is a kernel expansion. it
                 % can also be that the system's core function is already a
                 % kernel expansion
@@ -42,6 +46,10 @@ classdef BaseLipKernelEstimator < error.BaseEstimator
                     % Get full d x N coeff matrix of core function
                     Ma = fm.System.f.Ma;
                 end
+            
+            % Perform any offline computations/preparations
+            % Only prepare matrices if projection is used
+            if ~isempty(rmodel.V) && ~isempty(rmodel.W)
                 
                 % Compute projection part matrices, without creating a
                 % d x d matrix (too big!)
@@ -56,14 +64,7 @@ classdef BaseLipKernelEstimator < error.BaseEstimator
                 
                 % Only linear input conversion (B = const. matrix) allowed so
                 % far! mu,0 is only to let
-                if ~isempty(fm.System.B)
-                    try
-                        B = fm.System.B.evaluate([],[]);
-                    catch ME%#ok
-                        B = fm.System.B.evaluate(0,rmodel.System.getRandomParam);
-                        warning('Some:Id','Error estimator for current system will not work correctly! (B is not linear and mu-independent!');
-                    end
-                    
+                if ~isempty(B)
                     B2 = B-rmodel.V*(rmodel.W'*B);
                     this.M2 = M'*(rmodel.GScaled*B2);
                     this.M3 = B2'*(rmodel.GScaled*B2);
@@ -72,9 +73,13 @@ classdef BaseLipKernelEstimator < error.BaseEstimator
                 clear M;
             else
                 % No projection means no projection error!
-                this.M1 = 0;
-                this.M2 = 0;
-                this.M3 = 0;
+                n = size(Ma,2);
+                this.M1 = zeros(n,n);
+                if ~isempty(B)
+                    b = size(B,2);
+                    this.M2 = zeros(n,b);
+                    this.M3 = zeros(b,b);
+                end
             end
         end
         
