@@ -1,6 +1,9 @@
 classdef ModelParam < handle
     %MODELPARAM Summary of this class goes here
     %   Detailed explanation goes here
+    %
+    % @change{0,3,sa,2011-05-10} Implemented setters for the properties
+    %
     
     properties
         % The Name of the Parameter
@@ -45,6 +48,13 @@ classdef ModelParam < handle
             end
         end
         
+        function set.Name(this, value)
+            if ~ischar(value)
+                error('name should be a character field');
+            end
+            this.Name = value;
+        end
+        
         function set.Range(this, range)
             % Double the range in case a scalar is passed
             if isscalar(range)
@@ -61,7 +71,7 @@ classdef ModelParam < handle
                 error('Desired must be a positive integer greater than zero.');
             end
             this.Desired = value;
-        end
+        end     
         
         function value = get.MinVal(this)
             value = this.Range(1);

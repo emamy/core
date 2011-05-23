@@ -11,11 +11,14 @@ classdef BaseModel < KerMorObject
     %
     % @author Daniel Wirtz @date 19.03.2010
     %
+    % @change{0,3,sa,2011-05-10} Implemented setters for the rest of the
+    % properties
+    %
     % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
     % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
     % extended constructor registering any user-relevant properties using
     % KerMorObject.registerProps.
-    %
+    % 
     % @change{0,3,dw,2011-04-15} Added a dependent GScaled property that returns the norm-inducing
     % matrix G scaled with the current System.StateScaling property.
     %
@@ -443,6 +446,20 @@ classdef BaseModel < KerMorObject
         function set.ODESolver(this, value)
             this.checkType(value,'solvers.ode.BaseSolver');%#ok
             this.ODESolver = value;
+        end
+        
+        function set.Name(this, value)
+            if ~ischar(value)
+                error('name is acharacter field');
+            end
+            this.Name = value;
+        end
+        
+        function set.TimeDirty(this, value)
+            if ~islogical(value)
+                error('value must be a logical');
+            end
+            this.TimeDirty = value;
         end
         
     end
