@@ -129,7 +129,7 @@ classdef KernelInterpol < KerMorObject & approx.IKernelCoeffComp
             this.K = K;
         end
         
-        function [ai, svidx] = computeKernelCoefficients(this, yi)
+        function [ai, svidx] = computeKernelCoefficients(this, yi, dummy)%#ok
             ai = this.interpolate(yi);
             svidx = [];
         end
@@ -235,9 +235,9 @@ classdef KernelInterpol < KerMorObject & approx.IKernelCoeffComp
                 figure(fignr);
                 plot(x,fx,'r');
                 
-                [a,b] = ki.interpolate(fxi);
+                a = ki.interpolate(fxi);
                 
-                svfun = @(x)a'*kernel.evaluate(xi,x)+b;
+                svfun = @(x)a'*kernel.evaluate(xi,x);
                 
                 fsvr = svfun(x);
                 

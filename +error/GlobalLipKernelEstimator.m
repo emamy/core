@@ -1,6 +1,10 @@
 classdef GlobalLipKernelEstimator < error.BaseLipKernelEstimator
-    %COMPWISEKERNELESTIMATOR Summary of this class goes here
-    %   Detailed explanation goes here
+    % GlobalLipKernelEstimator: Global lipschitz constant error estimator
+    %
+    % @author Daniel Wirtz @date 2010-05-10
+    %
+    % @change{0,4,dw,2011-05-23} Adopted to the new error.BaseEstimator interface with separate output
+    % error computation.
     
     methods
         function this = GlobalLipKernelEstimator(rmodel)
@@ -29,28 +33,24 @@ classdef GlobalLipKernelEstimator < error.BaseLipKernelEstimator
             end
             e = sqrt(max(e,0));
         end
-        
-        function process(this, t, x, mu, inputidx)%#ok
-            % @todo also take into account FullModel.Approx at cf computation!
-            eint = x(end-this.ExtraODEDims+1:end,:);
-            if all(eint == 0)
-                warning('CompWiseErrorEstimator:process','Integral part is all zero. Attention!');
-            end
-            cf = this.ReducedModel.FullModel.System.f.getGlobalLipschitz(t,mu);            
-            pt1 = exp(cf .* reshape(t,1,[]));
-            pt2 = (eint + this.ReducedModel.getExo(mu));
-            
-            % Tranform to output error estimation
-            C = this.ReducedModel.FullModel.System.C.evaluate(0,[]);
-            this.LastError = norm(C) * (pt1 .* pt2);
-        end
-        
+                
         function e0 = getE0(this, mu)%#ok
             % Returns the initial error at `t=0` of the integral part.
             % For this estimator, this is simply one dimension and zero.
             e0 = 0;
         end
-        
+    end
+    
+    methods(Access=protected)
+        function postprocess(this, t, x, mu, inputidx)%#ok
+            eint = x(end-this.ExtraODEDims+1:end,:);
+            if all(eint == 0)
+                warning('CompWiseErrorEstimator:process','Integral part is all zero. Attention!');
+            end
+            cf = this.ReducedModel.FullModel.System.f.getGlobalLipschitz(t,mu);
+            
+            this.StateError = exp(cf .* reshape(t,1,[])) .* (eint + this.ReducedModel.getExo(mu));
+        end
     end
     
     methods(Static)

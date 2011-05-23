@@ -29,9 +29,11 @@ classdef ModelAnalyzer < handle;
             if this.UseOutput && ~isempty(rmodel.FullModel.System.C)
                 x = rmodel.FullModel.System.C.computeOutput(t,x,mu);
                 xr = rmodel.FullModel.System.C.computeOutput(t,xr,mu);
+                est = rmodel.ErrorEstimator.OutputError;
+            else
+                est = rmodel.ErrorEstimator.StateError;
             end
             e = sqrt(sum((x - xr).^2,1));
-            est = rmodel.ErrorEstimator.LastError;
             xnorm = sqrt(sum(x.^2,1));
             erel = e./xnorm;
             estrel = est./xnorm;
@@ -99,7 +101,7 @@ classdef ModelAnalyzer < handle;
             else
                 subplot(2,3,4);
             end
-            plot(t,est,'b',t,e,'r');%,t,abs(e-est),'g');
+            semilogy(t,est,'b',t,e,'r');%,t,abs(e-est),'g');
             xlabel('t');
             title(sprintf('The state variable absolute errors.\nmean(e)=%g, mean(est)=%g',mean(e),mean(est)));
             legend('Estimated error','True error');%,'Location','Best');
@@ -111,7 +113,7 @@ classdef ModelAnalyzer < handle;
             else
                 subplot(2,3,5);
             end
-            plot(t,estrel,'b',t,erel,'r');
+            semilogy(t,estrel,'b',t,erel,'r');
             xlabel('t');
             title(sprintf(['The state variable relative errors (comp. to '...
                 'full solution)\nmean(e_{rel})=%g, mean(est_{rel})=%g'],...
@@ -123,111 +125,13 @@ classdef ModelAnalyzer < handle;
             else
                 subplot(2,3,6);
             end            
-            plot(t,erelr,'r',t,estrelr,'b');
+            semilogy(t,erelr,'r',t,estrelr,'b');
             xlabel('t');
             title(sprintf(['The state variable relative errors (comp. to '...
                 'reduced solution)\nmean(ered_{rel})=%g, mean(estred_{rel})=%g'],...
                 mean(erelr),mean(estrelr)));
             legend('True error','Estimated error');%,'Location','Best');
         end
-        
-%         function compareCoreVsApprox(this)
-%             num = 10;
-%             d = rmodel.FullModel.Data;
-%             
-%             % Get data
-%             sn = d.ApproxTrainData;
-%             
-%             factor = 4;
-%             % Extend data
-%             nz = factor*size(sn,2);
-%             oldidx = 1:factor:nz;
-%             
-%             xi = sn(4:end,:);
-%             XI(:,oldidx) = xi;
-%             di = (xi(:,2:end)-xi(:,1:end-1))/factor;
-%             di(:,end+1) = 0;
-%             ti = sn(3,:);
-%             TI(oldidx) = ti;
-%             dti = (ti(2:end)-ti(1:end-1))/factor;
-%             dti(end+1) = 0;
-%             mui(oldidx) = sn(1,:);
-%             %fx = zeros(size(d.ApproxfValues,1),size(d.ApproxfValues,2)*factor);
-%             fx(:,oldidx) = d.ApproxfValues;
-%             for fac = 1:factor-1
-%                 newidx = oldidx+fac;
-%                 % xi
-%                 XI(:,newidx) = xi+di*(fac/(factor-1));
-%                 % ti
-%                 TI(newidx) = ti+dti*(fac/(factor-1));
-%                 % mui
-%                 mui(newidx) = sn(1,:);
-%                 
-%                 % Evaluate original function at middle points
-%                 for idx=newidx
-%                     fx(:,idx) = rmodel.FullModel.System.f.evaluate(XI(:,idx),TI(idx),d.getParams(mui(idx)));
-%                 end
-%             end
-%             MUI = d.getParams(mui);
-%             
-%             afx = rmodel.FullModel.Approx.evaluate(XI,TI,MUI);
-%             
-%             err = sqrt(sum((fx-afx).^2));
-%             total_err = sqrt(sum(err.^2))
-%             
-%             % Plotting
-%             len = size(afx,2);
-%             muvals = (mui / max(mui));
-%             for idx = 1:num
-%                 fxp = fx(idx,:);
-%                 afxp = afx(idx,:);
-%                 subplot(1,2,1);
-%                 plot(1:len,fxp,'r',1:len,afxp,'b--',1:len,muvals*(max(fxp)-min(fxp)),'green',[oldidx; oldidx + eps],[0 0],'black+');
-%                 subplot(1,2,2);
-%                 plot(1:len,err,'r',1:len,muvals*(max(err)-min(err)),'green',[oldidx; oldidx + eps],[0 0],'black+');
-%                 pause;
-%             end
-%             
-%             %plot(1:len,fx,1:len,afx,'--');
-%             
-%             %             arfx = rmodel.System.f.evaluate(d.V'*xi,ti,mui);
-%             %             rfx = d.V'*d.ApproxfValues(:,:);
-%             %             for idx = 1:num
-%             %                 plot(1:len,rfx(idx,:),1:len,arfx(idx,:));
-%             %                 pause;
-%             %             end
-%         end
-        
-        %         function save(this, matfile)
-        %             % Saves the reduced model to disk.
-        %             %
-        %             % Parameters:
-        %             % matfile: The target file. If not specified, a file with the
-        %             % name of the reduced model's variable name is used.
-        %
-        %             name = inputname(1);
-        %             if nargin == 1
-        %                 matfile = fullfile(cd,name);
-        %             end
-        %             % For the save process of the reduced model the full model's
-        %             % Data (=ModelData) and Approx properties are not needed. This
-        %             % is the fastest way to ensure that the reduced model can still
-        %             % have access to all important features of the full model but
-        %             % uses less disk space.
-        %             m = rmodel.FullModel;
-        %             d = m.Data;
-        %             a = m.Approx;
-        %
-        %             m.Data = [];
-        %             m.Approx = [];
-        %
-        %             eval([name ' = this;']);
-        %             save(matfile,name);
-        %
-        %             m.Data = d;
-        %             m.Approx = a;
-        %         end
     end
-    
 end
 

@@ -13,6 +13,9 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
     % function. (No matter how many originally have been used for the
     % approximation computation)
     %
+    % @change{0,4,dw,2011-05-19} Disconnected the Approx classes from taking a BaseModel instance at
+    % approx computation. This way external tools can use the approximation algorithms, too.
+    %
     % @change{0,4,dw,2011-05-03} Removed off-property dependencies in computeCoeffs routines as
     % expansion offsets are no longer used.
     %
@@ -73,12 +76,8 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
             this.registerProps('CoeffComp','UsefScaling');
         end
         
-        function approximateCoreFun(this, model)
-            % 
-            % @todo find out when sparse representation is more
-            % efficient!
+        function approximateCoreFun(this, xi, ti, mui, fxi)
             
-            fxi = model.Data.ApproxfValues;
             % Scale f-values if wanted
             if this.UsefScaling
                 [fm,fM] = general.Utils.getBoundingBox(fxi);
@@ -88,7 +87,7 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
             end
             
             % Call template method for component wise approximation
-            this.computeCompwiseApprox(model,fxi);
+            this.computeCompwiseApprox(xi, ti, mui, fxi);
             
             % Rescale if set
             if this.UsefScaling
@@ -188,22 +187,33 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
             % Computes the coefficients using the CoeffComp instance
             % serially.
             %
+            % @throws KerMor:coeffcomp_failed Forwarded from CoeffComp
+            %
             % @todo remove waitbar and connect to verbose/messaging system
             %% Non-parallel execution
-            n = size(this.Centers.xi,2);
             fdims = size(fxi,1);
-            this.Ma = zeros(fdims, n);
-            for fdim = 1:fdims
-                if KerMor.App.Verbose > 3
-                    fprintf('Computing approximation for dimension %d/%d ... %2.0f %%\n',fdim,fdims,(fdim/fdims)*100);
+            oldma = this.Ma;
+            try
+                n = size(this.Centers.xi,2);
+                this.Ma = zeros(fdims, n);
+                for fdim = 1:fdims
+                    if KerMor.App.Verbose > 3
+                        fprintf('Computing approximation for dimension %d/%d ... %2.0f %%\n',fdim,fdims,(fdim/fdims)*100);
+                    end
+                    % Call template method
+                    [ai, svidx] = this.CoeffComp.computeKernelCoefficients(fxi(fdim,:),this.Ma(fdim,:)); 
+                    if ~isempty(svidx)
+                        this.Ma(fdim,svidx) = ai;
+                    else
+                        this.Ma(fdim,:) = ai;
+                    end
                 end
-                % Call template method
-                [ai, svidx] = this.CoeffComp.computeKernelCoefficients(fxi(fdim,:));
-                if ~isempty(svidx)
-                    this.Ma(fdim,svidx) = ai;
-                else
-                    this.Ma(fdim,:) = ai;
+            catch ME
+                if strcmp(ME.identifier,'KerMor:coeffcomp_failed')
+                    % Restore old coefficients
+                    this.Ma = oldma;
                 end
+                rethrow(ME);
             end
         end
         

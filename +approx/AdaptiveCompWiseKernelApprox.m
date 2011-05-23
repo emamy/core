@@ -5,6 +5,9 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
 %
 % See also: BaseApprox BaseCompWiseKernelApprox
 %
+% @change{0,4,dw,2011-05-19} Disconnected the Approx classes from taking a BaseModel instance at
+% approx computation. This way external tools can use the approximation algorithms, too.
+%
 % @change{0,3,sa,2011-04-21} Implemented Setters for all the properties
 % other than NumGammas and ValidationPercent
 %
@@ -39,7 +42,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
         % The number of different Gamma values to try.
         %
         % @propclass{important} 
-        NumGammas = 20;
+        NumGammas = 10;
         
         % Percentage `p` of the training data to use as validation data
         %
@@ -126,7 +129,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
     end
     
     methods(Access=protected, Sealed)
-        function computeCompwiseApprox(this, model, fx)
+        function computeCompwiseApprox(this, xi, ti, mui, fxi)
             % Performs adaptive approximation generation.
             %
             % @docupdate
@@ -134,8 +137,8 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             % change?)
             
             %% Experimental settings
-            fac = 50;
-            minfac = .01; % min factor for BB diameters at initial gamma choice
+            fac = 2;
+            minfac = .005; % min factor for BB diameters at initial gamma choice
             dfun = @logsp; % gamma distances comp fun (linsp / logsp)
             if this.ErrFun == 1
                 errfun = @getLInftyErr; % L^inf error function
@@ -152,64 +155,62 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             end
             
             %% Initializations
-            atd = model.Data.ApproxTrainData;
-            % get validation data set vd
-            vnum = round(size(atd,2)*this.ValidationPercent);
-            sel = round(linspace(1,size(atd,2),vnum));
-            vd = atd(:,sel);
-            atd(:,sel) = [];
             
-            %fx = fx; % Now passed as argument
-            vdfx = fx(:,sel);
-            fx(:,sel) = [];
+            % Extract validation data
+            vnum = round(size(xi,2)*this.ValidationPercent);
+            sel = round(linspace(1,size(xi,2),vnum));
+            vdxi = xi(:,sel);
+            xi(:,sel) = [];
+            vdti = ti(sel);
+            ti(sel) = [];
+            vdfxi = fxi(:,sel);
+            fxi(:,sel) = [];
             
             % check if training data contains parameters
-            if any(atd(1,:) ~= 0)
-                hasparams = true;
-                params = model.Data.getParams(atd(1,:));
-                vdparams = model.Data.getParams(vd(1,:));
-            else
-                hasparams = false;
-                params = [];
-                vdparams = [];
-            end
             nx = general.NNTracker;
             nt = general.NNTracker;
-            if hasparams
-                np = general.NNTracker;
-            end
             
             %% Compute bounding boxes & center
-            [BXmin, BXmax] = general.Utils.getBoundingBox(atd(4:end,:));
-            Btmin = min(atd(3,:)); Btmax = max(atd(3,:));
+            [BXmin, BXmax] = general.Utils.getBoundingBox(xi);
+            Btmin = min(ti); Btmax = max(ti);
             % Get bounding box diameters
             bxdia = norm(BXmax - BXmin);
             btdia = Btmax-Btmin;
-            if hasparams
-                [BPmin, BPmax] = general.Utils.getBoundingBox(...
-                    model.Data.getParams(unique(atd(1,:))));
-                thecenter = [BXmin+BXmax; Btmin+Btmax; BPmin + BPmax]/2;
-                B = [atd(3:end,:); params];
+            
+            thecenter = [BXmin+BXmax; Btmin+Btmax]/2;
+            B = [ti; xi];
+            
+            %% Check if params are used
+            if ~isempty(mui)
+                hasparams = true;
+                vdmui = mui(:,sel);
+                mui(:,sel) = [];
+                
+                np = general.NNTracker;
+                
+                [BPmin, BPmax] = general.Utils.getBoundingBox(mui);
                 bpdia = norm(BPmax - BPmin);
+                
+                thecenter = [BXmin+BXmax; Btmin+Btmax; BPmin + BPmax]/2;
+                B = [B; mui];
             else
-                thecenter = [BXmin+BXmax; Btmin+Btmax]/2;
-                B = atd(3:end,:);
+                hasparams = false;
+                vdmui = [];
             end
             
             %% Select initial center x0
             % Strategy: Take the point that is closest to the bounding
             % box center!
-            A = repmat(thecenter, 1, size(atd,2));
+            A = repmat(thecenter, 1, size(xi,2));
             [dummy, inIdx] = min(sum((A-B).^2,1));
             clear A B;
             
-            initial = atd(:,inIdx);
-            this.Centers.xi = initial(4:end);
-            nx.addPoint(initial(4:end)); % Add points to nearest neighbor trackers (for gamma comp)
-            this.Centers.ti = initial(3);
-            nt.addPoint(initial(3));
+            this.Centers.xi = xi(:,inIdx);
+            nx.addPoint(xi(:,inIdx)); % Add points to nearest neighbor trackers (for gamma comp)
+            this.Centers.ti = ti(inIdx);
+            nt.addPoint(ti(inIdx));
             if hasparams
-                this.Centers.mui = params(:,inIdx);
+                this.Centers.mui = mui(:,inIdx);
                 np.addPoint(this.Centers.mui);
             else
                 this.Centers.mui = [];
@@ -217,12 +218,15 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             
             %% Set up initial expansion
             used = inIdx;
-            this.Ma = fx(:,inIdx);
+            this.Ma = fxi(:,inIdx);
             
             %% Choose initial gammas
-            dists = [dfun(minfac*bxdia, fac*bxdia); dfun(minfac*btdia, fac*btdia)];
+            xdists = dfun(minfac*bxdia, fac*bxdia);
+            tdists = dfun(minfac*btdia, fac*btdia);
+            dists = [xdists; tdists];
             if hasparams
-                dists = [dists; dfun(minfac*bpdia, fac*bpdia)];
+                pdists = dfun(minfac*bpdia, fac*bpdia);
+                dists = [dists; pdists];
             end
             minerr = Inf; gt = []; gp = [];
             for idx = 1:size(dists,2)
@@ -234,13 +238,13 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                     gp = this.ParamKernel.setGammaForDistance(dists(3,idx),this.gameps);
                 end
                 
-                fhat = this.evaluate(atd(4:end,:),atd(3,:),params);
-                val = errfun(fx,fhat);
+                val = errfun(fxi,this.evaluate(xi,ti,mui));
                 if val < minerr
                     minerr = val;
                     bestgx = gx;
                     bestgt = gt;
                     bestgp = gp;
+                    bestdistidx = idx;
                 end
             end
             %% Assign best values
@@ -258,16 +262,17 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             %% Outer control loop
             cnt = 1;
             % Stopping condition preps
-            this.effabs = this.MaxAbsErrFactor * max(abs(fx(:)));
+            this.effabs = this.MaxAbsErrFactor * max(abs(fxi(:)));
             
             % Keep track of maximum errors
             this.MaxErrors = zeros(size(1,this.MaxExpansionSize));
-            while true
+            exception = false;
+            while ~exception
                 
                 %% Determine maximum error over training data
-                fhat = this.evaluate(atd(4:end,:),atd(3,:),params);
-                [val, maxidx, errs] = errfun(fx,fhat);
-                rel = val / (norm(fx(maxidx))+eps);
+                fhat = this.evaluate(xi,ti,mui);
+                [val, maxidx, errs] = errfun(fxi,fhat);
+                rel = val / (norm(fxi(maxidx))+eps);
                 this.MaxErrors(cnt) = val;
                 
                 %% Verbose stuff
@@ -284,25 +289,29 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                 used(end+1) = maxidx;%#ok
                 
                 %% Extend centers
-                new = atd(:,maxidx);
-                this.Centers.xi(:,end+1) = new(4:end);
-                this.Centers.ti(end+1) = new(3);
+                this.Centers.xi(:,end+1) = xi(:,maxidx);
+                this.Centers.ti(end+1) = ti(maxidx);
                 if hasparams
-                    this.Centers.mui(:,end+1) = params(:,maxidx);
-                    np.addPoint(params(:,maxidx));
+                    this.Centers.mui(:,end+1) = mui(:,maxidx);
+                    np.addPoint(mui(:,maxidx));
                 end
                 % Add points to nearest neighbor trackers (for gamma comp)
-                nx.addPoint(new(4:end));
-                nt.addPoint(new(3));
+                nx.addPoint(xi(:,maxidx));
+                nt.addPoint(ti(maxidx));
                 
                 %% Compute new approximation
-                dists = [dfun(nx.getMinNN, fac*bxdia); dfun(nt.getMinNN, fac*btdia)];
+                xdists = sort([dfun(nx.getMinNN, fac*bxdia) dists(1,bestdistidx)]);
+                tdists = sort([dfun(nt.getMinNN, fac*btdia) dists(2,bestdistidx)]);
+                
                 if hasparams
                     minnn = bpdia/this.NumGammas;
                     if ~isinf(np.getMinNN)
                         minnn = np.getMinNN;
                     end
-                    dists = [dists; dfun(minnn, fac*bpdia)];%#ok
+                    pdists = sort([dfun(minnn, fac*bpdia) dists(3,bestdistidx)]);
+                    dists = [dists; pdists];%#ok
+                else
+                    dists = [xdists; tdists];
                 end
                 
                 if KerMor.App.Verbose > 2
@@ -333,29 +342,40 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                     end
                     
                     %% Compute coefficients
-                    warning('off','MATLAB:nearlySingularMatrix');
+                    %warning('off','MATLAB:nearlySingularMatrix');
                     % Call coeffcomp preparation method and pass kernel matrix
                     K = this.getKernelMatrix;
                     this.CoeffComp.init(K);
                     
                     % Call protected method
-                    this.computeCoeffs(fx(:,used));
-                    warning('on','MATLAB:nearlySingularMatrix');
+                    try
+                        this.computeCoeffs(fxi(:,used));
+                    catch ME
+                        if strcmp(ME.identifier,'KerMor:coeffcomp:failed')                            
+                            exception = true;
+                            ex = ME;
+                            break;
+                        else
+                            rethrow(ME);
+                        end
+                    end
+                    %warning('on','MATLAB:nearlySingularMatrix');
                     
                     % get error on training data
-                    fhat = this.evaluate(atd(4:end,:),atd(3,:),params);
-                    val = errfun(fx, fhat);
+                    fhat = this.evaluate(xi,ti,mui);
+                    val = errfun(fxi, fhat);
                     impro = (val / minerr) * 100;
                     
                     % get error on validation set
-                    fvali = this.evaluate(vd(4:end,:),vd(3,:),vdparams);
-                    vdval = errfun(vdfx, fvali);
+                    fvali = this.evaluate(vdxi,vdti,vdmui);
+                    vdval = errfun(vdfxi, fvali);
                     if val < minerr
                         minerr = val;
                         bestgx = gx;
                         bestgt = gt;
                         bestgp = gp;
                         bestMa = this.Ma;
+                        bestdistidx = idx;
                         if KerMor.App.Verbose > 2
                             fprintf(' b: %.5e, %3.2f%%',val,impro);
                         end
@@ -390,12 +410,16 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                 cnt = cnt+1;
             end
             
+            if exception
+                fprintf('Adaptive approximation generation stopped due to exception.\n')
+                cprintf('red',ex.getReport);
+            end
+            
             if KerMor.App.Verbose > 1
                 figure;
                 plot(this.MaxErrors,'r');
             end
         
-            
             function [val,idx,errs] = getLInftyErr(a,b)
                 % computes the 'L^\infty'-approximation error over the
                 % training set for the current approximation

@@ -45,8 +45,11 @@ classdef BaseKernel < KerMorObject
         % Return values:
         % Nabla: A `d \times n` matrix of partial derivatives with respect to the first argument
         % evaluated using all second arguments.
-        Nabla = getNabla(x,y)
+        Nabla = getNabla(this, x, y)
         
+        % Returns the global lipschitz constant of this kernel.
+        %
+        % Exprimental state as not implemented & checked for all kernels.
         c = getGlobalLipschitz(this);
     end
     

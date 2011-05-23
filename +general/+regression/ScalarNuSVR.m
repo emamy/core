@@ -33,7 +33,7 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             this.registerProps('nu');
         end
         
-        function [ai, svidx,epsi] = regress(this, fxi)
+        function [ai, svidx,epsi] = regress(this, fxi, x0)
             %SCALAR_SVR Performs scalar support vector regression
             %
             % See also: KerMor
@@ -66,7 +66,10 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             
             % Starting point
             %x0 = ones(2*m,1)*this.C/(2*m);
-            x0 = [];
+            if nargin < 3
+                x0 = [];
+            end
+            %x0 = [];
             
             % Bounds
             lbA = 0;
@@ -75,7 +78,7 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             ub = ones(2*m,1)*(this.C/m);
             
             % Call solver
-             [p,d,info] = this.QPSolver.solve(Q,c,lb,ub,A,lbA,ubA,x0);
+            [p,d,info] = this.QPSolver.solve(Q,c,lb,ub,A,lbA,ubA,(x0*T)');
             
             % Convert results
             ai = T*p;

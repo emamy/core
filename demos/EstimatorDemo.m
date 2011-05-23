@@ -4,6 +4,9 @@ classdef EstimatorDemo < handle
     % The constructor either takes an existing model and uses this for the
     % error estimator demo or the input argument is a dimension number for
     % the standard model used.
+    %
+    % @change{0,4,dw,2011-05-20} Adopted to the new strategy pattern implemented for the
+    % KernelLipschitzFcn inside the LocalLipschitzErrorEstimator (now having a class instead of a function handle).
     
     properties
         % The used model
@@ -21,7 +24,8 @@ classdef EstimatorDemo < handle
         % 3: LSL, Local Secant Lipschitz
         % 4: ILSL, Improved Local Secant Lipschitz
         % 5: ILSL TD, Time Discrete Improved Local Secant Lipschitz
-        EstimatorVersions = [1 1 0 1 1];
+        % 6: ILSL TD, experimental (with full traj simulation)
+        EstimatorVersions = [1 0 0 0 1 1];
         
         % Whether to put the estimations and computations times into a
         % single figure using subplots or using separate figures.
@@ -40,6 +44,9 @@ classdef EstimatorDemo < handle
         % Set flag to sort the resulting computation time and estimates
         % table by the product of comp-time and error estimate.
         SortResultTable = false;
+        
+        % Flag wether to use the output errors or state variable errors
+        UseOutputError = true;
     end
     
     properties(Access=private)
@@ -51,16 +58,22 @@ classdef EstimatorDemo < handle
         
         function setModel(this, model)
             % Sets the model to use for the estimator demo
-            this.Model = model;
+            if isa(model,'models.ReducedModel')
+                this.Model = model.FullModel;
+                this.ReducedModel = model;
+            else
+                this.Model = model;
             
-            model.offlineGenerations;
-            this.ReducedModel = model.buildReducedModel;
-            
+                model.offlineGenerations;
+                this.ReducedModel = model.buildReducedModel;
+            end
             this.buildEstimatorStruct(this.ReducedModel);
         end
         
-        function [times,errs] = Run(this, mu, inidx)
+        function [ctimes, errs] = start(this, mu, inidx)
             % Runs the demo with the current settings.
+            %
+            % Texty text.
             
             if nargin < 3
                 inidx = [];
@@ -70,7 +83,7 @@ classdef EstimatorDemo < handle
             end
             
             num = length(this.Est);
-            times = zeros(num,1);
+            ctimes = zeros(num,1);
             nt = length(this.Model.Times);
             errs = zeros(num,nt);
             
@@ -82,17 +95,27 @@ classdef EstimatorDemo < handle
                 this.ReducedModel.ErrorEstimator = this.Est(idx).Estimator;
                 
                 waitbar(idx/num,h,sprintf('Performing estimation %d of %d: %s',idx,num,this.Est(idx).Name));
-                [t,y,times(idx)] = this.ReducedModel.simulate(mu,inidx);
-                errs(idx,:) = this.ReducedModel.ErrorEstimator.LastError;
+                [t,y,ctimes(idx)] = this.ReducedModel.simulate(mu,inidx);
+                if this.UseOutputError
+                    errs(idx,:) = this.ReducedModel.ErrorEstimator.OutputError;
+                else
+                    errs(idx,:) = this.ReducedModel.ErrorEstimator.StateError;
+                end
                 
                 % Plotting preparations
-                str = [str sprintf('errs(%d,end),times(%d),''%s'',',idx,idx,this.Est(idx).MarkerStyle)];%#ok
+                str = [str sprintf('errs(%d,end),ctimes(%d),''%s'',',idx,idx,this.Est(idx).MarkerStyle)];%#ok
             end
             close(h);
             % Compute full solution & remember full system's trajectory
             % (for rel. errors)
             %xrfullnorm = sqrt(sum(xr.^2,1));
-            [t,y] = this.Model.simulate(mu,inidx);
+            if this.UseOutputError
+                [t,y] = this.Model.simulate(mu, inidx);
+            else
+                [t,y] = this.Model.computeTrajectory(mu, inidx);
+                y = bsxfun(@times, y, this.ReducedModel.System.StateScaling);
+                t = t*this.ReducedModel.tau;
+            end
             yfullnorm = sqrt(sum(y.^2,1));
             %deferrest = errs(1,:);
             %trueerr = sqrt(sum((x-this.ReducedModel.V*xr).^2,1));
@@ -138,13 +161,18 @@ classdef EstimatorDemo < handle
             else
                 figure;
             end
-            ph = plot(this.Model.Times,errs ./ repmat(yfullnorm,num,1));
+            relerrs = errs ./ repmat(yfullnorm,num,1);
+            if this.LogarithmicPlot
+                ph = semilogy(this.Model.Times,relerrs);
+            else
+                ph = plot(this.Model.Times,relerrs);
+            end
             set(ph(1),'LineWidth',2);
             hold on;
             for idx=1:length(this.Est)
                 set(ph(idx),'LineStyle',this.Est(idx).LineStyle);
                 pos = mod(sel+2*(idx-1),nt)+1;
-                h = plot(this.Model.Times(pos), errs(idx,pos),this.Est(idx).MarkerStyle);
+                h = plot(this.Model.Times(pos), relerrs(idx,pos),this.Est(idx).MarkerStyle);
                 c = get(ph(idx),'Color');
                 set(h,'MarkerFaceColor',c,'MarkerEdgeColor',c*.7);
             end
@@ -154,7 +182,7 @@ classdef EstimatorDemo < handle
             title(['Relative error estimations e(t)/||y||, \Delta x(t)/||y|| for model: ' this.Model.Name]);
             axis([0 this.Model.T 0 2]);
             
-            %% Computation times plot
+            %% Computation ctimes plot
             if ~this.SingleFigures
                 subplot(1,3,3);
             else
@@ -172,7 +200,7 @@ classdef EstimatorDemo < handle
             end
             % Add line for minimum error!
             hold on;
-            plot([errs(1,end) errs(1,end)],[min(times) max(times)],'black');
+            plot([errs(1,end) errs(1,end)],[min(ctimes) max(ctimes)],'black');
             hold off;
             
             xlabel('\Delta(T)');
@@ -184,7 +212,7 @@ classdef EstimatorDemo < handle
             %% Table overview
             if this.SortResultTable
                 disp('Estimator hierarchy (error*time product):');
-                [v,idx] = sort(errs(:,end).*times);
+                [v,idx] = sort(errs(:,end).*ctimes);
             else
                 disp('Estimator list:');
                 idx = 1:size(errs,2);
@@ -197,13 +225,13 @@ classdef EstimatorDemo < handle
             end
             for id = 1:length(this.Est)
                 fprintf('Delta(%2.2f)=%e\t%2.4fsec\tfactor:%e\t%s\n',t(end),...
-                    errs(idx(id),end),times(idx(id)),errs(idx(id),...
+                    errs(idx(id),end),ctimes(idx(id)),errs(idx(id),...
                     end)/errs(1,end),...
                     this.Est(idx(id)).Name);
                 if ~isempty(this.SaveTexTables)
                     str = sprintf('\t\t%s & $%1.3e}$ & %2.2fs & $%1.3e}$',...
                         this.Est(idx(id)).Name,...
-                        errs(idx(id),end),times(idx(id)),...
+                        errs(idx(id),end),ctimes(idx(id)),...
                         errs(idx(id),end)/errs(1,end));
                     fprintf(fid,[strrep(strrep(strrep(str,'e+','\\cdot10^{'),'e-',...
                         '\\cdot10^{-'),'{0','{') '\\\\\n']);
@@ -221,7 +249,14 @@ classdef EstimatorDemo < handle
         function set.EstimatorIterations(this, value)
             this.EstimatorIterations = value;
             if ~isempty(this.ReducedModel)%#ok
-                this.buildEstimatorStruct(this, this.ReducedModel);%#ok
+                this.buildEstimatorStruct(this.ReducedModel);%#ok
+            end
+        end
+        
+        function set.EstimatorVersions(this, value)
+            this.EstimatorVersions = value;
+            if ~isempty(this.ReducedModel)%#ok
+                this.buildEstimatorStruct(this.ReducedModel);%#ok
             end
         end
         
@@ -243,29 +278,29 @@ classdef EstimatorDemo < handle
             est(end).MarkerStyle = 'o';
             est(end).LineStyle = '-';
             
-            msg = error.GlobalLipKernelEstimator.validModelForEstimator(r);
-            if isempty(msg)
-                if this.EstimatorVersions(1)
-                    fprintf('Initializing Global Lipschitz estimator...\n');
-                    est(end+1).Name = 'GLE';
-                    est(end).Estimator = error.GlobalLipKernelEstimator(r);
-                    est(end).MarkerStyle = 'o';
-                    est(end).LineStyle = '-';
+            if this.EstimatorVersions(1)
+                msg = error.GlobalLipKernelEstimator.validModelForEstimator(r);
+                if isempty(msg)
+                        fprintf('Initializing Global Lipschitz estimator...\n');
+                        est(end+1).Name = 'GLE';
+                        est(end).Estimator = error.GlobalLipKernelEstimator(r);
+                        est(end).MarkerStyle = 'o';
+                        est(end).LineStyle = '-';
+                else
+                    fprintf('Cannot use the GlobalLipKernelEstimator for model %s:\n%s\n',r.Name,msg);
                 end
-            else
-                fprintf('Cannot use the GlobalLipKernelEstimator for model %s:\n%s\n',r.Name,msg);
             end
             
             msg = error.LocalLipKernelEstimator.validModelForEstimator(r);
             if isempty(msg)
                 reps = this.EstimatorIterations;
                 fprintf('Using iteration counts: %s\n',num2str(this.EstimatorIterations));
-                    
+                
                 if this.EstimatorVersions(2)
                     fprintf('Initializing LGL estimator...\n');
                     est(end+1).Name = 'LGL';
                     est(end).Estimator = error.LocalLipKernelEstimator(r);
-                    est(end).Estimator.KernelLipschitzFcn = @k.getLocalGradientLipschitz;
+                    est(end).Estimator.KernelLipschitzFcn = error.LocalGradientLipschitz(k);
                     est(end).Estimator.UseTimeDiscreteC = false;
                     est(end).MarkerStyle = 's';
                     est(end).LineStyle = '-';
@@ -283,7 +318,7 @@ classdef EstimatorDemo < handle
                     fprintf('Initializing LSL (mod secant) estimator...\n');
                     est(end+1).Name = 'LGLMod';
                     est(end).Estimator = error.LocalLipKernelEstimator(r);
-                    est(end).Estimator.KernelLipschitzFcn = @k.getLocalSecantLipschitz;
+                    est(end).Estimator.KernelLipschitzFcn = error.LocalSecantLipschitz(k);
                     est(end).Estimator.UseTimeDiscreteC = false;
                     est(end).MarkerStyle = 'h';
                     est(end).LineStyle = '-';
@@ -297,11 +332,15 @@ classdef EstimatorDemo < handle
                     end
                 end
                 
+                if any(this.EstimatorVersions(4:5))
+                    ilfcn = error.ImprovedLocalSecantLipschitz(k);
+                end
+                
                 if this.EstimatorVersions(4)
                     fprintf('Initializing LSL estimator...\n');
                     est(end+1).Name = 'LSL';
                     est(end).Estimator = error.LocalLipKernelEstimator(r);
-                    est(end).Estimator.KernelLipschitzFcn = @k.getImprovedLocalSecantLipschitz;
+                    est(end).Estimator.KernelLipschitzFcn = ilfcn;
                     est(end).Estimator.UseTimeDiscreteC = false;
                     est(end).MarkerStyle = 'p';
                     est(end).LineStyle = '-';
@@ -319,14 +358,14 @@ classdef EstimatorDemo < handle
                     fprintf('Initializing LSL TD estimators...\n');
                     est(end+1).Name = 'LGL TD';
                     est(end).Estimator = error.LocalLipKernelEstimator(r);
-                    est(end).Estimator.KernelLipschitzFcn = @k.getLocalGradientLipschitz;
+                    est(end).Estimator.KernelLipschitzFcn = error.LocalGradientLipschitz(k);
                     est(end).Estimator.UseTimeDiscreteC = true;
                     est(end).MarkerStyle = '<';
                     est(end).LineStyle = '-';
                     
                     est(end+1).Estimator = est(end).Estimator.clone;
                     est(end).Name = 'LSL TD';
-                    est(end).Estimator.KernelLipschitzFcn = @k.getImprovedLocalSecantLipschitz;
+                    est(end).Estimator.KernelLipschitzFcn = ilfcn;
                     est(end).MarkerStyle = '<';
                     est(end).LineStyle = '-';
                 end
@@ -334,6 +373,24 @@ classdef EstimatorDemo < handle
                 fprintf('Cannot use the LocalLipKernelEstimator for model %s:\n%s\n',r.Name,msg);
             end
             
+            if this.EstimatorVersions(6)
+                msg = error.ExpensiveBetaEstimator.validModelForEstimator(r);
+                if isempty(msg)
+                        fprintf('Initializing expensive estimators with custom beta ...\n');
+                        est(end+1).Name = 'TD Bestest';
+                        est(end).Estimator = error.ExpensiveBetaEstimator(r);
+                        est(end).MarkerStyle = '<';
+                        est(end).LineStyle = '-.';
+
+                        est(end+1).Estimator = est(end).Estimator.clone;
+                        est(end).Name = 'TD Jacobian (nonrigor)';
+                        est(end).Estimator.Version = 2;
+                        est(end).MarkerStyle = '<';
+                        est(end).LineStyle = '-.';
+                else
+                    fprintf('Cannot use the ExpensiveBetaEstimator for model %s:\n%s\n',r.Name,msg);
+                end
+            end
             this.Est = est;
         end
     end

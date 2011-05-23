@@ -43,6 +43,7 @@ classdef AffLinFcn < KerMorObject
             this.Coefficients{end+1} = coeff_fun;
             this.Matrices{end+1} = mat;
         end
+        
     end
     
 end

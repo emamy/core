@@ -17,6 +17,10 @@ classdef BaseLipKernelEstimator < error.BaseEstimator
         M3 = [];
     end
     
+    properties(SetAccess=protected)
+        betas = [];
+    end
+    
     methods
         function setReducedModel(this, rmodel)
             % Overrides the method from BaseEstimator and performs
@@ -25,7 +29,8 @@ classdef BaseLipKernelEstimator < error.BaseEstimator
             % Call superclass
             setReducedModel@error.BaseEstimator(this, rmodel);
             
-            fm = rmodel.FullModel;
+            fm = rmodel.FullModel; 
+            B = [];
             if ~isempty(fm.System.B)
                 try
                     B = fm.System.B.evaluate([],[]);
@@ -89,6 +94,11 @@ classdef BaseLipKernelEstimator < error.BaseEstimator
             copy.M2 = this.M2;
             copy.M3 = this.M3;
         end
+        
+        function clear(this)
+            clear@error.BaseEstimator(this);
+            this.betas = [];
+        end
     end
     
     methods(Static)
@@ -104,6 +114,8 @@ classdef BaseLipKernelEstimator < error.BaseEstimator
             end
             if ~isa(rmodel.FullModel.System.C,'dscomponents.LinearOutputConv')
                 errmsg = 'Local Lipschitz estimators work only for constant linear output conversion.';
+            elseif rmodel.FullModel.System.C.TimeDependent
+                errmsg = 'Output error estimation for time dependent output not implemented yet.';
             end
         end
     end

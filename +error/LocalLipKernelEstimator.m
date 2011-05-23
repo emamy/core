@@ -10,6 +10,9 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
     %
     % @author Daniel Wirtz @date 2010-08-10
     %
+    % @change{0,4,dw,2011-05-23} Adopted to the new error.BaseEstimator interface with separate output
+    % error computation.
+    %
     % @change{0,3,dw,2011-05-02} Changed the implementation of the evalODEPart so that only two
     % extra ODE dimensions are needed. This avoids NaN entries when exponential values grow too big.
     %
@@ -42,7 +45,9 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
         % t: The current time `t`
         % mu: The current parameter `\mu`
         %
-        % See also: kernels.BaseKernel kernels.BellFunction
+        % @type error.BaseLocalLipschitzFunction
+        %
+        % See also: kernels.BaseKernel kernels.BellFunction error.BaseLocalLipschitzFunction
         KernelLipschitzFcn;
         
         % Determines how many postprocessing iterations for the estimator
@@ -90,6 +95,7 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
             copy = error.LocalLipKernelEstimator;
             % ExtraODEDims is set in constructor!
             copy = clone@error.BaseLipKernelEstimator(this, copy);
+            % Fcn does not need to be cloned.
             copy.KernelLipschitzFcn = this.KernelLipschitzFcn;
             copy.Iterations = this.Iterations;
             copy.UseTimeDiscreteC = this.UseTimeDiscreteC;
@@ -111,8 +117,6 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
             % computations
             setReducedModel@error.BaseLipKernelEstimator(this, rmodel);
             
-            this.KernelLipschitzFcn = this.ReducedModel.System.f.SystemKernel.getLipschitzFunction;
-            
             fm = this.ReducedModel.FullModel;
             % Obtain the correct snapshots
             if ~isempty(fm.Approx)
@@ -133,6 +137,15 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
             if this.ReducedModel.System.f.RotationInvariant
                 this.xi = this.ReducedModel.System.f.Centers.xi;
             end
+            
+            ker = this.ReducedModel.System.f.SystemKernel;
+            % Assign Lipschitz function
+            lfcn = error.ImprovedLocalSecantLipschitz(ker);
+            % Pre-Compute bell function xfeats if applicable
+            [x,X] = general.Utils.getBoundingBox(this.xi);
+            d = norm(X-x);
+            lfcn.precompMaxSecants(d*2,200);
+            this.KernelLipschitzFcn = lfcn;
         end
         
         function e = evalODEPart(this, x, t, mu, ut)
@@ -142,18 +155,17 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
             
             % Compute \alpha(t)
             phi = this.ReducedModel.System.f.evaluateAtCenters(x(1:end-this.ExtraODEDims), t, mu);
-            % An input function u is set
-            if nargin == 5
-                e(1) = phi*this.M1*phi' + phi*this.M2*ut + ut'*this.M3*ut;
-                % No input case
-            else
-                e(1) = phi*this.M1*phi';
+            
+            e(1) = phi*this.M1*phi';
+            
+            if nargin == 5 % An input function u is set
+                e(1) = e(1) + phi*this.M2*ut + ut'*this.M3*ut;    
             end
-            if ~this.neg_e1 && e(1) < 0
-                this.neg_e1 = true;
-            end
-            e(1) = sqrt(abs(e(1)));
-            %e(1) = sqrt(max(e(1),0));
+            
+            this.neg_e1 = this.neg_e1 || e(1) < 0;
+            
+            %e(1) = sqrt(abs(e(1)));
+            e(1) = sqrt(max(e(1),0));
             
             % Compute the local lipschitz constant estimations
             if this.ReducedModel.System.f.RotationInvariant
@@ -171,8 +183,9 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
             if this.UseTimeDiscreteC
                 Ct = eold(1) + eold(2);
             end
-            beta = this.Ma_norms * this.KernelLipschitzFcn(di,Ct,t,mu)';
+            beta = this.Ma_norms * this.KernelLipschitzFcn.evaluate(di, Ct, t, mu)';
             e(2) = beta*(eold(1) + eold(2));
+            this.betas(:,end+1) = [t; beta];
             
             % Iteration stuff
             if this.Iterations > 0
@@ -180,33 +193,6 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
                 this.e1vals(end+1) = e(1);
                 this.divals(end+1,:) = di;
             end
-        end
-        
-        function process(this, t, x, mu, inputidx)%#ok
-            eint = x(end-this.ExtraODEDims+1:end,:);
-            if all(eint == 0)
-                warning('CompWiseErrorEstimator:process','Integral part is all zero. Attention!');
-            end
-            this.LastError = eint(1,:) + eint(2,:);
-            
-            if this.neg_e1
-                disp('LocalLipKernelEstimator: Negative alpha(t) norms occurred. Used zero instead.');
-                this.neg_e1 = false;
-            end
-            
-            % Iteration stuff
-            if this.Iterations > 0
-                this.times(end+1) = t(end);
-                if this.UseTimeDiscreteC
-                    warning('error:LocalLipErrorEstimator','Using Iterations together with TimeDiscreteC will yield no improvement. Not performing iterations.');
-                else
-                    this.performIterations(t, mu);
-                end
-            end
-            
-            % Tranform to output error estimation
-            C = this.ReducedModel.FullModel.System.C.evaluate(0,[]);
-            this.LastError = norm(C)*this.LastError;
         end
         
         function e0 = getE0(this, mu)
@@ -219,11 +205,12 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
             this.times = [];
             this.e1vals = [];
             this.divals = [];
+            this.neg_e1 = false;
         end
         
         function set.KernelLipschitzFcn(this, value)
-            if ~isa(value,'function_handle')
-                error('KernelLipschitzFcn must be a function handle.');
+            if ~isa(value,'error.BaseLocalLipschitzFunction')
+                error('KernelLipschitzFcn must be a error.BaseLocalLipschitzFunction subclass.');
             end
             this.KernelLipschitzFcn = value;
         end
@@ -242,6 +229,31 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
                 error('The value must be a logical');
             end
             this.UseTimeDiscreteC = value;
+        end
+    end
+    
+    methods(Access=protected)
+        function postprocess(this, t, x, mu, inputidx)%#ok
+            eint = x(end-this.ExtraODEDims+1:end,:);
+            if all(eint == 0)
+                warning('CompWiseErrorEstimator:process','Integral part is all zero. Attention!');
+            end
+            this.StateError = eint(1,:) + eint(2,:);
+            
+            if this.neg_e1
+                disp('LocalLipKernelEstimator: Negative alpha(t) norms occurred. Used zero instead.');
+                this.neg_e1 = false;
+            end
+            
+            % Iteration stuff
+            if this.Iterations > 0
+                this.times(end+1) = t(end);
+                if this.UseTimeDiscreteC
+                    warning('error:LocalLipErrorEstimator','Using Iterations together with TimeDiscreteC will yield no improvement. Not performing iterations.');
+                else
+                    this.performIterations(t, mu);
+                end
+            end
         end
     end
     
@@ -266,7 +278,7 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
             
 %            cl = metaclass(this);
             odefun = @(t,x)this.iterationODEPart(x,t,mu);
-            this.errEst = this.LastError;
+            this.errEst = this.StateError;
             for it = 1:this.Iterations
 %                 fprintf('%s,%s, Iteration %d\n',cl.Name,func2str(this.KernelLipschitzFcn),it);
                 
@@ -277,7 +289,7 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
                 [ti, eint] = solver.solve(odefun, t, this.getE0(mu));
                 this.errEst = eint(1,:) + eint(2,:);         
             end
-            this.LastError = this.errEst;
+            this.StateError = this.errEst;
         end
         
         function e = iterationODEPart(this, eold, t, mu)
@@ -295,7 +307,7 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
             
             e = zeros(this.ExtraODEDims,1);
             e(1) = this.e1vals(idx);
-            beta = this.Ma_norms * this.KernelLipschitzFcn(...
+            beta = this.Ma_norms * this.KernelLipschitzFcn.evaluate(...
                 this.divals(idx,:),this.errEst(idx),t,mu)';
             e(2) = beta*(eold(1) + eold(2));
             
@@ -309,6 +321,9 @@ classdef LocalLipKernelEstimator < error.BaseLipKernelEstimator
             errmsg = validModelForEstimator@error.BaseLipKernelEstimator(rmodel);
             if isempty(errmsg) && ~isa(rmodel.System.f,'dscomponents.AKernelCoreFun')
                 errmsg = 'The reduced model''s core function must be a subclass of dscomponents.AKernelCoreFun for this error estimator.'; 
+            end
+            if isempty(errmsg) && ~isa(rmodel.System.f.SystemKernel,'kernels.BellFunction')
+                errmsg = 'The system''s kernel must be a kernels.BellFunction for this error estimator.';
             end
         end
         

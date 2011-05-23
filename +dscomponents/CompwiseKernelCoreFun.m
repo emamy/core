@@ -48,7 +48,7 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
             %
             % See also: dscomponents.IJacobian kernels.BaseKernel
             N = this.evaluateStateNabla(x, t, mu);
-            J = this.Ma * N'; 
+            J = this.Ma * N';
         end
         
         function c = getGlobalLipschitz(this, t, mu)%#ok

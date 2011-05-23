@@ -151,24 +151,13 @@ classdef TPWLApprox < approx.BaseApprox
             end
         end
         
-        function approximateCoreFun(this, model)
+        function approximateCoreFun(this, xi, ti, mui, fxi)
             % Implements BaseApprox abstract template method
             %
             % @todo create sparse matrices if suitable!
             
-            % Load snapshots
-            atd = model.Data.ApproxTrainData;
+            this.xi = xi;
             
-            % Compile necessary data
-            this.xi = atd(4:end,:);
-            ti = atd(3,:);
-            muidx = atd(1,:);
-            if all(muidx == 0)
-                mui = [];
-            else
-                mui = model.Data.ParamSamples(:,muidx);
-            end
-
             as = size(this.xi,2);
             N = size(this.xi,1);
             h = 1e-8;
@@ -179,13 +168,13 @@ classdef TPWLApprox < approx.BaseApprox
                 sel = ones(1,N)*i;
                 xipt = this.xi(:,sel);
                 if isempty(mui); mu = []; else mu = mui(:,sel); end
-                tmp = (model.System.f.evaluate(xipt+dh,ti(sel),mu)-model.Data.ApproxfValues(:,sel))/h;
+                tmp = (model.System.f.evaluate(xipt+dh,ti(sel),mu)-fxi(:,sel))/h;
                 % Make sparse if applicable
                 if sum(sum(tmp ~= 0)) / numel(tmp) < .5
                     tmp = sparse(tmp);
                 end
                 this.Ai{i} = tmp;
-                this.bi(:,i) = model.Data.ApproxfValues(:,i) - tmp*this.xi(:,i);
+                this.bi(:,i) = fxi(:,i) - tmp*this.xi(:,i);
             end
         end
     end

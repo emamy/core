@@ -208,7 +208,7 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
             if all(eint == 0)
                 warning('CompWiseErrorEstimator:process','Integral part is all zero. Attention!');
             end
-            this.LastError = eint(1,:) + eint(2,:);
+            this.StateError = eint(1,:) + eint(2,:);
             
             if this.neg_e1
                 disp('TPWLLocalLipEstimator: Negative alpha(t) norms occurred. Used zero instead.');
@@ -227,7 +227,7 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
             
             % Tranform to output error estimation
             C = this.ReducedModel.FullModel.System.C.evaluate(0,[]);
-            this.LastError = norm(C)*this.LastError;
+            this.StateError = norm(C)*this.StateError;
         end
         
         function e0 = getE0(this, mu)

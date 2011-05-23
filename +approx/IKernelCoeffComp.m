@@ -9,7 +9,7 @@ classdef IKernelCoeffComp < handle
     %
     % @author Daniel Wirtz @date 2011-03-31
     %
-    % @chane{0,3,dw,2011-05-03} Removed offset terms from interface as the `b` offsets for kernel
+    % @change{0,3,dw,2011-05-03} Removed offset terms from interface as the `b` offsets for kernel
     % expansions arent used anymore.
     %
     % @new{0,3,dw,2011-03-31} Added this interface.
@@ -42,7 +42,7 @@ classdef IKernelCoeffComp < handle
         % leave empty if all are used.
         %
         % See also: init
-        [ai, svidx] = computeKernelCoefficients(this, yi);
+        [ai, svidx] = computeKernelCoefficients(this, yi, aiinit);
     end
     
 end

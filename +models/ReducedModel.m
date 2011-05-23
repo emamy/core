@@ -126,7 +126,7 @@ classdef ReducedModel < models.BaseModel
             % any online-computable errors
             if this.ErrorEstimator.Enabled
                 x = xtmp(1:end-this.ErrorEstimator.ExtraODEDims,:);
-                this.ErrorEstimator.process(t, xtmp, mu, inputidx);
+                this.ErrorEstimator.postProcess(t, xtmp, mu, inputidx);
             else
                 x = xtmp;
             end
@@ -137,10 +137,8 @@ classdef ReducedModel < models.BaseModel
             % `E_{y_0}(\mu) = ||C(0,\mu)(I-VW^t)x_0(\mu)||`
             if ~isempty(this.V) && ~isempty(this.W)
                 x0 = this.FullModel.System.x0(mu);
-                Vy = this.V*(this.W'*x0);
-                exo = x0'*this.G*x0 - 2*x0'*this.G*Vy + Vy'*this.G'*Vy;
-                exo = sqrt(max(exo,0));
-%                 exo = sqrt(sum((C*(x0-this.V*this.W'*x0)).^2));
+                x0 = x0 - this.V*(this.W'*x0);
+                exo = sqrt(x0'*this.GScaled*x0);
             else
                 exo = 0;
             end
@@ -173,13 +171,13 @@ classdef ReducedModel < models.BaseModel
 %             [t,x,xr] = this.getTrajectories(varargin{:});
 %             % Compute L^2-norm of difference for each timestep
 %             e = sqrt(sum((x - xr).^2,1));
-%             est = this.ErrorEstimator.LastError;
+%             est = this.ErrorEstimator.StateError;
 %         end
         
 %         function [t,erel,estrel] = getRelativeError(this, varargin)
 %             [t,x,xr] = this.getTrajectories(varargin{:});
 %             e = sqrt(sum((x - xr).^2,1));
-%             est = this.ErrorEstimator.LastError;
+%             est = this.ErrorEstimator.StateError;
 %             x = sqrt(sum(x.^2,1));
 %             erel = e./x;
 %             estrel = est./x;

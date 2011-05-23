@@ -52,6 +52,7 @@ classdef ICloneable < handle
 %     end
     
     methods(Abstract)
+        % The interface method with returns a copy of the current class instance.
         copy = clone(this, target)
     end
 end

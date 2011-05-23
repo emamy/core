@@ -10,33 +10,42 @@ classdef BaseEstimator < KerMorObject & ICloneable
     %
     % @author Daniel Wirtz @date 24.11.2010
     %
+    % @change{0,4,dw,2011-05-23} Created a new interface with separate output
+    % error computation. Postprocessing is now a template method and a new property
+    % error.BaseEstimator.OutputError has been introduced. Renamed the LastError property to
+    % error.BaseEstimator.StateError.
+    %
     % @change{0,3,sa,2011-04-23} Implemented Setters for the properties of
     % this class other than ReducedModel
     
     properties(Dependent)
         % Flag that indicates whether error estimation is used or not.
         %
-        % Default:
-        % true
+        % @default true
         Enabled;
     end
     
     properties(SetAccess=protected)
-        % The reduction error data from the last simulation
+        % The reduction state-space error from the last simulation
         %
-        % Default:
-        % []
+        % @default []
         %
-        % See also: models.ReducedModel#ErrorComputation
-        LastError = [];
+        % See also: models.ReducedModel#ErrorEstimator
+        StateError = [];
+        
+        % The output error from the last simulation
+        %
+        % @default []
+        %
+        % See also: models.ReducedModel#ErrorEstimator
+        OutputError = [];
         
         % The dimensions added to the ODE function by the estimator.
         %
         % Please set to correct value in subclasses as simulations are not
         % possible if set incorrect.
         %
-        % Default:
-        % 0
+        % @default 0
         ExtraODEDims = 0;
     end
     
@@ -68,9 +77,41 @@ classdef BaseEstimator < KerMorObject & ICloneable
             this.ReducedModel = rmodel;
         end
         
+        function postProcess(this, x, t, mu, inputidx)
+            % Post-processes the error estimator ODE part after reduced simulation computation
+            %
+            % Here the OutputError fields
+            %
+            % Parameters:
+            % t: The times at which the reduced simulation was computed
+            % x: The reduced simulation's system state PLUS the error
+            % estimation values in the last this.ExtraODEDims rows.
+            % mu: The current parameter `\mu`
+            % inputidx: The current input index
+            
+            % Call template method to compute the state error in subclasses
+            this.postprocess(x, t, mu, inputidx);
+            
+            % Tranform to output error estimation (if used)
+            C = this.ReducedModel.FullModel.System.C;
+            if ~isempty(C)
+                % Get error
+                if C.TimeDependent
+                    x = this.StateError;
+                    for idx=1:length(t)
+                        x(idx) = norm(m.System.C.evaluate(t(idx),mu))*x(idx);
+                    end
+                else
+                    this.OutputError = norm(C.evaluate(0,mu))*this.StateError;
+                end
+            else
+                this.OutputError = this.StateError;
+            end
+        end
+        
         function clear(this)
             % Clears the last error set by the estimator.
-            this.LastError = [];
+            this.StateError = [];
         end
         
         function copy = clone(this, copy)
@@ -80,14 +121,14 @@ classdef BaseEstimator < KerMorObject & ICloneable
                 error('Clone to this method can only be called from subclasses.');
             end
             copy.ExtraODEDims = this.ExtraODEDims;
-            copy.LastError = this.LastError;
+            copy.StateError = this.StateError;
             copy.Enabled = this.Enabled;
             % No cloning of the associated reduced model.
             copy.ReducedModel = this.ReducedModel;
         end
               
-        function set.LastError(this, value)
-            this.LastError = value;
+        function set.StateError(this, value)
+            this.StateError = value;
         end
         
         function set.ExtraODEDims(this, value)
@@ -108,7 +149,7 @@ classdef BaseEstimator < KerMorObject & ICloneable
             if ~islogical(value)
                 error('Enabled property must be a boolean flag');
             elseif ~value
-                this.LastError = [];
+                this.StateError = [];
             end
             this.fEnabled = value;
         end
@@ -128,6 +169,12 @@ classdef BaseEstimator < KerMorObject & ICloneable
         % ut: The value of the input function `u(t)` if given, [] else.
         eint = evalODEPart(this, x, t, mu, ut);
         
+        % Gets the initial condition vector for additional used ODE
+        % dimensions.
+        e0 = getE0(this, mu);
+    end
+    
+    methods(Abstract, Access=protected)
         % Allows for any post-processing after the ODE solver finished
         % integration of the system/error system part.
         %
@@ -135,11 +182,7 @@ classdef BaseEstimator < KerMorObject & ICloneable
         % t: The times at which the reduced simulation was computed
         % x: The reduced simulation's system state PLUS the error
         % estimation values in the last this.ExtraODEDims rows.
-        process(this, t, x, mu, inputidx);
-        
-        % Gets the initial condition vector for additional used ODE
-        % dimensions.
-        e0 = getE0(this, mu);
+        postprocess(this, t, x, mu, inputidx);
     end
     
     methods(Static)

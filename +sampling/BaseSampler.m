@@ -13,6 +13,7 @@ classdef BaseSampler < KerMorObject
     end
     
     methods(Abstract)
+        % Template method for actual sampling.
         samples = performSampling(model)
     end
 end

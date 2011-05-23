@@ -3,10 +3,8 @@ classdef DefaultEstimator < error.BaseEstimator
     % Standard estimator that is independent from any special reduced model
     % since it computes the full error!
     %
-    % Warning:
-    % If a nontrivial output conversion is used (i.e. `C\neq1`), the
-    % default estimator computes `e_y(t) = ||C||\cdot||e(t)||`, which will
-    % result in an higher error estimate than the true error.
+    % @change{0,4,dw,2011-05-23} Adopted to the new error.BaseEstimator interface with separate output
+    % error computation.
     
     methods
         function this = DefaultEstimator(rmodel)
@@ -32,8 +30,16 @@ classdef DefaultEstimator < error.BaseEstimator
         function eint = evalODEPart(this, x, t, mu, ut)%#ok
             eint = [];
         end
-        
-        function process(this, t, x, mu, inputidx)
+                
+        function e0 = getE0(this, mu)%#ok
+            % This error estimator does not use any ODE dimensions, so the
+            % initial error part is an empty matrix.
+            e0 = [];
+        end
+    end
+    
+    methods(Access=protected)
+        function postprocess(this, t, x, mu, inputidx)%#ok
             m = this.ReducedModel.FullModel;
             % Compute full solution
             [tf,xf] = m.computeTrajectory(mu,inputidx);
@@ -46,28 +52,14 @@ classdef DefaultEstimator < error.BaseEstimator
             
             % Re-scale
             %diff = bsxfun(@times,diff,this.ReducedModel.System.StateScaling);
-            y = sqrt(sum(diff.*(this.ReducedModel.GScaled*diff),1));
+            x = sqrt(sum(diff.*(this.ReducedModel.GScaled*diff),1));
             
             % Convert to exact error on output level
 %             diffy = m.System.C.computeOutput(t,diff,mu);
-%             this.LastError = sqrt(sum(diffy.*(this.ReducedModel.G*diffy),1));
+%             this.StateError = sqrt(sum(diffy.*(this.ReducedModel.G*diffy),1));
 %             return;
             
-            % Get error
-            if m.System.C.TimeDependent
-                for idx=1:length(t)
-                    y(idx) = norm(m.System.C.evaluate(t(idx),mu))*y(idx);
-                end
-            else
-                y = norm(m.System.C.evaluate([],mu))*y;
-            end
-            this.LastError = y;
-        end
-        
-        function e0 = getE0(this, mu)%#ok
-            % This error estimator does not use any ODE dimensions, so the
-            % initial error part is an empty matrix.
-            e0 = [];
+            this.StateError = x;
         end
     end
     

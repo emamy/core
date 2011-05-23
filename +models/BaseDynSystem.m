@@ -94,6 +94,9 @@ classdef BaseDynSystem < KerMorObject
         
         % The current input function `u(t)` as function handle, [] if none used.
         u = [];
+        
+        % The current inputindex of the function `u(t)`
+        inputidx = [];
     end
     
     properties(SetAccess=private, Dependent)
@@ -146,13 +149,18 @@ classdef BaseDynSystem < KerMorObject
             this.mu = mu;
             
             if isempty(inputidx) && ~isempty(this.Inputs)
-                warning('BaseModel:NoInputSpecified',['You must specify '...
-                    'an input index if inputs are set up. Using inputidx=1']);
-                inputidx = 1;
+                cprintf('red','Attention: Starting simulations without input, but the system has configured some.\n');
+                %inputidx = 1;
             elseif inputidx > length(this.Inputs)
                 error('Invalid input index "%d". There are %d possible inputs configured.',inputidx,length(this.Inputs));
             end
-            this.u = this.Inputs{inputidx};
+            if ~isempty(inputidx)
+                this.u = this.Inputs{inputidx};
+                this.inputidx = inputidx;
+            else
+                this.u = [];
+                this.inputidx = [];
+            end
         end
     
         function y = ODEFun(this, t, x)
@@ -247,7 +255,7 @@ classdef BaseDynSystem < KerMorObject
         end
     end
     
-    methods(Abstract)
+    methods
         % Returns the initial value `x(0) = x_0` for the ODE solver to start simulations from.
         %
         % Parameters:
@@ -255,7 +263,7 @@ classdef BaseDynSystem < KerMorObject
         %
         % Return values:
         % x: The initial system state `x_0`
-        x = x0(mu);
+        x = x0(this, mu);
     end
     
     %% Getter & Setter
@@ -264,9 +272,9 @@ classdef BaseDynSystem < KerMorObject
             if ~isempty(value) && ~isa(value, 'dscomponents.ACoreFun')
                 error('The property "f" has to be a class implementing dscomponents.ACoreFun');
             end
-            if (isequal(this,value))
-                warning('KerMor:selfReference','Careful with self-referencing classes. See BaseFullModel class documentation for details.');
-            end
+%             if (isequal(this,value))
+%                 warning('KerMor:selfReference','Careful with self-referencing classes. See BaseFullModel class documentation for details.');
+%             end
             this.f = value;
         end
         

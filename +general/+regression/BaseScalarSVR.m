@@ -9,6 +9,9 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.IKernelCoeffComp
     %
     % @author Daniel Wirtz @date 11.03.2010
     %
+    % @change{0,4,dw,2011-05-19} Changed the interface to optionally take an initial coefficient
+    % configuration. BETA STATUS.
+    %
     % @change{0,3,sa,2011-05-07} Implemented Setter for the properties of
     % this class
     
@@ -84,20 +87,20 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.IKernelCoeffComp
         
         function set.C(this, value)
             if ~isposrealscalar(value)
-                error('Value must be a positive real scalar');
+                error('C must be a positive real scalar');
             end
             this.C = value;
         end
         
-        function set.AlphaMinValue(this, value)
+        function set.AlphaRelMinValue(this, value)
             if ~isposrealscalar(value)
-                error('Value must be a positive real scalar');
+                error('AlphaRelMinValue must be a positive real scalar');
             end
-            this.AlphaMinValue = value;
+            this.AlphaRelMinValue = value;
         end
         
         function set.QPSolver(this, value)
-            if ~isa(value,'solvers.qp')
+            if ~isa(value,'solvers.qp.BaseQPSolver')
                 error('The given value has to be a solvers.qp instance.');
             end            
             this.QPSolver = value;
@@ -108,11 +111,27 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.IKernelCoeffComp
             this.K = K;
         end
         
-        function [ai, svidx] = computeKernelCoefficients(this, yi)
-            [ai, svidx] = this.regress(yi);
+        function [ai, svidx] = computeKernelCoefficients(this, yi, aiinit)
+            % @throws KerMor:coeffcomp:failed Thrown if the coefficient computation failed for a
+            % reason known within KerMor.
+            %
+            % @throws KerMor:svr:nosupportvectors No support vectors could be found for the given
+            % configuration.
+            try
+                [ai, svidx] = this.regress(yi,aiinit);
+            catch ME
+                if strcmp(ME.identifier,'KerMor:solvers:qp:notconverged')
+                    m = MException('KerMor:coeffcomp:failed','Regression failed');
+                    m.addCause(ME);
+                    m.throw;
+                else
+                    rethrow(ME);
+                end
+            end
             if isempty(svidx) 
                 if any(yi ~= 0)
-                    error('No support vectors found. Problem unsolvable with current config?\nQuadprog exit flag:%d\nQuadprog out.message:%s',exitflag,out.message);
+                    m = MException('KerMor:svr:nosupportvectors','No support vectors found. Problem unsolvable with current config?\nQuadprog exit flag:%d\nQuadprog out.message:%s',exitflag,out.message);
+                    m.throw;
                 else
                     % Otherwise "fake" a support vector with zero coefficient!
                     ai = 0;
@@ -123,6 +142,7 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.IKernelCoeffComp
     end
         
     methods(Abstract)
+        % Performs the actual regression (template method)
         [ai, svidx] = regress(this, fxi);
     end
     

@@ -144,22 +144,29 @@ classdef POD < KerMorObject
                 warning('general:pod','%d of %d singular values are zero. Assuming output size %d',length(z),length(s),length(s)-length(z));
             end
             
-            if size(vec,2) > size(vec,1) % Case N >> d (more columns than dimensions, "normal case")
-                % Cut out columns of zero singular values
-                u(:,z) = [];
-                podvec = u;
-            else % Case d >> N ("undersampled")
-                % Cut out columns of zero singular values
-                s(z) = [];
-                v(:,z) = [];
-                podvec = vec * v * diag(s.^-1);
-            end
+            u(:,z) = [];
+            podvec = u;
+%             if size(vec,2) > size(vec,1) % Case N >> d (more columns than dimensions, "normal case")
+%                 % Cut out columns of zero singular values
+%                 u(:,z) = [];
+%                 podvec = u;
+%             else % Case d >> N ("undersampled")
+%                 % Cut out columns of zero singular values
+%                 s(z) = [];
+%                 v(:,z) = [];
+%                 podvec = vec * v * diag(s.^-1);
+%             end
             
+            % Security checks
             if any(isinf(podvec(:)))
                 error('Inf values occured in POD vectors.');
             end
             if any(isnan(podvec(:)))
                 error('NaN values occured in POD vectors.');
+            end
+            if any(any(round(podvec'*podvec) ~= eye(size(podvec,2))))
+                keyboard;
+                error('Invalid POD');
             end
         end
         

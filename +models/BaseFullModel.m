@@ -50,6 +50,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         %
         % @propclass{data}
         %
+        % @type models.ModelData
+        %
         % See also: ModelData
         Data;
     end
@@ -92,7 +94,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         %
         % @propclass{optional}
         %
-        % @todo create class events from this
+        % @default []
+        %
+        % @todo (optional) create class events from this
         preApproximationTrainingCallback;
         
         % Advanced property. 
@@ -102,6 +106,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % method.
         %
         % @propclass{optional}
+        %
+        % @default []
         %
         % See also: preApproximationTrainingCallback
         postApproximationTrainingCallback;
@@ -360,7 +366,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     error('No approximation training data available. Called off4_genApproximationTrainData?');
                 end
                 
-                if isa(this.preApproximationTrainingCallback,'function_handle')
+                if ~isempty(this.preApproximationTrainingCallback)
                     this.preApproximationTrainingCallback();
                 end
                 
@@ -368,10 +374,20 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     fprintf('Serial approximation computation for %d dimensions ...\n',size(this.Data.ApproxfValues,1));
                 end
                 
-                % Approximate core function (is parallelizable for its own)
-                this.Approx.approximateCoreFun(this);
+                %% Approximate core function (is parallelizable for its own)
+                % Compile necessary data
+                atd = this.Data.ApproxTrainData;
+                xi = atd(4:end,:);
+                ti = atd(3,:);
+                muidx = atd(1,:);
+                if all(muidx == 0)
+                    mui = [];
+                else
+                    mui = model.Data.ParamSamples(:,muidx);
+                end
+                this.Approx.approximateCoreFun(xi,ti,mui,this.Data.ApproxfValues);
                 
-                if isa(this.postApproximationTrainingCallback,'function_handle')
+                if ~isempty(this.postApproximationTrainingCallback)
                     this.postApproximationTrainingCallback();
                 end
             end
@@ -446,7 +462,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             [t,x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
         end
         
-        function printPropertyChangedSummary(this,levels)
+        function printPropertyChangedSummary(this, levels)
             % Prints a summary about the properties of different levels which have not been changed
             % from their default setting.
             %
@@ -467,10 +483,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 total = sum(c,2);
                 total(3) = total(3)/size(c,2);
                 
-                col = [1-total(3)/100 total(3)/100 0];
+                col = [total(3)/100 1-total(3)/100 0];
                 cprintf(col,'Total unchanged properties: %d of %d (%2.2f%%%%)\n',total);
                 for lidx = 1:length(levels)
-                    col = [1-c(3,lidx)/100 c(3,lidx)/100 0];
+                    col = [c(3,lidx)/100 1-c(3,lidx)/100 0];
                     lvidx = find(strcmp(levels{lidx},KerMorObject.getPropClasses),1);
                     cprintf(col, 'Unchanged ''%s'': %d of %d (%2.2f%%%%)\n',levels{lidx},c(:,lvidx));
                 end

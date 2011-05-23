@@ -82,6 +82,8 @@ classdef AOutputConv < KerMorObject & dscomponents.IProjectable
     end
     
     methods(Abstract)
+        % Template method that evaluates the output conversion matrix `C` at the current time `t`
+        % and [optional] parameter `\mu`.
         y = evaluate(t,mu);
     end
     

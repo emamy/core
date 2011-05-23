@@ -9,7 +9,8 @@ classdef BaseApprox < dscomponents.ACoreFun
     %
     % @author Daniel Wirtz @date 2010-03-11
     %
-    % --? @change{0,3,sa,2011-04-21} Implemented Setter for the property
+    % @change{0,4,dw,2011-05-19} Disconnected the Approx classes from taking a BaseModel instance at
+    % approx computation. This way external tools can use the approximation algorithms, too.
     %
     % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
     % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
@@ -36,6 +37,8 @@ classdef BaseApprox < dscomponents.ACoreFun
         % @default approx.selection.TimeSelector
         %
         % @type approx.selection.ASelector
+        %
+        % @todo MOVE TO BASEFULLMODEL
         %
         % See also: DefaultSelector LinspaceSelector TimeSelector
         TrainDataSelector;
@@ -64,8 +67,10 @@ classdef BaseApprox < dscomponents.ACoreFun
         % Template method.
         %
         % Parameters:
-        % model: The full model
-        approximateCoreFun(this, model);
+        % xi: The input vectors `x_i`
+        % fxi: The function `f(x_i)` 
+        % model: [Optional] The full model
+        approximateCoreFun(this, xi, ti, mui, fxi);
     end
     
     methods(Static)

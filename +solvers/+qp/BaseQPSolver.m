@@ -68,11 +68,13 @@ classdef BaseQPSolver < KerMorObject & ICloneable
             % # CompTime
             % # NumVariables
             % # NumConstraints
+            %
+            % @throws KerMor:solvers:qp:notconverged Thrown if the QP solver did not converge.
             
             % Check for MaxIterations
             if KerMor.App.Verbose > 0
                 it = 100*(size(Q,1)+size(A,1));
-                if this.MaxIterations < it
+                if KerMor.App.Verbose > 3 && this.MaxIterations < it
                     fprintf('%s: MaxIterations of %d smaller than recommended value %d.\n',this.Name,this.MaxIterations,it);
                 end
             end
@@ -92,7 +94,11 @@ classdef BaseQPSolver < KerMorObject & ICloneable
             % Evaluate
             if ~cflag
                 disp(info);
-                error('Solver ''%s'' did not converge.',this.Name);
+                if isfield(info,'message')
+                    fprintf('Message: %s\n',info.message);
+                end
+                m = MException('KerMor:solvers:qp:notconverged','Solver ''%s'' did not converge.',this.Name);
+                m.throw;
             end
             
             % Verbose output

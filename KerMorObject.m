@@ -101,7 +101,7 @@ classdef KerMorObject < handle
                         error('Invalid property class: %s',n.level);
                     end
                     % Add the listener
-                    if ~any(strcmp(n.level,{'passive','data'}))
+                    if ~any(strcmp(n.level,'data'))
                         if ~p.SetObservable
                             error('Non-passive registered property %s must have the SetObservable flag.',p.Name);
                         end
