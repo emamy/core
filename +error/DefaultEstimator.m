@@ -31,7 +31,7 @@ classdef DefaultEstimator < error.BaseEstimator
             eint = [];
         end
                 
-        function e0 = getE0(this, mu)%#ok
+        function e0 = init(this, mu)%#ok
             % This error estimator does not use any ODE dimensions, so the
             % initial error part is an empty matrix.
             e0 = [];

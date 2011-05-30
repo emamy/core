@@ -3,7 +3,7 @@ classdef BaseEstimator < KerMorObject & ICloneable
     %
     %   In KerMor any error estimators have the chance to add additionaly
     %   terms to the ODE function by using the
-    %   @ref evalODEPart and @ref getE0 functions.
+    %   @ref evalODEPart and @ref init functions.
     %   Finally, the method @ref process gets called when the ODE solver
     %   finished to allow for any processing / final computation of error
     %   estimates.
@@ -92,6 +92,10 @@ classdef BaseEstimator < KerMorObject & ICloneable
             % Call template method to compute the state error in subclasses
             this.postprocess(x, t, mu, inputidx);
             
+            if all(this.StateError == 0)
+                warning('BaseEstimator:postProcess','State error is all zero. Attention!');
+            end
+            
             % Tranform to output error estimation (if used)
             C = this.ReducedModel.FullModel.System.C;
             if ~isempty(C)
@@ -126,6 +130,11 @@ classdef BaseEstimator < KerMorObject & ICloneable
             % No cloning of the associated reduced model.
             copy.ReducedModel = this.ReducedModel;
         end
+        
+    end
+    
+    %% Getter & Setter
+    methods
               
         function set.StateError(this, value)
             this.StateError = value;
@@ -169,9 +178,9 @@ classdef BaseEstimator < KerMorObject & ICloneable
         % ut: The value of the input function `u(t)` if given, [] else.
         eint = evalODEPart(this, x, t, mu, ut);
         
-        % Gets the initial condition vector for additional used ODE
-        % dimensions.
-        e0 = getE0(this, mu);
+        % Initializes the error estimator and gets the initial condition vector for additional used
+        % ODE dimensions.
+        e0 = init(this, mu);
     end
     
     methods(Abstract, Access=protected)
@@ -193,12 +202,17 @@ classdef BaseEstimator < KerMorObject & ICloneable
             % Tries to always select the best estimator available for the
             % model. Of course the error estimator can be changed manually
             % later on.
-            if isempty(error.LocalLipKernelEstimator.validModelForEstimator(model))
-                est = error.LocalLipKernelEstimator(model);
+            %
+            % @todo overhaul this method of assigning an error estimator to a reduced model.
+            % at this method local knowledge of all available error estimators has to be present
+            % anyways if going through this in a if then fashion. otherwise, see if reflection may
+            % be used here!
+            if isempty(error.LocalKernelEstimator.validModelForEstimator(model))
+                est = error.LocalKernelEstimator(model);
             elseif isempty(error.TPWLLocalLipEstimator.validModelForEstimator(model))
                 est = error.TPWLLocalLipEstimator(model);
-            elseif isempty(error.GlobalLipKernelEstimator.validModelForEstimator(model))
-                est = error.GlobalLipKernelEstimator(model);
+            elseif isempty(error.GLEstimator.validModelForEstimator(model))
+                est = error.GLEstimator(model);
             elseif isa(model.System.f,'models.synth.KernelTest')
                 est = error.ExperimentalEstimator(model);
             else

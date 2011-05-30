@@ -39,8 +39,8 @@ classdef GaussKernel < kernels.BellFunction
             if nargin == 1
                 this.Gamma = Gamma;
             else
-                % Set x0 according to whatever default value for Gamma is currently set
-                this.x0 = sqrt(this.Gamma^2/2);
+                % Set r0 according to whatever default value for Gamma is currently set
+                this.r0 = sqrt(this.Gamma^2/2);
             end
         end
         
@@ -143,8 +143,7 @@ classdef GaussKernel < kernels.BellFunction
             this.Gamma = value;
             
             % Adjust the BellFunctions' x0 value
-            this.x0 = sqrt(value^2/2); %#ok
-            %this.PenaltyFactor = 1/value^2; %#ok
+            this.r0 = value/sqrt(2); %#ok
         end
         
         function g = setGammaForDistance(this, dist, ep)

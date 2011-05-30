@@ -34,7 +34,7 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
     end
 
     properties(Access=private)
-        oldxfeat = [];
+        oldrs = [];
         precomp = [];
     end
     
@@ -47,35 +47,35 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
         
         function ci = evaluate(this, di, C, t, mu)%#ok
             b = this.bellfcn;
-            x0 = b.x0;
-            if isempty(this.oldxfeat) || any(isnan(this.oldxfeat)) || size(this.oldxfeat,2) ~= size(di,2)
-                this.oldxfeat = x0+.2*sign(x0-di);
+            r0 = b.r0;
+            if isempty(this.oldrs) || any(isnan(this.oldrs)) || size(this.oldrs,2) ~= size(di,2)
+                this.oldrs = r0+.2*sign(r0-di);
             end
             
             % Consider C=Inf case separately for speed reasons
             if isinf(C)
                 if this.UseCachedSecants
-                    xfeat = this.CachedModifiedNewton(di);
+                    rs = this.CachedModifiedNewton(di);
                 else
-                    xfeat = this.ModifiedNewton(this.oldxfeat,di);
+                    rs = this.ModifiedNewton(this.oldrs,di);
                 end
-                ci = abs(b.evaluateD1(xfeat));
-                this.oldxfeat = xfeat;
+                ci = abs(b.evaluateD1(rs));
+                this.oldrs = rs;
             else
-                xfeat = ones(size(di))*x0;
-                update = abs(di-x0) < C;
-                % Choose suitable starting conditions if no old xfeat vectors
+                rs = ones(size(di))*r0;
+                update = abs(di-r0) < C;
+                % Choose suitable starting conditions if no old rs vectors
                 % are available
                 if any(update)
                     if this.UseCachedSecants
-                        xfeat(update) = this.CachedModifiedNewton(di(update));
+                        rs(update) = this.CachedModifiedNewton(di(update));
                     else
-                        xfeat(update) = this.ModifiedNewton(this.oldxfeat(update),di(update));
+                        rs(update) = this.ModifiedNewton(this.oldrs(update),di(update));
                     end
-                    this.oldxfeat(update) = xfeat(update);
+                    this.oldrs(update) = rs(update);
                 end
-                left = di + C - xfeat < 0;
-                right = di - C - xfeat > 0;
+                left = di + C - rs < 0;
+                right = di - C - rs > 0;
                 center = ~left & ~right;
                 % If C is too small we just take the derivative at this
                 % spot
@@ -85,23 +85,23 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
                     ci(left) = (b.evaluateScalar((di(left))) - b.evaluateScalar((di(left)+C))) / C;
                     ci(right) = (b.evaluateScalar((di(right)-C)) - b.evaluateScalar((di(right)))) / C;
                 end
-                ci(center) = abs(b.evaluateD1(xfeat(center)));
+                ci(center) = abs(b.evaluateD1(rs(center)));
             end
         end
         
         function precompMaxSecants(this, maxDistance, num)
             if this.UseCachedSecants
                 di = linspace(0,maxDistance,num);
-                start = this.bellfcn.x0+.2*sign(this.bellfcn.x0-di);
+                start = this.bellfcn.r0+.2*sign(this.bellfcn.r0-di);
                 if KerMor.App.Verbose > 1
-                    fprintf('Precomputing %d max local secants for BellFunction(Gamma=%f,x0=%f) in range [0, %f] ..\n',num,this.Gamma,this.x0,maxDistance);
+                    fprintf('Precomputing %d max local secants for BellFunction(Gamma=%f,r0=%f) in range [0, %f] ..\n',num,this.Gamma,this.x0,maxDistance);
                 end
-                xfeat = this.ModifiedNewton(start,di);
+                rs = this.ModifiedNewton(start,di);
                 t = general.collections.BinTree;
                 if KerMor.App.Verbose > 1
                     fprintf('Building tree data structure..\n');
                 end
-                t.Insert(di,xfeat);
+                t.Insert(di,rs);
                 this.precomp = t;
             end
         end
@@ -109,48 +109,44 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
     
     methods(Access=private)
         
-        function xtmp = CachedModifiedNewton(this, y)
+        function rs = CachedModifiedNewton(this, s)
             if ~isempty(this.precomp)
                 t = this.precomp;
-                [l,u] = t.FindClosest(y);
-                low = y < this.bellfcn.x0;
-                xtmp = zeros(size(y));
-                xtmp(low) = u(low);
-                xtmp(~low) = l(~low);
+                [l,u] = t.FindClosest(s);
+                low = s < this.bellfcn.r0;
+                rs = zeros(size(y));
+                rs(low) = u(low);
+                rs(~low) = l(~low);
             else
                 error('When using cached secants the method precompMaxSecants has to be run first.');
             end
         end
         
-        function xtmp = ModifiedNewton(this, xstart, y)
-            xtmp = xstart+2*this.NewtonTolerance;
-            x = xstart;
+        function rtmp = ModifiedNewton(this, rstart, s)
+            rtmp = rstart+2*this.NewtonTolerance;
+            r = rstart;
             
-            b = this.bellfcn; x0 = b.x0; xR = b.xR;
-            
-            f = @(x)b.evaluateScalar(x);
-            df = @(x)b.evaluateD1(x);
-            ddf = @(x)b.evaluateD2(x);
+            b = this.bellfcn; r0 = b.r0; rR = b.rR;
             
             % Add eps at division as for zero nominator the expression is zero. (no error made)
-            n0 = df(0) - (f(0)-f(y))./(eps-y); 
-            nx0 = df(x0) - (f(x0)-f(y))./(x0-y+eps);
-            nxr = df(xR) - (f(xR)-f(y))./(xR-y+eps);
+            n(1,:) = b.evaluateD1(0) - (b.evaluateScalar(0)-b.evaluateScalar(s))./(eps-s); 
+            n(2,:) = b.evaluateD1(r0) - (b.evaluateScalar(r0)-b.evaluateScalar(s))./(r0-s+eps);
+            n(3,:) = b.evaluateD1(rR) - (b.evaluateScalar(rR)-b.evaluateScalar(s))./(rR-s+eps);
             
             % Lim x->y n'(x) = \phi''(x) / 2 (De L'hospital)
-            dn0 = ddf(0) - n0./-y;
-            dn0(isnan(dn0)) = ddf(0)/2;
-            dnx0 = ddf(x0) - nx0./(x0-y);
-            dnx0(isinf(dnx0)) = 0; % == ddf(x0)/2;
-            dnxr = ddf(xR) - nxr./(xR-y);
-            dnxr(isinf(dnxr)) = ddf(xR)/2;
+            dn(1,:) = b.evaluateD2(0) - n(1,:)./-s;
+            dn(1,isnan(dn(1,:))) = b.evaluateD2(0)/2;
+            dn(2,:) = b.evaluateD2(r0) - n(2,:)./(r0-s);
+            dn(2,isinf(dn(2,:))) = 0; % == ddf(x0)/2;
+            dn(3,:) = b.evaluateD2(rR) - n(3,:)./(rR-s);
+            dn(3,isinf(dn(3,:))) = b.evaluateD2(rR)/2;
             
             cnt = 0;
             
             %conv = 1:length(x);
             %finished = zeros(size(x));
             %while ~isempty(conv) && cnt < b.MaxNewtonIterations
-            while any(abs(xtmp-x) > this.NewtonTolerance) && cnt < this.MaxNewtonIterations
+            while any(abs(rtmp-r) > this.NewtonTolerance) && cnt < this.MaxNewtonIterations
                 
                 % Experimental setting: thinning out the finished values does not improve the
                 % overall performance.
@@ -166,38 +162,10 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
 %                     nxr(fidx) = []; dnxr(fidx) = [];
 %                 end
                 
-                g = zeros(size(x));
-                dg = g;
+                [g,dg] = this.optFun(r,s,n,dn,b);
                 
-                a = y < x0;
-                pi = a & x < x0 | ~a & x > x0;
-                pr = a & x > xR;
-                pl = ~a & x < 0;
-                std = ~(pi | pl | pr);
-
-                % Standard case
-                xs = x(std); ys = y(std); 
-                g(std) = df(xs) - (f(xs)-f(ys))./(xs-ys);
-                g(isnan(g)) = 0;
-                dg(std) = ddf(xs) - g(std)./(xs-ys);
-                ninf = isinf(dg);
-                dg(ninf) = ddf(xs(ninf))/2;
-                
-                % Penalty case
-                p = ~std;
-                d = zeros(size(x)); c = d;
-                c(pi) = -dnx0(pi).^2 ./ (4*nx0(pi));
-                d(pi) = 2*nx0(pi)./dnx0(pi) - x0;
-                c(pl) = -dn0(pl).^2 ./ (4*n0(pl));
-                d(pl) = 2*n0(pl)./dn0(pl);
-                c(pr) = dnxr(pr).^2 ./ (4*nxr(pr));
-                d(pr) = 2*nxr(pr)./dnxr(pr) - xR;
-                
-                g(p) = c(p) .* (x(p) + d(p)).^2;
-                dg(p) = 2 * c(p) .* x(p);
-                
-                xtmp = x;
-                x = x - g./dg;
+                rtmp = r;
+                r = r - g./dg;
                 cnt = cnt + 1;
                 
                 %if cnt > this.MaxNewtonIterations*.5
@@ -208,115 +176,178 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
                 error('Bellfunction->ModifiedNewton: Max iterations of %d reached',this.MaxNewtonIterations);
             end
             
-            function showNewton %#ok<*DEFNU>
-                % Fix an identical y for all iterations
-                si = 200;
-                for i=1:5
-                    
-                    X = linspace(.5*min(min([x; xtmp],[],1)),2*max(max([x; xtmp],[],1)),si);
-                    gs = zeros(length(y),si);
-                    for idx = 1:length(y)
-                        gs(idx,:) = error.ImprovedLocalSecantLipschitz.optFun(X,repmat(y(idx),size(X)),f,df,ddf,this.x0);
-                    end
-                    
-                    [g,dg] = error.ImprovedLocalSecantLipschitz.optFun(x,y,f,df,ddf,this.x0);
-                    xtmp = x;
-                    x = x - g./dg;
-                    %plot(xs,gs,'r');%,'LineWidth',2
-                    figure(1);
-                    subplot(1,2,1);
-                    plot(X,gs,'b',X,0,'black-');
-                    hold on;
-                    plot([xtmp; x],[g; zeros(size(g))],x,0,'rx',xtmp,g,'rx');
-                    hold off;
-                    axis tight;
-                    
-                    subplot(1,2,2);
-                    X = linspace(0-this.xR,2*this.xR,si);
-                    gs = zeros(length(y),si);
-                    for idx = 1:length(y)
-                        gs(idx,:) = kernels.BellFunction.optFun(X,repmat(y(idx),size(X)),f,df,ddf,this.x0,this.PenaltyFactor);
-                    end
-                    plot(X,gs);
-                    hold on;
-                    plot(X,0,'black-');
-                    hold off;
-                    pause;
-                end
-            end
+%             function showNewton %#ok<*DEFNU>
+%                 % Fix an identical y for all iterations
+%                 si = 200;
+%                 for i=1:5
+%                     
+%                     X = linspace(.5*min(min([x; xtmp],[],1)),2*max(max([x; xtmp],[],1)),si);
+%                     gs = zeros(length(y),si);
+%                     for idx = 1:length(y)
+%                         gs(idx,:) = error.ImprovedLocalSecantLipschitz.optFun(X,repmat(y(idx),size(X)),f,df,ddf,this.x0);
+%                     end
+%                     
+%                     [g,dg] = error.ImprovedLocalSecantLipschitz.optFun(x,y,f,df,ddf,this.x0);
+%                     xtmp = x;
+%                     x = x - g./dg;
+%                     %plot(xs,gs,'r');%,'LineWidth',2
+%                     figure(1);
+%                     subplot(1,2,1);
+%                     plot(X,gs,'b',X,0,'black-');
+%                     hold on;
+%                     plot([xtmp; x],[g; zeros(size(g))],x,0,'rx',xtmp,g,'rx');
+%                     hold off;
+%                     axis tight;
+%                     
+%                     subplot(1,2,2);
+%                     X = linspace(0-this.xR,2*this.xR,si);
+%                     gs = zeros(length(y),si);
+%                     for idx = 1:length(y)
+%                         gs(idx,:) = kernels.BellFunction.optFun(X,repmat(y(idx),size(X)),f,df,ddf,this.x0,this.PenaltyFactor);
+%                     end
+%                     plot(X,gs);
+%                     hold on;
+%                     plot(X,0,'black-');
+%                     hold off;
+%                     pause;
+%                 end
+%             end
+        end
+        
+        function [g,dg,pi,pl,pr] = optFun(this,r,s,n,dn,b)%#ok
+            g = zeros(size(r));
+            d = g; c = d; dg = g;
+            
+            a = s < b.r0;
+            pi = a & r < b.r0 | ~a & r > b.r0;
+            pr = a & r > b.rR;
+            pl = ~a & r < 0;
+            std = ~(pi | pl | pr);
+            
+            % Standard case
+            rs = r(std); ss = s(std);
+            g(std) = b.evaluateD1(rs) - (b.evaluateScalar(rs)-b.evaluateScalar(ss))./(rs-ss);
+            g(isnan(g)) = 0;
+            dg(std) = b.evaluateD2(rs) - g(std)./(rs-ss);
+            ninf = isinf(dg);
+            dg(ninf) = b.evaluateD2(rs(ninf))/2;
+            
+            % Penalty case
+            p = ~std;
+            c(pi) = dn(2,pi).^2 ./ (4*n(2,pi));
+            d(pi) = 2*n(2,pi)./dn(2,pi) - b.r0;
+            c(pl) = dn(1,pl).^2 ./ (4*n(1,pl));
+            d(pl) = 2*n(1,pl)./dn(1,pl);
+            c(pr) = dn(3,pr).^2 ./ (4*n(3,pr));
+            d(pr) = 2*n(3,pr)./dn(3,pr) - b.rR;
+            
+            g(p) = c(p) .* (r(p) + d(p)).^2;
+            dg(p) = 2 * c(p) .* (r(p) + d(p));
+            % Avoid exact matches!
+            g(dg == 0) = 0;
+            dg(dg == 0) = 1;
         end
     end
     
     methods(Static)
-        function xFeatDemo(Gamma)
+        function rsDemo(Gamma)
             if nargin == 0
                 Gamma = 2;
             end
             
-            bell = kernels.GaussKernel(Gamma);
-            lfun = error.ImprovedLocalSecantLipschitz(bell);
+            b = kernels.GaussKernel(Gamma);
+            r0 = b.r0; rR = b.rR;
+            lfun = error.ImprovedLocalSecantLipschitz(b);
             lfun.NewtonTolerance = 1e-3;
+            
             h = figure(1);
+            plotrs = false;
+            lw = 2;
             
-            maxX = Gamma*3;
-            x = linspace(0,maxX,7000);
-            x = union(x,[bell.x0,bell.xR]);
+            maxR = Gamma*3;
+            r = linspace(0,maxR,70);
+            r = union(r,[r0,rR]);
             
-            %xstart = x0*(1+.5*sign(x0-x));
-            xstart = repmat(bell.x0/2,1,size(x,2));
+            rstart = repmat(r0/2,1,size(r,2));
+            rss = lfun.ModifiedNewton(rstart,r);
             
-            xfeats = lfun.ModifiedNewton(xstart,x);
-            
-            f = @bell.evaluateScalar;
-            df = @bell.evaluateD1;
-            ddf = @bell.evaluateD2;
+            f = @b.evaluateScalar;
+            df = @b.evaluateD1;
             
             %kernels.BellFunction.showNewton(x,bell.x0,y,f,df,ddf);
-
-            for k=1:length(x)
-                y = x(k);
+            m = length(r);
+            for k=1:m
+                s = r(k);
 
                 % Get precomputed values
-                dxf = df(xfeats);
+                drf = abs(df(rss));
                 
                 %kernels.BellFunction.showNewton(x,bell.x0,y,f,df,ddf);
                 
+                % Add eps at division as for zero nominator the expression is zero. (no error made)
+                n(1,1:m) = b.evaluateD1(0) - (b.evaluateScalar(0)-b.evaluateScalar(s))./(eps-s); 
+                n(2,1:m) = b.evaluateD1(r0) - (b.evaluateScalar(r0)-b.evaluateScalar(s))./(b.r0-s+eps);
+                n(3,1:m) = b.evaluateD1(rR) - (b.evaluateScalar(rR)-b.evaluateScalar(s))./(b.rR-s+eps);
+
+                % Lim x->y n'(x) = \phi''(x) / 2 (De L'hospital)
+                dn(1,1:m) = b.evaluateD2(0) - n(1,:)./-s;
+                dn(1,isnan(dn(1,:))) = b.evaluateD2(0)/2;
+                dn(2,1:m) = b.evaluateD2(r0) - n(2,:)./(r0-s);
+                dn(2,isinf(dn(2,:))) = 0; % == ddf(x0)/2;
+                dn(3,1:m) = b.evaluateD2(rR) - n(3,:)./(rR-s);
+                dn(3,isinf(dn(3,:))) = b.evaluateD2(rR)/2;
+                
                 % Get optimization function
-                [opt,dummy,inner,l0,gxr] = error.ImprovedLocalSecantLipschitz.optFun(x,repmat(y,1,size(x,2)),f,df,ddf,bell.x0);
+                [opt,dummy,inner,l0,gxr] = lfun.optFun(r,repmat(s,1,size(r,2)),n,dn,b);
                 std = ~inner & ~l0 & ~gxr;
-                
-                % Bound plot
-                hlp = max(max(abs(df(x))),max(abs(f(x))));
-                %hlp = (maxX-y)*dxf(k); % also used in plot of tangent!
-                opt(opt < -.2*hlp) = -.2*hlp;
-                %hlp2 = max(1.5,max(df(x)));
-                opt(opt > hlp) = hlp;
-                
-                % Plot!
-                plot(x,f(x),'r', x,abs(df(x)),'m', x,abs(dxf),'g',[0 y maxX],f(y) + [-y*dxf(k) 0 hlp],...
-                    'g--',bell.x0,f(bell.x0),'black.',y,f(y),'r.',bell.xR,f(bell.xR),'b.');
+                                
+                % f and df
+                plot(r,f(r),'r',r,abs(df(r)),'m','LineWidth',lw);
+                st={};
+                st(1:2) = {'\phi', '|\phi''|'}; %#ok<*AGROW>
                 hold on;
-                st = {};
+                
+                % Plot abs(df(rs)) for all s
+                if plotrs
+                    plot(r,abs(drf),'g','LineWidth',lw);
+                    st{end+1} = '|\phi''(r_s)| = |S_s(r_s))| \forall s';
+                end
+                % Plot f tangent for max secant gradient
+                plot([0 maxR],f(s) + drf(k)*[s (s-maxR)],'g--','LineWidth',lw);
+                st{end+1} = '\phi(r_s) + \phi''(r_s)(r_s-s)';
+                % Plot 
+                plot(r0,f(r0),'blacks','MarkerSize',6,'MarkerFaceColor','black');
+                plot(rR,f(rR),'bs','MarkerSize',6,'MarkerFaceColor','blue');
+                plot(s,f(s),'ro','MarkerSize',6,'MarkerFaceColor','red');
+                plot(rss(k),f(rss(k)),'mo','MarkerSize',6,'MarkerFaceColor','magenta');
+                st(end+1:end+4) = {'\phi(r_0)','\phi(r_R)','\phi(s)','\phi(r_s)'};
                 if any(std)
-                    plot(x(std),opt(std),'b');
-                    st{end+1} = 'Opt. target'; %#ok<*AGROW>
+                    plot(r(std),opt(std),'b','LineWidth',lw);
+                    st{end+1} = 'n(r)'; 
                 end
                 if any(inner)
-                    plot(x(inner),opt(inner),'b--');
-                    st{end+1} = 'penalty inner';
+                    plot(r(inner),opt(inner),'b--','LineWidth',lw);
+                    st{end+1} = 'c(r_0)(r+d(r_0))^2';
                 end
                 if any(l0)
-                    plot(x(l0),opt(l0),'b-.');
-                    st{end+1} = 'penalty leq 0';
+                    plot(r(l0),opt(l0),'b-.','LineWidth',lw);
+                    st{end+1} = 'c(0)(r+d(0))^2';
                 end
                 if (any(gxr))
-                    plot(x(gxr),opt(gxr),'b-.');
-                    st{end+1} = 'penalty geq xr';
+                    plot(r(gxr),opt(gxr),'b-.','LineWidth',lw);
+                    st{end+1} = 'c(r_R)(r+d(r_R))^2';
                 end
-                legend('Gaussian','Absolute Gaussian derivative','Max local derivatives',...
-                    'Max local gradient around x0','x_0','y','x_R',st{:});
-                plot([xfeats(k) xfeats(k) y],[f(xfeats(k)) abs(dxf(k)) abs(dxf(k))],'blackx',x,0,'black');
+                plot([rss(k) rss(k)],[f(rss(k)) abs(drf(k))],'--black','LineWidth',lw);
+                if plotrs
+                    plot([rss(k) s],[abs(drf(k)) abs(drf(k))],'--black','LineWidth',lw);
+                end
+                st{end+1} = '\phi(r_s) <-> d\phi(rs) = |S_s(r_s)|';
+                % Plot line through zero
+                plot(r,0,'black');
+                axis([0 maxR -.5 f(r0)+abs(df(r0))*r0]);
                 hold off;
+                
+                legend(st{:});
                 pause;
             end
             
@@ -324,91 +355,24 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
             
         end
         
-        function [g,dg,p1,p2,p4] = optFun(x,y,f,df,ddf,x0)
-            g = zeros(size(x));
-            dg = g;
-            
-            xr = f(0)*x0 / (f(0)-f(x0));
-            n0 = df(0) - (f(0)-f(y))./(-y+eps);
-            nx0 = df(x0) - (f(x0)-f(y))./(x0-y+eps);
-            nxr = df(xr) - (f(xr)-f(y))./(xr-y+eps);
-            
-            dn0 = ddf(0) - n0./-y;
-            dn0(isnan(dn0)) = ddf(0)/2;
-            dnx0 = ddf(x0) - nx0./(x0-y);
-            dnx0(isinf(dnx0)) = 0; % == ddf(this.x0)/2;
-            dnxr = ddf(xr) - nxr./(xr-y);
-            dnxr(isinf(dnxr)) = ddf(xr)/2;
-            
-            a = y <= x0;
-%             std = true(1,length(x));
-%             p1 = ~std; p2 = p1; p4 = p1;
-            std = (a & x < xr & x > x0) | (~a & 0 < x & x < x0);
-            p1 = a & x <= x0 | ~a & x > x0;
-            p4 = a & x >= xr;
-            p2 = ~a & x <= 0;
-            
-            % Standard case
-            xs = x(std); ys = y(std);
-            g(std) = df(xs) - (f(xs)-f(ys))./(xs-ys);
-            if any(isnan(g))
-                keyboard;
-            end
-            g(isnan(g)) = 0;
-            dg(std) = ddf(xs) - g(std)./(xs-ys);
-            iinf = isinf(dg);
-            dg(iinf) = ddf(xs(iinf))/2;
-            
-            if any(p1)
-%                 g(p1) = nx0(p1) - p*(x(p1)-x0).^2;
-%                 dg(p1) = -2*p*(x(p1)-x0);
-                c = dnx0(p1).^2 ./ (4*nx0(p1)); %sign(dnx0(p1)).*
-                g(p1) = c.*(x(p1) + 2*nx0(p1)./dnx0(p1) - x0).^2;
-                dg(p1) = 2*c.*x(p1);
-%                 xb = (xr+x0)/2;
-%                 g(p1) = nx0(p1) - dnx0(p1).*(xb/2 + (x(p1)+xb).^2 / (2*xb));
-%                 dg(p1) = dnx0(p1).*x(p1) + 1;
-            end
-            if any(p2) % FIX!
-%                 g(p2) = n0(p2) + p*x(p2).^2;
-%                 dg(p2) = 2*p*x(p2);
-%                 xb = -xr;
-%                 g(p2) = n0(p2) - dn0(p2).*(xb/2 + (x(p2)+xb).^2 / (2*xb));
-%                 dg(p2) = dn0(p2).*x(p2) + 1;
-                c = dn0(p2).^2 ./ (4*n0(p2)); % sign(dn0(p2)).*
-                g(p2) = c.*(x(p2) + 2*n0(p2)./dn0(p2) - 0).^2;
-                dg(p2) = 2*c.*x(p2);
-            end
-            if any(p4)
-%                 g(p4) = nxr(p4) + p*(x(p4)-xr).^2;
-%                 dg(p4) = 2*p*(x(p4)-xr);
-%                 xb = 1.5*xr;
-%                 g(p4) = nxr(p4) - dnxr(p4).*(xb/2 + (x(p4)+xb).^2 / (2*xb));
-%                 dg(p4) = dnxr(p4).*x(p4) + 1;
-                c = sign(dnxr(p4)).*dnxr(p4).^2 ./ (4*nxr(p4));
-                g(p4) = c.*(x(p4) + 2*nxr(p4)./dnxr(p4) - xr).^2;
-                dg(p4) = 2*c.*x(p4);
-            end
-        end
-        
-        function showNewton(x, x0, ybase, f, df, ddf)
-            % Fix an identical y for all iterations
-            y = repmat(ybase,1,size(x,2));
-            gs = kernels.BellFunction.optFun(x,y,f,df,ddf,x0);
-            xs = x;
-            for i=1:5
-                [g,dg] = error.ImprovedLocalSecantLipschitz.optFun(x,y,f,df,ddf,x0);
-                xtmp = x;
-                x = x - g./dg;
-                plot(xs,gs,'r');%,'LineWidth',2
-                hold on;
-                plot([xtmp; x],[g; zeros(size(g))],x,0,'rx');
-                hold off;
-                title(sprintf('ybase=%f',ybase));
-                %axis([min(xs) max(xs) min(gs)*1.5 max(gs)*1.5]);
-                pause;
-            end
-        end
+%         function showNewton(x, x0, ybase, f, df, ddf)
+%             % Fix an identical y for all iterations
+%             y = repmat(ybase,1,size(x,2));
+%             gs = kernels.BellFunction.optFun(x,y,f,df,ddf,x0);
+%             xs = x;
+%             for i=1:5
+%                 [g,dg] = error.ImprovedLocalSecantLipschitz.optFun(x,y,f,df,ddf,x0);
+%                 xtmp = x;
+%                 x = x - g./dg;
+%                 plot(xs,gs,'r');%,'LineWidth',2
+%                 hold on;
+%                 plot([xtmp; x],[g; zeros(size(g))],x,0,'rx');
+%                 hold off;
+%                 title(sprintf('ybase=%f',ybase));
+%                 %axis([min(xs) max(xs) min(gs)*1.5 max(gs)*1.5]);
+%                 pause;
+%             end
+%         end
     end
     
 end

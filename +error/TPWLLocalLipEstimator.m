@@ -230,7 +230,7 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
             this.StateError = norm(C)*this.StateError;
         end
         
-        function e0 = getE0(this, mu)
+        function e0 = init(this, mu)
             % Returns the initial error at `t=0` of the integral part.
             e0 = [this.ReducedModel.getExo(mu); 0];
         end 
@@ -273,18 +273,18 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
             m = models.synth.KernelTest(10);
             m.offlineGenerations;
             r = m.buildReducedModel;
-            r.ErrorEstimator = error.LocalLipKernelEstimator(r);
+            r.ErrorEstimator = error.LocalKernelEstimator(r);
             
 %             try
 %                 m.ODESolver = solvers.ode.sMLWrapper(@ode23);
-%                 r.ErrorEstimator = error.LocalLipKernelEstimator(r);
+%                 r.ErrorEstimator = error.LocalKernelEstimator(r);
 %                 r.ErrorEstimator.Iterations = 1;
 %             catch ME%#ok
 %                 res = true;
 %             end
             
             m.ODESolver = solvers.ode.Heun;
-            r.ErrorEstimator = error.LocalLipKernelEstimator(r);
+            r.ErrorEstimator = error.LocalKernelEstimator(r);
             r.ErrorEstimator.Iterations = 4;
             
             [t,y] = r.simulate;%#ok

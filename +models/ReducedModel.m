@@ -194,7 +194,7 @@ classdef ReducedModel < models.BaseModel
             % components of the error estimator.
             x0 = getX0@models.BaseModel(this, mu);
             if this.ErrorEstimator.Enabled
-                x0 = [x0; this.ErrorEstimator.getE0(mu)];
+                x0 = [x0; this.ErrorEstimator.init(mu)];
             end
         end
         

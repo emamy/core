@@ -1,7 +1,9 @@
-classdef BaseLipKernelEstimator < error.BaseEstimator
-    % BaseLipKernelEstimator: Base class for local lipschitz error estimators.
+classdef BaseKernelEstimator < error.BaseEstimator
+    % BaseKernelEstimator: Base class for local lipschitz error estimators.
     %
     % @author Daniel Wirtz @date 2010-08-10
+    %
+    % @change{0,4,dw,2011-05-29} Changed this classes name to "BaseKernelEstimator".
     %
     % @new{0,1,dw,2010-08-10} Added this class.
     %
@@ -10,18 +12,25 @@ classdef BaseLipKernelEstimator < error.BaseEstimator
     % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
     % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
     % - \c License @ref licensing
-    
+        
     properties(SetAccess=private, GetAccess=protected)
         M1 = [];
         M2 = [];
         M3 = [];
+    
     end
     
     properties(SetAccess=protected)
-        betas = [];
+        % `3\times N` matrix containing the `t,\alpha(t),\beta(t)` values at each time step.
+        EstimationData = [];
     end
-    
+        
     methods
+        function this = BaseKernelEstimator
+            this = this@error.BaseEstimator;
+            this.ExtraODEDims = 1;
+        end
+        
         function setReducedModel(this, rmodel)
             % Overrides the method from BaseEstimator and performs
             % additional computations.
@@ -88,17 +97,44 @@ classdef BaseLipKernelEstimator < error.BaseEstimator
             end
         end
         
+        function e = evalODEPart(this, x, t, mu, ut)
+            % Compute \alpha(t)
+            phi = this.ReducedModel.System.f.evaluateAtCenters(x(1:end-1), t, mu);
+            
+            a = phi*this.M1*phi';
+            if ~isempty(ut) % An input function u is set
+                a = a + phi*this.M2*ut + ut'*this.M3*ut;    
+            end
+            a = sqrt(abs(a));
+            %a = sqrt(max(a,0));
+            
+            b = this.getBeta(x, t, mu);
+            e = b*x(end) + a;
+            
+            this.EstimationData(:,end+1) = [t; a; b];
+        end
+        
+        function e0 = init(this, mu)
+            % Returns the initial error at `t=0` of the integral part.
+            e0 = this.ReducedModel.getExo(mu);
+        end
+        
         function copy = clone(this, copy)
             copy = clone@error.BaseEstimator(this, copy);
             copy.M1 = this.M1;
             copy.M2 = this.M2;
             copy.M3 = this.M3;
+            copy.EstimationData = this.EstimationData;
         end
         
         function clear(this)
             clear@error.BaseEstimator(this);
-            this.betas = [];
+            this.EstimationData = [];
         end
+    end
+    
+    methods(Abstract, Access=protected)
+        b = getBeta(this, x, t, mu);
     end
     
     methods(Static)

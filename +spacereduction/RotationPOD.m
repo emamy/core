@@ -18,15 +18,25 @@ classdef RotationPOD < spacereduction.PODReducer
         % `\in [0, 2\pi]`
         %
         % @default .1
+        %
+        % @propclass{data} Not for real reduction use but rather experiments with controlled
+        % projection error.
         Degree = pi/.003;
         
         % Number of dimensions to rotate by degree
+        %
+        % @propclass{data} Not for real reduction use but rather experiments with controlled
+        % projection error.
         Dims = 5;
         
-        R;
+        %R;
     end
     
     methods
+        function this = RotationPOD
+            this.registerProps('Degree','Dims');
+        end
+        
         function [V,W] = generateReducedSpace(this, model)
             V = generateReducedSpace@spacereduction.PODReducer(this, model);
             

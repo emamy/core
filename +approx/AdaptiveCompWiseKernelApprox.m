@@ -137,8 +137,8 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             % change?)
             
             %% Experimental settings
-            fac = 2;
-            minfac = .005; % min factor for BB diameters at initial gamma choice
+            fac = 1;
+            minfac = .05; % min factor for BB diameters at initial gamma choice
             dfun = @logsp; % gamma distances comp fun (linsp / logsp)
             if this.ErrFun == 1
                 errfun = @getLInftyErr; % L^inf error function

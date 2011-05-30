@@ -64,6 +64,13 @@ classdef ReducedSystem < models.BaseDynSystem
             this.B = fullsys.B;
             this.C = fullsys.C;
             
+            % Forwards the x0 evaluation to the original model's x0 function.
+            if ~isempty(this.Model.W)
+                this.x0 = @(mu)this.Model.W'*fullsys.x0(mu);
+            else
+                this.x0 = fullsys.x0;
+            end
+            
             % Set the plot-wrapper (uses the plot method from the full
             % system)
             this.plotPtr = @fullsys.plot;
@@ -110,22 +117,17 @@ classdef ReducedSystem < models.BaseDynSystem
                 y = this.f.evaluate(x(1:end-est.ExtraODEDims,:),t,this.mu);
                 % See if Bu is used
                 if ~isempty(this.u)
-                    y = y + this.B.evaluate(t,this.mu)*this.u(t);
+                    ut = this.u(t);
+                    y = y + this.B.evaluate(t,this.mu)*ut;
+                else
+                    ut = [];
                 end
                 % Extend by error estimator part
-                y = [y; est.evalODEPart(x,t,this.mu)];
-                return;
-            end
-            % If no estimator is used or is disabled just call the "normal" ODE function from the
-            % base class.
-            y = ODEFun@models.BaseDynSystem(this, t, x);
-        end
-        
-        function x = x0(this, mu)
-            % Forwards the x0 evaluation to the original model's x0 function.
-            x = this.Model.FullModel.System.x0(mu);
-            if ~isempty(this.Model.W)
-                x = this.Model.W'*x;    
+                y = [y; est.evalODEPart(x,t,this.mu,ut)];
+            else
+                % If no estimator is used or is disabled just call the "normal" ODE function from the
+                % base class.
+                y = ODEFun@models.BaseDynSystem(this, t, x);
             end
         end
         

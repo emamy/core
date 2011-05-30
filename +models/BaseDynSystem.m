@@ -15,6 +15,10 @@ classdef BaseDynSystem < KerMorObject
     %
     % @author Daniel Wirtz @date 17.03.2010
     %
+    % @change{0,4,dw,2011-05-29} Re-changed the `x0(\mu)` property back to be a function handle. Higher
+    % flexibility during subsequent simulations are to be rated higher than proper setting of the
+    % property, which should be assumed is being done (especially) for `x0(\mu)`
+    %
     % @change{0,4,dw,2011-05-13} Created new transient properties models.BaseDynSystem.mu and
     % models.BaseDynSystem.u in order to store the current `\mu` and `u(t)` used for simulations on
     % a higher level. Removed the old 'getODEFun' function and replaced it by a direct
@@ -22,7 +26,7 @@ classdef BaseDynSystem < KerMorObject
     % a speedup of reduced simulations by almost a factor of 2.
     %
     % @change{0,3,dw,2011-05-03} Moved the x0 property into an abstract function. This way
-    % subclasses must implmement the x0 function and is not only warned by the DPCS that it should
+    % subclasses must implemement the x0 function and is not only warned by the DPCS that it should
     % be set.
     %
     % @change{0,3,dw,2011-04-6} This class inherits from KerMorObject now
@@ -53,10 +57,29 @@ classdef BaseDynSystem < KerMorObject
         % See also: dscomponents.LinearOutputConv.project
         C;
         
-        % See also: dscomponents.LinearOutputConv/project
+        % Function handle to initial state evaluation.
+        % 
+        % The handle returns the initial value `x(0) = x_0` for the ODE solver to start simulations
+        % from.
+        %
+        % Parameters:
+        % mu: The current parameter `\mu`
+        %
+        % Return values:
+        % x: The initial system state `x_0`
+        %
+        % @propclass{critical} The initial value greatly influences the simulation results.
+        %
+        % @default 0
+        x0;
         
         % The system's possible input functions.
         % A cell array of function handles, each taking a time argument t.
+        %
+        % Note:
+        % Adding an input to a system does not mean that any associated full model uses them in the
+        % offline phase. In order to use an input during offline phase add the corresponding index
+        % to the models.BaseFullModel.TrainingInputs property.
         %
         % @propclass{optional}
         Inputs = {};
@@ -121,9 +144,10 @@ classdef BaseDynSystem < KerMorObject
             this.validateModel(model);
             this.Model = model;
             this.C = dscomponents.LinearOutputConv(1);
+            this.x0 = @(mu)0;
             
             % Register default properties
-            this.registerProps('f','B','C','Inputs','Params','MaxTimestep','StateScaling');
+            this.registerProps('f','B','C','x0','Inputs','Params','MaxTimestep','StateScaling');
         end
        
         function setConfig(this, mu, inputidx)
@@ -254,18 +278,7 @@ classdef BaseDynSystem < KerMorObject
             end
         end
     end
-    
-    methods
-        % Returns the initial value `x(0) = x_0` for the ODE solver to start simulations from.
-        %
-        % Parameters:
-        % mu: The current parameter `\mu`
-        %
-        % Return values:
-        % x: The initial system state `x_0`
-        x = x0(this, mu);
-    end
-    
+        
     %% Getter & Setter
     methods
         function set.f(this,value)
@@ -313,6 +326,15 @@ classdef BaseDynSystem < KerMorObject
                 error('Params property must be a ModelParam array.');
             end
             this.Params = value;
+        end
+        
+        function set.x0(this, value)
+            if ~isa(value,'function_handle')
+                error('x0 must be a function handle.');
+            elseif nargin(value) ~= 1
+                error('x0 must take exactly one argument.');
+            end
+            this.x0 = value;
         end
         
         function value = get.ParamCount(this)

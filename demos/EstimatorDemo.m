@@ -6,7 +6,7 @@ classdef EstimatorDemo < handle
     % the standard model used.
     %
     % @change{0,4,dw,2011-05-20} Adopted to the new strategy pattern implemented for the
-    % KernelLipschitzFcn inside the LocalLipschitzErrorEstimator (now having a class instead of a function handle).
+    % LocalLipschitzFcn inside the LocalLipschitzErrorEstimator (now having a class instead of a function handle).
     
     properties
         % The used model
@@ -207,7 +207,10 @@ classdef EstimatorDemo < handle
             ylabel('Comp. time [s]');
             legend(a);
             title(['Error estimator computation times: ' this.Model.Name]);
+            try
             axis tight;
+            catch ME
+            end
             
             %% Table overview
             if this.SortResultTable
@@ -279,19 +282,19 @@ classdef EstimatorDemo < handle
             est(end).LineStyle = '-';
             
             if this.EstimatorVersions(1)
-                msg = error.GlobalLipKernelEstimator.validModelForEstimator(r);
+                msg = error.GLEstimator.validModelForEstimator(r);
                 if isempty(msg)
                         fprintf('Initializing Global Lipschitz estimator...\n');
                         est(end+1).Name = 'GLE';
-                        est(end).Estimator = error.GlobalLipKernelEstimator(r);
+                        est(end).Estimator = error.GLEstimator(r);
                         est(end).MarkerStyle = 'o';
                         est(end).LineStyle = '-';
                 else
-                    fprintf('Cannot use the GlobalLipKernelEstimator for model %s:\n%s\n',r.Name,msg);
+                    fprintf('Cannot use the GLEstimator for model %s:\n%s\n',r.Name,msg);
                 end
             end
             
-            msg = error.LocalLipKernelEstimator.validModelForEstimator(r);
+            msg = error.LocalKernelEstimator.validModelForEstimator(r);
             if isempty(msg)
                 reps = this.EstimatorIterations;
                 fprintf('Using iteration counts: %s\n',num2str(this.EstimatorIterations));
@@ -299,8 +302,8 @@ classdef EstimatorDemo < handle
                 if this.EstimatorVersions(2)
                     fprintf('Initializing LGL estimator...\n');
                     est(end+1).Name = 'LGL';
-                    est(end).Estimator = error.LocalLipKernelEstimator(r);
-                    est(end).Estimator.KernelLipschitzFcn = error.LocalGradientLipschitz(k);
+                    est(end).Estimator = error.LocalKernelEstimator(r);
+                    est(end).Estimator.LocalLipschitzFcn = error.LocalGradientLipschitz(k);
                     est(end).Estimator.UseTimeDiscreteC = false;
                     est(end).MarkerStyle = 's';
                     est(end).LineStyle = '-';
@@ -317,8 +320,8 @@ classdef EstimatorDemo < handle
                 if this.EstimatorVersions(3)
                     fprintf('Initializing LSL (mod secant) estimator...\n');
                     est(end+1).Name = 'LGLMod';
-                    est(end).Estimator = error.LocalLipKernelEstimator(r);
-                    est(end).Estimator.KernelLipschitzFcn = error.LocalSecantLipschitz(k);
+                    est(end).Estimator = error.LocalKernelEstimator(r);
+                    est(end).Estimator.LocalLipschitzFcn = error.LocalSecantLipschitz(k);
                     est(end).Estimator.UseTimeDiscreteC = false;
                     est(end).MarkerStyle = 'h';
                     est(end).LineStyle = '-';
@@ -339,8 +342,8 @@ classdef EstimatorDemo < handle
                 if this.EstimatorVersions(4)
                     fprintf('Initializing LSL estimator...\n');
                     est(end+1).Name = 'LSL';
-                    est(end).Estimator = error.LocalLipKernelEstimator(r);
-                    est(end).Estimator.KernelLipschitzFcn = ilfcn;
+                    est(end).Estimator = error.LocalKernelEstimator(r);
+                    est(end).Estimator.LocalLipschitzFcn = ilfcn;
                     est(end).Estimator.UseTimeDiscreteC = false;
                     est(end).MarkerStyle = 'p';
                     est(end).LineStyle = '-';
@@ -357,20 +360,20 @@ classdef EstimatorDemo < handle
                 if this.EstimatorVersions(5)
                     fprintf('Initializing LSL TD estimators...\n');
                     est(end+1).Name = 'LGL TD';
-                    est(end).Estimator = error.LocalLipKernelEstimator(r);
-                    est(end).Estimator.KernelLipschitzFcn = error.LocalGradientLipschitz(k);
+                    est(end).Estimator = error.LocalKernelEstimator(r);
+                    est(end).Estimator.LocalLipschitzFcn = error.LocalGradientLipschitz(k);
                     est(end).Estimator.UseTimeDiscreteC = true;
                     est(end).MarkerStyle = '<';
                     est(end).LineStyle = '-';
                     
                     est(end+1).Estimator = est(end).Estimator.clone;
                     est(end).Name = 'LSL TD';
-                    est(end).Estimator.KernelLipschitzFcn = ilfcn;
+                    est(end).Estimator.LocalLipschitzFcn = ilfcn;
                     est(end).MarkerStyle = '<';
                     est(end).LineStyle = '-';
                 end
             else
-                fprintf('Cannot use the LocalLipKernelEstimator for model %s:\n%s\n',r.Name,msg);
+                fprintf('Cannot use the LocalKernelEstimator for model %s:\n%s\n',r.Name,msg);
             end
             
             if this.EstimatorVersions(6)
@@ -382,11 +385,11 @@ classdef EstimatorDemo < handle
                         est(end).MarkerStyle = '<';
                         est(end).LineStyle = '-.';
 
-                        est(end+1).Estimator = est(end).Estimator.clone;
-                        est(end).Name = 'TD Jacobian (nonrigor)';
-                        est(end).Estimator.Version = 2;
-                        est(end).MarkerStyle = '<';
-                        est(end).LineStyle = '-.';
+%                         est(end+1).Estimator = est(end).Estimator.clone;
+%                         est(end).Name = 'TD Jacobian (nonrigor)';
+%                         est(end).Estimator.Version = 2;
+%                         est(end).MarkerStyle = '<';
+%                         est(end).LineStyle = '-.';
                 else
                     fprintf('Cannot use the ExpensiveBetaEstimator for model %s:\n%s\n',r.Name,msg);
                 end

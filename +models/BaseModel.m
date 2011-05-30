@@ -350,22 +350,7 @@ classdef BaseModel < KerMorObject
             x0 = this.System.x0(mu) ./ this.System.StateScaling;
         end
     end
-    
-    methods(Static)
-        function pd = getPropDescription
-            pd = general.collections.Dictionary;
-            p = meta.PCCritical('The Model'' system');
-            p.Default = ?models.BaseDynSystem;
-            pd('System') = p; 
-            p = meta.PCMisc('The name of the Model');
-            p.Default = 'Base Model';
-            pd('Name') = p;
-            p = meta.PCMisc('The end time T of the simulation');
-            p.Default = 1;
-            pd('T') = p;
-        end
-    end
-    
+        
     %% Getter & Setter
     methods
         function value = get.Times(this)

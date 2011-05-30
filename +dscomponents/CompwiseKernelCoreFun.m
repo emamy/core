@@ -55,7 +55,7 @@ classdef CompwiseKernelCoreFun < dscomponents.AKernelCoreFun & ...
             % @todo validate computation
             %abs(this.TimeKernel.evaluate(this.Centers.ti,t).*this.ParamKernel.evaluate(this.Centers.mui,mu));
             c = sum(this.Ma_norms) * this.SystemKernel.getGlobalLipschitz;
-            warning('KerMor:globallipschitz','not yet implemented/validated correctly!');
+            %warning('KerMor:globallipschitz','not yet implemented/validated correctly!');
         end
         
         function target = clone(this, target)

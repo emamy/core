@@ -11,6 +11,9 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
     %
     % @docupdate Properties and class description
     %
+    % @change{0,4,dw,2011-05-27} Changed `x_0` to `r_0` and `x_R` to `r_R` as adopted in the WH10
+    % Paper.
+    %
     % @change{0,4,dw,2011-05-20} Removed the getLipschitzFunction method as it causes LARGE overhead
     % when being called very often. Instead, the estimator always uses the improved estimation
     % procedure.
@@ -32,54 +35,54 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
         % Point of maximum first derivative on scalar evaluation.
         %
         % @propclass{critical} This value is essential for any bell function.
-        x0;
+        r0;
     end
     
     properties(SetAccess=private, Dependent)
-        % The maximum ("right") value for any `x_y`.
-        xR;
+        % The maximum ("right") value for any `r_s`.
+        rR;
     end
     
     properties(Access=private, Transient)
-        priv_xr = [];
+        priv_rr = [];
     end
     
     methods
         
         function this = BellFunction
             this = this@kernels.BaseKernel;
-            this.registerProps('x0');
+            this.registerProps('r0');
         end
         
         function c = getGlobalLipschitz(this)
             % Computes the absolute value of the first derivative at x0
             % Implements the template method from BaseKernel.
-            c = abs(this.evaluateD1(this.x0));
+            c = abs(this.evaluateD1(this.r0));
         end
         
-        function set.x0(this, value)
+        function set.r0(this, value)
             if ~isposrealscalar(value) 
-                error('x0 must be a scalar greater than zero.');
+                error('r0 must be a scalar greater than zero.');
             end
-            this.x0 = value;
-            this.priv_xr = [];%#ok
+            this.r0 = value;
+            this.priv_rr = [];%#ok
         end
                 
-        function value = get.xR(this)
-            if isempty(this.priv_xr)
-                this.priv_xr = this.evaluateScalar(0)*this.x0 /...
-                    (this.evaluateScalar(0)-this.evaluateScalar(this.x0));
+        function value = get.rR(this)
+            if isempty(this.priv_rr)
+                this.priv_rr = this.evaluateScalar(0)*this.r0 /...
+                    (this.evaluateScalar(0)-this.evaluateScalar(this.r0));
             end
-            value = this.priv_xr;
+            value = this.priv_rr;
         end
     end
     
     methods(Abstract)
         % Method for first derivative evaluation
-        dx = evaluateD1(x);
+        dr = evaluateD1(r);
         
         % Method for second derivative evaluation
-        ddx = evaluateD2(x);
+        ddr = evaluateD2(r);
     end
     
 end

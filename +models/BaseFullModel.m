@@ -568,7 +568,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             if ~isposintmat(value)
                 error('Value may only contain valid indices for the Inputs cell array.');
             elseif any(value > this.System.InputCount) || any(value < 1)
-                error('Invalid indices for Inputs.');
+                error('Invalid indices for Inputs.');    
             end
             this.fTrainingInputs = value;
         end
