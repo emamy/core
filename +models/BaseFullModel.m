@@ -21,6 +21,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
     %
     % @author Daniel Wirtz @date 16.03.2010
     %
+    % @new{0,4,dw,2011-05-31} Added the models.BaseFullModel.OfflinePhaseTimes property.
+    %
     % @change{0,4,sa,2011-05-11} Implemented setters for the
     % preApproximationTrainingCallback and
     % postApproximationTrainingCallback
@@ -130,6 +132,16 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
     properties(SetAccess=private, Dependent)
         % Gets the number of inputs used for training.
         TrainingInputCount;
+    end
+    
+    properties(SetAccess=private)
+        % The computation times for all phases of the last offline generation.
+        %
+        % Contains a `1\times 5` row vector with the corresponding times for the 'off1_' to 'off_5'
+        % phases.
+        %
+        % @default []
+        OfflinePhaseTimes = [];
     end
     
     properties(Access=private)
@@ -414,6 +426,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             times(3) = this.off3_computeReducedSpace;
             times(4) = this.off4_genApproximationTrainData;
             times(5) = this.off5_computeApproximation;
+            
+            % Store the computation times
+            this.OfflinePhaseTimes = times;
             
             % Set time dirt flag to false as current sn fit the
             % times used.

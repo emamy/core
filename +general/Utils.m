@@ -268,72 +268,92 @@ classdef Utils
             end
         end
         
-        function saveFigure(fig, title)
+        function saveFigure(fig, filename, ext)
             % Opens a matlab save dialog and saves the given figure to the
             % file selected.
             %
             % Supported formats: eps, jpg, fig
-            if (nargin == 1)
-                title = 'Save figure as';
+            %
+            % @change{0,4,dw,2011-05-31} Improved the export capabilites and automatic removement of
+            % any figure margins is performed.
+            
+            ExportDPI = '300';
+            JPEGQuality = '95';
+            exts = {'eps','jpg','fig','pdf'};
+            
+            if nargin < 3
+                extidx = 1;
+                if nargin < 2
+                    [filename, pathname, extidx] = ...
+                        uiputfile({'*.eps','Extended PostScript (*.eps)';...
+                       '*.jpg','JPEG Image (*.jpg)';...
+                       '*.fig','Figures (*.fig)';...
+                       '*.pdf','PDF Files (*.pdf)'}, 'Save figure as');
+                    file = [pathname filename];
+                else
+                    file = [filename '.' exts{extidx}];
+                end
+            else
+                extidx = find(strcmp(ext,exts),1);
+                if isempty(extidx)
+                    warning('KerMor:Utils:invalidExtension','Invalid extension: %s, using eps',ext);
+                    extidx = 1;
+                end
+                file = [filename '.' exts{extidx}];
             end
             
-            ExportDPI = 200;        
-            JPEGQuality = 90;
-            
-            [filename, pathname, filteridx] = ...
-            uiputfile({'*.eps','Extended PostScript (*.eps)';...
-                       '*.jpg','JPEG Image (*.jpg)';...
-                       '*.fig','Figures (*.fig)'}, title);
-            if ~isempty(filename) && ~isempty(pathname)
-                ffile = [pathname filename];
-                if (filteridx == 1)
-                    %print(fig,[pathname filename],'-depsc',['-r' num2str(Config.ExportDPI)],'-tiff');
-                    print(fig,ffile,'-depsc',['-r' num2str(ExportDPI)],'-tiff');
-                    system(ffile);
-                elseif filteridx == 2
-                    %print(fig,[pathname filename],['-djpeg' num2str(Config.JPEGQuality)],['-r' num2str(Config.ExportDPI)]);
-                    print(fig,ffile,['-djpeg' num2str(JPEGQuality)],['-r' num2str(ExportDPI)]);
-                    system(ffile);
-                elseif filteridx == 3
-                    saveas(fig, ffile, 'fig');
-                    openfig(ffile,'new','visible');
+            if ~isempty(file)
+                a = gca(fig);
+                
+                % Store old position and remove margin for export
+                oldap = get(a,'ActivePosition');
+                oldpos = get(a,'Position');
+                general.Utils.removeMargin(fig);
+                
+                if (extidx == 1)
+                    print(fig,file,'-depsc2',['-r' ExportDPI],'-tiff');
+                    %system(['xdg-open ' file]);
+                elseif extidx == 2
+                    print(fig,file,['-djpeg' JPEGQuality],['-r' ExportDPI]);
+                    %system(['xdg-open ' file]);
+                elseif extidx == 3
+                    saveas(fig, file, 'fig');
+                    %openfig(file,'new','visible');
+                elseif extidx == 4
+                    print(fig,file,'-dpdf',['-r' ExportDPI]);
                 end
-                %if (Config.OpenAfterExport)
-                    
-                %end
+                
+                % Restore old position
+                set(a,'ActivePosition',oldap);
+                set(a,'Position',oldpos);
             end
         end
         
-        function saveAxes(ax, title)
+        function saveAxes(ax, varargin)
             % Convenience function. Allows to save a custom axes instead of
             % a whole figure which allows to drop any unwanted uiobjects
             % contained on the source figure.
             
             fig = figure('Visible','off','MenuBar','none','ToolBar','none');
-            newax = copyobj(ax, fig);
+            a = copyobj(ax, fig);
             
             %% Fit style
             % Just copy the colormap
             set(fig,'Colormap',get(get(ax,'Parent'),'Colormap'));
             
-            u = 'pixels';
-            old_units = get(ax,'Units');
-            set(ax,'Units',u);
-            axpos = get(ax,'Position');
-            tin = get(ax,'TightInset');
-            set(ax,'Units',old_units);
-            
-            % Put figure in correct size
-            set(fig,'Position',[1 1 axpos(3:4)+tin(1:2)+tin(3:4)]);
-            set(newax,'Units',u);
-            set(newax,'Position',[tin(1:2) axpos(3:4)]);
+            general.Utils.removeMargin(fig);
             
             %% Save
-            if nargin == 1
-                title='Save axes as';
-            end
-            general.Utils.saveFigure(fig, title);
+            general.Utils.saveFigure(fig, varargin{:});
             close(fig);
+        end
+        
+        function removeMargin(f)
+            a = gca(f);
+            ti = get(a,'TightInset');
+            set(a, 'ActivePosition','Position');
+            margin = .1;
+            set(a, 'Position', [ti(1:2)*(1+margin) 1-ti(3:4)*(1+margin)-ti(1:2)]);
         end
     end
     

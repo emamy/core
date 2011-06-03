@@ -9,8 +9,7 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.IKernelCoeffComp
     %
     % @author Daniel Wirtz @date 11.03.2010
     %
-    % @change{0,4,dw,2011-05-19} Changed the interface to optionally take an initial coefficient
-    % configuration. BETA STATUS.
+    % @change{0,4,dw,2011-05-31} Removed the 'svidx' parameter from the regress interface.
     %
     % @change{0,3,sa,2011-05-07} Implemented Setter for the properties of
     % this class
@@ -82,7 +81,8 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.IKernelCoeffComp
                 error('Value must be a double matrix');
             end
             % Make matrix symmetric (can be false due to rounding errors)
-            this.K = .5*(value + value');
+            this.K = value;
+            %this.K = .5*(value + value');
         end
         
         function set.C(this, value)
@@ -111,14 +111,16 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.IKernelCoeffComp
             this.K = K;
         end
         
-        function [ai, svidx] = computeKernelCoefficients(this, yi, aiinit)
+        function [ai, svidx] = computeKernelCoefficients(this, yi)
             % @throws KerMor:coeffcomp:failed Thrown if the coefficient computation failed for a
             % reason known within KerMor.
             %
             % @throws KerMor:svr:nosupportvectors No support vectors could be found for the given
             % configuration.
             try
-                [ai, svidx] = this.regress(yi,aiinit);
+                ai = this.regress(yi);
+                svidx = find(abs(ai) ./ max(abs(ai)) > this.AlphaRelMinValue);
+                ai = ai(svidx);
             catch ME
                 if strcmp(ME.identifier,'KerMor:solvers:qp:notconverged')
                     m = MException('KerMor:coeffcomp:failed','Regression failed');
@@ -143,7 +145,15 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.IKernelCoeffComp
         
     methods(Abstract)
         % Performs the actual regression (template method)
-        [ai, svidx] = regress(this, fxi);
+        %
+        % Parameters:
+        % fxi: The `f(x_i)` values to regress given the kernel matrix `K` computed from
+        % `\Phi(x_i,x_j)`.
+        % ainit: [Optional] An initial value set for the coefficients.
+        %
+        % Return values:
+        % ai: The kernel expansion coefficients `\alpha_i`.
+        ai = regress(this, fxi, ainit);
     end
     
 end

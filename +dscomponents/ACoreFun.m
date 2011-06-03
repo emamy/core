@@ -93,7 +93,6 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             % also cater for the noncustomized projection case by cloning
             % the current instance (dscomponents.IProjectable now inherits
             % from ICloneable per default).
-            %
             if nargin < 4
                 if this.CustomProjection
                     error('The target parameter must be given if custom projection is used.');
@@ -119,6 +118,8 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             % if no time is used.
             % mu: The parameter(s) to use. Set to [] if the function does not
             % support parameters.
+            %
+            % See also: CustomProjection
             %
             % @change{0,3,dw,2011-04-19} Fixed an error when no MultiArgumentEvaluations were supported and
             % no parameter `\mu` was given (Crashed due to index out of bounds)

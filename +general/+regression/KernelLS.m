@@ -54,7 +54,7 @@ classdef KernelLS < KerMorObject & approx.IKernelCoeffComp
             this.registerProps('K','lambda','CGMaxIt','CGTol','MaxStraightInvDim');
         end
         
-        function a = regress(this,fx)
+        function a = regress(this, fx, ainit)%#ok
             
             % Ensure fxi is a column vector
             fx = reshape(fx,size(this.K,1),[]);
@@ -66,7 +66,7 @@ classdef KernelLS < KerMorObject & approx.IKernelCoeffComp
                 a = M\y;
             else
                 % @TODO: why doepcgs pcg not work here? matrix is symmetric!
-                [a, flag] = bicg(M,y,this.CGTol, this.CGMaxIt);
+                [a, flag] = bicg(M,y,this.CGTol, this.CGMaxIt);%#ok
             end
         end
         
@@ -77,7 +77,7 @@ classdef KernelLS < KerMorObject & approx.IKernelCoeffComp
         
         function [ai, svidx] = computeKernelCoefficients(this, yi)
             ai = this.regress(yi);
-            svidx = [];
+            svidx = 1:size(yi,2);
         end
         
         %% setters

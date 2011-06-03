@@ -40,9 +40,10 @@ classdef RotationPOD < spacereduction.PODReducer
         function [V,W] = generateReducedSpace(this, model)
             V = generateReducedSpace@spacereduction.PODReducer(this, model);
             
-            R = eye(size(V,1)); %#ok<*PROP>
+            n = size(V,1); %#ok<*PROP>
+            R = spdiags(ones(n,1),0,n,n);
             for idx = 1:this.Dims
-                Q = eye(size(V,1));
+                Q = spdiags(ones(n,1),0,n,n);
                 idx1 = randi(this.Dims);
                 idx2 = randi(this.Dims);
                 Q(idx1,idx1) = cos(this.Degree);

@@ -67,9 +67,10 @@ classdef BaseApprox < dscomponents.ACoreFun
         % Template method.
         %
         % Parameters:
-        % xi: The input vectors `x_i`
-        % fxi: The function `f(x_i)` 
-        % model: [Optional] The full model
+        % xi: The input vectors `x(t_i)`
+        % ti: The input times `t_i`
+        % mui: The input parameters `\mu_i`
+        % fxi: The function values `f(x(t_i))`
         approximateCoreFun(this, xi, ti, mui, fxi);
     end
     

@@ -119,6 +119,9 @@ classdef ReducedModel < models.BaseModel
             % Clear possibly old data in error estimators
             this.ErrorEstimator.clear;
             
+            % Call constat pre-computations
+            this.ErrorEstimator.prepareConstants;
+            
             % Call inherited method (actual work)
             [t,xtmp] = computeTrajectory@models.BaseModel(this, mu, inputidx);
             
@@ -160,29 +163,7 @@ classdef ReducedModel < models.BaseModel
             
             this.FullModel.Approx = a;
             this.FullModel.Data = d;
-        end
-        
-%         function [t,e,est] = getError(this, varargin)
-%             % Gets the reduced model's error for a specified parameter and
-%             % input.
-%             %
-%             % @todo possibly move into BaseEstimator?
-%             
-%             [t,x,xr] = this.getTrajectories(varargin{:});
-%             % Compute L^2-norm of difference for each timestep
-%             e = sqrt(sum((x - xr).^2,1));
-%             est = this.ErrorEstimator.StateError;
-%         end
-        
-%         function [t,erel,estrel] = getRelativeError(this, varargin)
-%             [t,x,xr] = this.getTrajectories(varargin{:});
-%             e = sqrt(sum((x - xr).^2,1));
-%             est = this.ErrorEstimator.StateError;
-%             x = sqrt(sum(x.^2,1));
-%             erel = e./x;
-%             estrel = est./x;
-%         end        
-        
+        end        
     end
     
     methods(Access=protected,Sealed)
@@ -194,46 +175,14 @@ classdef ReducedModel < models.BaseModel
             % components of the error estimator.
             x0 = getX0@models.BaseModel(this, mu);
             if this.ErrorEstimator.Enabled
-                x0 = [x0; this.ErrorEstimator.init(mu)];
+                x0 = [x0; this.ErrorEstimator.getE0(mu)];
             end
         end
         
     end
     
     methods
-        
-        function [t,x,xr,time,timer,t_noerr] = getTrajectories(this, mu, inputidx)
-            % Debug Method. Computes the trajectories of the full, reduced
-            % and reduced without error estimation systems.
-            %
-            % @change{0,2,dw,2011-03-21} Fixed the case when a model does not use
-            % space reduction (call to analyze would have failed)
-            if nargin < 3
-                inputidx=[];
-                if nargin < 2
-                    mu = [];
-                end
-            end
-            % Perform full simulation (computed trajectories are cached!)
-            tic;
-            [t,x] = this.FullModel.computeTrajectory(mu, inputidx);
-            time = toc;
-            % Perform reduced simulation
-            this.ErrorEstimator.Enabled = false;
-            tic;
-            this.computeTrajectory(mu, inputidx);
-            t_noerr = toc;
-            this.ErrorEstimator.Enabled = true;
-            tic;
-            [t,z] = this.computeTrajectory(mu, inputidx);
-            if ~isempty(this.V)
-                xr = this.V*z;
-            else
-                xr = z;
-            end
-            timer = toc;
-        end
-        
+                
         function e = get.ErrorEstimator(this)
             e = this.fErrorEstimator;
         end

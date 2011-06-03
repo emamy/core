@@ -250,11 +250,14 @@ if get(h.rbS,'Value') == 1
 
 else
     mu = getappdata(h.main,'mu');
-    [ti,xi] = r.FullModel.computeTrajectory(mu,inidx);
+    fm = r.FullModel;
+    [ti,xi] = fm.computeTrajectory(mu,inidx);
+    % Project to subspace
+    xi = fm.Data.V*(fm.Data.W'*xi);
     n = length(ti);
     mui = repmat(mu,1,n);
     
-    fx = r.FullModel.System.f.evaluate(xi,ti,mui);
+    fx = fm.System.f.evaluate(xi,ti,mui);
 end
 
 afx = r.FullModel.Approx.evaluate(xi,ti,mui);

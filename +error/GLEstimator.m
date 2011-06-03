@@ -14,6 +14,10 @@ classdef GLEstimator < error.BaseKernelEstimator
     % @change{0,4,dw,2011-05-23} Adopted to the new error.BaseEstimator interface with separate output
     % error computation.
     
+    properties(Access=private)
+        cf;
+    end
+    
     methods
         function this = GLEstimator(rmodel)
             this = this@error.BaseKernelEstimator;
@@ -26,15 +30,33 @@ classdef GLEstimator < error.BaseKernelEstimator
             % Creates a deep copy of this estimator instance.
             copy = error.GLEstimator;
             copy = clone@error.BaseKernelEstimator(this, copy);
+            copy.cf = this.cf;
+        end
+        
+        function prepareConstants(this)
+            prepareConstants@error.BaseKernelEstimator(this);
+            % Standard case: the approx function is a kernel expansion. it
+            % can also be that the system's core function is already a
+            % kernel expansion
+            fm = this.ReducedModel.FullModel;
+            if ~isempty(fm.Approx)
+                % Get full d x N coeff matrix of approx function
+                f = fm.Approx;
+            else
+                % Get full d x N coeff matrix of core function
+                f = fm.System.f;
+            end
+            this.cf = f.getGlobalLipschitz(0, []);
         end
     end
     
     methods(Access=protected)
         function b = getBeta(this, x, t, mu)%#ok
-            b = this.ReducedModel.FullModel.System.f.getGlobalLipschitz(t, mu);
+            b = this.cf;
         end
         
-        function postprocess(this, t, x, mu, inputidx)%#ok
+        function postprocess(this, t, x, mu, inputidx)
+            postprocess@error.BaseKernelEstimator(this, t, x, mu, inputidx);
             this.StateError(1,:) = x(end,:);
         end
     end

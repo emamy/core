@@ -20,13 +20,6 @@ classdef ExpensiveBetaEstimator < error.BaseKernelEstimator
     % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
     % - \c License @ref licensing
     
-    properties
-        % Which version to use
-        % 1: Direct `beta(t)` computation as explained above
-        % 2: Jacobians at `x(t)` and `Vz(t)`
-        Version = 1;
-    end
-    
     properties(Access=private,Transient)
         xfull;
         fax;
@@ -53,17 +46,14 @@ classdef ExpensiveBetaEstimator < error.BaseKernelEstimator
             this.cnt = 1;
         end
         
-        function e0 = init(this, mu)
-            % Returns the initial error at `t=0` of the integral part.
-            e0 = init@error.BaseKernelEstimator(this, mu);
+        function prepareConstants(this)
+            prepareConstants@error.BaseKernelEstimator(this);
             
-            %% Expensive computations
             rm = this.ReducedModel;
+            mu = rm.System.mu;
             [t, x] = rm.FullModel.computeTrajectory(mu, rm.System.inputidx);
             this.xfull = [t; x];
-            if size(x,1) >= 300
-                warning('a:b','Main dimension larger than 300. Disabling jacobian estimation version.');
-            end
+            mu = repmat(mu,1,length(t));
             if ~isempty(rm.FullModel.Approx)
                 this.fax = rm.FullModel.Approx.evaluate(x,t,mu);
             else
@@ -87,21 +77,21 @@ classdef ExpensiveBetaEstimator < error.BaseKernelEstimator
             Vz = this.ReducedModel.V*x(1:end-this.ExtraODEDims);
             fVz = a.evaluate(Vz,t,mu);
             
-            b = 0;
-            if this.Version == 1
+%             b = 0;
+%             if this.Version == 1
                 xdiff = sum((xf-Vz).^2);
                 if xdiff ~= 0
                     b = sqrt(sum((fax-fVz).^2)/xdiff); %#ok<*PROP>
                 else
                     b = 0;
                 end
-            elseif this.Version == 2
-                if size(xf,1) < 300
-                    Jx = a.getStateJacobian(xf,t,mu);
-                    JVz = a.getStateJacobian(Vz,t,mu);
-                    b = max(norm(Jx),norm(JVz));
-                end
-            end
+%             elseif this.Version == 2
+%                 if size(xf,1) < 300
+%                     Jx = a.getStateJacobian(xf,t,mu);
+%                     JVz = a.getStateJacobian(Vz,t,mu);
+%                     b = max(norm(Jx),norm(JVz));
+%                 end
+%             end
             this.cnt = this.cnt + 1;
         end
         

@@ -89,6 +89,10 @@ classdef KernelInterpol < KerMorObject & approx.IKernelCoeffComp
                 end
             else
                 if this.fUseLU
+                    %norm(this.K*fxi'-this.K'*fxi')
+                    %eps*norm(fxi')
+                    %keyboard
+                    %a = bicg(this.K,fxi',[],20000);
                     a = this.U\(this.L\fxi');
                 else
                     a = this.fK\fxi';

@@ -6,12 +6,12 @@ classdef DefaultCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
     % @change{0,4,dw,2011-05-20} Removed the ApproxExpansionSize property as this is now determined
     % by the approx.TrainDataSelector property
     %
-    % @change(0,3,sa,2011-04-21) Implemented Setter for the class property
-    %
-    % See also: BaseApprox BaseCompWiseKernelApprox
+    % @change{0,3,sa,2011-04-21} Implemented Setter for the class property
     %
     % @new{0,3,dw,2011-03-31} Added this class to keep old approximation
     % generation method.
+    %
+    % See also: BaseApprox BaseCompWiseKernelApprox
     
 %     properties
 %         % The number of projection training data snapshots used to compile

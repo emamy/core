@@ -18,7 +18,7 @@ classdef TPWLApprox < approx.BaseApprox
 % @new{0,4,dw,2011-05-06} Finished the TPWL implementation. Multiargument-evaluations now work
 % and the WeightFun was set to the TPWL source papers default `e^{-\beta \frac{d_i}{m}}`.
 %
-% @change(0,3,sa,2011-04-21) Implemented Setters for the properties
+% @change{0,3,sa,2011-04-21} Implemented Setters for the properties
 %
 % This class is part of the framework
 % KerMor - Model Order Reduction using Kernels:

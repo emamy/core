@@ -201,7 +201,7 @@ classdef BaseCompWiseKernelApprox < approx.BaseApprox & ...
                         fprintf('Computing approximation for dimension %d/%d ... %2.0f %%\n',fdim,fdims,(fdim/fdims)*100);
                     end
                     % Call template method
-                    [ai, svidx] = this.CoeffComp.computeKernelCoefficients(fxi(fdim,:),this.Ma(fdim,:)); 
+                    [ai, svidx] = this.CoeffComp.computeKernelCoefficients(fxi(fdim,:)); 
                     if ~isempty(svidx)
                         this.Ma(fdim,svidx) = ai;
                     else

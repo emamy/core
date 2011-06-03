@@ -27,7 +27,7 @@ classdef PointerCoreFun < dscomponents.ACoreFun
             this.target = funPtr;
         end
         
-        function updateSimConstants(this)%#ok
+        function prepareConstants(this)%#ok
             % Nothing to do here.
         end
         

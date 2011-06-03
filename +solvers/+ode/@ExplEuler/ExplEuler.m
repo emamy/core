@@ -1,4 +1,4 @@
-classdef ExplEuler < solvers.ode.BaseSolver
+classdef ExplEuler < solvers.ode.BaseCustomSolver
     % Explicit forward euler ODE solver
     %
     % This solver uses the MaxStep property as timestep to be most
@@ -9,7 +9,10 @@ classdef ExplEuler < solvers.ode.BaseSolver
     %
     % @author Daniel Wirtz @date 12.03.2011
     %
-    % See also: solvers BaseSolver Heun
+    % See also: solvers BaseSolver BaseCustomSolver Heun
+    %
+    % @change{0,4,dw,2011-05-31} Added a new middle class solvers.ode.BaseCustomSolver which
+    % extracts the getCompTimes into a new abstraction layer.
     %
     % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
     % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
@@ -32,15 +35,17 @@ classdef ExplEuler < solvers.ode.BaseSolver
             %
             % Parameters:
             % MaxStep: Maximum time step. Optional.
-            this = this@solvers.ode.BaseSolver;
+            this = this@solvers.ode.BaseCustomSolver;
             
             this.Name = 'Explicit forward euler';
             if nargin == 1
                 this.MaxStep = MaxStep;
             end
         end
-        
-        function [tout,y] = solve(this, odefun, t, x0)
+    end
+    
+    methods(Access=protected,Sealed)
+        function x = customSolve(this, odefun, t, x0)%#ok
             % Solves the ODE
             %
             % There is a mex-implementation of the explicit euler scheme,
@@ -48,27 +53,18 @@ classdef ExplEuler < solvers.ode.BaseSolver
             % matlab! (So mexing files to get rid of for loops does not
             % work well :-))
             
-            % Get computation times
-            [times, outputtimes] = this.getCompTimes(t);
-            
             % Initialize vector
-            steps = length(times);
-            y = [x0 zeros(length(x0),steps-1)];
-            dt = times(2:end)-times(1:end-1);
+            steps = length(t);
+            x = [x0 zeros(length(x0),steps-1)];
+            dt = t(2:end)-t(1:end-1);
             
             % Solve for each time step
             for idx = 2:steps;
-                y(:,idx) = y(:,idx-1) + dt(idx-1)*odefun(times(idx-1),y(:,idx-1));
+                x(:,idx) = x(:,idx-1) + dt(idx-1)*odefun(t(idx-1),x(:,idx-1));
             end
 
             %y = this.solveMex(odefun, times, x0);
-            
-            % Extract wanted values
-            y = y(:,outputtimes);
-            tout = times(outputtimes);
         end
-        
-        
     end
     
     methods(Access=public)
@@ -93,11 +89,11 @@ classdef ExplEuler < solvers.ode.BaseSolver
             for it = 1:iter
             
             t = tic;
-            [ti,y] = s.solveMex(@odefun, times, rand(10,1));
+            s.solveMex(@odefun, times, rand(10,1));
             tmex(it) = toc(t);
             
             t = tic;
-            [ti,y] = s.solve(@odefun, times, rand(10,1));
+            s.solve(@odefun, times, rand(10,1));
             tmat(it) = toc(t);
             
             end

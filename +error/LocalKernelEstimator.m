@@ -25,7 +25,7 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
     % @change{0,3,dw,2011-05-02} Changed the implementation of the evalODEPart so that only two
     % extra ODE dimensions are needed. This avoids NaN entries when exponential values grow too big.
     %
-    % @change(0,3,sa,2011-04-23) Implemented Setters for the properties LocalLipschitzFcn
+    % @change{0,3,sa,2011-04-23} Implemented Setters for the properties LocalLipschitzFcn
     % and UseTimeDiscreteC
     %
     % @new{0,1,dw,2010-08-10} Added this class.
@@ -58,14 +58,16 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
         %
         % See also: kernels.BaseKernel kernels.BellFunction error.BaseLocalLipschitzFunction
         LocalLipschitzFcn;
-        
+    end
+    
+    properties(Dependent)
         % Determines how many postprocessing iterations for the estimator
         % are performed.
         %
         % Has computationally no effect if UseTimeDiscreteC is switched on.
         %
         % Default: 0
-        Iterations = 0;
+        Iterations;
                 
         % For the local Lipschitz constant estimation the parameter C can
         % be chosen to equal the error from the last time step. This has to
@@ -73,20 +75,28 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
         % solver may lead to a loss of rigorousity.
         %
         % Defaults to true. (As is best estimator atm)
-        UseTimeDiscreteC = true;
+        UseTimeDiscreteC;
+    end
+    
+    properties(Transient, SetAccess=private)
+        % The `d_i(t)` values for each integration time-step `t`.
+        d_iValues;
     end
     
     properties(Access=private)
         Ma_norms;
         xi;
         mu;
+        lstPreSolve;
+        lstPostSolve;
+        fIterations = 0;
+        fTDC = true;
     end
     
-    properties(Access=private,Transient)
+    properties(Transient, Access=private)
         % Iteration stuff
-        divals;
         errEst;
-        stepcnt;
+        tstep;
     end
     
     methods
@@ -102,15 +112,20 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
             copy = error.LocalKernelEstimator;
             % ExtraODEDims is set in constructor!
             copy = clone@error.BaseKernelEstimator(this, copy);
-            % Fcn does not need to be cloned.
-            copy.LocalLipschitzFcn = this.LocalLipschitzFcn;
-            copy.Iterations = this.Iterations;
-            copy.UseTimeDiscreteC = this.UseTimeDiscreteC;
+            % Clone local lipschitz function
+            copy.LocalLipschitzFcn = this.LocalLipschitzFcn.clone;
+            copy.fIterations = this.fIterations;
+            copy.fTDC = this.fTDC;
             copy.Ma_norms = this.Ma_norms;
             copy.xi = this.xi;
-            copy.divals = this.divals;
+            copy.d_iValues = this.d_iValues;
             copy.errEst = this.errEst;
-            copy.stepcnt = this.stepcnt;
+            copy.tstep = this.tstep;
+            copy.mu = this.mu;
+            copy.lstPreSolve = addlistener(copy.ReducedModel.ODESolver,'PreSolve',@copy.cbPreSolve);
+            copy.lstPreSolve.Enabled = this.lstPreSolve.Enabled;
+            copy.lstPostSolve = addlistener(copy.ReducedModel.ODESolver,'PostSolve',@copy.cbPostSolve);
+            copy.lstPostSolve.Enabled = this.lstPostSolve.Enabled;
         end
         
         function setReducedModel(this, rmodel)
@@ -121,6 +136,11 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
             % computations
             setReducedModel@error.BaseKernelEstimator(this, rmodel);
             
+            this.lstPreSolve = addlistener(this.ReducedModel.ODESolver,'PreSolve',@this.cbPreSolve);
+            this.lstPreSolve.Enabled = false;
+            this.lstPostSolve = addlistener(this.ReducedModel.ODESolver,'PostSolve',@this.cbPostSolve);
+            this.lstPostSolve.Enabled = false;
+            
             fm = this.ReducedModel.FullModel;
             % Obtain the correct snapshots
             if ~isempty(fm.Approx)
@@ -128,7 +148,7 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
                 % Get centers of full approximation
                 this.xi = fm.Approx.Centers.xi;
                 % Precompute norms
-                this.Ma_norms = sqrt(sum(fm.Approx.Ma.^2,1));
+                this.Ma_norms = fm.Approx.Ma_norms;
             else
                 % This is the also possible case that the full core
                 % function of the system is a KernelExpansion.
@@ -136,7 +156,7 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
                 % Get centers of full core function
                 this.xi = fm.System.f.Centers.xi;
                 % Precompute norms
-                this.Ma_norms = sqrt(sum(fm.System.f.Ma.^2,1));
+                this.Ma_norms = fm.System.f.Ma_norms;
             end
             if this.ReducedModel.System.f.RotationInvariant
                 this.xi = this.ReducedModel.System.f.Centers.xi;
@@ -154,7 +174,19 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
         
         function clear(this)
             clear@error.BaseKernelEstimator(this);
-            this.divals = [];
+            this.d_iValues = [];
+        end
+        
+        function prepareConstants(this)
+            % Call superclass method
+            prepareConstants@error.BaseKernelEstimator(this);
+            
+            % Returns the initial error at `t=0` of the integral part.
+            this.lstPreSolve.Enabled = true;
+            this.lstPostSolve.Enabled = true;
+            % Call ISimConstants update function to compute values that are constant during a
+            % simulation.
+            this.LocalLipschitzFcn.prepareConstants;
         end
         
     end
@@ -169,19 +201,31 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
         end
         
         function set.Iterations(this, value)
-            if value > 0 && (isa(this.ReducedModel.ODESolver,'solvers.ode.MLWrapper') || isa(this.ReducedModel.ODESolver,'solvers.ode.MLode15i'))%#ok
-                warning('errorEst:LocalLipEst',...
-                    'Build-In Matlab solvers cannot be use with this Error Estimator if Iterations are turned on.\nSetting Iterations = 0.');
-                this.Iterations = 0;
+            if ~isnonnegintscalar(value)
+                error('Iterations value must be a non-negative integer.');
             end
-            this.Iterations = value;
+            if this.fTDC && value > 0
+                warning('error:LocalKernelEstimator:NoIterationsWithTD','Cannot use iterations in conjunction with time-discrete C(t). Value will have no effect.');
+            end
+            this.fIterations = value;
         end
         
         function set.UseTimeDiscreteC(this, value)
             if ~islogical(value)
                 error('The value must be a logical');
             end
-            this.UseTimeDiscreteC = value;
+            if value && this.fIterations > 0
+                warning('error:LocalKernelEstimator:NoIterationsWithTD','Cannot use iterations in conjunction with time-discrete C(t). Iteration value will have no effect now.');
+            end
+            this.fTDC = value;
+        end
+        
+        function value = get.Iterations(this)
+            value = this.fIterations;
+        end
+        
+        function value = get.UseTimeDiscreteC(this)
+            value = this.fTDC;
         end
     end
     
@@ -201,63 +245,46 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
             % Standard (worst-) Case
             Ct = Inf;
             % Time-discrete computation
-            if this.UseTimeDiscreteC
+            if this.fTDC
                 Ct = x(end);
+                % Keep track of distances when iterations are used
+            elseif this.fIterations > 0
+                this.d_iValues(this.StepNr,:) = di;
             end
             b = this.Ma_norms * this.LocalLipschitzFcn.evaluate(di, Ct, t, mu)';
-            
-            % Iteration stuff
-            if this.Iterations > 0
-                this.divals(end+1,:) = di;
-            end
         end
         
-        function postprocess(this, t, x, mu, inputidx)%#ok
+        function postprocess(this, t, x, mu, inputidx)
+            
+            postprocess@error.BaseKernelEstimator(this, t, x, mu, inputidx);
+            
             this.StateError = x(end,:);
+            
+            % PreSolve not needed during iterations
+            this.lstPreSolve.Enabled = false;
 
             % Iteration stuff
-            if this.Iterations > 0
-                %this.times(end+1) = t(end);
-                if this.UseTimeDiscreteC
-                    warning('error:LocalLipErrorEstimator','Using Iterations together with TimeDiscreteC will yield no improvement. Not performing iterations.');
-                else
-                    this.performIterations(t, mu);
+            if ~this.fTDC && this.fIterations > 0
+                % Switch on/off listeners
+                
+                this.mu = mu;
+                solver = this.ReducedModel.ODESolver;
+                e0 = this.getE0(mu);
+                for it = 1:this.fIterations
+                    % Set time-step counter to one
+                    this.tstep = 1;
+                    % Solve
+                    [ti, e] = solver.solve(@this.iterationODEPart, t, e0);
                 end
+                this.StateError = e;
             end
+            
+            % PostSolve still needed during iterations
+            this.lstPostSolve.Enabled = false;
         end
     end
-    
+        
     methods(Access=private)
-        function performIterations(this, t, mu)
-            solver = this.ReducedModel.ODESolver;
-            
-            % Validity checks
-            ti = this.EstimationData(1,:);
-            if any(abs(sort(ti)-ti) > 100*eps)
-                error('Time values recorded are not monotoneously increasing. Cannot propertly extend C, aborting.');
-            end
-            
-            % Computes an expansion index set idx.
-            % Expands the currently given error at the possibly coarser
-            % timesteps t towards the recorded timesteps times during
-            % simulation. Makes a worst-case estimation by assuming the
-            % greater error value for times between two successive t
-            % values.
-%             T = repmat(t,length(ti),1);
-%             Times = repmat(ti',1,length(t));
-%             idx = sum(T < Times,2)+1;
-            
-            this.mu = mu;
-            this.errEst = this.StateError;
-            for it = 1:this.Iterations                
-                % Set step counter to one
-                this.stepcnt = 1;
-%                 % Expand the C error to fit the times
-%                 this.errEst = this.errEst(idx);
-                [ti, this.errEst] = solver.solve(@this.iterationODEPart, t, this.init(mu));
-            end
-            this.StateError = this.errEst;
-        end
         
         function e = iterationODEPart(this, t, eold)
             % THIS command will only work if the same times are passed to
@@ -265,19 +292,36 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
             % one cannot use blackbox-odesolvers like the matlab builtin
             % ones which may use different timesteps.
             %idx = find(this.times == t,1);
-            idx = this.stepcnt;
+            idx = this.tstep;
             
             if abs(this.EstimationData(1,idx)-t) > 100*eps
                 error('The ODE solver does not work as required by the iterative scheme.');
             end
 
+%             try
             b = this.Ma_norms * this.LocalLipschitzFcn.evaluate(...
-                this.divals(idx,:), this.errEst(idx), t, this.mu)';
+                this.d_iValues(idx,:), this.errEst(idx), t, this.mu)';
+%             catch ME
+%                 keyboard;
+%             end
             e = b*eold + this.EstimationData(2,idx);
             
-            this.EstimationData(3,this.stepcnt) = b;
+            this.EstimationData(3,this.tstep) = b;
             
-            this.stepcnt = this.stepcnt+1;
+            this.tstep = this.tstep+1;
+        end
+        
+        function cbPreSolve(this, sender, data)%#ok
+            %fprintf('cbPreSolve in local kernel est, Lipfun:%s, It:%d, TDC:%d\n',class(this.LocalLipschitzFcn),this.fIterations,this.fTDC);
+            this.d_iValues = zeros(length(data.Times),size(this.xi,2));
+        end
+        
+        function cbPostSolve(this, sender, data)%#ok
+            % This is a bit dangerous as this gets called both during full trajectory simulations
+            % and iterations simulations. For the first case, a full d x n matrix is in data.States
+            % and for the latter it's just the error estimation ode. However, both will work at this
+            % place as (end,:) grabs the correct values either way.
+            this.errEst = data.States(end,:);
         end
     end
     
@@ -315,4 +359,11 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
             [t,y] = r.simulate;%#ok
         end
     end
+    
+%     methods(Static,Access=protected)
+%         function s = loadobj(s)
+%             s = loadobj@error.BaseKernelEstimator(s);
+%             addlistener(s.ReducedModel.ODESolver,'PreSolve',@s.PreSolve);
+%         end
+%     end
 end

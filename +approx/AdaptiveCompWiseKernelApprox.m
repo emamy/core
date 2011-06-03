@@ -5,6 +5,8 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
 %
 % See also: BaseApprox BaseCompWiseKernelApprox
 %
+% @change{0,4,dw,2011-05-31} Added new experimental properties @ref MinGFactor and @ref MaxGFactor.
+%
 % @change{0,4,dw,2011-05-19} Disconnected the Approx classes from taking a BaseModel instance at
 % approx computation. This way external tools can use the approximation algorithms, too.
 %
@@ -83,6 +85,14 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
         %
         % @propclass{experimental} 
         ErrFun = 1;
+        
+        % 'dfun(this.MinGFactor*bxdia, this.MaxGFactor*bxdia);'
+        % @propclass{experimental}
+        MaxGFactor = 1;
+        
+        % 'dfun(this.MinGFactor*bxdia, this.MaxGFactor*bxdia);'
+        % @propclass{experimental}
+        MinGFactor = .05;
     end
     
     properties(Transient, SetAccess=private)
@@ -101,7 +111,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             
             % Register default property changed listeners
             this.registerProps('MaxExpansionSize','NumGammas','ValidationPercent',...
-                'gameps','MaxRelErr','MaxAbsErrFactor','ErrFun');
+                'gameps','MaxRelErr','MaxAbsErrFactor','ErrFun','MaxGFactor','MinGFactor');
         end
                         
         function target = clone(this)
@@ -136,9 +146,6 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             % @todo Think about suitable stopping condition (relative error
             % change?)
             
-            %% Experimental settings
-            fac = 1;
-            minfac = .05; % min factor for BB diameters at initial gamma choice
             dfun = @logsp; % gamma distances comp fun (linsp / logsp)
             if this.ErrFun == 1
                 errfun = @getLInftyErr; % L^inf error function
@@ -221,11 +228,11 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             this.Ma = fxi(:,inIdx);
             
             %% Choose initial gammas
-            xdists = dfun(minfac*bxdia, fac*bxdia);
-            tdists = dfun(minfac*btdia, fac*btdia);
+            xdists = dfun(this.MinGFactor*bxdia, this.MaxGFactor*bxdia);
+            tdists = dfun(this.MinGFactor*btdia, this.MaxGFactor*btdia);
             dists = [xdists; tdists];
             if hasparams
-                pdists = dfun(minfac*bpdia, fac*bpdia);
+                pdists = dfun(this.MinGFactor*bpdia, this.MaxGFactor*bpdia);
                 dists = [dists; pdists];
             end
             minerr = Inf; gt = []; gp = [];
@@ -265,7 +272,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             this.effabs = this.MaxAbsErrFactor * max(abs(fxi(:)));
             
             % Keep track of maximum errors
-            this.MaxErrors = zeros(size(1,this.MaxExpansionSize));
+            this.MaxErrors = zeros(1,this.MaxExpansionSize);
             exception = false;
             while ~exception
                 
@@ -299,16 +306,18 @@ classdef AdaptiveCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                 nx.addPoint(xi(:,maxidx));
                 nt.addPoint(ti(maxidx));
                 
+                %nx.NNDists
+                
                 %% Compute new approximation
-                xdists = sort([dfun(nx.getMinNN, fac*bxdia) dists(1,bestdistidx)]);
-                tdists = sort([dfun(nt.getMinNN, fac*btdia) dists(2,bestdistidx)]);
+                xdists = sort([dfun(nx.getMinNN, this.MaxGFactor*bxdia) dists(1,bestdistidx)]);
+                tdists = sort([dfun(nt.getMinNN, this.MaxGFactor*btdia) dists(2,bestdistidx)]);
                 
                 if hasparams
                     minnn = bpdia/this.NumGammas;
                     if ~isinf(np.getMinNN)
                         minnn = np.getMinNN;
                     end
-                    pdists = sort([dfun(minnn, fac*bpdia) dists(3,bestdistidx)]);
+                    pdists = sort([dfun(minnn, this.MaxGFactor*bpdia) dists(3,bestdistidx)]);
                     dists = [dists; pdists];%#ok
                 else
                     dists = [xdists; tdists];

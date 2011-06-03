@@ -6,7 +6,12 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
 %  B. Schölkopf & A. Smola's "Learning with Kernels" and
 %  "Support Vector Machines" from I. Steinwart & A. Christman
 %
+% See also: ScalarNuSVR
+%
 % @author Daniel Wirtz @date 11.03.2010
+%
+% @change{0,4,dw,2011-06-01} Fitted the interface to the changed one in
+% general.regression.BaseScalarSVR
 %
 % @change{0,4,sa,2011-05-06} Implemented Setter for the property eps
 %
@@ -29,7 +34,16 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             this = this@general.regression.BaseScalarSVR;
         end
         
-        function [ai, svidx, ep] = regress(this, fxi)
+        function ai = regress(this, fxi, ainit)
+            % Performs epsilon-SVR regression.
+            %
+            % Parameters:
+            % fxi: The `f(x_i)` values to regress given the kernel matrix `K` computed from
+            % `\Phi(x_i,x_j)`.
+            % ainit: [Optional] An initial value set for the coefficients.
+            %
+            % Return values:
+            % ai: The kernel expansion coefficients `\alpha_i`.
             m = size(this.K,1);
             T = [diag(ones(1,m)) -diag(ones(1,m))];
             % Ensure fxi is a column vector
@@ -40,21 +54,20 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             c = (this.eps*ones(2*m,1) - T'*fxi);
             
             % Starting point
-            %x0 = ones(2*m,1)*this.C/(2*m);
-            x0 = [];
+            if nargin < 3
+                %ainit = ones(2*m,1)*this.C/(2*m);
+                ainit = [];
+            end
             
             % Bounds
             lb = zeros(2*m,1);
             ub = ones(2*m,1)*(this.C/m);
             
             % Call solver
-            p = this.QPSolver.solve(Q,c,lb,ub,[],[],[],x0);
+            p = this.QPSolver.solve(Q,c,lb,ub,[],[],[],ainit);
             
             % Convert results
             ai = T*p;
-            svidx = find(abs(ai) ./ max(abs(ai)) > this.AlphaRelMinValue);
-            ai = ai(svidx);
-            ep = this.eps;
         end
         
         function set.eps(this, value)

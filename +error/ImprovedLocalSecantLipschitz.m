@@ -2,8 +2,9 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
 % ImprovedLocalSecantLipschitz: 
 %
 %
-%
 % @author Daniel Wirtz @date 2011-05-20
+%
+% @new{0,4,dw,2011-05-31} Added new prepareConstants init function from BaseLocalLipschitzFunction.
 %
 % @new{0,4,dw,2011-05-20} Added this class.
 %
@@ -36,6 +37,10 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
     properties(Access=private)
         oldrs = [];
         precomp = [];
+        p;
+        sc;
+        d1;
+        d2;
     end
     
     methods
@@ -43,6 +48,23 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
         function this = ImprovedLocalSecantLipschitz(bellfcn)
             this = this@error.BaseLocalLipschitzFunction(bellfcn);
             this.registerProps('NewtonTolerance','MaxNewtonIterations','UseCachedSecants');
+        end
+        
+        function prepareConstants(this)
+            b = this.bellfcn;
+            q = [0 b.r0 b.rR];
+            this.sc = b.evaluateScalar(q);
+            this.d1 = b.evaluateD1(q);
+            this.d2 = b.evaluateD2(q);
+            this.p = q;
+        end
+        
+        function copy = clone(this)
+            copy = error.ImprovedLocalSecantLipschitz(this.bellfcn);
+            %copy = clone@error.BaseLocalLipschitzFunction(this, copy);
+            copy.NewtonTolerance = this.NewtonTolerance;
+            copy.MaxNewtonIterations = this.MaxNewtonIterations;
+            copy.UseCachedSecants = this.UseCachedSecants;
         end
         
         function ci = evaluate(this, di, C, t, mu)%#ok
@@ -126,20 +148,22 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
             rtmp = rstart+2*this.NewtonTolerance;
             r = rstart;
             
-            b = this.bellfcn; r0 = b.r0; rR = b.rR;
+            b = this.bellfcn;
             
             % Add eps at division as for zero nominator the expression is zero. (no error made)
-            n(1,:) = b.evaluateD1(0) - (b.evaluateScalar(0)-b.evaluateScalar(s))./(eps-s); 
-            n(2,:) = b.evaluateD1(r0) - (b.evaluateScalar(r0)-b.evaluateScalar(s))./(r0-s+eps);
-            n(3,:) = b.evaluateD1(rR) - (b.evaluateScalar(rR)-b.evaluateScalar(s))./(rR-s+eps);
+            n = zeros(3,length(s));
+            n(1,:) = this.d1(1) - (this.sc(1)-b.evaluateScalar(s))./(eps-s); 
+            n(2,:) = this.d1(2) - (this.sc(2)-b.evaluateScalar(s))./(this.p(2)-s+eps);
+            n(3,:) = this.d1(3) - (this.sc(3)-b.evaluateScalar(s))./(this.p(3)-s+eps);
             
             % Lim x->y n'(x) = \phi''(x) / 2 (De L'hospital)
-            dn(1,:) = b.evaluateD2(0) - n(1,:)./-s;
+            dn = zeros(3,length(s));
+            dn(1,:) = this.d2(1) - n(1,:)./-s;
             dn(1,isnan(dn(1,:))) = b.evaluateD2(0)/2;
-            dn(2,:) = b.evaluateD2(r0) - n(2,:)./(r0-s);
+            dn(2,:) = this.d2(2) - n(2,:)./(this.p(2)-s);
             dn(2,isinf(dn(2,:))) = 0; % == ddf(x0)/2;
-            dn(3,:) = b.evaluateD2(rR) - n(3,:)./(rR-s);
-            dn(3,isinf(dn(3,:))) = b.evaluateD2(rR)/2;
+            dn(3,:) = this.d2(3) - n(3,:)./(this.p(3)-s);
+            dn(3,isinf(dn(3,:))) = this.d2(3)/2;
             
             cnt = 0;
             
@@ -163,6 +187,37 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
 %                 end
                 
                 [g,dg] = this.optFun(r,s,n,dn,b);
+%                 g = zeros(size(r));
+%             d = g; c = d; dg = g;
+%             
+%             a = s < b.r0;
+%             pi = a & r < b.r0 | ~a & r > b.r0;
+%             pr = a & r > b.rR;
+%             pl = ~a & r < 0;
+%             std = ~(pi | pl | pr);
+%             
+%             % Standard case
+%             rs = r(std); ss = s(std);
+%             g(std) = b.evaluateD1(rs) - (b.evaluateScalar(rs)-b.evaluateScalar(ss))./(rs-ss);
+%             g(isnan(g)) = 0;
+%             dg(std) = b.evaluateD2(rs) - g(std)./(rs-ss);
+%             ninf = isinf(dg);
+%             dg(ninf) = b.evaluateD2(rs(ninf))/2;
+%             
+%             % Penalty case
+%             p = ~std;
+%             c(pi) = dn(2,pi).^2 ./ (4*n(2,pi));
+%             d(pi) = 2*n(2,pi)./dn(2,pi) - b.r0;
+%             c(pl) = dn(1,pl).^2 ./ (4*n(1,pl));
+%             d(pl) = 2*n(1,pl)./dn(1,pl);
+%             c(pr) = dn(3,pr).^2 ./ (4*n(3,pr));
+%             d(pr) = 2*n(3,pr)./dn(3,pr) - b.rR;
+%             
+%             g(p) = c(p) .* (r(p) + d(p)).^2;
+%             dg(p) = 2 * c(p) .* (r(p) + d(p));
+%             % Avoid exact matches!
+%             g(dg == 0) = 0;
+%             dg(dg == 0) = 1;
                 
                 rtmp = r;
                 r = r - g./dg;
@@ -259,10 +314,11 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
             r0 = b.r0; rR = b.rR;
             lfun = error.ImprovedLocalSecantLipschitz(b);
             lfun.NewtonTolerance = 1e-3;
+            lfun.prepareConstants;
             
             h = figure(1);
             plotrs = false;
-            lw = 2;
+            lw = 1;
             
             maxR = Gamma*3;
             r = linspace(0,maxR,70);

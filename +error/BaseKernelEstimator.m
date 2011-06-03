@@ -17,12 +17,21 @@ classdef BaseKernelEstimator < error.BaseEstimator
         M1 = [];
         M2 = [];
         M3 = [];
+    end
     
+    properties(Transient, SetAccess=private, GetAccess=protected)
+        % The current step
+        StepNr;
     end
     
     properties(SetAccess=protected)
-        % `3\times N` matrix containing the `t,\alpha(t),\beta(t)` values at each time step.
+        % `3\times n` matrix containing the `t,\alpha(t),\beta(t)` values at each time step.
         EstimationData = [];
+    end
+    
+    properties(Access=private)
+        % The cbPreSolve listener instance
+        lstPreSolve;
     end
         
     methods
@@ -50,16 +59,16 @@ classdef BaseKernelEstimator < error.BaseEstimator
             end
             
             % Obtain the correct snapshots
-                % Standard case: the approx function is a kernel expansion. it
-                % can also be that the system's core function is already a
-                % kernel expansion
-                if ~isempty(fm.Approx)
-                    % Get full d x N coeff matrix of approx function
-                    Ma = fm.Approx.Ma;
-                else
-                    % Get full d x N coeff matrix of core function
-                    Ma = fm.System.f.Ma;
-                end
+            % Standard case: the approx function is a kernel expansion. it
+            % can also be that the system's core function is already a
+            % kernel expansion
+            if ~isempty(fm.Approx)
+                % Get full d x N coeff matrix of approx function
+                Ma = fm.Approx.Ma;
+            else
+                % Get full d x N coeff matrix of core function
+                Ma = fm.System.f.Ma;
+            end
             
             % Perform any offline computations/preparations
             % Only prepare matrices if projection is used
@@ -95,10 +104,14 @@ classdef BaseKernelEstimator < error.BaseEstimator
                     this.M3 = zeros(b,b);
                 end
             end
+            
+            this.lstPreSolve = addlistener(rmodel.ODESolver,'PreSolve',@this.cbPreSolve);
+            this.lstPreSolve.Enabled = false;
         end
         
         function e = evalODEPart(this, x, t, mu, ut)
-            % Compute \alpha(t)
+            
+            % Compute `\alpha(t)`
             phi = this.ReducedModel.System.f.evaluateAtCenters(x(1:end-1), t, mu);
             
             a = phi*this.M1*phi';
@@ -111,10 +124,16 @@ classdef BaseKernelEstimator < error.BaseEstimator
             b = this.getBeta(x, t, mu);
             e = b*x(end) + a;
             
-            this.EstimationData(:,end+1) = [t; a; b];
+            this.EstimationData(:,this.StepNr) = [t; a; b];
+            this.StepNr = this.StepNr + 1;
         end
         
-        function e0 = init(this, mu)
+        function prepareConstants(this)
+            this.lstPreSolve.Enabled = true;
+            this.StepNr = 1;
+        end
+        
+        function e0 = getE0(this, mu)
             % Returns the initial error at `t=0` of the integral part.
             e0 = this.ReducedModel.getExo(mu);
         end
@@ -125,6 +144,9 @@ classdef BaseKernelEstimator < error.BaseEstimator
             copy.M2 = this.M2;
             copy.M3 = this.M3;
             copy.EstimationData = this.EstimationData;
+            copy.StepNr = this.StepNr;
+            copy.lstPreSolve = addlistener(copy.ReducedModel.ODESolver,'PreSolve',@copy.cbPreSolve);
+            copy.lstPreSolve.Enabled = this.lstPreSolve.Enabled;
         end
         
         function clear(this)
@@ -133,8 +155,30 @@ classdef BaseKernelEstimator < error.BaseEstimator
         end
     end
     
+    methods(Access=protected)
+        function postprocess(this, t, x, mu, inputidx)%#ok
+            this.lstPreSolve.Enabled = false;
+        end
+    end
+    
     methods(Abstract, Access=protected)
+        % Computes the `\beta(t)` term from the error estimation ODE for given time and place.
+        %
+        % Parameters:
+        % x: The current reduced state `Vz(t)`
+        % t: The current time `t\in[0,T]`
+        % mu: The current parameter `\mu`
         b = getBeta(this, x, t, mu);
+    end
+    
+    methods(Access=private)
+        function cbPreSolve(this, sender, data)%#ok
+            % Ensure that the estimation data matrix has the correct size but leave it as-is for
+            % possibly having iterations in subclasses.
+            if isempty(this.EstimationData) || size(this.EstimationData,2) ~= length(data.Times)
+                this.EstimationData = zeros(3,length(data.Times));
+            end
+        end
     end
     
     methods(Static)
@@ -144,17 +188,31 @@ classdef BaseKernelEstimator < error.BaseEstimator
             if ~isempty(rmodel.FullModel.Approx) 
                 if ~isa(rmodel.FullModel.Approx,'dscomponents.CompwiseKernelCoreFun')
                     errmsg = 'The full model''s approx function must be a subclass of dscomponents.CompwiseKernelCoreFun for this error estimator.'; 
+                    return;
                 end
             elseif ~isa(rmodel.FullModel.System.f,'dscomponents.CompwiseKernelCoreFun')
                     errmsg = 'If no approximation is used, the full model''s core function must be a subclass of dscomponents.CompwiseKernelCoreFun for this error estimator.'; 
+                    return;
             end
             if ~isa(rmodel.FullModel.System.C,'dscomponents.LinearOutputConv')
                 errmsg = 'Local Lipschitz estimators work only for constant linear output conversion.';
+                return;
             elseif rmodel.FullModel.System.C.TimeDependent
                 errmsg = 'Output error estimation for time dependent output not implemented yet.';
+                return;
+            end
+            if ~isa(rmodel.ODESolver,'solvers.ode.BaseCustomSolver');
+                errmsg = 'The reduced models ODE solver must be a subclass of BaseCustomSolver.';
             end
         end
     end
+    
+%      methods(Static,Access=protected)
+%         function s = loadobj(s)
+%             s = loadobj@KerMorObject(s);
+%             addlistener(s.ReducedModel.ODESolver,'cbPreSolve',@s.cbPreSolve);
+%         end
+%     end
     
 end
 

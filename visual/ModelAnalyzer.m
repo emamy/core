@@ -18,19 +18,27 @@ classdef ModelAnalyzer < handle;
         
         function analyze(this, rmodel, mu, inputidx)
             if nargin < 4
-                inputidx = 1;
+                inputidx = [];
                 if nargin < 3
                     mu = [];
                 end
             end
             
             %% Initial computations
-            [t,x,xr,time,timer,timer_noerr] = rmodel.getTrajectories(mu, inputidx);
-            if this.UseOutput && ~isempty(rmodel.FullModel.System.C)
-                x = rmodel.FullModel.System.C.computeOutput(t,x,mu);
-                xr = rmodel.FullModel.System.C.computeOutput(t,xr,mu);
+            [t, y, time, x] = rmodel.FullModel.simulate(mu, inputidx);
+            rmodel.ErrorEstimator.Enabled = false;
+            tic; rmodel.simulate(mu, inputidx); timer_noerr = toc;
+            rmodel.ErrorEstimator.Enabled = true;
+            [t, yr, timer, xr] = rmodel.simulate(mu, inputidx);
+            
+            if this.UseOutput
+                x = y;
+                xr = yr;
                 est = rmodel.ErrorEstimator.OutputError;
             else
+                if ~isempty(rmodel.V)
+                    xr = rmodel.V*xr;
+                end
                 est = rmodel.ErrorEstimator.StateError;
             end
             e = sqrt(sum((x - xr).^2,1));

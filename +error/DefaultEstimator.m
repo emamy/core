@@ -3,8 +3,32 @@ classdef DefaultEstimator < error.BaseEstimator
     % Standard estimator that is independent from any special reduced model
     % since it computes the full error!
     %
+    % @attention This error estimator computes the true '''state space''' error norm.
+    % If output is used, the correct state space error norm is mapped to the ''estimated'' output error
+    % norm `\no{y} \leq \no{C}\no{e}`, so the computed "correct" output error estimation will
+    % '''NOT''' equal the real output error norm `\no{y} = \no{C(x-Vz)}`, as only `\no{e(t)}` but
+    % not the vector-valued `e(t)` is known. However, the extra property
+    % error.DefaultEstimator.RealOutputError contains the true output error `\no{C(x-Vz)}` as during
+    % processing the correct error `e(t)` is known.
+    %
+    % @author Daniel Wirtz @date 2010-11-24
+    %
+    % @change{0,4,dw,2011-06-01} Introduced a new property error.DefaultEstimator.RealOutputError to
+    % reflect that the actual output error also cannot be obtained by this error estimator. See the
+    % class comments for details.
+    %
     % @change{0,4,dw,2011-05-23} Adopted to the new error.BaseEstimator interface with separate output
     % error computation.
+    
+    properties(SetAccess=private)
+        % The true output error `\no{C(x(t)-Vz(t))}` for `t\in[0,T]`.
+        %
+        % In difference to the OutputError property, this field contains the true output error of
+        % the reduced simulation. See the class comments for details.
+        %
+        % See also: OutputError
+        RealOutputError;
+    end
     
     methods
         function this = DefaultEstimator(rmodel)
@@ -31,18 +55,22 @@ classdef DefaultEstimator < error.BaseEstimator
             eint = [];
         end
                 
-        function e0 = init(this, mu)%#ok
+        function e0 = getE0(this, mu)%#ok
             % This error estimator does not use any ODE dimensions, so the
             % initial error part is an empty matrix.
             e0 = [];
         end
+        
+        function prepareConstants(this)%#ok
+            % Nothing to do here
+        end
     end
     
     methods(Access=protected)
-        function postprocess(this, t, x, mu, inputidx)%#ok
+        function postprocess(this, t, x, mu, inputidx)
             m = this.ReducedModel.FullModel;
             % Compute full solution
-            [tf,xf] = m.computeTrajectory(mu,inputidx);
+            [tf,yf,time,xf] = m.simulate(mu,inputidx);
             xr = x(1:end-this.ExtraODEDims,:);
             if ~isempty(this.ReducedModel.V)
                 diff = xf-this.ReducedModel.V*xr;
@@ -51,15 +79,10 @@ classdef DefaultEstimator < error.BaseEstimator
             end
             
             % Re-scale
-            %diff = bsxfun(@times,diff,this.ReducedModel.System.StateScaling);
-            x = sqrt(sum(diff.*(this.ReducedModel.GScaled*diff),1));
+            this.StateError = sqrt(sum(diff.*(this.ReducedModel.GScaled*diff),1));
             
-            % Convert to exact error on output level
-%             diffy = m.System.C.computeOutput(t,diff,mu);
-%             this.StateError = sqrt(sum(diffy.*(this.ReducedModel.G*diffy),1));
-%             return;
-            
-            this.StateError = x;
+            yr = this.ReducedModel.System.C.computeOutput(t, xr, mu);
+            this.RealOutputError = sqrt(sum((yf-yr).^2,1));
         end
     end
     

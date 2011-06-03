@@ -149,12 +149,12 @@ classdef ModelData < handle
             this.ApproxTrainData = value;
         end
         
-        function set.ApproxfValues(this, value)
-            if ~isnumeric(value) || ~isempty(value)
-                error('value should be numeric if not left empty');
-            end
-            this.ApproxfValues = value;
-        end
+%         function set.ApproxfValues(this, value)
+%             if ~isnumeric(value) || ~isempty(value)
+%                 error('value should be numeric if not left empty');
+%             end
+%             this.ApproxfValues = value;
+%         end
         
         function set.V(this, value)
             if ~isa(value, 'double')

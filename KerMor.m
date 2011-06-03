@@ -233,8 +233,8 @@ classdef KerMor < handle
         % Flag whether to enable use of the Matlab Parallel Computing
         % Toolbox.
         %
-        % @default empty
-        UseMatlabParallelComputing = [];
+        % @default false
+        UseMatlabParallelComputing = false;
     end
     
     properties(SetAccess=private)
@@ -274,7 +274,7 @@ classdef KerMor < handle
     methods
         function set.UseMatlabParallelComputing(this, value)
             if ~islogical(value)
-                error('Value should be set either true or false');
+                error('Value must be logical');
             end
             haspc = ~isempty(which('matlabpool'));
             if haspc
@@ -839,7 +839,11 @@ classdef KerMor < handle
                         warning('KerMor:installUnix','No doxygen binary selected. Documentation creation will not work.');
                     end
                 end
+                
                 fclose(fid);
+                
+                % Reload terminal bashrc
+                system('. ~/.bashrc');
             catch ME%#ok
                 fclose(fid);
             end

@@ -196,7 +196,7 @@ classdef BaseModel < KerMorObject
             this.registerProps('System','T','ODESolver','dt','G','tau');
         end
         
-        function [t,y,sec,x] = simulate(this, mu, inputidx)
+        function [t, y, sec, x] = simulate(this, mu, inputidx)
             % Simulates the system and produces the system's output.
             %
             % Both parameters are optional. (Which to provide will be
@@ -261,7 +261,7 @@ classdef BaseModel < KerMorObject
             xlabel(ax,'Time'); ylabel(ax,'Output functions');
         end
         
-        function [t,x] = computeTrajectory(this, mu, inputidx)
+        function [t, x] = computeTrajectory(this, mu, inputidx)
             % Computes a solution/trajectory for the given mu and inputidx in the SCALED state
             % space.
             %
@@ -284,17 +284,12 @@ classdef BaseModel < KerMorObject
             
             %% Setup simulation-time constant data (if available)
             if isa(this.System,'ISimConstants')
-                this.System.updateSimConstants;
+                this.System.prepareConstants;
             end
             if isa(this.System.f,'ISimConstants')
-                this.System.f.updateSimConstants;
+                this.System.f.prepareConstants;
             end
-
-            %% Get target ODE function
-            if isempty(this.System.f)
-                error('No system''s core function specified. ODE function creation impossible; first set "f" property.');
-            end
-            
+  
             %% Pass mu and input to system
             this.System.setConfig(mu, inputidx);
             

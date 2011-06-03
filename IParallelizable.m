@@ -14,7 +14,7 @@ classdef IParallelizable < handle
     methods
         function set.ComputeParallel(this, value)
             if ~islogical(value)
-                error('Value must be set either true or false');
+                error('Value must be logical');
             end
             if value
                 if KerMor.App.UseMatlabParallelComputing

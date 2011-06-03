@@ -1,10 +1,10 @@
-classdef BaseEstimator < KerMorObject & ICloneable
+classdef BaseEstimator < KerMorObject & ICloneable & ISimConstants
     % Base class for all error estimators.
     %
     %   In KerMor any error estimators have the chance to add additionaly
     %   terms to the ODE function by using the
-    %   @ref evalODEPart and @ref init functions.
-    %   Finally, the method @ref process gets called when the ODE solver
+    %   @ref evalODEPart and @ref getE0 functions.
+    %   Finally, the method @ref postProcess gets called when the ODE solver
     %   finished to allow for any processing / final computation of error
     %   estimates.
     %
@@ -32,14 +32,7 @@ classdef BaseEstimator < KerMorObject & ICloneable
         %
         % See also: models.ReducedModel#ErrorEstimator
         StateError = [];
-        
-        % The output error from the last simulation
-        %
-        % @default []
-        %
-        % See also: models.ReducedModel#ErrorEstimator
-        OutputError = [];
-        
+               
         % The dimensions added to the ODE function by the estimator.
         %
         % Please set to correct value in subclasses as simulations are not
@@ -47,6 +40,15 @@ classdef BaseEstimator < KerMorObject & ICloneable
         %
         % @default 0
         ExtraODEDims = 0;
+    end
+    
+    properties(SetAccess=private)
+        % The output error from the last simulation
+        %
+        % @default []
+        %
+        % See also: models.ReducedModel#ErrorEstimator
+        OutputError = [];
     end
     
     properties(Access=protected)
@@ -101,12 +103,12 @@ classdef BaseEstimator < KerMorObject & ICloneable
             if ~isempty(C)
                 % Get error
                 if C.TimeDependent
-                    x = this.StateError;
+                    e = this.StateError;
                     for idx=1:length(t)
-                        x(idx) = norm(m.System.C.evaluate(t(idx),mu))*x(idx);
+                        e(idx) = norm(m.System.C.evaluate(t(idx),mu))*e(idx);
                     end
                 else
-                    this.OutputError = norm(C.evaluate(0,mu))*this.StateError;
+                    this.OutputError = norm(C.evaluate([],mu))*this.StateError;
                 end
             else
                 this.OutputError = this.StateError;
@@ -116,6 +118,7 @@ classdef BaseEstimator < KerMorObject & ICloneable
         function clear(this)
             % Clears the last error set by the estimator.
             this.StateError = [];
+            this.OutputError = [];
         end
         
         function copy = clone(this, copy)
@@ -126,6 +129,7 @@ classdef BaseEstimator < KerMorObject & ICloneable
             end
             copy.ExtraODEDims = this.ExtraODEDims;
             copy.StateError = this.StateError;
+            copy.OutputError = this.OutputError;
             copy.Enabled = this.Enabled;
             % No cloning of the associated reduced model.
             copy.ReducedModel = this.ReducedModel;
@@ -178,9 +182,8 @@ classdef BaseEstimator < KerMorObject & ICloneable
         % ut: The value of the input function `u(t)` if given, [] else.
         eint = evalODEPart(this, x, t, mu, ut);
         
-        % Initializes the error estimator and gets the initial condition vector for additional used
-        % ODE dimensions.
-        e0 = init(this, mu);
+        % Gets the initial condition vector for additional used ODE dimensions.
+        e0 = getE0(this, mu);
     end
     
     methods(Abstract, Access=protected)

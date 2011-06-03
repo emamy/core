@@ -62,11 +62,8 @@ classdef BaseDynSystem < KerMorObject
         % The handle returns the initial value `x(0) = x_0` for the ODE solver to start simulations
         % from.
         %
-        % Parameters:
-        % mu: The current parameter `\mu`
-        %
-        % Return values:
-        % x: The initial system state `x_0`
+        % Function parameter is the current parameter `\mu` and return value is initial system state
+        % `x_0`.
         %
         % @propclass{critical} The initial value greatly influences the simulation results.
         %

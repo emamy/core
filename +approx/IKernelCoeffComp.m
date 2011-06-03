@@ -38,11 +38,10 @@ classdef IKernelCoeffComp < handle
         %
         % Return values:
         % ai: The coefficients `\alpha_{k,i}` of `f_k(x)`.
-        % svidx: The used support vector indices `i` of `x_i`. Optional,
-        % leave empty if all are used.
+        % svidx: The used support vector indices `i` of `x_i`.
         %
         % See also: init
-        [ai, svidx] = computeKernelCoefficients(this, yi, aiinit);
+        [ai, svidx] = computeKernelCoefficients(this, yi);
     end
     
 end

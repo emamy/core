@@ -1,14 +1,19 @@
 classdef ScalarNuSVR < general.regression.BaseScalarSVR
-    %SCALARSVR Scalar support vector regression.
-    %
-    %  Implementation details can be found in Daniel's Scratch
-    %  Tex-Collection; it basically combines aspects from the books
-    %  B. Schölkopf & A. Smola's "Learning with Kernels" (p.260ff) and
-    %  "Support Vector Machines" from I. Steinwart & A. Christman
-    %
-    % @author Daniel Wirtz @date 11.03.2010
-    %
-    % @change{0,4,dw,2011-05-04} Removed offset `b` terms from computations.
+%SCALARSVR Scalar support vector regression.
+%
+%  Implementation details can be found in Daniel's Scratch
+%  Tex-Collection; it basically combines aspects from the books
+%  B. Schölkopf & A. Smola's "Learning with Kernels" (p.260ff) and
+%  "Support Vector Machines" from I. Steinwart & A. Christman
+%
+% See also: ScalarEpsSVR
+%
+% @author Daniel Wirtz @date 11.03.2010
+%
+% @change{0,4,dw,2011-06-01} Fitted the interface to the changed one in
+% general.regression.BaseScalarSVR
+%
+% @change{0,4,dw,2011-05-04} Removed offset `b` terms from computations.
     
     properties(SetObservable)
         % The weighting factor for epsilon against slack variables.
@@ -26,6 +31,10 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
         nu = .4;
     end
     
+    properties(Transient, SetAccess=private)
+        LastEpsilon;
+    end
+    
     methods
         
         function this = ScalarNuSVR
@@ -33,12 +42,19 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             this.registerProps('nu');
         end
         
-        function [ai, svidx,epsi] = regress(this, fxi, x0)
-            %SCALAR_SVR Performs scalar support vector regression
+        function ai = regress(this, fxi, ainit)
+            % Performs scalar nu-support vector regression
             %
-            % See also: KerMor
+            % Parameters:
+            % fxi: The `f(x_i)` values to regress given the kernel matrix `K` computed from
+            % `\Phi(x_i,x_j)`.
+            % ainit: [Optional] An initial value set for the coefficients.
+            %
+            % Return values:
+            % ai: The kernel expansion coefficients `\alpha_i`.
             
-            % Compile quadratic program
+            %% Compile quadratic program
+            
             % Total number of samples
             m = size(this.K,1);
             % Ensure fxi is a column vector
@@ -54,8 +70,6 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
 %                 return;
 %             end
             
-            % Problem setup
-            
             % Storage: alpha(1..m) = alpha_i, alpha(m+1..2m) = alpha_i*
             % T performs alpha_i* - alpha_i each
             T = [diag(ones(1,m)) -diag(ones(1,m))];
@@ -65,11 +79,10 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             A = ones(1,2*m);
             
             % Starting point
-            %x0 = ones(2*m,1)*this.C/(2*m);
             if nargin < 3
-                x0 = [];
+                ainit = ones(m,1)*this.C/m;
+                %ainit = [];
             end
-            %x0 = [];
             
             % Bounds
             lbA = 0;
@@ -77,58 +90,12 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             lb = zeros(2*m,1);
             ub = ones(2*m,1)*(this.C/m);
             
-            % Call solver
-            [p,d,info] = this.QPSolver.solve(Q,c,lb,ub,A,lbA,ubA,(x0*T)');
+            %% Call solver
+            [p,d,info] = this.QPSolver.solve(Q,c,lb,ub,A,lbA,ubA,T'*ainit);
             
-            % Convert results
+            %% Convert results
             ai = T*p;
-            %b = -d(end-1);
-            epsi = -d(end);
-            svidx = find(abs(ai) ./ max(abs(ai)) > this.AlphaRelMinValue);
-            ai = ai(svidx);
-            
-%             %% Find "in-bound" SV's for eps/b computation
-%             aiP = a(1:m); % \alpha_i^+
-%             aiP=aiP(svidx);
-%             aiN = a(m+1:end); % \alpha_i^-
-%             aiN=aiN(svidx);
-%             % Compile reduced versions of K and fxi
-%             k = this.K(svidx,svidx);
-%             svfxi = fxi(svidx);
-%             
-%             % Find the coefficients closest to C/2m
-%             [v,Pidx] = min(abs(aiP-(this.C/(2*m))));
-%             % Use the one closest to the upper bound if ai is not inside
-%             % interval
-%             useupper = true;
-%             if aiP(Pidx) == 0 || aiP(Pidx) == this.C/m
-%                 disp('Rare nuSVR case, no test written yet!');
-%                 [v,Pidx] = min(svfxi' - ai'*k);
-%                 useupper = false;
-%             end
-%             % Same for lower tube bounds
-%             [v,Nidx] = min(abs(aiN-(this.C/(2*m))));
-%             if aiN(Nidx) == 0 || aiN(Nidx) == this.C/m
-%                 disp('Rare nuSVR case, no test written yet!');
-%                 [v,Nidx] = min(ai'*k - svfxi');
-%             end
-%             
-%             % Compute eps, b
-%             epsi = (svfxi(Pidx)-svfxi(Nidx)-ai'*k(:,Pidx)+ai'*k(:,Nidx))/2;
-%             %if epsi < 0
-%                 %warning('some:id','nu-SVR failure! eps > 0 required.');
-%                 disp(epsi);
-%             %end
-%             % Pick one of the indices to compute b; ideally one which had a
-%             % coefficient inside the ]0,C/m[ interval
-%             if useupper
-%                 b = svfxi(Pidx) - ai'*k(:,Pidx) - epsi;
-%             else
-%                 b = svfxi(Nidx) - ai'*k(:,Nidx) + epsi;
-%             end
-            
-            %poss = this.C/m-abs(ai) > this.AlphaMinValue;
-            %bposs = [abs(ai(poss)'); svfxi(poss)' - ai'*k(:,poss) - sign(ai(poss))'*eps]
+            this.LastEpsilon = -d(end);
         end
         
         function set.nu(this, value)
