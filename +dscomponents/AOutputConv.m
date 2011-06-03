@@ -26,6 +26,8 @@ classdef AOutputConv < KerMorObject & dscomponents.IProjectable
         % @propclass{critical} Some output conversion matrices are time dependent. This property
         % must be set to the correct value in order for the output conversion to work correctly.
         %
+        % @type logical
+        %
         % Defaults to false.
         TimeDependent = false;
     end
