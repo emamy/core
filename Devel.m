@@ -16,6 +16,8 @@ classdef Devel < handle
     %
     % @author Daniel Wirtz @date 2011-04-12
     %
+    % @change(0,4,sa,2011-06-02) Added comments to the function setup
+    %
     % @new{0,3,dw,2011-04-12} Added this class to aid new class creation and offer customized class
     % / function skeletons.
     %
@@ -59,9 +61,13 @@ classdef Devel < handle
         
         function inst = Instance
             inst = Devel;
-        end
+        end 
         
         function setup
+            % Setup variables for Kermor Development when Kermor is setup
+            % for the first time or any other time manually
+            %
+            % Add the name of the author and his initials(short tag)
             d = Devel.Instance;
             fprintf('Running KerMor developer setup...\n');
             str = sprintf('Please enter your full name: ');

@@ -15,8 +15,8 @@ classdef BaseEstimator < KerMorObject & ICloneable & ISimConstants
     % error.BaseEstimator.OutputError has been introduced. Renamed the LastError property to
     % error.BaseEstimator.StateError.
     %
-    % @change{0,3,sa,2011-04-23} Implemented Setters for the properties of
-    % this class other than ReducedModel
+    % @change{0,3,sa,2011-04-23} Implemented Setters for the properties
+    %
     
     properties(Dependent)
         % Flag that indicates whether error estimation is used or not.
@@ -53,6 +53,8 @@ classdef BaseEstimator < KerMorObject & ICloneable & ISimConstants
     
     properties(Access=protected)
         % The reduced model associated with the error estimator.
+        %
+        % @type models.ReducedModel
         ReducedModel;
     end
     
@@ -152,9 +154,7 @@ classdef BaseEstimator < KerMorObject & ICloneable & ISimConstants
         end
         
         function set.ReducedModel(this, value)
-            if ~isa(value,'models.ReducedModel')
-                error('The given value has to be a models.ReducedModel instance.');
-            end
+            this.checkType(value, 'models.ReducedModel');
             this.ReducedModel = value;
         end
         
