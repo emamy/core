@@ -154,7 +154,9 @@ classdef BaseEstimator < KerMorObject & ICloneable & ISimConstants
         end
         
         function set.ReducedModel(this, value)
-            this.checkType(value, 'models.ReducedModel');
+            if ~isa(value,'models.ReducedModel')
+                error('The given value has to be a models.ReducedModel instance.');
+            end
             this.ReducedModel = value;
         end
         

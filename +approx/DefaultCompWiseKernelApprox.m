@@ -18,6 +18,8 @@ classdef DefaultCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
 %         % the approximation training data set. So far, the default strategy
 %         % implemented in this class simply uses linspace to select a subset
 %         % of the specified size.
+%         % 
+%         % @type posintscalar
 %         %
 %         % Default: 120
 %         ApproxExpansionSize = 120;

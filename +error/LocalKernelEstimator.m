@@ -73,6 +73,7 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
         % be chosen to equal the error from the last time step. This has to
         % be investigated more thoroughly as integration errors from the
         % solver may lead to a loss of rigorousity.
+        % @type logical
         %
         % Defaults to true. (As is best estimator atm)
         UseTimeDiscreteC;

@@ -105,6 +105,8 @@ classdef BaseDynSystem < KerMorObject
         % dimension as the system's core function `f` which will then be applied component-wise
         %
         % @propclass{scaling}
+        %
+        % @type column vector
         StateScaling = 1;
     end
     
@@ -319,7 +321,7 @@ classdef BaseDynSystem < KerMorObject
         end
                 
         function set.Params(this, value)
-            if ~isa(value,'models.ModelParam');
+            if ~isa(value,'models.ModelParam')
                 error('Params property must be a ModelParam array.');
             end
             this.Params = value;
@@ -340,6 +342,20 @@ classdef BaseDynSystem < KerMorObject
         
         function value = get.InputCount(this)
             value = length(this.Inputs);
+        end
+        
+        function set.MaxTimestep(this, value)
+            if ~isposintscalar(value) && ~isempty(value)
+                error('Value must be a positive integer scalar if not empty.');
+            end
+            this.MaxTimestep = value;
+        end
+        
+        function set.StateScaling(this, value)
+            if ~isvector(value)
+                error('Value must be a vector');
+            end
+            this.StateScaling = value(:);
         end
     end
         
