@@ -52,7 +52,7 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
         
         function prepareConstants(this)
             b = this.bellfcn;
-            q = [0 b.r0 b.rR];
+            q = [0 b.r0 b.rm];
             this.sc = b.evaluateScalar(q);
             this.d1 = b.evaluateD1(q);
             this.d2 = b.evaluateD2(q);
@@ -192,7 +192,7 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
 %             
 %             a = s < b.r0;
 %             pi = a & r < b.r0 | ~a & r > b.r0;
-%             pr = a & r > b.rR;
+%             pr = a & r > b.rm;
 %             pl = ~a & r < 0;
 %             std = ~(pi | pl | pr);
 %             
@@ -211,7 +211,7 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
 %             c(pl) = dn(1,pl).^2 ./ (4*n(1,pl));
 %             d(pl) = 2*n(1,pl)./dn(1,pl);
 %             c(pr) = dn(3,pr).^2 ./ (4*n(3,pr));
-%             d(pr) = 2*n(3,pr)./dn(3,pr) - b.rR;
+%             d(pr) = 2*n(3,pr)./dn(3,pr) - b.rm;
 %             
 %             g(p) = c(p) .* (r(p) + d(p)).^2;
 %             dg(p) = 2 * c(p) .* (r(p) + d(p));
@@ -275,7 +275,7 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
             
             a = s < b.r0;
             pi = a & r < b.r0 | ~a & r > b.r0;
-            pr = a & r > b.rR;
+            pr = a & r > b.rm;
             pl = ~a & r < 0;
             std = ~(pi | pl | pr);
             
@@ -294,7 +294,7 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
             c(pl) = dn(1,pl).^2 ./ (4*n(1,pl));
             d(pl) = 2*n(1,pl)./dn(1,pl);
             c(pr) = dn(3,pr).^2 ./ (4*n(3,pr));
-            d(pr) = 2*n(3,pr)./dn(3,pr) - b.rR;
+            d(pr) = 2*n(3,pr)./dn(3,pr) - b.rm;
             
             g(p) = c(p) .* (r(p) + d(p)).^2;
             dg(p) = 2 * c(p) .* (r(p) + d(p));
@@ -311,7 +311,7 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
             end
             
             b = kernels.GaussKernel(Gamma);
-            r0 = b.r0; rR = b.rR;
+            r0 = b.r0; rm = b.rm;
             lfun = error.ImprovedLocalSecantLipschitz(b);
             lfun.NewtonTolerance = 1e-3;
             lfun.prepareConstants;
@@ -322,7 +322,7 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
             
             maxR = Gamma*3;
             r = linspace(0,maxR,70);
-            r = union(r,[r0,rR]);
+            r = union(r,[r0,rm]);
             
             rstart = repmat(r0/2,1,size(r,2));
             rss = lfun.ModifiedNewton(rstart,r);
@@ -343,15 +343,15 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
                 % Add eps at division as for zero nominator the expression is zero. (no error made)
                 n(1,1:m) = b.evaluateD1(0) - (b.evaluateScalar(0)-b.evaluateScalar(s))./(eps-s); 
                 n(2,1:m) = b.evaluateD1(r0) - (b.evaluateScalar(r0)-b.evaluateScalar(s))./(b.r0-s+eps);
-                n(3,1:m) = b.evaluateD1(rR) - (b.evaluateScalar(rR)-b.evaluateScalar(s))./(b.rR-s+eps);
+                n(3,1:m) = b.evaluateD1(rm) - (b.evaluateScalar(rm)-b.evaluateScalar(s))./(b.rm-s+eps);
 
                 % Lim x->y n'(x) = \phi''(x) / 2 (De L'hospital)
                 dn(1,1:m) = b.evaluateD2(0) - n(1,:)./-s;
                 dn(1,isnan(dn(1,:))) = b.evaluateD2(0)/2;
                 dn(2,1:m) = b.evaluateD2(r0) - n(2,:)./(r0-s);
                 dn(2,isinf(dn(2,:))) = 0; % == ddf(x0)/2;
-                dn(3,1:m) = b.evaluateD2(rR) - n(3,:)./(rR-s);
-                dn(3,isinf(dn(3,:))) = b.evaluateD2(rR)/2;
+                dn(3,1:m) = b.evaluateD2(rm) - n(3,:)./(rm-s);
+                dn(3,isinf(dn(3,:))) = b.evaluateD2(rm)/2;
                 
                 % Get optimization function
                 [opt,dummy,inner,l0,gxr] = lfun.optFun(r,repmat(s,1,size(r,2)),n,dn,b);
@@ -373,10 +373,10 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
                 st{end+1} = '\phi(r_s) + \phi''(r_s)(r_s-s)';
                 % Plot 
                 plot(r0,f(r0),'blacks','MarkerSize',6,'MarkerFaceColor','black');
-                plot(rR,f(rR),'bs','MarkerSize',6,'MarkerFaceColor','blue');
+                plot(rm,f(rm),'bs','MarkerSize',6,'MarkerFaceColor','blue');
                 plot(s,f(s),'ro','MarkerSize',6,'MarkerFaceColor','red');
                 plot(rss(k),f(rss(k)),'mo','MarkerSize',6,'MarkerFaceColor','magenta');
-                st(end+1:end+4) = {'\phi(r_0)','\phi(r_R)','\phi(s)','\phi(r_s)'};
+                st(end+1:end+4) = {'\phi(r_0)','\phi(r_m)','\phi(s)','\phi(r_s)'};
                 if any(std)
                     plot(r(std),opt(std),'b','LineWidth',lw);
                     st{end+1} = 'n(r)'; 
@@ -391,7 +391,7 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
                 end
                 if (any(gxr))
                     plot(r(gxr),opt(gxr),'b-.','LineWidth',lw);
-                    st{end+1} = 'c(r_R)(r+d(r_R))^2';
+                    st{end+1} = 'c(r_m)(r+d(r_m))^2';
                 end
                 plot([rss(k) rss(k)],[f(rss(k)) abs(drf(k))],'--black','LineWidth',lw);
                 if plotrs

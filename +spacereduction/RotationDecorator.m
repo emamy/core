@@ -1,8 +1,8 @@
-classdef RotationPOD < spacereduction.PODReducer
-% RotationPOD: Implements the normal PODReducer but rotates the resulting matrix.
+classdef RotationDecorator < spacereduction.BaseSpaceReducer
+% RotationDecorator: Decorator for any other space reducer which rotates the resulting matrix.
 %
 % This space-reduction class has been added in order to be able to obtain slightly worse subspace
-% computations as would be given by a full POD.
+% computations as would be given by the underlying space reduction method.
 %
 % @author Daniel Wirtz @date 2011-05-23
 %
@@ -23,29 +23,48 @@ classdef RotationPOD < spacereduction.PODReducer
         % projection error.
         Degree = pi/.003;
         
-        % Number of dimensions to rotate by degree
+        % Number of dimensions to rotate by @ref Degree
         %
         % @propclass{data} Not for real reduction use but rather experiments with controlled
         % projection error.
+        %
+        % See also: Degree
         Dims = 5;
-        
-        %R;
+    end
+    
+    properties(Access=private)
+        % The inner space reducer
+        sp;
     end
     
     methods
-        function this = RotationPOD
+        function this = RotationDecorator(s)
+            % Creates a new rotation decorator
+            % Parameters:
+            % s: Subclass of spacereduction.BaseSpaceReducer
+            if isempty(s)
+                error('Rotation decorator must be given an underlying space reduction class.');
+            end
+            this.sp = s;
             this.registerProps('Degree','Dims');
         end
         
         function [V,W] = generateReducedSpace(this, model)
-            V = generateReducedSpace@spacereduction.PODReducer(this, model);
+            % Computes the subspace given by the underlying subspace reduction class but then
+            % rotates for Dims times bet
+            %
+            
+            % Call subclass reduction
+            [V,W] = this.sp.generateReducedSpace(model);
+            
+            rnd = RandStream('mt19937ar','Seed',2564);
             
             n = size(V,1); %#ok<*PROP>
             R = spdiags(ones(n,1),0,n,n);
             for idx = 1:this.Dims
                 Q = spdiags(ones(n,1),0,n,n);
-                idx1 = randi(this.Dims);
-                idx2 = randi(this.Dims);
+                idx1 = rnd.randi(n);
+                idx2 = rnd.randi(n);
                 Q(idx1,idx1) = cos(this.Degree);
                 Q(idx1,idx2) = -sin(this.Degree);
                 Q(idx2,idx1) = sin(this.Degree);
@@ -53,8 +72,7 @@ classdef RotationPOD < spacereduction.PODReducer
                 R = R*Q;
             end
             V = R*V;
-            W = V;
-            %this.R = R;
+            W = R*W;
         end
     end
     

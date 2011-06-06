@@ -11,7 +11,7 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
     %
     % @docupdate Properties and class description
     %
-    % @change{0,4,dw,2011-05-27} Changed `x_0` to `r_0` and `x_R` to `r_R` as adopted in the WH10
+    % @change{0,4,dw,2011-05-27} Changed `x_0` to `r_0` and `x_R` to `r_m` as adopted in the WH10
     % Paper.
     %
     % @change{0,4,dw,2011-05-20} Removed the getLipschitzFunction method as it causes LARGE overhead
@@ -40,7 +40,7 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
     
     properties(SetAccess=private, Dependent)
         % The maximum ("right") value for any `r_s`.
-        rR;
+        rm;
     end
     
     properties(Access=private, Transient)
@@ -68,7 +68,7 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
             this.priv_rr = [];%#ok
         end
                 
-        function value = get.rR(this)
+        function value = get.rm(this)
             if isempty(this.priv_rr)
                 this.priv_rr = this.evaluateScalar(0)*this.r0 /...
                     (this.evaluateScalar(0)-this.evaluateScalar(this.r0));
