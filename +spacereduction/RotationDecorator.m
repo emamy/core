@@ -17,11 +17,11 @@ classdef RotationDecorator < spacereduction.BaseSpaceReducer
     properties
         % `\in [0, 2\pi]`
         %
-        % @default .1
+        % @default .05
         %
         % @propclass{data} Not for real reduction use but rather experiments with controlled
         % projection error.
-        Degree = pi/.003;
+        Degree = .05;
         
         % Number of dimensions to rotate by @ref Degree
         %
@@ -51,20 +51,23 @@ classdef RotationDecorator < spacereduction.BaseSpaceReducer
         
         function [V,W] = generateReducedSpace(this, model)
             % Computes the subspace given by the underlying subspace reduction class but then
-            % rotates for Dims times bet
+            % rotates for Dims times between two randomly chosen axis
             %
             
             % Call subclass reduction
             [V,W] = this.sp.generateReducedSpace(model);
             
-            rnd = RandStream('mt19937ar','Seed',2564);
+            %rnd = RandStream('mt19937ar','Seed',2564);
             
             n = size(V,1); %#ok<*PROP>
             R = spdiags(ones(n,1),0,n,n);
             for idx = 1:this.Dims
                 Q = spdiags(ones(n,1),0,n,n);
-                idx1 = rnd.randi(n);
-                idx2 = rnd.randi(n);
+                %idx1 = rnd.randi(n);
+                idx1 = 2*(idx-1)+1;
+                %idx2 = rnd.randi(n);
+                idx2 = idx1+1;
+                
                 Q(idx1,idx1) = cos(this.Degree);
                 Q(idx1,idx2) = -sin(this.Degree);
                 Q(idx2,idx1) = sin(this.Degree);

@@ -313,8 +313,8 @@ classdef BaseDynSystem < KerMorObject
             for n=1:length(value)
                 if ~isa(value{n},'function_handle')
                     error('Each "Inputs" cell must contain a function handle.');
-                elseif nargin(value{n}) ~= 1
-                    error('Each "Inputs" function must take exactly one (=time) parameter.');
+                %elseif nargin(value{n}) ~= 1
+                %    error('Each "Inputs" function must take exactly one (=time) parameter.');
                 end
             end
             this.Inputs = value;

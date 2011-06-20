@@ -88,8 +88,6 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
         Ma_norms;
         xi;
         mu;
-        lstPreSolve;
-        lstPostSolve;
         fIterations = 0;
         fTDC = true;
     end
@@ -98,6 +96,8 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
         % Iteration stuff
         errEst;
         tstep;
+        lstPreSolve;
+        lstPostSolve;
     end
     
     methods
@@ -361,10 +361,13 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
         end
     end
     
-%     methods(Static,Access=protected)
-%         function s = loadobj(s)
-%             s = loadobj@error.BaseKernelEstimator(s);
-%             addlistener(s.ReducedModel.ODESolver,'PreSolve',@s.PreSolve);
-%         end
-%     end
+    methods(Static,Access=protected)
+        function s = loadobj(s)
+            s = loadobj@error.BaseKernelEstimator(s);
+            this.lstPreSolve = addlistener(s.ReducedModel.ODESolver,'PreSolve',@s.cbPreSolve);
+            this.lstPreSolve.Enabled = false;
+            this.lstPostSolve = addlistener(s.ReducedModel.ODESolver,'PostSolve',@s.cbPostSolve);
+            this.lstPostSolve.Enabled = false;
+        end
+    end
 end

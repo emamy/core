@@ -193,6 +193,12 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % - Remove waitbar and connect to messaging system
             time = tic;
             
+            if this.Data.SampleCount == 0 && this.TrainingInputCount == 0
+                fprintf('BaseFullModel.genTrainingData: No parameters or inputs configured for training, nothing to do.\n');
+                time = toc(time);
+                return;
+            end
+            
             num_s = max(1,this.Data.SampleCount);
             num_in = max(1,this.TrainingInputCount);
             
@@ -453,7 +459,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 %                 warning(['The T or dt parameters have been changed since the last offline generations.\n'...
 %                     'A call to offlineGenerations is required.']);
 %             else
-            if isempty(this.Data) || isempty(this.Data.TrainingData)
+            if isempty(this.Data) 
+                error('No ModelData class found. Forgot to call offlineGenerations?');
+            end
+            if isempty(this.Data.TrainingData) && ~(this.Data.SampleCount == 0 && this.TrainingInputCount == 0)
                 error('No Snapshot data available. Forgot to call offlineGenerations before?');
             end
             tic;
@@ -580,19 +589,21 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         end
         
         function set.TrainingInputs(this, value)
-            if ~isposintmat(value)
-                error('Value may only contain valid indices for the Inputs cell array.');
-            elseif any(value > this.System.InputCount) || any(value < 1)
-                error('Invalid indices for Inputs.');    
+            if ~isempty(value)
+                if ~isposintmat(value)
+                    error('Value may only contain valid indices for the Inputs cell array.');
+                elseif any(value > this.System.InputCount) || any(value < 1)
+                    error('Invalid indices for Inputs.');    
+                end
             end
             this.fTrainingInputs = value;
         end
         
         function ti = get.TrainingInputs(this)
             ti = this.fTrainingInputs;
-            if isempty(ti) && ~isempty(this.System)
-                ti = 1:this.System.InputCount;
-            end
+%             if isempty(ti) && ~isempty(this.System)
+%                 ti = 1:this.System.InputCount;
+%             end
         end
         
         function c = get.TrainingInputCount(this)
@@ -635,12 +646,14 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
              
              % Issue warning if some critical properties are still unchanged
              if notchanged.critical > 0
-                 link = 'critical properties';
                  if ~isempty(this.WorkspaceVariableName)
                     link = sprintf('<a href="matlab:%s.printPropertyChangedReport(''critical'')">critical properties</a>',this.WorkspaceVariableName);
+                 else
+                    link = 'critical properties';
+                    this.printPropertyChangedReport('critical');
                  end
                  fprintf(['SIMULATION RESULTS QUESTIONABLE: %d of %d ' link ' are still at their default value.\n'],...
-                     notchanged.critical,counts.critical); %'Type <modelvarname>.printPropertyChangedReport(''critical'') for a detailed report.\n'],...
+                     notchanged.critical,counts.critical);
              end
              
              function recurCheck(obj, done, lvl)

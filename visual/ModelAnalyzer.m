@@ -16,7 +16,7 @@ classdef ModelAnalyzer < handle;
             end
         end
         
-        function analyze(this, rmodel, mu, inputidx)
+        function h = analyze(this, rmodel, mu, inputidx)
             if nargin < 4
                 inputidx = [];
                 if nargin < 3
@@ -53,10 +53,12 @@ classdef ModelAnalyzer < handle;
             xrmin = xr-repmat(est,size(xr,1),1); xrplus = xr+repmat(est,size(xr,1),1);
             ymax = max([max(x(:)) max(xr(:)) max(xrmin(:)) max(xrplus(:))]);
             ymin = min([min(x(:)) min(xr(:)) min(xrmin(:)) min(xrplus(:))]);
-            h = figure;
+            h = [];
             if this.SingleFigures
-                subplot(1,2,1);
+                %subplot(1,2,1);
+                h(end+1)=figure;
             else
+                h(1) = figure;
                 pos = get(0,'MonitorPosition');
                 set(h,'OuterPosition',pos(1,:));
                 subplot(2,3,1);
@@ -70,7 +72,8 @@ classdef ModelAnalyzer < handle;
             end
             axis([t(1) t(end) ymin ymax]);
             if this.SingleFigures
-                subplot(1,2,2);
+                h(end+1)=figure;
+                %subplot(1,2,2);
             else
                 subplot(2,3,2);
             end
@@ -93,8 +96,8 @@ classdef ModelAnalyzer < handle;
             
             %% Absolute value plot
             if this.SingleFigures
-                figure;
-                subplot(1,2,1);
+                h(end+1)=figure;
+                %subplot(1,2,1);
             else
                 subplot(2,3,3);
             end
@@ -105,7 +108,8 @@ classdef ModelAnalyzer < handle;
             
             % Error plots
             if this.SingleFigures
-                subplot(1,2,2);
+                %subplot(1,2,2);
+                h(end+1)=figure;
             else
                 subplot(2,3,4);
             end
@@ -116,8 +120,8 @@ classdef ModelAnalyzer < handle;
             
             % Relative Error plots
             if this.SingleFigures
-                figure;
-                subplot(1,2,1);
+                h(end+1)=figure;
+                %subplot(1,2,1);
             else
                 subplot(2,3,5);
             end
@@ -129,7 +133,8 @@ classdef ModelAnalyzer < handle;
             legend('Estimated error','True error');%,'Location','Best');
             
             if this.SingleFigures
-                subplot(1,2,2);
+                %subplot(1,2,2);
+                h(end+1)=figure;
             else
                 subplot(2,3,6);
             end            

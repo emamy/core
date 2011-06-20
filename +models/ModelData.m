@@ -16,6 +16,9 @@ classdef ModelData < handle
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
+%
+% @todo Find different representation of model data / trajectory saving! (allows sequential POD of
+% trajectories for subspace comp)
     
     properties
         % A Model's parameter samples

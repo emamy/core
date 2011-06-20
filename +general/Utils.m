@@ -308,18 +308,21 @@ classdef Utils
                 % Store old position and remove margin for export
                 oldap = get(a,'ActivePosition');
                 oldpos = get(a,'Position');
-                general.Utils.removeMargin(fig);
                 
                 if (extidx == 1)
-                    print(fig,file,'-depsc2',['-r' ExportDPI],'-tiff');
+                    %print(fig,file,'-depsc2',['-r' ExportDPI],'-tiff');
+                    general.Utils.removeMargin(fig);
+                    saveas(fig,file,'eps2c');
                     %system(['xdg-open ' file]);
                 elseif extidx == 2
+                    general.Utils.removeMargin(fig);
                     print(fig,file,['-djpeg' JPEGQuality],['-r' ExportDPI]);
                     %system(['xdg-open ' file]);
                 elseif extidx == 3
                     saveas(fig, file, 'fig');
                     %openfig(file,'new','visible');
                 elseif extidx == 4
+                    general.Utils.removeMargin(fig);
                     print(fig,file,'-dpdf',['-r' ExportDPI]);
                 end
                 
@@ -352,8 +355,8 @@ classdef Utils
             a = gca(f);
             ti = get(a,'TightInset');
             set(a, 'ActivePosition','Position');
-            margin = .1;
-            set(a, 'Position', [ti(1:2)*(1+margin) 1-ti(3:4)*(1+margin)-ti(1:2)]);
+            marginr = .3;
+            set(a, 'Position', [ti(1:2) 1-ti(3:4)*(1+marginr)-ti(1:2)]);
         end
     end
     

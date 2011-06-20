@@ -12,6 +12,8 @@ classdef BaseKernelEstimator < error.BaseEstimator
     % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
     % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
     % - \c License @ref licensing
+    %
+    % @todo make listener fields transient and re-register upon loading!
         
     properties(SetAccess=private, GetAccess=protected)
         M1 = [];
@@ -29,7 +31,7 @@ classdef BaseKernelEstimator < error.BaseEstimator
         EstimationData = [];
     end
     
-    properties(Access=private)
+    properties(Access=private, Transient)
         % The cbPreSolve listener instance
         lstPreSolve;
     end
@@ -207,12 +209,13 @@ classdef BaseKernelEstimator < error.BaseEstimator
         end
     end
     
-%      methods(Static,Access=protected)
-%         function s = loadobj(s)
-%             s = loadobj@KerMorObject(s);
-%             addlistener(s.ReducedModel.ODESolver,'cbPreSolve',@s.cbPreSolve);
-%         end
-%     end
+     methods(Static,Access=protected)
+        function s = loadobj(s)
+            s = loadobj@KerMorObject(s);
+            s.lstPreSolve = addlistener(s.ReducedModel.ODESolver,'cbPreSolve',@s.cbPreSolve);
+            s.lstPreSolve.Enabled = false;
+        end
+    end
     
 end
 
