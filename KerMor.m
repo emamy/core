@@ -9,6 +9,8 @@ classdef KerMor < handle
     %
     % @author Daniel Wirtz @date 2011-03-04
     %
+    % @change{0,5,dw,2011-06-20} Started KerMor version 0.5
+    %
     % @change{0,4,dw,2011-05-03} 
     % - Committed KerMor version 0.3 to GIT.
     % - Different documentation creation subroutines for unix and windows now, windows not supported
@@ -194,7 +196,7 @@ classdef KerMor < handle
         % Used in Devel to fill the new class templates etc.
         %
         % See also: MainVersion
-        SubVersion = '4';
+        SubVersion = '5';
     end
     
     properties
