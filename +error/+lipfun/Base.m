@@ -1,9 +1,11 @@
-classdef BaseLocalLipschitzFunction < KerMorObject & ISimConstants & ICloneable
-% BaseLocalLipschitzFunction: 
+classdef Base < KerMorObject & ISimConstants & ICloneable
+% Base: 
 %
 %
 %
 % @author Daniel Wirtz @date 2011-05-20
+%
+% @change{0,5,dw,2011-07-04} Moved all local Lipschitz functions to the package 'error.lipfun'
 %
 % @new{0,4,dw,2011-05-31} Implemented/inheriting ISimConstants and ICloneable.
 %
@@ -21,7 +23,7 @@ classdef BaseLocalLipschitzFunction < KerMorObject & ISimConstants & ICloneable
     
     methods
         
-        function this = BaseLocalLipschitzFunction(bellfunc)
+        function this = Base(bellfunc)
             this = this@KerMorObject;
             this.bellfcn = bellfunc;
         end
@@ -38,9 +40,7 @@ classdef BaseLocalLipschitzFunction < KerMorObject & ISimConstants & ICloneable
         % Parameters:
         % di: The distances `d_i(t) = \norm{Vz(t)-x_i}` at time `t`
         % Ct: The coarse error bound `C(t)`. `C\equiv\infty` is allowed, too.
-        % t: The current time `t\in[0,T]`
-        % mu: The current parameter `\mu`
-        ci = evaluate(this,di,Ct,t,mu);
+        ci = evaluate(this, di, Ct);
     end
     
 end

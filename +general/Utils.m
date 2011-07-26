@@ -3,6 +3,8 @@ classdef Utils
     %
     % @author Daniel Wirtz @date 11.10.2010
     %
+    % @new{0,5,dw,2011-07-05} Added the @ref implode function.
+    %
     % @new{0,3,dw,2011-04-20} Added a new function general.Utils.getHelpShort to extract the first
     % line(s) of a help text in matlab style (text until first emtpy line = short)
     %
@@ -14,6 +16,12 @@ classdef Utils
     % @new{0,3,dw,2011-04-01}
     % - Added the general.Utils.getBoundingBox function.
     % - Added the general.Utils.findVecInMatrix function.
+    %
+    % This class is part of the framework
+    % KerMor - Model Order Reduction using Kernels:
+    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % - \c License @ref licensing
     
     methods(Static)
         
@@ -210,6 +218,25 @@ classdef Utils
             str = sprintf(str);
         end
         
+        function str = implode(strcell, glue)
+            % Implodes the elements of a cell array of strings into one string.
+            %
+            % Parameters:
+            % strcell: A cell array of strings/chars
+            % glue: A string that is inserted between any elements of 'strcell'
+            %
+            % Return values:
+            % str: The concatented string of all 'strcell' strings glued together with the string
+            % 'glue'
+            str = '';
+            if ~isempty(strcell)
+                str = strcell{1};
+                for idx = 2:length(strcell)
+                    str = [str glue strcell{idx}];%#ok
+                end
+            end
+        end
+        
         function idx = findVecInMatrix(A,b)
             % Finds column vectors inside a matrix.
             %
@@ -279,7 +306,7 @@ classdef Utils
             
             ExportDPI = '300';
             JPEGQuality = '95';
-            exts = {'eps','jpg','fig','pdf'};
+            exts = {'eps','jpg','fig','pdf','png'};
             
             if nargin < 3
                 extidx = 1;
@@ -288,7 +315,8 @@ classdef Utils
                         uiputfile({'*.eps','Extended PostScript (*.eps)';...
                        '*.jpg','JPEG Image (*.jpg)';...
                        '*.fig','Figures (*.fig)';...
-                       '*.pdf','PDF Files (*.pdf)'}, 'Save figure as');
+                       '*.pdf','PDF Files (*.pdf)';...
+                       '*.png','Portable Network Graphic (*.png)}'}, 'Save figure as');
                     file = [pathname filename];
                 else
                     file = [filename '.' exts{extidx}];
@@ -324,6 +352,9 @@ classdef Utils
                 elseif extidx == 4
                     general.Utils.removeMargin(fig);
                     print(fig,file,'-dpdf',['-r' ExportDPI]);
+                elseif extidx == 5
+                    general.Utils.removeMargin(fig);
+                    saveas(fig,file,'png');
                 end
                 
                 % Restore old position

@@ -115,7 +115,7 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             figure;
             plot(x,fx,'r',x,[fx-svr.eps; fx+svr.eps],'r--');
             
-            [ai,svidx,epsi] = svr.regress(fx);
+            [ai, svidx] = svr.computeKernelCoefficients(fx);
             sv = x(:,svidx);
             svfun = @(x)ai'*(kernel.evaluate(x,sv)');
             
@@ -135,7 +135,7 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
                 plot(x(svidx(errors)),fx(svidx(errors)),'blackx','LineWidth',4);
             end
             
-            tit = sprintf('#SV=%d, eps=%f',length(svidx),epsi);
+            tit = sprintf('#SV=%d, eps=%f',length(svidx),svr.eps);
             title(tit);
             disp(tit);
             hold off;

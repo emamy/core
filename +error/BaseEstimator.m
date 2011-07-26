@@ -10,6 +10,10 @@ classdef BaseEstimator < KerMorObject & ICloneable & ISimConstants
     %
     % @author Daniel Wirtz @date 24.11.2010
     %
+    % @change{0,5,dw,2011-07-07} Added a new property e0Comp that computes the initial error for the
+    % given reduced model, depending on its initial value class. In consequence, the getE0 method is
+    % now found at this base error estimator class.
+    %
     % @change{0,4,dw,2011-05-23} Created a new interface with separate output
     % error computation. Postprocessing is now a template method and a new property
     % error.BaseEstimator.OutputError has been introduced. Renamed the LastError property to
@@ -60,6 +64,7 @@ classdef BaseEstimator < KerMorObject & ICloneable & ISimConstants
     
     properties(Access=private)
         fEnabled = true;
+        e0Comp;
     end
     
     methods
@@ -75,10 +80,16 @@ classdef BaseEstimator < KerMorObject & ICloneable & ISimConstants
             % this will work :-)!)
             msg = this.validModelForEstimator(rmodel);
             if ~isempty(msg)
-                error(msg);
+                builtin('error',msg);
             end
             % Assign reduced model to local protected property
             this.ReducedModel = rmodel;
+            
+            if isa(rmodel.System.x0,'dscomponents.AffineInitialValue')
+                this.e0Comp = error.initial.AffineParametric(rmodel);
+            else
+                this.e0Comp = error.initial.Constant(rmodel);
+            end
         end
         
         function postProcess(this, x, t, mu, inputidx)
@@ -135,6 +146,12 @@ classdef BaseEstimator < KerMorObject & ICloneable & ISimConstants
             copy.Enabled = this.Enabled;
             % No cloning of the associated reduced model.
             copy.ReducedModel = this.ReducedModel;
+            copy.e0Comp = this.e0Comp;
+        end
+        
+        function e0 = getE0(this, mu)
+            % Calls the inner initial error computation strategy.
+            e0 = this.e0Comp.getE0(mu);
         end
         
     end
@@ -183,9 +200,6 @@ classdef BaseEstimator < KerMorObject & ICloneable & ISimConstants
         % integral part.
         % ut: The value of the input function `u(t)` if given, [] else.
         eint = evalODEPart(this, x, t, mu, ut);
-        
-        % Gets the initial condition vector for additional used ODE dimensions.
-        e0 = getE0(this, mu);
     end
     
     methods(Abstract, Access=protected)
@@ -212,10 +226,10 @@ classdef BaseEstimator < KerMorObject & ICloneable & ISimConstants
             % at this method local knowledge of all available error estimators has to be present
             % anyways if going through this in a if then fashion. otherwise, see if reflection may
             % be used here!
-            if isempty(error.LocalKernelEstimator.validModelForEstimator(model))
-                est = error.LocalKernelEstimator(model);
-            elseif isempty(error.TPWLLocalLipEstimator.validModelForEstimator(model))
-                est = error.TPWLLocalLipEstimator(model);
+            if isempty(error.IterationCompLemmaEstimator.validModelForEstimator(model))
+                est = error.IterationCompLemmaEstimator(model);
+%             elseif isempty(error.TPWLLocalLipEstimator.validModelForEstimator(model))
+%                 est = error.TPWLLocalLipEstimator(model);
             elseif isempty(error.GLEstimator.validModelForEstimator(model))
                 est = error.GLEstimator(model);
             elseif isa(model.System.f,'models.synth.KernelTest')
@@ -230,7 +244,7 @@ classdef BaseEstimator < KerMorObject & ICloneable & ISimConstants
             % Quick test for estimators.
             demo = RandomModelEstimatorDemo;
             demo.Dims = 3;
-            demo.Run;
+            demo.start;
             res = true;
         end
         

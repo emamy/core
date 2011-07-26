@@ -7,6 +7,10 @@ classdef BinTree < handle
 %
 % @author Daniel Wirtz @date 2011-05-16
 %
+% @change{0,5,dw,2011-07-07} Bugfix in FindClosest: If the root key was already lower or bigger than
+% all following nodes, an empty node instead of the root node was returned, leading to an error. Now
+% the lower and upper closest nodes are always initialized to the root node.
+%
 % @new{0,4,dw,2011-05-16} Added this class.
 %
 % This class is part of the framework
@@ -116,8 +120,11 @@ classdef BinTree < handle
         function [l,u] = findclosest(this, n, key)%#ok (not needed as nonrecursive)
             % Performs an in-place search for the value associated with the given key.
             u = []; l = [];
-            minu = [];
-            maxl = [];
+%             minu = [];
+%             maxl = [];
+            % Initialize with this node n, as it might be the smallest/largest
+            minu = n;
+            maxl = n;
             while ~isempty(n)
                 if lt(key,n.Key)
                     minu = n;
@@ -282,8 +289,8 @@ classdef BinTree < handle
             res = true;
             
             %% Init
-            t = general.BinTree;
-            n = 2^10;
+            t = general.collections.BinTree;
+            n = 2^4;
             
             %% Test usage as Key-Value BinaryTree
             k = randperm(n);

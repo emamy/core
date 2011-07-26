@@ -28,7 +28,7 @@ classdef IJacobian < handle
         
     methods(Abstract)
         % Returns the jacobian matrix with respect to the state variable at the given point.
-        getStateJacobian(x,t,mu);
+        getStateJacobian(x, t, mu);
     end
     
 end

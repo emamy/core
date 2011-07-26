@@ -1,11 +1,11 @@
-classdef LocalSecantLipschitz < error.BaseLocalLipschitzFunction
+classdef LocalSecantLipschitz < error.lipfun.Base
 % LocalSecantLipschitz: 
 %
 %
 %
 % @author Daniel Wirtz @date 2011-05-20
 %
-% @new{0,4,dw,2011-05-31} Added new init function from BaseLocalLipschitzFunction.
+% @new{0,4,dw,2011-05-31} Added new init function from Base.
 %
 % @new{0,4,dw,2011-05-20} Added this class.
 %
@@ -21,12 +21,12 @@ classdef LocalSecantLipschitz < error.BaseLocalLipschitzFunction
     
     methods
         function this = LocalSecantLipschitz(bellfcn)
-            this = this@error.BaseLocalLipschitzFunction(bellfcn);
+            this = this@error.lipfun.Base(bellfcn);
         end
         
         function copy = clone(this)
-            copy = error.LocalSecantLipschitz(this.bellfcn);
-            %copy = clone@error.BaseLocalLipschitzFunction(this, copy);
+            copy = error.lipfun.LocalSecantLipschitz(this.bellfcn);
+            %copy = clone@error.lipfun.Base(this, copy);
             copy.dx0 = this.dx0;
         end
         
@@ -34,7 +34,7 @@ classdef LocalSecantLipschitz < error.BaseLocalLipschitzFunction
             this.dx0 = abs(this.bellfcn.evaluateD1(x0));
         end
         
-        function ci = evaluate(this, di, C, t, mu)%#ok
+        function ci = evaluate(this, di, C)
             b = this.bellfcn;
             x0 = b.x0;
             % Consider C=Inf case separately for speed reasons

@@ -1,4 +1,4 @@
-classdef BaseScalarSVR < KerMorObject & ICloneable & approx.IKernelCoeffComp
+classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCoeffComp
     %SCALARSVR Scalar support vector regression.
     %
     % Base class for any scalar SVR algorithm.
@@ -106,7 +106,7 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.IKernelCoeffComp
             this.QPSolver = value;
         end
         
-        %% approx.IKernelCoeffComp interface members
+        %% approx.algorithms.IKernelCoeffComp interface members
         function init(this, K)
             this.K = K;
         end
@@ -149,11 +149,10 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.IKernelCoeffComp
         % Parameters:
         % fxi: The `f(x_i)` values to regress given the kernel matrix `K` computed from
         % `\Phi(x_i,x_j)`.
-        % ainit: [Optional] An initial value set for the coefficients.
         %
         % Return values:
         % ai: The kernel expansion coefficients `\alpha_i`.
-        ai = regress(this, fxi, ainit);
+        ai = regress(this, fxi);
     end
     
 end

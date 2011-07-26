@@ -15,6 +15,8 @@ classdef BaseDynSystem < KerMorObject
     %
     % @author Daniel Wirtz @date 17.03.2010
     %
+    % @change{0,5,dw,2011-07-07} New method getParamIndexFromName and fixed setConfig checks.
+    %
     % @change{0,4,dw,2011-05-29} Re-changed the `x0(\mu)` property back to be a function handle. Higher
     % flexibility during subsequent simulations are to be rated higher than proper setting of the
     % property, which should be assumed is being done (especially) for `x0(\mu)`
@@ -34,6 +36,12 @@ classdef BaseDynSystem < KerMorObject
     %
     % @new{0,3,dw,2011-04-05} Added a setter for property BaseDynSystem.f
     % that checks for self references.
+    %
+    % This class is part of the framework
+    % KerMor - Model Order Reduction using Kernels:
+    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % - \c License @ref licensing  
     
     properties(SetObservable)
         % The core f function from the dynamical system.
@@ -67,7 +75,8 @@ classdef BaseDynSystem < KerMorObject
         %
         % @propclass{critical} The initial value greatly influences the simulation results.
         %
-        % @default 0
+        % @type dscomponents.AInitialValue
+        % @default ConstInitialValue instance with scalard zero
         x0;
         
         % The system's possible input functions.
@@ -143,7 +152,7 @@ classdef BaseDynSystem < KerMorObject
             this.validateModel(model);
             this.Model = model;
             this.C = dscomponents.LinearOutputConv(1);
-            this.x0 = @(mu)0;
+            this.x0 = dscomponents.ConstInitialValue(0);
             
             % Register default properties
             this.registerProps('f','B','C','x0','Inputs','Params','MaxTimestep','StateScaling');
@@ -164,10 +173,16 @@ classdef BaseDynSystem < KerMorObject
             % See also: Inputs Params setParam addParam
             if isempty(mu) && ~isempty(this.Params)
                 error('A model with parameters cannot be simulated without a parameter argument.');
-            elseif size(mu,1) ~= this.ParamCount
-                error('The mu vector size mismatches the defined parameter number.');
             elseif size(mu,2) > 1
-                error('The mu parameter must be a single column vector.');
+                if size(mu,1) > 1
+                    error('The mu parameter must be a single column vector.');
+                else
+                    warning('KerMor:BaseDynSystem','Please use column vectors for parameters. Reshaping.');
+                    mu = reshape(mu,[],1);
+                end
+            end
+            if size(mu,1) ~= this.ParamCount
+                error('The mu vector size mismatches the defined parameter number.');    
             end
             this.mu = mu;
             
@@ -191,9 +206,9 @@ classdef BaseDynSystem < KerMorObject
             %
             % See also: setConfig Inputs Params
                         
-            y = this.f.evaluate(x,t,this.mu);
+            y = this.f.evaluate(x, t, this.mu);
             if ~isempty(this.u)
-                y = y + this.B.evaluate(t,this.mu)*this.u(t);    
+                y = y + this.B.evaluate(t, this.mu)*this.u(t);    
             end
         end
         
@@ -252,7 +267,7 @@ classdef BaseDynSystem < KerMorObject
                 desired = 1;
             end
             if ~isempty(this.Params)
-                pidx = find(strcmpi(name,{this.Params(:).Name}),1);
+                pidx = this.getParamIndexFromName(name);
                 if ~isempty(pidx)
                     this.Params(pidx).Range = range;
                     if ~isempty(desired)
@@ -262,6 +277,20 @@ classdef BaseDynSystem < KerMorObject
                 end
             end
             this.addParam(name, range, desired);
+        end
+        
+        function pidx = getParamIndexFromName(this, paramname)
+            % Gets the index within the parameter vector `\mu` for a given parameter name.
+            %
+            % Return values:
+            % pidx: The parameter index for the given name, [] if none found.
+            if ~ischar(paramname)
+                error('Parameter paramname must be a char array');
+            end
+            pidx = find(strcmpi(paramname,{this.Params(:).Name}),1);
+%             if isempty(pidx)
+%                 error('No parameter for name "%s" found.',paramname);
+%             end
         end
     end
     
@@ -328,11 +357,12 @@ classdef BaseDynSystem < KerMorObject
         end
         
         function set.x0(this, value)
-            if ~isa(value,'function_handle')
-                error('x0 must be a function handle.');
-            elseif nargin(value) ~= 1
-                error('x0 must take exactly one argument.');
-            end
+            this.checkType(value,'dscomponents.AInitialValue');%#ok
+%             if ~isa(value,'function_handle')
+%                 error('x0 must be a function handle.');
+%             elseif nargin(value) ~= 1
+%                 error('x0 must take exactly one argument.');
+%             end
             this.x0 = value;
         end
         

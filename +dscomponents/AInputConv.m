@@ -8,11 +8,13 @@ classdef AInputConv < KerMorObject & dscomponents.IProjectable
     % See also: ACoreFun AOutputConv
     %
     % @author Daniel Wirtz @date 17.03.2010
+    %
+    % @change{0,5,dw,2011-07-07} Fixed output name from `C` to `B`
     
     methods(Abstract)
         % Template method that evaluates the input conversion matrix `B` at the current time `t`
         % and [optional] parameter `\mu`.
-        C = evaluate(t,mu);
+        B = evaluate(t,mu);
     end
     
 end

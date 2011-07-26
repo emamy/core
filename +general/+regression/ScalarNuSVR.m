@@ -140,7 +140,8 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             svr.K = kernel.evaluate(x,x);
             
             figure(2);
-            [ai, svidx,epsi] = svr.regress(fx);
+            [ai, svidx] = svr.computeKernelCoefficients(fx);
+            epsi = svr.LastEpsilon;
             plot(x,fx,'r',x,[fx-epsi; fx+epsi],'r--');
             
             sv = x(:,svidx);
@@ -184,18 +185,19 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             svr.C = 10;
             kernel = kernels.GaussKernel(1);
             svr.K = kernel.evaluate(x,x);
-            [ai,b,svidx,epsi] = svr.regress(fx);
+            [ai,svidx] = svr.computeKernelCoefficients(fx);
+            epsi = svr.LastEpsilon;
             sv = x(:,svidx);
-            svfun = @(x)ai'*kernel.evaluate(sv,x) + b;
+            svfun = @(x)ai'*kernel.evaluate(sv,x);
             
             % Create eps-SVR and feed with computed epsilon
             esvr = general.regression.ScalarEpsSVR;
             esvr.eps = epsi;
             esvr.K = svr.K;
             esvr.C = svr.C;
-            [eai,eb,esvidx,eeps] = esvr.regress(fx);
+            [eai,esvidx] = esvr.computeKernelCoefficients(fx);
             esv = x(:,esvidx);
-            esvfun = @(x)eai'*kernel.evaluate(esv,x) + eb;
+            esvfun = @(x)eai'*kernel.evaluate(esv,x);
             
             figure(1);
             xp = x(1,:);

@@ -19,6 +19,12 @@ classdef DefaultEstimator < error.BaseEstimator
     %
     % @change{0,4,dw,2011-05-23} Adopted to the new error.BaseEstimator interface with separate output
     % error computation.
+    %
+    % This class is part of the framework
+    % KerMor - Model Order Reduction using Kernels:
+    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % - \c License @ref licensing    
     
     properties(SetAccess=private)
         % The true output error `\no{C(x(t)-Vz(t))}` for `t\in[0,T]`.
@@ -61,7 +67,7 @@ classdef DefaultEstimator < error.BaseEstimator
             e0 = [];
         end
         
-        function prepareConstants(this)%#ok
+        function prepareConstants(this, mu, inputidx)%#ok
             % Nothing to do here
         end
     end

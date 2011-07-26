@@ -1,11 +1,11 @@
-classdef LocalGradientLipschitz < error.BaseLocalLipschitzFunction
+classdef LocalGradientLipschitz < error.lipfun.Base
 % LocalGradientLipschitz: 
 %
 %
 %
 % @author Daniel Wirtz @date 2011-05-20
 %
-% @new{0,4,dw,2011-05-31} Added new prepareConstants init function from BaseLocalLipschitzFunction.
+% @new{0,4,dw,2011-05-31} Added new prepareConstants init function from Base.
 %
 % @change{0,4,dw,2011-05-29} Changed `x_0` to `r_0` to adopt new notation.
 %
@@ -23,12 +23,12 @@ classdef LocalGradientLipschitz < error.BaseLocalLipschitzFunction
     
     methods
         function this = LocalGradientLipschitz(bellfcn)
-            this = this@error.BaseLocalLipschitzFunction(bellfcn);
+            this = this@error.lipfun.Base(bellfcn);
         end
         
         function copy = clone(this)
-            copy = error.LocalSecantLipschitz(this.bellfcn);
-            %copy = clone@error.BaseLocalLipschitzFunction(this, copy);
+            copy = error.lipfun.LocalSecantLipschitz(this.bellfcn);
+            %copy = clone@error.lipfun.Base(this, copy);
             copy.d1 = this.d1;
         end
         
@@ -36,7 +36,7 @@ classdef LocalGradientLipschitz < error.BaseLocalLipschitzFunction
             this.d1 = abs(this.bellfcn.evaluateD1(r0));
         end
         
-        function ci = evaluate(this, di, C, t, mu)%#ok
+        function ci = evaluate(this, di, C)
             % Consider C=Inf case separately for speed reasons
             b = this.bellfcn;
             r0 = b.r0;

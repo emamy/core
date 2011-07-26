@@ -91,20 +91,20 @@ classdef ModelData < handle
             end
         end
         
-%         function idx = getSampleIndex(this, mu)
-%             % Finds the column index of the given parameter vector `\mu`
-%             % within the Data's ParamSamples matrix. Returns [] if `\mu` is
-%             % not found.
-%             % 
-%             % See also: ModelData/getTrajectory
-%             idx = [];
-%             for n=1:this.SampleCount
-%                 if all(abs(this.ParamSamples(:,n) - mu) < sqrt(eps))
-%                     idx = n;
-%                     return;
-%                 end
-%             end
-%         end
+        function idx = getSampleIndex(this, mu)
+            % Finds the column index of the given parameter vector `\mu`
+            % within the Data's ParamSamples matrix. Returns [] if `\mu` is
+            % not found.
+            % 
+            % See also: ModelData/getTrajectory
+            idx = [];
+            for n=1:this.SampleCount
+                if all(abs(this.ParamSamples(:,n) - mu) < sqrt(eps))
+                    idx = n;
+                    return;
+                end
+            end
+        end
         
         % Not longer required as trajectories aren't stored completely.
 %         function x = getTrajectory(this, mu, inputidx)
@@ -131,12 +131,12 @@ classdef ModelData < handle
             value = size(this.ParamSamples,2);
         end
         
-        function set.ParamSamples(this, value)
-            if ~isempty(value) || ~isposintscalar(value)
-                error('value must be a positive integer scalar if not left empty');
-            end
-            this.ParamSamples = value;
-        end
+%         function set.ParamSamples(this, value)
+%             if ~isempty(value) || ~isposintscalar(value)
+%                 error('value must be a positive integer scalar if not left empty');
+%             end
+%             this.ParamSamples = value;
+%         end
         
         function set.TrainingData(this, value)
             if ~isa(value, 'double')

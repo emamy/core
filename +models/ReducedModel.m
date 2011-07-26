@@ -12,6 +12,12 @@ classdef ReducedModel < models.BaseModel
     % See also: BaseModel BaseFullModel
     %
     % @author Daniel Wirtz @date 23.03.2010
+    %
+    % This class is part of the framework
+    % KerMor - Model Order Reduction using Kernels:
+    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % - \c License @ref licensing     
     
     properties(SetAccess=private)
         
@@ -120,7 +126,7 @@ classdef ReducedModel < models.BaseModel
             this.ErrorEstimator.clear;
             
             % Call constat pre-computations
-            this.ErrorEstimator.prepareConstants;
+            this.ErrorEstimator.prepareConstants(mu, inputidx);
             
             % Call inherited method (actual work)
             [t,xtmp] = computeTrajectory@models.BaseModel(this, mu, inputidx);
@@ -135,17 +141,17 @@ classdef ReducedModel < models.BaseModel
             end
         end
         
-        function exo = getExo(this, mu)
-            % Computes the norm of the initial error 
-            % `E_{y_0}(\mu) = ||C(0,\mu)(I-VW^t)x_0(\mu)||`
-            if ~isempty(this.V) && ~isempty(this.W)
-                x0 = this.FullModel.System.x0(mu);
-                x0 = x0 - this.V*(this.W'*x0);
-                exo = sqrt(x0'*this.GScaled*x0);
-            else
-                exo = 0;
-            end
-        end
+%         function exo = getExo(this, mu)
+%             % Computes the norm of the initial error 
+%             % `E_{x_0}(\mu) = ||C(0,\mu)(I-VW^t)x_0(\mu)||`
+%             if ~isempty(this.V) && ~isempty(this.W)
+%                 x0 = this.FullModel.System.x0.evaluate(mu);
+%                 x0 = x0 - this.V*(this.W'*x0);
+%                 exo = sqrt(x0'*this.GScaled*x0);
+%             else
+%                 exo = 0;
+%             end
+%         end
         
         function saveFinal(this, filename)
             % Saves this reduced model for final use.

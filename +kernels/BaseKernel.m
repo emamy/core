@@ -7,6 +7,8 @@ classdef BaseKernel < KerMorObject
     %
     % @change{0,3,dw,2011-04-21} Removed the RotationInvariant property as it is now replaced by the
     % IRotationInvariant interface.
+    %
+    % @todo Implement cloning for kernels too
     
     methods
         

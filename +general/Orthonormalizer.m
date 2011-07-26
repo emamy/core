@@ -12,6 +12,12 @@ classdef Orthonormalizer < KerMorObject
     %
     % @change{0,3,sa,2011-05-07} Implemented Setter for the properties G
     % and Epsilon
+    %
+    % This class is part of the framework
+    % KerMor - Model Order Reduction using Kernels:
+    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % - \c License @ref licensing     
     
     properties
         % The scalar product matrix `<x,x> := x^tGx`

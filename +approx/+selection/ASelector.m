@@ -66,8 +66,8 @@ classdef ASelector < KerMorObject & ICloneable
         end
         
         function set.LastUsed(this, value)
-            if ~isposintmat(value)
-                error('The LastUsed property must contain a matrix with positive integer indices');
+            if ~isempty(value) && ~isposintmat(value)
+                error('The LastUsed property must contain a matrix with positive integer indices if set');
             end
             this.LastUsed = value;
         end

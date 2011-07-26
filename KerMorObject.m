@@ -20,6 +20,12 @@ classdef KerMorObject < handle
     % @new{0,3,dw,2011-04-05} Added this class to give any object a common
     % base class and some shared functionality. For this version it will be
     % loading and message logging, possibly cloning as well.
+    %
+    % This class is part of the framework
+    % KerMor - Model Order Reduction using Kernels:
+    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % - \c License @ref licensing    
     
     properties(SetAccess=private)
         % An ID that allows to uniquely identify this KerMorObject

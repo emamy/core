@@ -8,6 +8,12 @@ classdef ReducedSystem < models.BaseDynSystem
     % a speedup of reduced simulations by almost a factor of 2.
     %
     % See also: models.BaseDynSystem
+    %
+    % This class is part of the framework
+    % KerMor - Model Order Reduction using Kernels:
+    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % - \c License @ref licensing    
     
     properties(Access=private)
         plotPtr;
@@ -66,9 +72,9 @@ classdef ReducedSystem < models.BaseDynSystem
             
             % Forwards the x0 evaluation to the original model's x0 function.
             if ~isempty(this.Model.W)
-                this.x0 = @(mu)this.Model.W'*fullsys.x0(mu);
+                this.x0 = fullsys.x0.project(this.Model.V,this.Model.W);
             else
-                this.x0 = fullsys.x0;
+                this.x0 = fullsys.x0.clone;
             end
             
             % Set the plot-wrapper (uses the plot method from the full
@@ -113,6 +119,10 @@ classdef ReducedSystem < models.BaseDynSystem
             % the ODE function if any error estimators are enabled.
             est = this.Model.ErrorEstimator;
             if ~isempty(est) && est.Enabled
+%                 V = 1;
+%                 if ~isempty(this.Model.V)
+%                     V = this.Model.V;
+%                 end
                 % Eval f part
                 y = this.f.evaluate(x(1:end-est.ExtraODEDims,:),t,this.mu);
                 % See if Bu is used
@@ -123,7 +133,7 @@ classdef ReducedSystem < models.BaseDynSystem
                     ut = [];
                 end
                 % Extend by error estimator part
-                y = [y; est.evalODEPart(x,t,this.mu,ut)];
+                y = [y; est.evalODEPart(x, t, this.mu, ut)];
             else
                 % If no estimator is used or is disabled just call the "normal" ODE function from the
                 % base class.

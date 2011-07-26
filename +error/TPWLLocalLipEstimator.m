@@ -267,28 +267,27 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
             end
         end
         
-        function res = test_TPWLLocalLipEstimator
-            error('TODO');
-            res = true;
-            m = models.synth.KernelTest(10);
-            m.offlineGenerations;
-            r = m.buildReducedModel;
-            r.ErrorEstimator = error.LocalKernelEstimator(r);
-            
-%             try
-%                 m.ODESolver = solvers.ode.sMLWrapper(@ode23);
-%                 r.ErrorEstimator = error.LocalKernelEstimator(r);
-%                 r.ErrorEstimator.Iterations = 1;
-%             catch ME%#ok
-%                 res = true;
-%             end
-            
-            m.ODESolver = solvers.ode.Heun;
-            r.ErrorEstimator = error.LocalKernelEstimator(r);
-            r.ErrorEstimator.Iterations = 4;
-            
-            [t,y] = r.simulate;%#ok
-        end
+%         function res = test_TPWLLocalLipEstimator
+%             res = true;
+%             m = models.synth.KernelTest(10);
+%             m.offlineGenerations;
+%             r = m.buildReducedModel;
+%             r.ErrorEstimator = error.IterationCompLemmaEstimator(r);
+%             
+% %             try
+% %                 m.ODESolver = solvers.ode.sMLWrapper(@ode23);
+% %                 r.ErrorEstimator = error.IterationCompLemmaEstimator(r);
+% %                 r.ErrorEstimator.Iterations = 1;
+% %             catch ME%#ok
+% %                 res = true;
+% %             end
+%             
+%             m.ODESolver = solvers.ode.Heun;
+%             r.ErrorEstimator = error.IterationCompLemmaEstimator(r);
+%             r.ErrorEstimator.Iterations = 4;
+%             
+%             [t,y] = r.simulate;%#ok
+%         end
     end
     
 end

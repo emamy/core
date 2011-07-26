@@ -5,9 +5,11 @@ classdef IKernelCoeffComp < handle
     % given a kernel matrix `K` for a kernel expansion of the type
     % ``f(x) = \sum\limits_{i=1}^N \alpha_i\Phi(x,x_i)``
     % should implement this interface in order to be available as strategy
-    % within any approx.BaseCompWiseKernelApprox subclass.
+    % within any approx.KernelApprox subclass.
     %
     % @author Daniel Wirtz @date 2011-03-31
+    %
+    % @new{0,5,dw,2011-07-07} Moved this class to the approx.algorithms package.
     %
     % @change{0,3,dw,2011-05-03} Removed offset terms from interface as the `b` offsets for kernel
     % expansions arent used anymore.
@@ -31,7 +33,7 @@ classdef IKernelCoeffComp < handle
         % Here the concrete class performs the approximation calculation
         % for given function evaluation points `y_i = f(x_i)` at the
         % centers `x_i` also used to compute the kernel matrix passed to 
-        % the approx.IKernelCoeffComp#init method.
+        % the approx.algorithms.IKernelCoeffComp#init method.
         %
         % Parameters:
         % yi: The function values `f(x_i)` as row vector.

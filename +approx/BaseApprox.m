@@ -1,13 +1,17 @@
 classdef BaseApprox < dscomponents.ACoreFun
-    % Abstract base class for all core function approximations
+    % Abstract base class for all core function approximations inside dynamical systems.
     %
     % Simply provides two methods:
     % - selectTrainingData: Used to select a (sub-)set of the training data
-    % - approximateCoreFun: Abstract template method that performs the
+    % - approximateData: Abstract template method that performs the
     % actual approximation. Possible algorithms may be i.e. component-wise
     % approximation, multidimensional approximation or any other.
     %
     % @author Daniel Wirtz @date 2010-03-11
+    %
+    % @change{0,5,dw,2011-07-07} Changed the interface for the old approximateCoreFun to
+    % approximateSystemFunction that now takes only the full model instance instead of
+    % `x_i,t_i,\mu_i,f_{x_i}` values.
     %
     % @change{0,4,dw,2011-05-19} Disconnected the Approx classes from taking a BaseModel instance at
     % approx computation. This way external tools can use the approximation algorithms, too.
@@ -67,22 +71,19 @@ classdef BaseApprox < dscomponents.ACoreFun
         % Template method.
         %
         % Parameters:
-        % xi: The input vectors `x(t_i)`
-        % ti: The input times `t_i`
-        % mui: The input parameters `\mu_i`
-        % fxi: The function values `f(x(t_i))`
-        approximateCoreFun(this, xi, ti, mui, fxi);
+        % model: The current model.
+        approximateSystemFunction(this, model);
     end
     
     methods(Static)
         function res = test_ApproxProjections
-            a{1} = approx.DefaultCompWiseKernelApprox;
+            a{1} = approx.algorithms.DefaultCompWiseKernelApprox;
             a{1}.CoeffComp = general.interpolation.KernelInterpol;
-            a{2} = approx.DefaultCompWiseKernelApprox;
+            a{2} = approx.algorithms.DefaultCompWiseKernelApprox;
             a{2}.CoeffComp = general.regression.ScalarEpsSVR;
-            a{2} = approx.DefaultCompWiseKernelApprox;
+            a{2} = approx.algorithms.DefaultCompWiseKernelApprox;
             a{2}.CoeffComp = general.regression.KernelLS;
-            a{3} = approx.AdaptiveCompWiseKernelApprox;
+            a{3} = approx.algorithms.AdaptiveCompWiseKernelApprox;
             a{3}.CoeffComp = general.interpolation.KernelInterpol;
             a{3}.MaxExpansionSize = 20;
             
@@ -90,14 +91,15 @@ classdef BaseApprox < dscomponents.ACoreFun
             
             ts = testing.testsettings;
             samples = 50;
+            kexp = approx.KernelApprox;
             x = rand(ts.testdim, samples);
+            t = 1:size(x,2);
             fx = ts.fnlin(x,repmat(1:samples,ts.testdim,1));
-            
-            model = ts.m;
-            model.Data.TrainingData = [zeros(3,size(x,2)); x];
-            model.Data.ApproxTrainData = model.Data.TrainingData;
-            model.Data.ApproxfValues = fx;
-            v = model.SpaceReducer.generateReducedSpace(model);
+
+            pr = spacereduction.PODReducer;
+            pr.Value = 2;
+            pr.Mode = 'abs';
+            v = pr.computePOD(x);
             
             res = true;
             for idx=1:length(a)
@@ -106,10 +108,10 @@ classdef BaseApprox < dscomponents.ACoreFun
                     mc = metaclass(app);
                     name = mc.Name;
                     cprintf(testing.MUnit.GreenCol,['Testing ' name '...\n']);
-                    app.approximateCoreFun(model);
-                    b{idx} = app.project(v,v);
+                    app.computeApproximation(kexp, x, t, [], fx);
+                    b{idx} = kexp.project(v,v);
                     
-                    ifxfull = app.evaluate(x,[],[]);
+                    ifxfull = kexp.evaluate(x,t,[]);
                     ifxred = v * b{idx}.evaluate(v' * x,[],[]);
                     figure(idx+20);
                     plot(1:ts.testdim,sum(abs(ifxfull-ifxred),2));

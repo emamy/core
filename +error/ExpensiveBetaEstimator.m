@@ -1,4 +1,4 @@
-classdef ExpensiveBetaEstimator < error.BaseKernelEstimator
+classdef ExpensiveBetaEstimator < error.BaseCompLemmaEstimator
     % ExpensiveBetaEstimator:
     %
     % This error estimator performs the same estimation process than the local lipschitz estimators,
@@ -28,7 +28,7 @@ classdef ExpensiveBetaEstimator < error.BaseKernelEstimator
     
     methods
         function this = ExpensiveBetaEstimator(rmodel)
-            this = this@error.BaseKernelEstimator;
+            this = this@error.BaseCompLemmaEstimator;
             if nargin == 1
                 this.setReducedModel(rmodel);
             end
@@ -38,20 +38,19 @@ classdef ExpensiveBetaEstimator < error.BaseKernelEstimator
         function copy = clone(this)
             % Creates a deep copy of this estimator instance.
             copy = error.ExpensiveBetaEstimator;
-            copy = clone@error.BaseKernelEstimator(this, copy);
+            copy = clone@error.BaseCompLemmaEstimator(this, copy);
         end
         
         function clear(this)
-            clear@error.BaseKernelEstimator(this);
+            clear@error.BaseCompLemmaEstimator(this);
             this.cnt = 1;
         end
         
-        function prepareConstants(this)
-            prepareConstants@error.BaseKernelEstimator(this);
+        function prepareConstants(this, mu, inputidx)
+            prepareConstants@error.BaseCompLemmaEstimator(this, mu, inputidx);
             
             rm = this.ReducedModel;
-            mu = rm.System.mu;
-            [t, x] = rm.FullModel.computeTrajectory(mu, rm.System.inputidx);
+            [t, x] = rm.FullModel.computeTrajectory(mu, inputidx);
             this.xfull = [t; x];
             mu = repmat(mu,1,length(t));
             if ~isempty(rm.FullModel.Approx)
@@ -65,6 +64,8 @@ classdef ExpensiveBetaEstimator < error.BaseKernelEstimator
     methods(Access=protected)
         
         function b = getBeta(this, x, t, mu)
+            % Throw away the last part, not needed here
+            x = x(1:end-1);
             if ~isempty(this.ReducedModel.FullModel.Approx)
                 a = this.ReducedModel.FullModel.Approx;
             else
@@ -74,14 +75,16 @@ classdef ExpensiveBetaEstimator < error.BaseKernelEstimator
             idx = this.cnt;
             xf = this.xfull(2:end,idx);
             fax = this.fax(:,idx);
-            Vz = this.ReducedModel.V*x(1:end-this.ExtraODEDims);
-            fVz = a.evaluate(Vz,t,mu);
+            if size(this.ReducedModel.V,1) ~= size(x,1)
+                x = this.ReducedModel.V*x;
+            end
+            fx = a.evaluate(x,t,mu);
             
 %             b = 0;
 %             if this.Version == 1
-                xdiff = sum((xf-Vz).^2);
+                xdiff = sum((xf-x).^2);
                 if xdiff ~= 0
-                    b = sqrt(sum((fax-fVz).^2)/xdiff); %#ok<*PROP>
+                    b = sqrt(sum((fax-fx).^2)/xdiff); %#ok<*PROP>
                 else
                     b = 0;
                 end

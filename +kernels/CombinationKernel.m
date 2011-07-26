@@ -89,9 +89,9 @@ classdef CombinationKernel < kernels.BaseKernel
             figure(1);
             plot(x,fx,'r',x,[fx-svr.eps; fx+svr.eps],'r--');
             
-            [ai,b,svidx] = svr.regress(fx);
+            [ai,svidx] = svr.computeKernelCoefficients(fx);
             sv = x(svidx);
-            svfun = @(x)ai'*k.evaluate(sv,x) + b;
+            svfun = @(x)ai' * k.evaluate(sv,x);
             
             fsvr = svfun(x);
             

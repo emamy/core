@@ -48,7 +48,7 @@ classdef RandomModelEstimatorDemo < EstimatorDemo
             %fm.ODESolver = solvers.ode.Heun(fm.dt);
             
             %% Core function
-            cf = dscomponents.CompwiseKernelCoreFun;
+            cf = dscomponents.ParamTimeKernelCoreFun;
             cf.TimeKernel = kernels.NoKernel;
             cf.ParamKernel = kernels.NoKernel;
             cf.Centers.ti = [];
@@ -67,14 +67,14 @@ classdef RandomModelEstimatorDemo < EstimatorDemo
         end
         
         function setup(this)
-            this.Model.System.f.SystemKernel = kernels.GaussKernel(15);
+            this.Model.System.f.Kernel = kernels.GaussKernel(15);
             x0 = rand(this.Dims,1);
             if this.PositiveExpansion
                 base = linspace(0, 40, this.NumCenters);
-                this.Model.System.x0 = @(mu)x0;
+                this.Model.System.x0 = dscomponents.ConstInitialValue(x0);
             else
                 base = linspace(-20, 20, this.NumCenters);
-                this.Model.System.x0 = @(mu)x0-.5;
+                this.Model.System.x0 = dscomponents.ConstInitialValue(x0-.5);
             end
             this.Model.System.f.Centers.xi = repmat(base,this.Dims,1);
             

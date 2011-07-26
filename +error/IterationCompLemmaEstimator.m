@@ -1,5 +1,5 @@
-classdef LocalKernelEstimator < error.BaseKernelEstimator
-    % LocalKernelEstimator: A-posteriori error estimator for kernel-based systems using local
+classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
+    % IterationCompLemmaEstimator: A-posteriori error estimator for kernel-based systems using local
     % lipschitz constants.
     %
     % Implementation as in [WH10], but with updated ExtraODEDims and numerical computation.
@@ -9,6 +9,13 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
     % FullModel.Approx is an instance of CompwiseKernelCoreFun
     %
     % @author Daniel Wirtz @date 2010-08-10
+    %
+    % @change{0,5,dw,2011-07-07}
+    % - New properties smallz_flag to correctly transform the input space
+    % dimension on beta-computation depending on whether rotation invariant kernels are used or not.
+    % - Also made the estimator work with kernels.ParamTimeKernelExpansions
+    %
+    % @change{0,5,dw,2011-07-04} Changed this class name to "IterationCompLemmaEstimator".
     %
     % @change{0,4,dw,2011-05-29} 
     % - Changed this classes name to "LocalKernelEstimator".
@@ -54,9 +61,9 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
         % t: The current time `t`
         % mu: The current parameter `\mu`
         %
-        % @type error.BaseLocalLipschitzFunction
+        % @type error.lipfun.Base
         %
-        % See also: kernels.BaseKernel kernels.BellFunction error.BaseLocalLipschitzFunction
+        % See also: kernels.BaseKernel kernels.BellFunction error.lipfun.Base
         LocalLipschitzFcn;
     end
     
@@ -86,10 +93,12 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
     
     properties(Access=private)
         Ma_norms;
-        xi;
+        c; % the expansion centers
         mu;
         fIterations = 0;
         fTDC = true;
+        G;
+        smallz_flag = false;
     end
     
     properties(Transient, Access=private)
@@ -101,8 +110,8 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
     end
     
     methods
-        function this = LocalKernelEstimator(rmodel)
-            this = this@error.BaseKernelEstimator;
+        function this = IterationCompLemmaEstimator(rmodel)
+            this = this@error.BaseCompLemmaEstimator;
             if nargin == 1
                 this.setReducedModel(rmodel);
             end
@@ -110,15 +119,15 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
         
         function copy = clone(this)
             % Creates a deep copy of this estimator instance.
-            copy = error.LocalKernelEstimator;
+            copy = error.IterationCompLemmaEstimator;
             % ExtraODEDims is set in constructor!
-            copy = clone@error.BaseKernelEstimator(this, copy);
+            copy = clone@error.BaseCompLemmaEstimator(this, copy);
             % Clone local lipschitz function
             copy.LocalLipschitzFcn = this.LocalLipschitzFcn.clone;
             copy.fIterations = this.fIterations;
             copy.fTDC = this.fTDC;
             copy.Ma_norms = this.Ma_norms;
-            copy.xi = this.xi;
+            copy.c = this.c;
             copy.d_iValues = this.d_iValues;
             copy.errEst = this.errEst;
             copy.tstep = this.tstep;
@@ -127,6 +136,8 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
             copy.lstPreSolve.Enabled = this.lstPreSolve.Enabled;
             copy.lstPostSolve = addlistener(copy.ReducedModel.ODESolver,'PostSolve',@copy.cbPostSolve);
             copy.lstPostSolve.Enabled = this.lstPostSolve.Enabled;
+            copy.G = this.G;
+            copy.smallz_flag = this.smallz_flag;
         end
         
         function setReducedModel(this, rmodel)
@@ -135,7 +146,7 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
             
             % Call superclass method to perform standard estimator
             % computations
-            setReducedModel@error.BaseKernelEstimator(this, rmodel);
+            setReducedModel@error.BaseCompLemmaEstimator(this, rmodel);
             
             this.lstPreSolve = addlistener(this.ReducedModel.ODESolver,'PreSolve',@this.cbPreSolve);
             this.lstPreSolve.Enabled = false;
@@ -144,43 +155,46 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
             
             fm = this.ReducedModel.FullModel;
             % Obtain the correct snapshots
-            if ~isempty(fm.Approx)
-                % Standard case: the approx function is a kernel expansion.
-                % Get centers of full approximation
-                this.xi = fm.Approx.Centers.xi;
-                % Precompute norms
-                this.Ma_norms = fm.Approx.Ma_norms;
-            else
+            f = fm.Approx;
+            if isempty(f)
                 % This is the also possible case that the full core
                 % function of the system is a KernelExpansion.
                 %
                 % Get centers of full core function
-                this.xi = fm.System.f.Centers.xi;
-                % Precompute norms
-                this.Ma_norms = fm.System.f.Ma_norms;
+                f = fm.System.f;
             end
-            if this.ReducedModel.System.f.RotationInvariant
-                this.xi = this.ReducedModel.System.f.Centers.xi;
+            this.c = f.Centers;
+            this.Ma_norms = f.Ma_norms;
+            
+            this.G = this.ReducedModel.GScaled;
+            if f.RotationInvariant
+                % Use the projected centers z_i from the reduces system with x_i = Vz_i in this
+                % case.
+                this.c = this.ReducedModel.System.f.Centers;
+                % The norm is then ||Vz - x_i||_G = ||z-z_i||_V'GV
+                this.G = this.ReducedModel.V'*(this.G*this.ReducedModel.V);
+                % Set flag for small z state vectors to true
+                this.smallz_flag = true;
             end
             
-            ker = this.ReducedModel.System.f.SystemKernel;
+            ker = this.ReducedModel.System.f.Kernel;
             % Assign Lipschitz function
-            lfcn = error.ImprovedLocalSecantLipschitz(ker);
+            lfcn = error.lipfun.ImprovedLocalSecantLipschitz(ker);
             % Pre-Compute bell function xfeats if applicable
-            [x,X] = general.Utils.getBoundingBox(this.xi);
+            [x,X] = general.Utils.getBoundingBox(this.c.xi);
             d = norm(X-x);
             lfcn.precompMaxSecants(d*2,200);
             this.LocalLipschitzFcn = lfcn;
         end
         
         function clear(this)
-            clear@error.BaseKernelEstimator(this);
+            clear@error.BaseCompLemmaEstimator(this);
             this.d_iValues = [];
         end
         
-        function prepareConstants(this)
+        function prepareConstants(this, mu, inputidx)
             % Call superclass method
-            prepareConstants@error.BaseKernelEstimator(this);
+            prepareConstants@error.BaseCompLemmaEstimator(this, mu, inputidx);
             
             % Returns the initial error at `t=0` of the integral part.
             this.lstPreSolve.Enabled = true;
@@ -195,8 +209,8 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
     %% Getter & Setter
     methods
         function set.LocalLipschitzFcn(this, value)
-            if ~isa(value,'error.BaseLocalLipschitzFunction')
-                error('LocalLipschitzFcn must be a error.BaseLocalLipschitzFunction subclass.');
+            if ~isa(value,'error.lipfun.Base')
+                error('LocalLipschitzFcn must be a error.lipfun.Base subclass.');
             end
             this.LocalLipschitzFcn = value;
         end
@@ -206,7 +220,7 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
                 error('Iterations value must be a non-negative integer.');
             end
             if this.fTDC && value > 0
-                warning('error:LocalKernelEstimator:NoIterationsWithTD','Cannot use iterations in conjunction with time-discrete C(t). Value will have no effect.');
+                warning('error:IterationCompLemmaEstimator:NoIterationsWithTD','Cannot use iterations in conjunction with time-discrete C(t). Value will have no effect.');
             end
             this.fIterations = value;
         end
@@ -216,7 +230,7 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
                 error('The value must be a logical');
             end
             if value && this.fIterations > 0
-                warning('error:LocalKernelEstimator:NoIterationsWithTD','Cannot use iterations in conjunction with time-discrete C(t). Iteration value will have no effect now.');
+                warning('error:IterationCompLemmaEstimator:NoIterationsWithTD','Cannot use iterations in conjunction with time-discrete C(t). Iteration value will have no effect now.');
             end
             this.fTDC = value;
         end
@@ -232,32 +246,45 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
     
     methods(Access=protected)
         
-        function b = getBeta(this, x, t, mu)
+        function b = getBeta(this, xfull, t, mu)
             % Compute the local lipschitz constant estimations
-            if this.ReducedModel.System.f.RotationInvariant
-                z = x(1:end-this.ExtraODEDims);
-            else
-                z = this.ReducedModel.V*x(1:end-this.ExtraODEDims);
+            
+            % Project x variable back to full space if centers are not within the space spanned by V
+            % (indicated by smallz_flag)
+            x = xfull(1:end-1);
+            if ~this.smallz_flag
+                x = this.ReducedModel.V*x;
             end
-            di = this.xi - repmat(z,1,size(this.xi,2));
-            di = sqrt(sum(di.^2,1));
+            di = this.c.xi - repmat(x,1,size(this.c.xi,2));
+            di = sqrt(sum(di.*(this.G*di),1));
             
             %% Normal computations
             % Standard (worst-) Case
             Ct = Inf;
             % Time-discrete computation
             if this.fTDC
-                Ct = x(end);
+                Ct = xfull(end);
                 % Keep track of distances when iterations are used
             elseif this.fIterations > 0
                 this.d_iValues(this.StepNr,:) = di;
             end
-            b = this.Ma_norms * this.LocalLipschitzFcn.evaluate(di, Ct, t, mu)';
+            
+            % Check if time and param kernels are used
+            if (~isempty(mu))
+                f = this.ReducedModel.System.f;
+                hlp = this.Ma_norms ...
+                    .* f.TimeKernel.evaluate(t, this.c.ti) ...
+                    .* f.ParamKernel.evaluate(mu, this.c.mui);
+            else
+                hlp = this.Ma_norms;
+            end
+            
+            b = hlp * this.LocalLipschitzFcn.evaluate(di, Ct)';
         end
         
         function postprocess(this, t, x, mu, inputidx)
             
-            postprocess@error.BaseKernelEstimator(this, t, x, mu, inputidx);
+            postprocess@error.BaseCompLemmaEstimator(this, t, x, mu, inputidx);
             
             this.StateError = x(end,:);
             
@@ -298,13 +325,18 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
             if abs(this.EstimationData(1,idx)-t) > 100*eps
                 error('The ODE solver does not work as required by the iterative scheme.');
             end
-
-%             try
-            b = this.Ma_norms * this.LocalLipschitzFcn.evaluate(...
-                this.d_iValues(idx,:), this.errEst(idx), t, this.mu)';
-%             catch ME
-%                 keyboard;
-%             end
+            
+            if (~isempty(this.mu))
+                f = this.ReducedModel.System.f;
+                hlp = this.Ma_norms ...
+                    .* f.TimeKernel.evaluate(t, this.c.ti) ...
+                    .* f.ParamKernel.evaluate(this.mu, this.c.mui);
+            else
+                hlp = this.Ma_norms;
+            end
+            b = hlp * this.LocalLipschitzFcn.evaluate(...
+                this.d_iValues(idx,:), this.errEst(idx))';
+            
             e = b*eold + this.EstimationData(2,idx);
             
             this.EstimationData(3,this.tstep) = b;
@@ -314,7 +346,7 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
         
         function cbPreSolve(this, sender, data)%#ok
             %fprintf('cbPreSolve in local kernel est, Lipfun:%s, It:%d, TDC:%d\n',class(this.LocalLipschitzFcn),this.fIterations,this.fTDC);
-            this.d_iValues = zeros(length(data.Times),size(this.xi,2));
+            this.d_iValues = zeros(length(data.Times),size(this.c.xi,2));
         end
         
         function cbPostSolve(this, sender, data)%#ok
@@ -329,41 +361,33 @@ classdef LocalKernelEstimator < error.BaseKernelEstimator
     methods(Static)
         function errmsg = validModelForEstimator(rmodel)
             % Validations
-            errmsg = validModelForEstimator@error.BaseKernelEstimator(rmodel);
-            if isempty(errmsg) && ~isa(rmodel.System.f,'dscomponents.AKernelCoreFun')
-                errmsg = 'The reduced model''s core function must be a subclass of dscomponents.AKernelCoreFun for this error estimator.'; 
+            errmsg = validModelForEstimator@error.BaseCompLemmaEstimator(rmodel);
+            if isempty(errmsg) && ~isa(rmodel.System.f,'kernels.ParamTimeKernelExpansion')
+                errmsg = 'The reduced model''s core function must be a subclass of kernels.ParamTimeKernelExpansion for this error estimator.'; 
             end
-            if isempty(errmsg) && ~isa(rmodel.System.f.SystemKernel,'kernels.BellFunction')
+            if isempty(errmsg) && ~isa(rmodel.System.f.Kernel,'kernels.BellFunction')
                 errmsg = 'The system''s kernel must be a kernels.BellFunction for this error estimator.';
             end
         end
         
-        function res = test_LocalKernelEstimator
+        function res = test_IterationCompLemmaEstimator
             res = true;
             m = models.synth.KernelTest(10);
             m.offlineGenerations;
             r = m.buildReducedModel;
-            r.ErrorEstimator = error.LocalKernelEstimator(r);
-            
-%             try
-%                 m.ODESolver = solvers.ode.sMLWrapper(@ode23);
-%                 r.ErrorEstimator = error.LocalKernelEstimator(r);
-%                 r.ErrorEstimator.Iterations = 1;
-%             catch ME%#ok
-%                 res = true;
-%             end
+            r.ErrorEstimator = error.IterationCompLemmaEstimator(r);
             
             m.ODESolver = solvers.ode.Heun;
-            r.ErrorEstimator = error.LocalKernelEstimator(r);
+            r.ErrorEstimator = error.IterationCompLemmaEstimator(r);
             r.ErrorEstimator.Iterations = 4;
             
-            [t,y] = r.simulate;%#ok
+            [t,y] = r.simulate(r.System.getRandomParam,[]);%#ok
         end
     end
     
     methods(Static,Access=protected)
         function s = loadobj(s)
-            s = loadobj@error.BaseKernelEstimator(s);
+            s = loadobj@error.BaseCompLemmaEstimator(s);
             this.lstPreSolve = addlistener(s.ReducedModel.ODESolver,'PreSolve',@s.cbPreSolve);
             this.lstPreSolve.Enabled = false;
             this.lstPostSolve = addlistener(s.ReducedModel.ODESolver,'PostSolve',@s.cbPostSolve);

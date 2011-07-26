@@ -1,7 +1,9 @@
-classdef FixedCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
+classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
 % FixedCompWiseKernelApprox: Component-wise kernel approximation with fixed center set.
 %
 % @author Daniel Wirtz @date 2011-06-01
+%
+% @new{0,5,dw,2011-07-07} Moved the old approx.FixedCompWiseKernelApprox class to this class.
 %
 % @new{0,4,dw,2011-06-01} Added this class.
 %
@@ -24,32 +26,32 @@ classdef FixedCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
         
     methods    
         function this = FixedCompWiseKernelApprox
-            this = this@approx.BaseCompWiseKernelApprox;
+            this = this@approx.algorithms.BaseKernelApproxAlgorithm;
             
             % Register default property changed listeners
             this.registerProps('Gammas');
         end
                         
-        function target = clone(this)
-            % Clones the instance.
-            
-            % Create instance as this is the final class so far. If
-            % subclassed, this clone method has to be given an additional
-            % target argument.
-            target = approx.AdaptiveCompWiseKernelApprox;
-            
-            target = clone@approx.BaseCompWiseKernelApprox(this, target);
-            
-            %this.cloneLocalProps(target,mfilename('class'));
-            % copy local props
-            copy.Gammas = this.Gammas;
-            
-            copy.MaxErrors = this.MaxErrors;
-        end
+%         function target = clone(this)
+%             % Clones the instance.
+%             
+%             % Create instance as this is the final class so far. If
+%             % subclassed, this clone method has to be given an additional
+%             % target argument.
+%             target = approx.algorithms.AdaptiveCompWiseKernelApprox;
+%             
+%             target = clone@approx.KernelApprox(this, target);
+%             
+%             %this.cloneLocalProps(target,mfilename('class'));
+%             % copy local props
+%             copy.Gammas = this.Gammas;
+%             
+%             copy.MaxErrors = this.MaxErrors;
+%         end
     end
     
     methods(Access=protected, Sealed)
-        function computeCompwiseApprox(this, xi, ti, mui, fxi)
+        function detailedComputeApproximation(this, kexp, xi, ti, mui, fxi)
             % Performs adaptive approximation generation.
             %
             % @docupdate
@@ -58,16 +60,16 @@ classdef FixedCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             
             %% Checks
             % This algorithm so far works only with Gaussian kernels
-            if ~isa(this.SystemKernel,'kernels.GaussKernel') || ...
-                    (~isa(this.TimeKernel,'kernels.GaussKernel') && ~isa(this.TimeKernel,'kernels.NoKernel')) || ...
-                    (~isa(this.ParamKernel,'kernels.GaussKernel') && ~isa(this.ParamKernel,'kernels.NoKernel'))
+            if ~isa(kexp.Kernel,'kernels.GaussKernel') || ...
+                    (~isa(kexp.TimeKernel,'kernels.GaussKernel') && ~isa(kexp.TimeKernel,'kernels.NoKernel')) || ...
+                    (~isa(kexp.ParamKernel,'kernels.GaussKernel') && ~isa(kexp.ParamKernel,'kernels.NoKernel'))
                 error('Any kernels used have to be Gaussian kernels for this approximation algorithm so far');
             end
             
             % Set AKernelCoreFun centers
-            this.Centers.xi = xi;
-            this.Centers.ti = ti;
-            this.Centers.mui = mui;
+            kexp.Centers.xi = xi;
+            kexp.Centers.ti = ti;
+            kexp.Centers.mui = mui;
             
             errfun = @getLInftyErr;
                         
@@ -77,7 +79,7 @@ classdef FixedCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
             for gidx = 1:length(this.Gammas)
                 
                 g = this.Gammas(gidx);
-                this.SystemKernel.Gamma = g;
+                kexp.Kernel.Gamma = g;
                 
                 if KerMor.App.Verbose > 2
                     fprintf('xg:%.5e',g);
@@ -86,13 +88,13 @@ classdef FixedCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                 %% Compute coefficients
                 %warning('off','MATLAB:nearlySingularMatrix');
                 % Call coeffcomp preparation method and pass kernel matrix
-                K = this.getKernelMatrix;
+                K = kexp.getKernelMatrix;
                 this.CoeffComp.init(K);
 
                 % Call protected method
                 ex = [];
                 try
-                    this.computeCoeffs(fxi);
+                    this.computeCoeffs(kexp, fxi);
                 catch ME
                     if gidx > 1 && strcmp(ME.identifier,'KerMor:coeffcomp:failed')    
                         ex = ME;
@@ -103,14 +105,14 @@ classdef FixedCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                 end
                 
                 %% Determine maximum error over training data
-                fhat = this.evaluate(xi,ti,mui);
+                fhat = kexp.evaluate(xi,ti,mui);
                 [val, maxidx, errs] = errfun(fxi,fhat);
                 rel = val / (norm(fxi(maxidx))+eps);
                 this.MaxErrors(gidx) = val;
                 
                 if val < minerr
                     minerr = val;
-                    bestMa = this.Ma;
+                    bestMa = kexp.Ma;
                     bestg = g;
                     if KerMor.App.Verbose > 2
                         fprintf(' b: %.5e (rel %.5e)',val,rel);
@@ -122,20 +124,20 @@ classdef FixedCompWiseKernelApprox < approx.BaseCompWiseKernelApprox
                 end
                     
                 if KerMor.App.Verbose > 2
-                    fprintf(' ||Ma||:%.5e\n',sum(this.Ma_norms));
+                    fprintf(' ||Ma||:%.5e\n',sum(kexp.Ma_norms));
                 end
             end
             
                 
             %% Assign best values
-            this.SystemKernel.Gamma = bestg;
-%             if ~isa(this.TimeKernel,'kernels.NoKernel')
-%                 this.TimeKernel.Gamma = bestgt;
+            kexp.Kernel.Gamma = bestg;
+%             if ~isa(kexp.TimeKernel,'kernels.NoKernel')
+%                 kexp.TimeKernel.Gamma = bestgt;
 %             end
-%             if hasparams && ~isa(this.ParamKernel,'kernels.NoKernel')
-%                 this.ParamKernel.Gamma = bestgp;
+%             if hasparams && ~isa(kexp.ParamKernel,'kernels.NoKernel')
+%                 kexp.ParamKernel.Gamma = bestgp;
 %             end
-            this.Ma = bestMa;
+            kexp.Ma = bestMa;
 
             if ~isempty(ex)
                 fprintf('Adaptive approximation generation stopped due to exception.\n')

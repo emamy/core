@@ -1,4 +1,4 @@
-classdef KernelInterpol < KerMorObject & approx.IKernelCoeffComp
+classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
     % Provides kernel interpolation.
     %
     % The basic interpolation form is 
@@ -127,7 +127,7 @@ classdef KernelInterpol < KerMorObject & approx.IKernelCoeffComp
             flag = this.fUseLU;
         end
         
-        %% approx.IKernelCoeffComp interface members
+        %% approx.algorithms.IKernelCoeffComp interface members
         function init(this, K)
             this.UseLU = true;
             this.K = K;

@@ -27,12 +27,14 @@ s.m.Sampler = sampling.RandomSampler;
 s.m.Sampler.Samples = 10;
 s.m.ODESolver = solvers.ode.ExplEuler;
 
-a = approx.AdaptiveCompWiseKernelApprox;
-a.MaxExpansionSize = 5; % Keep test run short!
+a = approx.KernelApprox;
+ap = approx.algorithms.AdaptiveCompWiseKernelApprox;
+ap.MaxExpansionSize = 5; % Keep test run short!
+a.Algorithm = ap;
 %a.CoeffComp = general.regression.ScalarEpsSVR;
 s.TimeKernel = kernels.NoKernel;
 %a.TimeKernel = kernels.GaussKernel(2);
-s.SystemKernel = kernels.GaussKernel(2);
+s.Kernel = kernels.GaussKernel(2);
 s.ParamKernel = kernels.GaussKernel(2);
 s.m.Approx = a;
 
@@ -63,10 +65,12 @@ s.B = @(t,mu)ones(s.testdim,1);
 s.B_p = @(t,mu)ones(s.testdim,1).*mu(muidx);
 
 % Initials
-muidx = randi(s.testparams,s.testdim,1);
 musel = (rand(s.testdim,1)<.5);
-s.x0 = @(mu)rand(s.testdim,1);
-s.x0_p = @(mu)rand(s.testdim,1)+musel.*mu(muidx);
+s.x0 = dscomponents.ConstInitialValue(rand(s.testdim,1));
+av = dscomponents.AffineInitialValue;
+av.addMatrix(['mu(' num2str(randi(s.testparams)) ')'],musel .* rand(s.testdim,1));
+av.addMatrix('.5 + mu(1)',5*rand(s.testdim,1));
+s.x0_p = av;
 
 % Linear functions
 muidx = randi(s.testparams,s.testdim,1);

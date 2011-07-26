@@ -59,7 +59,7 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
         MultiArgumentEvaluations = false;
     end
     
-    properties(SetAccess=private, GetAccess=protected)
+    properties(SetAccess=private, GetAccess=public)
         V;
         W;
     end
@@ -177,7 +177,13 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
     end
         
     methods(Abstract)
-        % Evaluates the core function
+        % Actual method used to evaluate the dynamical sytems' core function.
+        %
+        % Subclasses might implement this method and set the flags CustomProjection and
+        % MultiArgumentEvaluations appropriately.
+        % However, for speed reasons, if both are true one might as well override the 'evaluate' member directly as it
+        % basically cares for the cases when one of the flags is not true. In that case it is still
+        % important to set both flags to true as some components rely on them.
         y = evaluateCoreFun(this, x, t, mu);
     end
     

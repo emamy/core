@@ -9,6 +9,8 @@ classdef KerMor < handle
     %
     % @author Daniel Wirtz @date 2011-03-04
     %
+    % @change{0,5,dw,2011-07-07} New property DefaultFigurePosition.
+    %
     % @change{0,5,dw,2011-06-20} Started KerMor version 0.5
     %
     % @change{0,4,dw,2011-05-03} 
@@ -237,6 +239,12 @@ classdef KerMor < handle
         %
         % @default false
         UseMatlabParallelComputing = false;
+        
+        % The default figure position to use.
+        %
+        % If none is set, KerMor does not modify the root workspace property
+        % 'DefaultFigurePosition' upon startup.
+        DefaultFigurePosition = [];
     end
     
     properties(SetAccess=private)
@@ -458,6 +466,21 @@ classdef KerMor < handle
                 end
             end
         end
+        
+        function value = get.DefaultFigurePosition(this)
+            value = this.DefaultFigurePosition;
+            if isempty(value)
+                value = getpref('KERMOR','DefFigPos',[]);
+                if ~isempty(value)
+                    this.DefaultFigurePosition = value;
+                end
+            end
+        end
+        
+        function set.DefaultFigurePosition(this, value)
+            setpref('KERMOR','DefFigPos',value);
+            this.DefaultFigurePosition = value;
+        end
     end
     
     methods(Access=private)
@@ -474,6 +497,13 @@ classdef KerMor < handle
             addpath(p);
             addpath(fullfile(p,'demos'));
             addpath(fullfile(p,'visual'));
+            addpath(fullfile(p,'external'));
+            addpath(fullfile(p,'external','WH10'));
+            addpath(fullfile(p,'external','ICIAM2011'));
+            % Figure position settings
+            if ~isempty(this.DefaultFigurePosition)
+                set(0,'DefaultFigurePosition',this.DefaultFigurePosition);
+            end
             
             initDirectories;
             init3rdparty;            
@@ -488,6 +518,9 @@ classdef KerMor < handle
                 desktop = com.mathworks.mde.desk.MLDesktop.getInstance;
                 desktop.restoreLayout(this.DesktopLayout);
             end
+            
+            
+            
             
             disp('<<<<<<<<< Ready to go. >>>>>>>>>>');
             

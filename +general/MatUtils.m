@@ -1,5 +1,13 @@
 classdef MatUtils
-    %MATUTILS Matrix utility functions
+    %MatUtils: Matrix utility functions
+    %
+    % @new{0,1,dw,2010-06-02} Added this class.
+    %
+    % This class is part of the framework
+    % KerMor - Model Order Reduction using Kernels:
+    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % - \c License @ref licensing    
     
     methods(Static)
         function [A, idxmat] = laplacemat(h, d1, d2)

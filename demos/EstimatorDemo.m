@@ -54,6 +54,9 @@ classdef EstimatorDemo < handle
         % The figure handles for the created figures.
         Figures;
         
+        % Axes
+        Axes;
+        
         % The marker size for error and relative errors plots.
         MarkerSize = 8;
         
@@ -108,6 +111,8 @@ classdef EstimatorDemo < handle
             
             %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Simulations
             fprintf('Starting estimator demo for model %s!\n',this.Model.Name);
+            % Save old estimator
+            oldest = this.ReducedModel.ErrorEstimator;
             str = ''; compplot = [];
             for idx = 1:num
                 % Set estimator and run
@@ -126,6 +131,9 @@ classdef EstimatorDemo < handle
                     compplot(end+1) = idx;
                 end
             end
+            % Restore old estimator
+            this.ReducedModel.ErrorEstimator = oldest;
+            
             % Compute full solution & remember full system's trajectory
             % (for rel. errors)
             %xrfullnorm = sqrt(sum(xr.^2,1));
@@ -145,6 +153,7 @@ classdef EstimatorDemo < handle
             fprintf('Preparing plots...\n');
             this.Figures = {};
             this.Figures{1} = figure;
+            this.Axes{1} = gca;
             a = cell(1,num);
             [a{:}] = this.Est(:).Name;
             if ~this.SingleFigures
@@ -196,6 +205,7 @@ classdef EstimatorDemo < handle
                 subplot(1,3,2);
             else
                 this.Figures{2} = figure;
+                this.Axes{2} = gca;
             end
             relerrs = errs ./ repmat(yfullnorm,num,1);
 %             this.RelErrs = relerrs;
@@ -237,6 +247,7 @@ classdef EstimatorDemo < handle
                 subplot(1,3,3);
             else
                 this.Figures{3} = figure;
+                this.Axes{3} = gca;
             end
             if this.LogarithmicPlot
                 eval(['ph = semilogx(' str '''MarkerSize'',10);']);
@@ -391,9 +402,9 @@ classdef EstimatorDemo < handle
         function buildEstimatorStruct(this, r)
             % Error estimators
             if ~isempty(this.Model.Approx)
-                k = this.Model.Approx.SystemKernel;
+                k = this.Model.Approx.Kernel;
             else
-                k = this.Model.System.f.SystemKernel;
+                k = this.Model.System.f.Kernel;
             end
             est = struct.empty;
             
@@ -418,7 +429,7 @@ classdef EstimatorDemo < handle
                 end
             end
             
-            msg = error.LocalKernelEstimator.validModelForEstimator(r);
+            msg = error.IterationCompLemmaEstimator.validModelForEstimator(r);
             if isempty(msg)
                 reps = this.EstimatorIterations;
                 fprintf('Using iteration counts: %s\n',num2str(this.EstimatorIterations));
@@ -426,8 +437,8 @@ classdef EstimatorDemo < handle
                 if this.EstimatorVersions(3)
                     fprintf('Initializing LGL estimator...\n');
                     est(end+1).Name = 'LGL';
-                    est(end).Estimator = error.LocalKernelEstimator(r);
-                    est(end).Estimator.LocalLipschitzFcn = error.LocalGradientLipschitz(k);
+                    est(end).Estimator = error.IterationCompLemmaEstimator(r);
+                    est(end).Estimator.LocalLipschitzFcn = error.lipfun.LocalGradientLipschitz(k);
                     est(end).Estimator.UseTimeDiscreteC = false;
                     est(end).MarkerStyle = 's';
                     est(end).LineStyle = '-';
@@ -444,8 +455,8 @@ classdef EstimatorDemo < handle
                 if this.EstimatorVersions(4)
                     fprintf('Initializing LGLMod (mod secant) estimator...\n');
                     est(end+1).Name = 'LGLMod';
-                    est(end).Estimator = error.LocalKernelEstimator(r);
-                    est(end).Estimator.LocalLipschitzFcn = error.LocalSecantLipschitz(k);
+                    est(end).Estimator = error.IterationCompLemmaEstimator(r);
+                    est(end).Estimator.LocalLipschitzFcn = error.lipfun.LocalSecantLipschitz(k);
                     est(end).Estimator.UseTimeDiscreteC = false;
                     est(end).MarkerStyle = 'h';
                     est(end).LineStyle = '-';
@@ -460,13 +471,13 @@ classdef EstimatorDemo < handle
                 end
                 
                 if any(this.EstimatorVersions([5 8]))
-                    ilfcn = error.ImprovedLocalSecantLipschitz(k);
+                    ilfcn = error.lipfun.ImprovedLocalSecantLipschitz(k);
                 end
                 
                 if this.EstimatorVersions(5)
                     fprintf('Initializing LSL estimator...\n');
                     est(end+1).Name = 'LSLE';
-                    est(end).Estimator = error.LocalKernelEstimator(r);
+                    est(end).Estimator = error.IterationCompLemmaEstimator(r);
                     est(end).Estimator.LocalLipschitzFcn = ilfcn.clone;
                     est(end).Estimator.UseTimeDiscreteC = false;
                     est(end).MarkerStyle = 'p';
@@ -483,7 +494,7 @@ classdef EstimatorDemo < handle
                 
                 %% TD-Versions
                 if any(this.EstimatorVersions(6:8))
-                    td = error.LocalKernelEstimator(r);
+                    td = error.IterationCompLemmaEstimator(r);
                     td.Iterations = 0;
                     td.UseTimeDiscreteC = true;
                 end
@@ -491,7 +502,7 @@ classdef EstimatorDemo < handle
                     fprintf('Initializing LSL TD estimators...\n');
                     est(end+1).Name = 'LGL TD';
                     est(end).Estimator = td;
-                    est(end).Estimator.LocalLipschitzFcn = error.LocalGradientLipschitz(k);
+                    est(end).Estimator.LocalLipschitzFcn = error.lipfun.LocalGradientLipschitz(k);
                     est(end).MarkerStyle = '<';
                     est(end).LineStyle = '-';
                 end
@@ -500,7 +511,7 @@ classdef EstimatorDemo < handle
                     fprintf('Initializing LSL TD estimators...\n');
                     est(end+1).Name = 'LGL TD';
                     est(end).Estimator = td.clone;
-                    est(end).Estimator.LocalLipschitzFcn = error.LocalSecantLipschitz(k);
+                    est(end).Estimator.LocalLipschitzFcn = error.lipfun.LocalSecantLipschitz(k);
                     est(end).MarkerStyle = '<';
                     est(end).LineStyle = '-';
                 end
@@ -514,7 +525,7 @@ classdef EstimatorDemo < handle
                     est(end).LineStyle = '-';
                 end
             else
-                fprintf('Cannot use the LocalKernelEstimator for model %s:\n%s\n',r.Name,msg);
+                fprintf('Cannot use the IterationCompLemmaEstimator for model %s:\n%s\n',r.Name,msg);
             end
             
             if this.EstimatorVersions(9)

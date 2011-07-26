@@ -9,6 +9,12 @@ classdef IDGenerator < handle
     %
     % @new{0,3,dw,2011-04-6} Added this class. Used to assign unique IDs to
     % any KerMorObjects.
+    %
+    % This class is part of the framework
+    % KerMor - Model Order Reduction using Kernels:
+    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % - \c License @ref licensing    
 
     properties(SetAccess=private)
         % The seed used as base for new IDs

@@ -5,7 +5,7 @@ function bsxfun_repmat_speedtest
 % Result: repmat is faster!
 
 dim1 = 50;
-dim2 = 80;
+dim2 = 800;
 A = rand(dim1,dim2);
 b = A(:,round(dim2/2));
 %b(1) = 200;

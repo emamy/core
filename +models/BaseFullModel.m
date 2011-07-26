@@ -49,6 +49,12 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
     % default value since initialization.
     % - Overloaded the models.BaseModel.computeTrajectory method in order to previously run the
     % property changed checks
+    %
+    % This class is part of the framework
+    % KerMor - Model Order Reduction using Kernels:
+    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % - \c License @ref licensing    
     
     properties
         % The full model's data container.
@@ -82,7 +88,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         %
         % @propclass{important}
         %
-        % @default approx.AdaptiveCompWiseKernelApprox
+        % @default approx.KernelApprox
         Approx;
         
         % Advanced property. 
@@ -164,8 +170,11 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             %             p.Mode = 'abs';
             %             p.Value = 1;
             %             this.PODFix = p;
-            this.Approx = approx.AdaptiveCompWiseKernelApprox;
+            this.Approx = approx.KernelApprox;
             this.Data = models.ModelData;
+            
+            % Set default dynamical system
+            this.System = models.BaseDynSystem(this);
             
             % Register default properties
             this.registerProps('Sampler','SpaceReducer','Approx',...
@@ -180,6 +189,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             time = tic;
             if ~isempty(this.Sampler)
                 this.Data.ParamSamples = this.Sampler.generateSamples(this);
+            elseif this.System.ParamCount > 0
+                error('No parameter sampler set for a parameterized system. See package sampling and the Sampler property of the BaseFullModel class.');
             end
             time = toc(time);
         end
@@ -193,18 +204,18 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % - Remove waitbar and connect to messaging system
             time = tic;
             
-            if this.Data.SampleCount == 0 && this.TrainingInputCount == 0
-                fprintf('BaseFullModel.genTrainingData: No parameters or inputs configured for training, nothing to do.\n');
-                time = toc(time);
-                return;
-            end
+%             if this.Data.SampleCount == 0 && this.TrainingInputCount == 0
+%                 fprintf('BaseFullModel.genTrainingData: No parameters or inputs configured for training, nothing to do.\n');
+%                 time = toc(time);
+%                 return;
+%             end
             
             num_s = max(1,this.Data.SampleCount);
             num_in = max(1,this.TrainingInputCount);
             
             % Compute system dimension using x0.
-            mu = this.Data.getParams(1);
-            dims = length(this.System.x0(mu));
+            mu = this.System.getRandomParam;
+            dims = length(this.System.x0.evaluate(mu));
             
             trajlen = length(this.Times);
             
@@ -258,7 +269,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 innum = 0;
 
                 if KerMor.App.Verbose > 0
-                    fprintf('Generating projection training data...\n');
+                    fprintf('Generating projection training data... ');
                     p = 0;
                 end
                 cnt = 0;
@@ -271,7 +282,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         if KerMor.App.Verbose > 0
                             perc = cnt/(num_in*num_s);
                             if perc > p
-                                fprintf('%2.0f%%\n',round(perc*100));
+                                %fprintf('%2.0f%%\n',round(perc*100));
+                                fprintf('%2.0f%% ',round(perc*100));
                                 p = ceil(perc*10)/10;
                             end
                         end
@@ -297,6 +309,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 
                         cnt=cnt+1;
                     end
+                end
+                if KerMor.App.Verbose > 0
+                    fprintf('\n');
                 end
                 this.Data.TrainingData = sn;
             end
@@ -398,16 +413,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 
                 %% Approximate core function (is parallelizable for its own)
                 % Compile necessary data
-                atd = this.Data.ApproxTrainData;
-                xi = atd(4:end,:);
-                ti = atd(3,:);
-                muidx = atd(1,:);
-                if all(muidx == 0)
-                    mui = [];
-                else
-                    mui = model.Data.ParamSamples(:,muidx);
-                end
-                this.Approx.approximateCoreFun(xi,ti,mui,this.Data.ApproxfValues);
+                this.Approx.approximateSystemFunction(this);
                 
                 if ~isempty(this.postApproximationTrainingCallback)
                     this.postApproximationTrainingCallback();
@@ -594,6 +600,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     error('Value may only contain valid indices for the Inputs cell array.');
                 elseif any(value > this.System.InputCount) || any(value < 1)
                     error('Invalid indices for Inputs.');    
+                elseif isempty(this.System.B)
+                    error('You must set the system''s property B when using training inputs.');
                 end
             end
             this.fTrainingInputs = value;
@@ -667,7 +675,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                  pc = obj.PropertiesChanged;
                  for pidx = 1:length(mc.Properties)
                      p = mc.Properties{pidx};
-                     if strcmp(p.GetAccess,'public') && ~p.Constant && ~p.Transient && ~strcmp(p.SetAccess,'private')
+                     if strcmp(p.GetAccess,'public') && ~p.Constant && ~p.Transient && strcmp(p.SetAccess,'public') %~strcmp(p.SetAccess,'private')
                          key = [p.DefiningClass.Name '.' p.Name];
                          if pc.containsKey(key)
                              p = pc(key);
@@ -711,11 +719,12 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function test_BaseModels
             m = models.BaseFullModel;
             af = dscomponents.AffLinCoreFun;
-            af.addSummand(@(t,mu)1, rand(4,4));
-            af.addSummand(@(t,mu)sum(mu)*5, rand(4,4)*3);
+            af.addMatrix('1', rand(4,4));
+            af.addMatrix('sum(mu)*5', rand(4,4)*3);
+            
             m.System.f = af;
-            m.System.x0 = @(mu)sin(1:4)';
-            %m.Approx = approx.DefaultCompWiseKernelApprox;
+            m.System.x0 = dscomponents.ConstInitialValue(sin(1:4)');
+            
             m.offlineGenerations;
             red = m.buildReducedModel;
             % Test simulations
@@ -735,7 +744,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             A = rand(2,2);
             m.System = models.BaseDynSystem(m);
             m.System.f = dscomponents.PointerCoreFun(@(x,t,mu)A*x);
-            m.System.x0 = @(mu)sin(1:2);
+            m.System.x0 = dscomponents.ConstInitialValue(sin(1:2)');
             m.offlineGenerations;
             red = m.buildReducedModel;
             red.simulate();

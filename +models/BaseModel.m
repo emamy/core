@@ -41,6 +41,12 @@ classdef BaseModel < KerMorObject
     %
     % @new{0,1,dw} String output of all model settings via method
     % getObjectConfig
+    %
+    % This class is part of the framework
+    % KerMor - Model Order Reduction using Kernels:
+    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % - \c License @ref licensing    
     
     properties(SetObservable)
         % The actual dynamical system used in the model.
@@ -342,7 +348,7 @@ classdef BaseModel < KerMorObject
             % Parameters:
             % mu: The parameter `\mu` to evaluate `x_0(\mu)`. Use [] for
             % none.
-            x0 = this.System.x0(mu) ./ this.System.StateScaling;
+            x0 = this.System.x0.evaluate(mu) ./ this.System.StateScaling;
         end
     end
         

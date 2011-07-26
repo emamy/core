@@ -1,4 +1,4 @@
-classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
+classdef ImprovedLocalSecantLipschitz < error.lipfun.Base
 % ImprovedLocalSecantLipschitz: 
 %
 %
@@ -7,7 +7,7 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
 % @change{0,4,dw,2011-06-07} Moved the ModifiedNewton methods from this class to kernels.BellFunction as
 % they are more appropriate at that place.
 %
-% @new{0,4,dw,2011-05-31} Added new prepareConstants init function from BaseLocalLipschitzFunction.
+% @new{0,4,dw,2011-05-31} Added new prepareConstants init function from Base.
 %
 % @new{0,4,dw,2011-05-20} Added this class.
 %
@@ -34,13 +34,13 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
     methods
         
         function this = ImprovedLocalSecantLipschitz(bellfcn)
-            this = this@error.BaseLocalLipschitzFunction(bellfcn);
+            this = this@error.lipfun.Base(bellfcn);
             this.registerProps('UseCachedSecants');
         end
         
         function copy = clone(this)
-            copy = error.ImprovedLocalSecantLipschitz(this.bellfcn);
-            %copy = clone@error.BaseLocalLipschitzFunction(this, copy);
+            copy = error.lipfun.ImprovedLocalSecantLipschitz(this.bellfcn);
+            %copy = clone@error.lipfun.Base(this, copy);
             copy.UseCachedSecants = this.UseCachedSecants;
         end
         
@@ -48,7 +48,7 @@ classdef ImprovedLocalSecantLipschitz < error.BaseLocalLipschitzFunction
             % nothing to do here!
         end
         
-        function ci = evaluate(this, di, C, t, mu)%#ok
+        function ci = evaluate(this, di, C)
             b = this.bellfcn;
             r0 = b.r0;
             if isempty(this.oldrs) || any(isnan(this.oldrs)) || size(this.oldrs,2) ~= size(di,2)

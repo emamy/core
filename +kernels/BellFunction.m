@@ -12,7 +12,7 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
     % @docupdate Properties and class description
     %
     % @change{0,4,dw,2011-06-07} Moved the ModifiedNewton methods from
-    % error.ImprovedLocalSecantLipschitz to this class as they are more appropriate here.
+    % error.lipfun.ImprovedLocalSecantLipschitz to this class as they are more appropriate here.
     %
     % @change{0,4,dw,2011-05-27} Changed `x_0` to `r_0` and `x_R` to `r_m` as adopted in the WH10
     % Paper.
@@ -149,10 +149,10 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
 %                     X = linspace(.5*min(min([x; xtmp],[],1)),2*max(max([x; xtmp],[],1)),si);
 %                     gs = zeros(length(y),si);
 %                     for idx = 1:length(y)
-%                         gs(idx,:) = error.ImprovedLocalSecantLipschitz.optFun(X,repmat(y(idx),size(X)),f,df,ddf,this.x0);
+%                         gs(idx,:) = error.lipfun.ImprovedLocalSecantLipschitz.optFun(X,repmat(y(idx),size(X)),f,df,ddf,this.x0);
 %                     end
 %                     
-%                     [g,dg] = error.ImprovedLocalSecantLipschitz.optFun(x,y,f,df,ddf,this.x0);
+%                     [g,dg] = error.lipfun.ImprovedLocalSecantLipschitz.optFun(x,y,f,df,ddf,this.x0);
 %                     xtmp = x;
 %                     x = x - g./dg;
 %                     %plot(xs,gs,'r');%,'LineWidth',2
@@ -324,7 +324,7 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
             
             b = kernels.GaussKernel(Gamma);
             r0 = b.r0; rm = b.rm;
-            lfun = error.ImprovedLocalSecantLipschitz(b);
+            lfun = error.lipfun.ImprovedLocalSecantLipschitz(b);
             lfun.NewtonTolerance = 1e-3;
             lfun.prepareConstants;
             
@@ -429,7 +429,7 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
 %             gs = kernels.BellFunction.optFun(x,y,f,df,ddf,x0);
 %             xs = x;
 %             for i=1:5
-%                 [g,dg] = error.ImprovedLocalSecantLipschitz.optFun(x,y,f,df,ddf,x0);
+%                 [g,dg] = error.lipfun.ImprovedLocalSecantLipschitz.optFun(x,y,f,df,ddf,x0);
 %                 xtmp = x;
 %                 x = x - g./dg;
 %                 plot(xs,gs,'r');%,'LineWidth',2

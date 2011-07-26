@@ -56,7 +56,11 @@ classdef GaussKernel < kernels.BellFunction
                 n2sq = sum(y.^2,1);
                 n2 = size(y,2);
             end;
-            K = (ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*x'*y;
+%             try
+                K = (ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*x'*y;
+%             catch ME
+%                 keyboard;
+%             end
             K(K<0) = 0;
             K = exp(-K/this.Gamma^2);
         end

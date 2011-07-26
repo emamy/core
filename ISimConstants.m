@@ -7,7 +7,7 @@ classdef ISimConstants < handle
     % @author Daniel Wirtz @date 2010-03-17
     %
     % @change{0,4,dw,2011-05-31} Generalized this interface description so it could be used for any
-    % component. (New: error.BaseLocalLipschitzFunction)
+    % component. (New: error.lipfun.Base)
     
     methods(Abstract)
         % Initializes inner properties that stay constant for the
@@ -17,8 +17,12 @@ classdef ISimConstants < handle
         % space-discretization variables that are to be computed for a
         % simulation but not every timestep.
         %
-        % See also: BaseDynSystem ACoreFun BaseLocalLipschitzFunction
-        prepareConstants;
+        % Parameters:
+        % mu: The parameter `\mu` used during trajectory computation. [] if none.
+        % inputidx: The input index for the input `u_i` to use. [] if none.
+        %
+        % See also: BaseDynSystem ACoreFun Base
+        prepareConstants(mu, inputidx);
     end
     
 end

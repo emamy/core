@@ -60,6 +60,10 @@ classdef RotationDecorator < spacereduction.BaseSpaceReducer
             %rnd = RandStream('mt19937ar','Seed',2564);
             
             n = size(V,1); %#ok<*PROP>
+            if this.Dims >= n/2
+                warning('KerMor:spacereduction:RotationDecorator','Too large Dims property (%d) for full space dimension %d, setting to %d',this.Dims,n,floor(n/2));
+                this.Dims = floor(n/2);                
+            end
             R = spdiags(ones(n,1),0,n,n);
             for idx = 1:this.Dims
                 Q = spdiags(ones(n,1),0,n,n);

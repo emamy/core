@@ -37,7 +37,7 @@ classdef Heun < solvers.ode.BaseCustomSolver
     methods(Access=protected,Sealed)
         function x = customSolve(this, odefun, t, x0)%#ok
             % Initialize result
-            steps = length(times);
+            steps = length(t);
             x = [x0 zeros(size(x0,1),steps-1)];
             dt = t(2:end)-t(1:end-1);
             % Solve for each time step

@@ -10,6 +10,8 @@ classdef TPWLApprox < approx.BaseApprox
 %
 % @author Daniel Wirtz @date 2011-04-01
 %
+% @change{0,5,dw,2011-07-07} Changed this class to adopt to the new BaseApprox interface.
+%
 % @change{0,4,dw,2011-05-10}
 % - The `A_i` matrices are now sparse if applicable (numel ~= 0 / numel < .5)
 % - Removed the WeightFun property and reintroduced the Beta property, correctly forwarding the
@@ -38,7 +40,7 @@ classdef TPWLApprox < approx.BaseApprox
     
     properties(Dependent, SetObservable)
         % @propclass{critical}
-        Beta = 25;
+        Beta;
     end
     
     properties(SetAccess=private)
@@ -48,7 +50,7 @@ classdef TPWLApprox < approx.BaseApprox
         Ai;
         bi;
         GaussWeight;
-        fBeta;
+        fBeta = 25;
     end
     
     methods        
@@ -82,6 +84,7 @@ classdef TPWLApprox < approx.BaseApprox
             % Set training data selection to epsselector (default strategy for original TPWL)
             this.TrainDataSelector = approx.selection.EpsSelector;
             this.MultiArgumentEvaluations = true;
+            this.CustomProjection = true;
         end
         
         function copy = clone(this)
@@ -110,7 +113,10 @@ classdef TPWLApprox < approx.BaseApprox
             projected.xi = W'*this.xi;
         end
         
-        function y = evaluateCoreFun(this, x, t, mu)
+        function y = evaluate(this, x, t, mu)%#ok
+            % Directly overrides the evaluate method of the ACoreFun as custom projection and
+            % multi-argument evaluations are natively possible.
+            % 
             % Implements ACoreFun abstract template method
             as = length(this.Ai);
             y = zeros(size(x));
@@ -151,12 +157,21 @@ classdef TPWLApprox < approx.BaseApprox
             end
         end
         
-        function approximateCoreFun(this, xi, ti, mui, fxi)
+        function approximateSystemFunction(this, model)
             % Implements BaseApprox abstract template method
             %
             % @todo create sparse matrices if suitable!
             
-            this.xi = xi;
+            atd = model.Data.ApproxTrainData;
+            this.xi = atd(4:end,:);
+            ti = atd(3,:);
+            muidx = atd(1,:);
+            if all(muidx == 0)
+                mui = [];
+            else
+                mui = model.Data.ParamSamples(:,muidx);
+            end
+            fxi = model.Data.ApproxfValues;
             
             as = size(this.xi,2);
             N = size(this.xi,1);
@@ -177,6 +192,10 @@ classdef TPWLApprox < approx.BaseApprox
                 this.bi(:,i) = fxi(:,i) - tmp*this.xi(:,i);
             end
         end
+        
+        function y = evaluateCoreFun(this)%#ok
+            % Noting to do here, evaluate is implemented directly. This method will never be called.
+        end
     end
     
     methods(Static)
@@ -186,11 +205,12 @@ classdef TPWLApprox < approx.BaseApprox
             
             m = models.synth.KernelTest(dims,false);
             m.Approx = approx.TPWLApprox;
+            m.Approx.Beta = 25;
             %m.Approx.EpsRad = epsrad;
             d = sqrt(dims)*epsrad;
             k = kernels.GaussKernel;
             k.setGammaForDistance(50*d);
-            m.Approx.WeightFun = k;
+            m.Approx.GaussWeight = k;
             m.dt = 0.01;
             
             m.offlineGenerations;

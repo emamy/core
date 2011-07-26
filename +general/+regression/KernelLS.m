@@ -1,4 +1,4 @@
-classdef KernelLS < KerMorObject & approx.IKernelCoeffComp
+classdef KernelLS < KerMorObject & approx.algorithms.IKernelCoeffComp
     %KERNELLS Least-Squares kernel regression ("Rigde Regression")
     %   Since the systems can be considerably large, the pcg solver is used
     %   instead of plain inversion.
@@ -70,7 +70,7 @@ classdef KernelLS < KerMorObject & approx.IKernelCoeffComp
             end
         end
         
-        %% approx.IKernelCoeffComp interface members
+        %% approx.algorithms.IKernelCoeffComp interface members
         function init(this, K)
             this.K = K;
         end
