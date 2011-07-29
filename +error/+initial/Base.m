@@ -1,5 +1,5 @@
 classdef Base < handle
-% Ae0Comp: 
+% Base: 
 %
 %
 %
@@ -14,6 +14,9 @@ classdef Base < handle
 % - \c License @ref licensing
     
     methods(Abstract)
+        % Returns the initial value error for given parameter `\mu`
+        %
+        % Template method.
         e0 = getE0(this, mu);
     end
     

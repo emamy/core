@@ -127,7 +127,7 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
 %                 this.fTK.evaluate(t, this.Centers.ti), ...
 %                 this.fSK.evaluate(x, this.Centers.xi), ...
 %                 this.fPK.evaluate(mu, this.Centers.mui));
-            fx = this.Ma * this.getKernelVector(x, t, mu)';
+              fx = this.Ma * this.getKernelVector(x, t, mu)';
         end
         
         function phi = getKernelVector(this, x, t, mu)

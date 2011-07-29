@@ -480,6 +480,9 @@ classdef KerMor < handle
         function set.DefaultFigurePosition(this, value)
             setpref('KERMOR','DefFigPos',value);
             this.DefaultFigurePosition = value;
+            if ~isempty(value)
+                set(0,'DefaultFigurePosition',value);
+            end
         end
     end
     

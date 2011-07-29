@@ -109,12 +109,12 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable
             % Please take care that the CoeffComp.init method was called
             % before executing this function.
             if this.ComputeParallel
-                if KerMor.App.Verbose > 1
+                if KerMor.App.Verbose > 2
                     fprintf('Starting parallel component-wise coefficient computation\n');
                 end
                 this.computeCoeffsParallel(kexp, fxi);
             else
-                if KerMor.App.Verbose > 1
+                if KerMor.App.Verbose > 2
                     fprintf('Starting component-wise coefficient computation\n');
                 end
                 this.computeCoeffsSerial(kexp, fxi);
@@ -187,6 +187,9 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable
     end
     
     methods(Abstract, Access=protected)
+        % Performs the actual approximation after scaling.
+        %
+        % Template method.
         detailedComputeApproximation(this, kexp, xi, ti, mui, fxi);
     end
     

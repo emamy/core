@@ -113,7 +113,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & ...
         
         function fx = evaluate(this, x)
             %fx = this.Ma * this.fSK.evaluate(x, this.Centers.xi)';
-            fx = this.Ma * this.getKernelVector(x, this.Centers.xi)';
+            fx = this.Ma * this.getKernelVector(x)';
         end
         
         function phi = getKernelVector(this, x)

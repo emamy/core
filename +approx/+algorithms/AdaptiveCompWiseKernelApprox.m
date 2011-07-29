@@ -157,11 +157,14 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
             
             %% Checks
             % This algorithm so far works only with Gaussian kernels
-            if ~isa(kexp, 'kernels.ParamTimeKernelExpansion')
-                error('Approximation method works only for parameterized kernel expansions.');
-            elseif ~isa(kexp.Kernel,'kernels.GaussKernel') || ...
-                    (~isa(kexp.TimeKernel,'kernels.GaussKernel') && ~isa(kexp.TimeKernel,'kernels.NoKernel')) || ...
-                    (~isa(kexp.ParamKernel,'kernels.GaussKernel') && ~isa(kexp.ParamKernel,'kernels.NoKernel'))
+            if ~isa(kexp, 'kernels.KernelExpansion')
+                error('Approximation method works only for kernel expansions.');
+            elseif ~isa(kexp.Kernel,'kernels.GaussKernel')
+                error('The state kernel has to be a Gaussian for this approximation algorithm so far');
+            end
+            pte = isa(kexp,'kernels.ParamTimeKernelExpansion');
+            if pte && ((~isa(kexp.TimeKernel,'kernels.GaussKernel') && ~isa(kexp.TimeKernel,'kernels.NoKernel')) || ...
+                    (~isa(kexp.ParamKernel,'kernels.GaussKernel') && ~isa(kexp.ParamKernel,'kernels.NoKernel')))
                 error('Any kernels used have to be Gaussian kernels for this approximation algorithm so far');
             end
             
@@ -172,41 +175,49 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
             sel = round(linspace(1,size(xi,2),vnum));
             vdxi = xi(:,sel);
             xi(:,sel) = [];
-            vdti = ti(sel);
-            ti(sel) = [];
             vdfxi = fxi(:,sel);
             fxi(:,sel) = [];
             
+            if pte
+                vdti = ti(sel);
+                ti(sel) = [];
+            end
+            
             % check if training data contains parameters
             nx = general.NNTracker;
-            nt = general.NNTracker;
+            if pte
+                nt = general.NNTracker;
+            end
             
             %% Compute bounding boxes & center
             [BXmin, BXmax] = general.Utils.getBoundingBox(xi);
-            Btmin = min(ti); Btmax = max(ti);
+            thecenter = (BXmin+BXmax)/2;
+            B = xi;
             % Get bounding box diameters
             bxdia = norm(BXmax - BXmin);
-            btdia = Btmax-Btmin;
-            
-            thecenter = [BXmin+BXmax; Btmin+Btmax]/2;
-            B = [ti; xi];
-            
-            %% Check if params are used
-            if ~isempty(mui)
-                hasparams = true;
-                vdmui = mui(:,sel);
-                mui(:,sel) = [];
+            if pte
+                Btmin = min(ti); Btmax = max(ti);
+                btdia = Btmax-Btmin;
+                thecenter = [thecenter; (Btmin+Btmax)/2];
+                B = [B; ti];
                 
-                np = general.NNTracker;
-                
-                [BPmin, BPmax] = general.Utils.getBoundingBox(mui);
-                bpdia = norm(BPmax - BPmin);
-                
-                thecenter = [BXmin+BXmax; Btmin+Btmax; BPmin + BPmax]/2;
-                B = [B; mui];
-            else
-                hasparams = false;
-                vdmui = [];
+                %% Check if params are used
+                if ~isempty(mui)
+                    hasparams = true;
+                    vdmui = mui(:,sel);
+                    mui(:,sel) = [];
+
+                    np = general.NNTracker;
+
+                    [BPmin, BPmax] = general.Utils.getBoundingBox(mui);
+                    bpdia = norm(BPmax - BPmin);
+
+                    thecenter = [thecenter; (BPmin + BPmax)/2];
+                    B = [B; mui];
+                else
+                    hasparams = false;
+                    vdmui = [];
+                end
             end
             
             %% Select initial center x0
@@ -218,13 +229,15 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
             
             kexp.Centers.xi = xi(:,inIdx);
             nx.addPoint(xi(:,inIdx)); % Add points to nearest neighbor trackers (for gamma comp)
-            kexp.Centers.ti = ti(inIdx);
-            nt.addPoint(ti(inIdx));
-            if hasparams
-                kexp.Centers.mui = mui(:,inIdx);
-                np.addPoint(kexp.Centers.mui);
-            else
-                kexp.Centers.mui = [];
+            if pte
+                kexp.Centers.ti = ti(inIdx);
+                nt.addPoint(ti(inIdx));
+                if hasparams
+                    kexp.Centers.mui = mui(:,inIdx);
+                    np.addPoint(kexp.Centers.mui);
+                else
+                    kexp.Centers.mui = [];
+                end
             end
             
             %% Set up initial expansion
@@ -233,23 +246,35 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
             
             %% Choose initial gammas
             xdists = dfun(this.MinGFactor*bxdia, this.MaxGFactor*bxdia);
-            tdists = dfun(this.MinGFactor*btdia, this.MaxGFactor*btdia);
-            dists = [xdists; tdists];
-            if hasparams
-                pdists = dfun(this.MinGFactor*bpdia, this.MaxGFactor*bpdia);
-                dists = [dists; pdists];
+            dists = xdists;
+            if pte
+                tdists = dfun(this.MinGFactor*btdia, this.MaxGFactor*btdia);
+                dists = [dists; tdists];
+                if hasparams
+                    pdists = dfun(this.MinGFactor*bpdia, this.MaxGFactor*bpdia);
+                    dists = [dists; pdists];
+                end
             end
-            minerr = Inf; gt = []; gp = [];
+            
+            % Init for the loop
+            minerr = Inf;             
+            gt = []; gp = [];
             for idx = 1:size(dists,2)
                 gx = kexp.Kernel.setGammaForDistance(dists(1,idx),this.gameps);
-                if ~isa(kexp.TimeKernel,'kernels.NoKernel')
-                    gt = kexp.TimeKernel.setGammaForDistance(dists(2,idx),this.gameps);
-                end
-                if hasparams && ~isa(kexp.ParamKernel,'kernels.NoKernel')
-                    gp = kexp.ParamKernel.setGammaForDistance(dists(3,idx),this.gameps);
+                if pte
+                    if ~isa(kexp.TimeKernel,'kernels.NoKernel')
+                        gt = kexp.TimeKernel.setGammaForDistance(dists(2,idx),this.gameps);
+                    end
+                    if hasparams && ~isa(kexp.ParamKernel,'kernels.NoKernel')
+                        gp = kexp.ParamKernel.setGammaForDistance(dists(3,idx),this.gameps);
+                    end
                 end
                 
-                val = errfun(fxi,kexp.evaluate(xi,ti,mui));
+                if pte
+                    val = errfun(fxi,kexp.evaluate(xi,ti,mui));
+                else
+                    val = errfun(fxi,kexp.evaluate(xi));
+                end
                 if val < minerr
                     minerr = val;
                     bestgx = gx;
@@ -260,11 +285,13 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
             end
             %% Assign best values
             kexp.Kernel.Gamma = bestgx;
-            if ~isa(kexp.TimeKernel,'kernels.NoKernel')
-                kexp.TimeKernel.Gamma = bestgt;
-            end
-            if hasparams && ~isa(kexp.ParamKernel,'kernels.NoKernel')
-                kexp.ParamKernel.Gamma = bestgp;
+            if pte
+                if ~isa(kexp.TimeKernel,'kernels.NoKernel')
+                    kexp.TimeKernel.Gamma = bestgt;
+                end
+                if hasparams && ~isa(kexp.ParamKernel,'kernels.NoKernel')
+                    kexp.ParamKernel.Gamma = bestgp;
+                end
             end
             if KerMor.App.Verbose > 1
                 fprintf('Initial gammas: SK:%e, TK:%e, PK:%e\n',bestgx,bestgt,bestgp);
@@ -281,7 +308,11 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
             while ~exception
                 
                 %% Determine maximum error over training data
-                fhat = kexp.evaluate(xi,ti,mui);
+                if pte
+                    fhat = kexp.evaluate(xi,ti,mui);
+                else
+                    fhat = kexp.evaluate(xi);
+                end
                 [val, maxidx, errs] = errfun(fxi,fhat);
                 rel = val / (norm(fxi(maxidx))+eps);
                 this.MaxErrors(cnt) = val;
@@ -301,30 +332,31 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
                 
                 %% Extend centers
                 kexp.Centers.xi(:,end+1) = xi(:,maxidx);
-                kexp.Centers.ti(end+1) = ti(maxidx);
-                if hasparams
-                    kexp.Centers.mui(:,end+1) = mui(:,maxidx);
-                    np.addPoint(mui(:,maxidx));
+                if pte
+                    kexp.Centers.ti(end+1) = ti(maxidx);
+                    if hasparams
+                        kexp.Centers.mui(:,end+1) = mui(:,maxidx);
+                        np.addPoint(mui(:,maxidx));
+                    end
+                    nt.addPoint(ti(maxidx));
                 end
                 % Add points to nearest neighbor trackers (for gamma comp)
                 nx.addPoint(xi(:,maxidx));
-                nt.addPoint(ti(maxidx));
-                
-                %nx.NNDists
                 
                 %% Compute new approximation
                 xdists = sort([dfun(nx.getMinNN, this.MaxGFactor*bxdia) dists(1,bestdistidx)]);
-                tdists = sort([dfun(nt.getMinNN, this.MaxGFactor*btdia) dists(2,bestdistidx)]);
-                
-                if hasparams
-                    minnn = bpdia/this.NumGammas;
-                    if ~isinf(np.getMinNN)
-                        minnn = np.getMinNN;
+                dists = xdists;
+                if pte
+                    tdists = sort([dfun(nt.getMinNN, this.MaxGFactor*btdia) dists(2,bestdistidx)]);
+                    dists = [dists; tdists];%#ok
+                    if hasparams
+                        minnn = bpdia/this.NumGammas;
+                        if ~isinf(np.getMinNN)
+                            minnn = np.getMinNN;
+                        end
+                        pdists = sort([dfun(minnn, this.MaxGFactor*bpdia) dists(3,bestdistidx)]);
+                        dists = [dists; pdists];%#ok
                     end
-                    pdists = sort([dfun(minnn, this.MaxGFactor*bpdia) dists(3,bestdistidx)]);
-                    dists = [xdists; tdists; pdists];
-                else
-                    dists = [xdists; tdists];
                 end
                 
                 if KerMor.App.Verbose > 2
@@ -340,17 +372,19 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
                         %fprintf('Kernels - Sys:%10f => gamma=%f',d(1),gx);
                         fprintf('xg:%.5e',gx);
                     end
-                    if ~isa(kexp.TimeKernel,'kernels.NoKernel')
-                        gt = kexp.TimeKernel.setGammaForDistance(d(2),this.gameps);
-                        if KerMor.App.Verbose > 2
-                            %fprintf(', Time:%10f => gamma=%10f',d(2),gt);
-                            fprintf(', tg:%.5e',gx);
+                    if pte
+                        if ~isa(kexp.TimeKernel,'kernels.NoKernel')
+                            gt = kexp.TimeKernel.setGammaForDistance(d(2),this.gameps);
+                            if KerMor.App.Verbose > 2
+                                %fprintf(', Time:%10f => gamma=%10f',d(2),gt);
+                                fprintf(', tg:%.5e',gx);
+                            end
                         end
-                    end
-                    if hasparams && ~isa(kexp.ParamKernel,'kernels.NoKernel')
-                        gp = kexp.ParamKernel.setGammaForDistance(d(3),this.gameps);
-                        if KerMor.App.Verbose > 2
-                            fprintf(', pg=%.5e',gp);
+                        if hasparams && ~isa(kexp.ParamKernel,'kernels.NoKernel')
+                            gp = kexp.ParamKernel.setGammaForDistance(d(3),this.gameps);
+                            if KerMor.App.Verbose > 2
+                                fprintf(', pg=%.5e',gp);
+                            end
                         end
                     end
                     
@@ -375,12 +409,20 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
                     %warning('on','MATLAB:nearlySingularMatrix');
                     
                     % get error on training data
-                    fhat = kexp.evaluate(xi,ti,mui);
+                    if pte
+                        fhat = kexp.evaluate(xi,ti,mui);
+                    else
+                        fhat = kexp.evaluate(xi);
+                    end
                     val = errfun(fxi, fhat);
                     impro = (val / minerr) * 100;
                     
                     % get error on validation set
-                    fvali = kexp.evaluate(vdxi,vdti,vdmui);
+                    if pte
+                        fvali = kexp.evaluate(vdxi,vdti,vdmui);
+                    else
+                        fvali = kexp.evaluate(vdxi);
+                    end
                     vdval = errfun(vdfxi, fvali);
                     if val < minerr
                         minerr = val;
@@ -408,11 +450,13 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
                 
                 %% Assign best values
                 kexp.Kernel.Gamma = bestgx;
-                if ~isa(kexp.TimeKernel,'kernels.NoKernel')
-                    kexp.TimeKernel.Gamma = bestgt;
-                end
-                if hasparams && ~isa(kexp.ParamKernel,'kernels.NoKernel')
-                    kexp.ParamKernel.Gamma = bestgp;
+                if pte
+                    if ~isa(kexp.TimeKernel,'kernels.NoKernel')
+                        kexp.TimeKernel.Gamma = bestgt;
+                    end
+                    if hasparams && ~isa(kexp.ParamKernel,'kernels.NoKernel')
+                        kexp.ParamKernel.Gamma = bestgp;
+                    end
                 end
                 kexp.Ma = bestMa;
                 
@@ -520,7 +564,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
             if ~isposintscalar(value)
                 error('Value must be a positive integer.');
             end
-            kexp.MaxExpansionSize = value;
+            this.MaxExpansionSize = value;
         end
                               
         function set.gameps(this, value)

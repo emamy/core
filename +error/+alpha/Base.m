@@ -58,8 +58,14 @@ classdef Base < handle
     end
 
     methods(Abstract)
+        % Computes the `\alpha(x, t,\mu)` value of the error estimator.
+        %
+        % Template method.
         a = getAlpha(this, phi, ut, t, mu);
         
+        % Performs the offline stage for the error estimators regarding the inputs.
+        %
+        % Template method.
         inputOfflineComputations(this, rmodel);
     end
     
