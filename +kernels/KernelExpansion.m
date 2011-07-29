@@ -10,6 +10,8 @@ classdef KernelExpansion < KerMorObject & ICloneable & ...
 %
 % @author Daniel Wirtz @date 2011-07-07
 %
+% @change{0,5,dw,2011-07-28} Fixed the evaluate method, it had an argument Centers.xi too much.
+%
 % @new{0,5,dw,2011-07-07} Added this class.
 %
 % Changes from former class CompwiseKernelCoreFun:

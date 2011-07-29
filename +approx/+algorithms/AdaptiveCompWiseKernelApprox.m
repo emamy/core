@@ -5,6 +5,9 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
 %
 % See also: BaseApprox KernelApprox
 %
+% @change{0,5,dw,2011-07-28} Changed the algorithm part so that it can also work with
+% kernels.KernelExpansion instead of only on kernels.ParamTimeKernelExpansion.
+%
 % @new{0,5,dw,2011-07-07} Moved the old approx.AdaptiveCompWiseKernelApprox class to this class.
 %
 % @change{0,4,dw,2011-05-31} Added new experimental properties @ref MinGFactor and @ref MaxGFactor.

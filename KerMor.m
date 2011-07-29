@@ -9,6 +9,9 @@ classdef KerMor < handle
     %
     % @author Daniel Wirtz @date 2011-03-04
     %
+    % @change{0,5,dw,2011-07-28} Setting the DefaultFigurePosition at runtime now directly changes
+    % the root setting (so far only upon restart of KerMor/Matlab)
+    %
     % @change{0,5,dw,2011-07-07} New property DefaultFigurePosition.
     %
     % @change{0,5,dw,2011-06-20} Started KerMor version 0.5
