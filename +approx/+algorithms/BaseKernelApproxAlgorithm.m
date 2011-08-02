@@ -73,10 +73,10 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable
             if length(usedidx) < n
                 kexp.Ma = kexp.Ma(:,usedidx);
                 kexp.Centers.xi = kexp.Centers.xi(:,usedidx);
-                if ~isempty(kexp.Centers.ti)
+                if isfield(kexp.Centers.ti) && ~isempty(kexp.Centers.ti)
                     kexp.Centers.ti = kexp.Centers.ti(:,usedidx);
                 end
-                if ~isempty(kexp.Centers.mui)
+                if isfield(kexp.Centers.ti) && ~isempty(kexp.Centers.mui)
                     kexp.Centers.mui = kexp.Centers.mui(:,usedidx);
                 end
             end
@@ -109,12 +109,12 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable
             % Please take care that the CoeffComp.init method was called
             % before executing this function.
             if this.ComputeParallel
-                if KerMor.App.Verbose > 2
+                if KerMor.App.Verbose > 3
                     fprintf('Starting parallel component-wise coefficient computation\n');
                 end
                 this.computeCoeffsParallel(kexp, fxi);
             else
-                if KerMor.App.Verbose > 2
+                if KerMor.App.Verbose > 3
                     fprintf('Starting component-wise coefficient computation\n');
                 end
                 this.computeCoeffsSerial(kexp, fxi);

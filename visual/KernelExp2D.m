@@ -1,5 +1,28 @@
 function varargout = KernelExp2D(varargin)
-% KERNELEXP2D M-file for KernelExp2D.fig
+% KERNELEXP2D (M-file for GUI KernelExp2D.fig)
+%
+% User interface to visualize kernel expansions using two input dimensions and one putput dimension.
+%
+% Parameters:
+% kexp: The kernel expansion, @type kernels.KernelExpansion
+% xi: The space/state centers `x_i`
+% fxi: The function evaluations `f(x_i)`
+% lbl: [optional] A struct with fields 'x' and 'fx', containing char cell arrays with the names for
+% the different dimensions. If not given, the labels `x_1,\ldots,x_n` and `f(x_1),\ldots,f(x_n)` are
+% used.
+% custcallb: A struct array of custom function callbacks for specific input/output dimension
+% choices. Each struct must have a field 'fcn', which contains a function handle to a function `g`
+% taking two arguments `x_1,x_2` and yield scalar output `g(x_1,x_2)`. The field 'sel' is required
+% to denote at which dimension choices those functions should be plotted additionally. It contains a
+% `1\times 3` vector `[i,j,k]` selecting the `[x_i,x_j,f_k(x)]` dimensions. Additionally, the fields
+% 'col' and 'alpha' can be used to define the color as in LineSpec and the alpha value,
+% respectively.
+%
+% @author Daniel Wirtz @date 2011-07-26
+%
+% @change{0,5,dw,2011-08-02} Extracted the comparison polynomials from PN7_Nils cooperation to more
+% general external callbacks and created a small help description.
+
 %      KERNELEXP2D, by itself, creates a new KERNELEXP2D or raises the existing
 %      singleton*.
 %
@@ -64,30 +87,44 @@ guidata(hObject, handles);
 %% Custom Code
 h = handles;
 if length(varargin) < 3
-    error('This component needs at minimum three arguments: The kernel expansion, the source data xi and the fxi values.');
+    close(h.main);
+    return;
+    %error('This component needs at minimum three arguments: The kernel expansion, the source data xi and the fxi values.');
 end
 kexp = varargin{1};
 xi = varargin{2};
 fxi = varargin{3};
-if length(varargin) == 4
+custcallb = [];
+if length(varargin) == 5
     lbl = varargin{4};
-else
-    % Automatically assign "useful" names to the dimensions
-    lbl = struct;
-    lbl.x = {};
-    for i=1:size(xi,1)
-        lbl.x{end+1} = ['x' num2str(i)];
-    end
-    lbl.fx = {};
-    for i=1:size(fxi,1)
-        lbl.fx{end+1} = ['fx' num2str(i)];
+    custcallb = varargin{5};
+elseif length(varargin) == 4
+    v4 = varargin{4};
+    if isfield(v4,'x')
+        lbl = v4;
+    else
+        custcallb = v4;
+        % Automatically assign "useful" names to the dimensions
+        lbl = struct;
+        lbl.x = {};
+        for i=1:size(xi,1)
+            lbl.x{end+1} = ['x_' num2str(i)];
+        end
+        lbl.fx = {};
+        for i=1:size(fxi,1)
+            lbl.fx{end+1} = ['f(x_' num2str(i) ')'];
+        end
     end
 end
-
+if ~isempty(custcallb) && (~isfield(custcallb,'fcn') || ~isfield(custcallb,'sel'))
+    error('If a custom callback struct is passed, it must contain at least the fields ''fcn'' and ''sel''.');
+    help KernelExp2D;
+end
 
 setappdata(h.main,'kexp',kexp);
 setappdata(h.main,'xi',xi);
 setappdata(h.main,'fxi',fxi);
+setappdata(h.main,'cb',custcallb);
 
 %% Setup default values
 conf.dims = size(xi,1);
@@ -152,28 +189,28 @@ shading(h.ax,'interp');
 % Add original points (select g% subset)
 d = xi - repmat(c.basex,1,size(xi,2));
 d(xsel,:) = [];
-[d, idx] = sort(sqrt(sum(d.^2,1)));
-sel = 1:round(length(d)*c.tperc/100);
-plot3(xi(c.d1,idx(sel)), xi(c.d2,idx(sel)), fxi(c.dout,idx(sel)),'black.','MarkerSize',5,'Parent',h.ax);
+d = sqrt(sum(d.^2,1));
+md = min(d); Md = max(d);
+sel = d < md + (Md-md)*(c.tperc/100);
+plot3(xi(c.d1,sel), xi(c.d2,sel), fxi(c.dout,sel),'black.','MarkerSize',5,'Parent',h.ax);
 
-%% Evaluate any given polynomials
-fxp = [];
-% fx = [M1 R2 R3];
-% M1(x,y) = M1(u3,phi1)
-if c.dout == 1 && all(xsel == [2 3])
-    fxp = P.M1(x1,x2);
-end
-% R2(x,y) = R2(u2,u3)
-if c.dout == 2 && all(xsel == [1 2])
-    fxp = P.R2(x1,x2);
-end
-% R3(x,y) = R3(u2,u3)
-if c.dout == 3 && all(xsel == [1 2])
-    fxp = P.R3(x1,x2);
-end
-if ~isempty(fxp)
-    hp = trisurf(tr,x1,x2,fxp,'FaceColor','r','EdgeColor','none','Parent',h.ax);
-    alpha(hp,.7);
+%% Evaluate any given callbacks for the given dimension
+cb = getappdata(h.main,'cb');
+for k=1:length(cb)
+    cbk = cb(k);
+    if all(cbk.sel([1 2]) == xsel) && c.dout == cbk.sel(3)
+        fxp = cbk.fcn(x1,x2);
+        col = 'r';
+        if isfield(cbk,'col')
+            col = cbk.col;
+        end
+        alph = .7;
+        if isfield(cbk,'alpha')
+            alph = cbk.alpha;
+        end
+        hp = trisurf(tr,x1,x2,fxp,'FaceColor',col,'EdgeColor','none','Parent',h.ax);
+        alpha(hp,alph);
+    end
 end
 
 xlabel(h.ax,c.lbl.x{c.d1});
@@ -271,7 +308,7 @@ function varargout = KernelExp2D_OutputFcn(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Get default command line output from handles structure
-varargout{1} = handles.output;
+%varargout{1} = handles.output;
 
 
 % --- Executes on selection change in dim1.
