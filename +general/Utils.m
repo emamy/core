@@ -389,6 +389,7 @@ classdef Utils
             marginr = .3;
             set(a, 'Position', [ti(1:2) 1-ti(3:4)*(1+marginr)-ti(1:2)]);
         end
+        
     end
     
     methods(Static)

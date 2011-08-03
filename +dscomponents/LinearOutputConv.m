@@ -10,7 +10,7 @@ classdef LinearOutputConv < dscomponents.AOutputConv
     % @change{0,3,dw,2011-04-11} Due to the new inheritance IProjectable <
     % ICloneable the clone method is implemented here now, too.
     
-    properties(Access=private)
+    properties(SetAccess=private)
         C;
     end
     

@@ -1,7 +1,7 @@
 classdef LinearInputConv < dscomponents.AInputConv
     % Simple linear (=matrix) input conversion
     
-    properties(Access=private)
+    properties(SetAccess=private)
         % The target matrix
         B;
     end
