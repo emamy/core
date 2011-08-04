@@ -1,12 +1,17 @@
 classdef TimeSelector < approx.selection.ASelector
 % TimeSelector: Approximation training data selection utilizing time information
 %
+% '''THE USE OF THIS SELECTOR HAS BEEN DISABLED DUE TO A NEW MODEL DATA STRUCTURE.'''
+%
 % This algorithm searches for unique values of times in the training data and determines how many
 % samples for each time should be taken according to it's apperance in the training data. Due to
 % rounding off numbers usually this process yields less than MaxSize elements, so additionally
 % linspaced elements are selected to fill up the MaxSize selection.
 %
 % @author Daniel Wirtz @date 2011-04-12
+%
+% @change{0,5,dw,2011-08-04} Disabled the use of this selector, as the new data.AModelData structure
+% does not cater sensefully for this type of approximation training data selection.
 %
 % @new{0,4,dw,2011-05-06} 
 % - Integrated this class to the property default value changed
@@ -45,7 +50,8 @@ classdef TimeSelector < approx.selection.ASelector
     
     methods
         function this = TimeSelector
-            this = this@approx.selection.ASelector;
+            error('Cannot use the TimeSelector any more. See help for details.');
+            this = this@approx.selection.ASelector;%#ok
             this.registerProps('Size','Seed');
         end
         
@@ -58,7 +64,7 @@ classdef TimeSelector < approx.selection.ASelector
     end
     
     methods(Access=protected,Sealed)
-        function atd = select(this, model)
+        function [xi, ti, mui] = select(this, model)
             % Performs selection of samples adjusted to the apperances of different times.
             sn = model.Data.TrainingData;
             if (size(sn,2) > this.Size)

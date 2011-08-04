@@ -22,9 +22,16 @@ classdef DefaultSelector < approx.selection.ASelector
     end
 
     methods(Access=protected,Sealed)
-        function atd = select(this, model)
-            atd = model.Data.TrainingData;
-            this.LastUsed = 1:size(atd,2);
+        function [xi, ti, mui] = select(this, model)%#ok
+            xi = [];
+            ti = [];
+            mui = [];
+            for k=1:model.Data.getNumTrajectories
+                [x, mu] = model.Data.getTrajectoryNr(k);
+                xi = [xi x]; %#ok
+                ti = [ti model.Times]; %#ok
+                mui = [mui repmat(mu,1,size(x,2))]; %#ok
+            end
         end
     end
     

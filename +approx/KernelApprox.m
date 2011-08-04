@@ -70,39 +70,10 @@ classdef KernelApprox < approx.BaseApprox & ...
         
         function approximateSystemFunction(this, model)
             atd = model.Data.ApproxTrainData;
-            xi = atd(4:end,:);
-            ti = atd(3,:);
-            muidx = atd(1,:);
-            if all(muidx == 0)
-                mui = [];
-            else
-                mui = model.Data.ParamSamples(:,muidx);
-            end
-            
+                        
             % First argument: this kernel expansion!
-            this.Algorithm.computeApproximation(this, xi, ti, mui, model.Data.ApproxfValues);
+            this.Algorithm.computeApproximation(this, atd.xi, atd.ti, atd.mui, atd.fxi);
         end
-        
-%         function fx = evaluate(this, x, t, mu)
-%             V = 1;
-%             if ~this.RotationInvariant && ~isempty(this.V)
-%                 V = this.V;
-%             end
-%             fx = evaluate@kernels.ParamTimeKernelExpansion(this, V*x, t, mu);
-%         end
-%         
-%         function projected = project(this, V, W)
-%             % Call superclass method
-%             projected = this.clone; 
-%             
-%             projected = project@dscomponents.ACoreFun(this, V, W, projected);
-%             % For rotation invariant kernel expansions the snapshots can be
-%             % transferred into the subspace without loss.
-%             if this.RotationInvariant
-%                 projected.Centers.xi = W' * this.Centers.xi;
-%             end
-%             projected.Ma = W'*this.Ma;
-%         end
                 
         function copy = clone(this)
             % Clones the instance.

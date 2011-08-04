@@ -347,17 +347,18 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
                 nx.addPoint(xi(:,maxidx));
                 
                 %% Compute new approximation
-                xdists = sort([dfun(nx.getMinNN, this.MaxGFactor*bxdia) dists(1,bestdistidx)]);
+                olddists = dists;
+                xdists = sort([dfun(nx.getMinNN, this.MaxGFactor*bxdia) olddists(1,bestdistidx)]);
                 dists = xdists;
                 if pte
-                    tdists = sort([dfun(nt.getMinNN, this.MaxGFactor*btdia) dists(2,bestdistidx)]);
+                    tdists = sort([dfun(nt.getMinNN, this.MaxGFactor*btdia) olddists(2,bestdistidx)]);
                     dists = [dists; tdists];%#ok
                     if hasparams
                         minnn = bpdia/this.NumGammas;
                         if ~isinf(np.getMinNN)
                             minnn = np.getMinNN;
                         end
-                        pdists = sort([dfun(minnn, this.MaxGFactor*bpdia) dists(3,bestdistidx)]);
+                        pdists = sort([dfun(minnn, this.MaxGFactor*bpdia) olddists(3,bestdistidx)]);
                         dists = [dists; pdists];%#ok
                     end
                 end

@@ -88,13 +88,12 @@ guidata(hObject, handles);
 h = handles;
 if length(varargin) < 3
     close(h.main);
-    return;
-    %error('This component needs at minimum three arguments: The kernel expansion, the source data xi and the fxi values.');
+    error('This component needs at minimum three arguments: The kernel expansion, the source data xi and the fxi values.');
 end
 kexp = varargin{1};
 xi = varargin{2};
 fxi = varargin{3};
-custcallb = [];
+custcallb = []; lbl = [];
 if length(varargin) == 5
     lbl = varargin{4};
     custcallb = varargin{5};
@@ -104,16 +103,18 @@ elseif length(varargin) == 4
         lbl = v4;
     else
         custcallb = v4;
-        % Automatically assign "useful" names to the dimensions
-        lbl = struct;
-        lbl.x = {};
-        for i=1:size(xi,1)
-            lbl.x{end+1} = ['x_' num2str(i)];
-        end
-        lbl.fx = {};
-        for i=1:size(fxi,1)
-            lbl.fx{end+1} = ['f(x_' num2str(i) ')'];
-        end
+    end
+end
+if isempty(lbl)
+    % Automatically assign "useful" names to the dimensions
+    lbl = struct;
+    lbl.x = {};
+    for i=1:size(xi,1)
+        lbl.x{end+1} = ['x_' num2str(i)];
+    end
+    lbl.fx = {};
+    for i=1:size(fxi,1)
+        lbl.fx{end+1} = ['f(x_' num2str(i) ')'];
     end
 end
 if ~isempty(custcallb) && (~isfield(custcallb,'fcn') || ~isfield(custcallb,'sel'))

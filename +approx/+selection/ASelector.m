@@ -10,6 +10,10 @@ classdef ASelector < KerMorObject & ICloneable
     % 
     % @author Daniel Wirtz @date 2011-04-12
     %
+    % @new{0,5,dw,2011-08-04} Removed the LastUsed property as it is incompatible with the new
+    % data.AModelData structure (the approximation training data is not a subset of TrainingData
+    % anymore). Subclasses have been changed in order to adopt to the new structure, too.
+    %
     % @new{0,4,dw,2011-05-04} Integrated this class to the property default value changed
     % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
     % extended constructor registering any user-relevant properties using
@@ -18,26 +22,15 @@ classdef ASelector < KerMorObject & ICloneable
     % @new{0,3,dw,2011-04-12} Added this class to implement strategy
     % pattern for training data selection.
     
-    properties(SetAccess=protected)
-        % The indices of the selected approximation training data of the last call to
-        % selectTrainingData.
-        %
-        % @propclass{data}
-        %
-        % @default []
-        LastUsed = [];
-    end
-    
     methods
         
         function this = ASelector
             this = this@KerMorObject;
-            this.registerProps('LastUsed');
         end
         
-        function copy = clone(this, copy)
-            copy.LastUsed = this.LastUsed;
-        end
+         function copy = clone(this, copy)
+%              copy = clone@KerMorObject(this, copy);
+         end
         
         function atd = selectTrainingData(this, model)
             % Performs the selection procedure
@@ -53,29 +46,21 @@ classdef ASelector < KerMorObject & ICloneable
             % atd: The approximation training data
             if ~isa(model,'models.BaseFullModel')
                 error('The model parameter must be a BaseFullModel subclass.');
-            elseif isempty(model.Data.TrainingData)
+            elseif model.Data.getNumTrajectories == 0
                 error('No training data available to select approximation training data from.');
             end
-            atd = this.select(model);
             
-            if isempty(this.LastUsed)
-                warning('KerMor:TrainDataSelection','TrainDataSelector did not set the LastUsed property.\nComputing automatically, which ist very slow for large data sets!');
-                this.LastUsed = general.Utils.findVecInMatrix(model.Data.TrainingData,atd);
-                %error('The subclass does not set the LastUsed property after selection. Please implement in order for other KerMor classes to work properly.');
-            end
-        end
-        
-        function set.LastUsed(this, value)
-            if ~isempty(value) && ~isposintmat(value)
-                error('The LastUsed property must contain a matrix with positive integer indices if set');
-            end
-            this.LastUsed = value;
+            atd = model.Data.ApproxTrainData;
+            [xi, ti, mui] = this.select(model);
+            atd.xi = xi;
+            atd.ti = ti;
+            atd.mui = mui;
         end
     end   
     
     methods(Abstract, Access=protected)
         % Template method for subclasses to specify selection behaviour.
-        atd = select(this, model)
+        [xi, ti, mui] = select(this, model)
     end
 end
 

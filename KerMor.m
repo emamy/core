@@ -9,6 +9,9 @@ classdef KerMor < handle
     %
     % @author Daniel Wirtz @date 2011-03-04
     %
+    % @new{0,5,dw,2011-08-04} Added flag UseDPCS to switch the default property changed system
+    % on/off.
+    %
     % @change{0,5,dw,2011-07-28} Setting the DefaultFigurePosition at runtime now directly changes
     % the root setting (so far only upon restart of KerMor/Matlab)
     %
@@ -248,6 +251,11 @@ classdef KerMor < handle
         % If none is set, KerMor does not modify the root workspace property
         % 'DefaultFigurePosition' upon startup.
         DefaultFigurePosition = [];
+        
+        % Switch to determine if the Default Property Changed System shall be used or not.
+        %
+        % @default true
+        UseDPCS = true;
     end
     
     properties(SetAccess=private)
@@ -486,6 +494,24 @@ classdef KerMor < handle
             if ~isempty(value)
                 set(0,'DefaultFigurePosition',value);
             end
+        end
+        
+        function value = get.UseDPCS(this)
+            value = this.UseDPCS;
+            if isempty(value)
+                value = getpref('KERMOR','UseDPCS',true);
+                if ~isempty(value)
+                    this.UseDPCS = value;
+                end
+            end
+        end
+        
+        function set.UseDPCS(this, value)
+            if ~islogical(value)
+                error('The UseDPCS flag must be boolean.');
+            end
+            setpref('KERMOR','UseDPCS',value);
+            this.UseDPCS = value;
         end
     end
     

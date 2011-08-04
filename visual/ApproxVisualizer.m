@@ -122,7 +122,7 @@ else
     set(h.islideS,'Max',m.TrainingInputCount,'Min',1,'Value',1);
     set(h.islideS,'SliderStep',[1/m.TrainingInputCount 10/m.TrainingInputCount]);
 end
-fdims = size(m.Data.ApproxTrainData,1)-3;
+fdims = size(m.Data.ApproxTrainData.fxi,1);
 set(h.fslide,'Max',fdims,'Value',1);
 set(h.fslide,'SliderStep',[1/(fdims-1) 10/(fdims-1)]);
 set(h.txtModel,'String',r.Name);
@@ -170,6 +170,7 @@ for pidx = 1:m.System.ParamCount
         % increase position counter
         pcnt = pcnt + 1;
     end
+    warning('KerMor:visual','FullData visualization will not work, not yet adopted to the new AModelData structure.');
 end
 
 function updateUserParam(h)

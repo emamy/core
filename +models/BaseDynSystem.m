@@ -93,7 +93,7 @@ classdef BaseDynSystem < KerMorObject
         % The parameters usable for the dynamical system.
         %
         % @propclass{optional}
-        Params = models.ModelParam.empty;
+        Params = data.ModelParam.empty;
         
         % The maximum timestep allowed for any ODE solvers.
         %
@@ -246,7 +246,7 @@ classdef BaseDynSystem < KerMorObject
             if ~isempty(this.Params) && ~isempty(find(strcmpi(name,{this.Params(:).Name}),1))
                 error('Parameter with name %s already exists. Use setParam instead.',name);
             end
-            this.Params(end+1) = models.ModelParam(name, range, desired);
+            this.Params(end+1) = data.ModelParam(name, range, desired);
         end
         
         function setParam(this, name, range, desired)
@@ -350,7 +350,7 @@ classdef BaseDynSystem < KerMorObject
         end
                 
         function set.Params(this, value)
-            if ~isa(value,'models.ModelParam')
+            if ~isa(value,'data.ModelParam')
                 error('Params property must be a ModelParam array.');
             end
             this.Params = value;

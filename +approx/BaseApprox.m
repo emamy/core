@@ -9,9 +9,12 @@ classdef BaseApprox < dscomponents.ACoreFun
     %
     % @author Daniel Wirtz @date 2010-03-11
     %
-    % @change{0,5,dw,2011-07-07} Changed the interface for the old approximateCoreFun to
+    % @change{0,5,dw,2011-07-07} 
+    % - Changed the interface for the old approximateCoreFun to
     % approximateSystemFunction that now takes only the full model instance instead of
     % `x_i,t_i,\mu_i,f_{x_i}` values.
+    % - The new default value for the approx train data selector is the
+    % approx.selection.DefaultSelector.
     %
     % @change{0,4,dw,2011-05-19} Disconnected the Approx classes from taking a BaseModel instance at
     % approx computation. This way external tools can use the approximation algorithms, too.
@@ -38,7 +41,7 @@ classdef BaseApprox < dscomponents.ACoreFun
         % @propclass{important} Determines the strategy used to select the approximation training
         % data
         %
-        % @default approx.selection.TimeSelector
+        % @default approx.selection.DefaultSelector
         %
         % @type approx.selection.ASelector
         %
@@ -55,7 +58,7 @@ classdef BaseApprox < dscomponents.ACoreFun
         end
         
         function this = BaseApprox
-            this.TrainDataSelector = approx.selection.TimeSelector;
+            this.TrainDataSelector = approx.selection.DefaultSelector;
         end
         
         function copy = clone(this, copy)

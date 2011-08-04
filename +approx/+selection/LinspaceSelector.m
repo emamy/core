@@ -1,10 +1,16 @@
 classdef LinspaceSelector < approx.selection.ASelector
 % Selects Size equally spaced samples from the training data.
 % 
-% Equally spaced in this context means with respect to the indices, NOT to the spatial distances
-% between the training samples.
+% Equally spaced in this context means not spaced in a state space sense.
+% Instead, the index set resulting from concatenation of ALL trajectories available will be sampled
+% over Size linearly equidistant indices. This way, all trajectories are treated as if it was one
+% big one.
 %
 % @author Daniel Wirtz @date 2011-04-12
+%
+% @change{0,5,dw,2011-08-4} Changed the behaviour of this class to adopt to the new AModelData
+% iterface. The sampling is done as before, treating all trajectories as if they were contained in
+% one big array.
 %
 % @new{0,4,dw,2011-05-06}
 % - Added this class to @ref propclasses.
@@ -48,17 +54,35 @@ classdef LinspaceSelector < approx.selection.ASelector
     end
     
     methods(Access=protected,Sealed)
-        function atd = select(this, model)
-            % Selects Size equally spaced samples from the training data.
+        function [xi, ti, mui] = select(this, model)
+            % Selects Size equally (index-)spaced samples from the training data.
             % 
-            % Equally spaced in this context means with respect to the
-            % indices, NOT to the spatial distances between the training
+            % Equally spaced in this context means with respect to the indices over the WHOLE
+            % trajectories summarized length, NOT to the spatial distances between the training
             % samples.
-            sn = model.Data.TrainingData;
-            s = min(this.Size,size(sn,2));
-            selection = round(linspace(1,size(sn,2),s));
-            atd = sn(:,selection);
-            this.LastUsed = selection;
+            
+            nt = model.Data.getNumTrajectories;
+            
+            % The trajectory length
+            tl = length(model.Times);
+            % The total size of all trajectories
+            ts = nt*tl;
+            % Get valid size
+            s = min(this.Size,ts);
+            % Obtain indices for each trajectory
+            idx = mod(round(linspace(0,ts-1,s)),tl)+1;
+            pos = [0 find(idx(2:end)-idx(1:end-1) < 0) s];
+            
+            xi = [];
+            ti = [];
+            mui = [];
+            for k=1:nt
+                [x, mu] = model.Data.getTrajectoryNr(k);
+                sel = pos(k)+1:pos(k+1);
+                xi = [xi x(:,idx(sel))]; %#ok<*AGROW>
+                ti = [ti model.Times(idx(sel))];
+                mui = [mui repmat(mu,1,length(sel))];
+            end
         end
     end
 end

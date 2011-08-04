@@ -390,6 +390,20 @@ classdef Utils
             set(a, 'Position', [ti(1:2) 1-ti(3:4)*(1+marginr)-ti(1:2)]);
         end
         
+        function h = getHash(vec)
+            % Returns a hash code using java classes for the given vector.
+            
+            % Must do for the moment.
+            h = sprintf('-%f-',vec);
+            % Does NOT work as of course java assigns new adresses to the vectors each time.
+%             jvec = java_array('java.lang.Double',length(vec));
+%             for i=1:length(vec)
+%                 jvec(i) = java.lang.Double(vec(i));
+%             end
+%             h = jvec.hashCode;
+%             clear jvec;
+        end
+        
     end
     
     methods(Static)

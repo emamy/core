@@ -21,6 +21,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
     %
     % @author Daniel Wirtz @date 16.03.2010
     %
+    % @change{0,5,dw,2011-08-04} Adopted the off2_genTrainingData method to the new data.AModelData
+    % structure. Now all trajectories are stored either in memory or disk, and the data.AModelData
+    % classes take care of storage.
+    %
     % @new{0,4,dw,2011-05-31} Added the models.BaseFullModel.OfflinePhaseTimes property.
     %
     % @change{0,4,sa,2011-05-11} Implemented setters for the
@@ -62,9 +66,11 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         %
         % @propclass{data}
         %
-        % @type models.ModelData
+        % @type data.AModelData
         %
-        % See also: ModelData
+        % @default data.MemoryModelData
+        %
+        % See also: AModelData
         Data;
     end
     
@@ -171,7 +177,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             %             p.Value = 1;
             %             this.PODFix = p;
             this.Approx = approx.KernelApprox;
-            this.Data = models.ModelData;
+            
+            % ModelData defaults to MemoryData
+            this.Data = data.MemoryModelData;
             
             % Set default dynamical system
             this.System = models.BaseDynSystem(this);
@@ -213,19 +221,18 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             num_s = max(1,this.Data.SampleCount);
             num_in = max(1,this.TrainingInputCount);
             
-            % Compute system dimension using x0.
-            mu = this.System.getRandomParam;
-            dims = length(this.System.x0.evaluate(mu));
+%             if num_s*num_in < matlabpool('size')
+%                 % @TODO: switch back if changed!
+%                 this.ComputeParallel = false;
+%             end
             
-            trajlen = length(this.Times);
-            
-            if num_s*num_in < matlabpool('size')
-                % @TODO: switch back if changed!
-                this.ComputeParallel = false;
-            end
+            % Clear old trajectory data.
+            this.Data.clearTrajectories;
             
             %% Parallel - computation
             if this.ComputeParallel
+                error('Parallel computing not yet tested with new ModelData structure / model.Data.addTrajectory might not be thread-safe!');
+                
                 idxmat = general.Utils.createCombinations(1:num_s,this.System.TrainingInputs);
                 sn = zeros(dims+3,trajlen,size(idxmat,2));
                 
@@ -239,7 +246,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     
                     % Check for parameters
                     mu = []; munum = 0;
-                    if this.Data.SampleCount > 0%#ok
+                    if this.Data.SampleCount > 0
                         munum = paridx(idx);
                         mu = this.Data.getParams(munum);
                     end
@@ -254,20 +261,15 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     [t, x] = this.computeTrajectory(mu, inputidx);                    
                     
                     % Assign snapshot values
-                    sn(:,:,idx) = [ones(1,trajlen)*munum; ones(1,trajlen)*innum; t; x];
+                    this.Data.addTrajectory(x,mu,inputidx);    
                 end
-                this.Data.TrainingData = sn(:,:);
                 
                 %% Non-parallel computation
             else
-                sn = zeros(dims+3,trajlen*num_s*num_in);
-
                 % Assume no parameters or inputs
                 mu = [];
-                munum = 0;
                 inputidx = [];
-                innum = 0;
-
+               
                 if KerMor.App.Verbose > 0
                     fprintf('Generating projection training data... ');
                     p = 0;
@@ -291,29 +293,22 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         % Check for parameters
                         if this.Data.SampleCount > 0
                             mu = this.Data.getParams(pidx);
-                            munum = pidx;
                         end
                         % Check for inputs
                         if this.TrainingInputCount > 0
                             inputidx = this.TrainingInputs(inidx);
-                            innum = inputidx;
                         end
 
                         % Get trajectory
                         [t, x] = this.computeTrajectory(mu, inputidx);
                                                 
                         % Assign snapshot values
-                        curpos = cnt*trajlen+1;
-                        sn(:,curpos:curpos+trajlen-1) = ...
-                            [ones(1,trajlen)*munum; ones(1,trajlen)*innum; t; x];
-
-                        cnt=cnt+1;
+                        this.Data.addTrajectory(x, mu, inputidx);
                     end
                 end
                 if KerMor.App.Verbose > 0
                     fprintf('\n');
                 end
-                this.Data.TrainingData = sn;
             end
             
             time = toc(time);
@@ -329,13 +324,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.Data.V = [];
             this.Data.W = [];
             if ~isempty(this.SpaceReducer)
-                if size(this.Data.TrainingData,2) == 1
-                    % Easy case: Source dimension is already one. Just set V = Id.
-                    this.Data.V = 1;
-                    this.Data.W = 1;
-                    warning('KerMor:spacereduction',['System''s state dimension'...
-                        'is already one; no effective reduction.']);
-                end
                 fprintf('Computing reduced space...\n');
                 [this.Data.V this.Data.W] = this.SpaceReducer.generateReducedSpace(this);
             end
@@ -359,34 +347,35 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 % If projection is used, train approximating function in
                 % centers projected into the subspace.
                 if ~isempty(this.Data.V) && ~isempty(this.Data.W)
-                    atd(4:end,:) = this.Data.V*(this.Data.W'*atd(4:end,:));
+                    atd.xi = this.Data.V*(this.Data.W'*atd.xi);
                 end
                 this.Data.ApproxTrainData = atd;
                 
                 % Compute f-Values at training data
+                if isempty(atd.mui)
+                    atdmui = double.empty(0,length(atd.ti));
+                else
+                    atdmui = atd.mui;
+                end
                 if this.ComputeParallel
-                    fval = zeros(size(this.Data.TrainingData,1)-3,size(atd,2));
-                    atddata = atd(4:end,:);
-                    pardata = atd(1,:);
+                    fval = zeros(size(atd,1)-3,size(atd,2));
+                    atdxi = atd.xi;
+                    atdti = atd.ti;
                     if KerMor.App.Verbose > 0
                         fprintf('Starting parallel f-values computation at %d points on %d workers...\n',size(atd,2),matlabpool('size'));
                     end
-                    parfor sidx=1:size(atd,2)
+                    parfor sidx=1:size(atddata,2)
                         fval(:,sidx) = ...
-                            this.System.f.evaluate(atddata(:,sidx),... % x
-                            atd(3,sidx),... % t
-                            this.Data.getParams(pardata(sidx))); %#ok mu
+                            this.System.f.evaluate(atdxi(:,sidx),... % x
+                            atdti(sidx),... % t
+                            atdmui(:,sidx)); % mu
                     end
-                    this.Data.ApproxfValues = fval;
+                    this.Data.ApproxTrainData.fxi = fval;
                 else
-                    this.Data.ApproxfValues = zeros(size(this.Data.TrainingData,1)-3,size(atd,2));
                     if KerMor.App.Verbose > 0
-                        fprintf('Serial computation of f-values at %d points ...\n',size(atd,2));
+                        fprintf('Serial computation of f-values at %d points ...\n',size(atd.xi,2));
                     end
-                    this.Data.ApproxfValues = ...
-                            this.System.f.evaluate(atd(4:end,:),... % x
-                            atd(3,:),... % t
-                            this.Data.getParams(atd(1,:))); % mu
+                    this.Data.ApproxTrainData.fxi = this.System.f.evaluate(atd.xi, atd.ti, atdmui);
                 end                
             end
             time = toc(time);
@@ -399,7 +388,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             time = tic;
             
             if ~isempty(this.Approx)
-                if isempty(this.Data.ApproxTrainData) || isempty(this.Data.ApproxfValues)
+                if isempty(this.Data.ApproxTrainData.xi)
                     error('No approximation training data available. Called off4_genApproximationTrainData?');
                 end
                 
@@ -408,7 +397,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 end
                 
                 if KerMor.App.Verbose > 0
-                    fprintf('Serial approximation computation for %d dimensions ...\n',size(this.Data.ApproxfValues,1));
+                    fprintf('Serial approximation computation for %d dimensions ...\n',size(this.Data.ApproxTrainData.fxi,1));
                 end
                 
                 %% Approximate core function (is parallelizable for its own)
@@ -468,7 +457,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             if isempty(this.Data) 
                 error('No ModelData class found. Forgot to call offlineGenerations?');
             end
-            if isempty(this.Data.TrainingData) && ~(this.Data.SampleCount == 0 && this.TrainingInputCount == 0)
+            if isempty(this.Data.getNumTrajectories == 0) && ~(this.Data.SampleCount == 0 && this.TrainingInputCount == 0)
                 error('No Snapshot data available. Forgot to call offlineGenerations before?');
             end
             tic;
@@ -491,7 +480,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % the property Times
             % x: The state variables at the corresponding times t.
             
-            this.checkProperties;
+            if KerMor.App.UseDPCS
+                this.checkProperties;
+            end
             
             [t,x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
         end
@@ -566,7 +557,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         end
         
         function set.Data(this, value)
-            this.checkType(value, 'models.ModelData');%#ok
+            this.checkType(value, 'data.AModelData');%#ok
             this.Data = value;
         end
         

@@ -6,10 +6,14 @@ classdef EpsSelector < approx.selection.ASelector
 %
 % @author Daniel Wirtz @date 2011-05-05
 %
-% @new{0,4,dw,2011-05-06} 
-% - Implemented the ICloneable interface.
-% @new{0,4,dw,2011-05-05} 
-% - Added this class and included it into the DPCS.
+% @change{0,5,dw,2011-08-04} Adopted this selector class to the new data.AModelData structure. For
+% now it only works on models that sample a single trajectory, as originally proposed by the TPWL
+% guys.
+%
+% @new{0,4,dw,2011-05-06} Implemented the ICloneable interface.
+%
+% @new{0,4,dw,2011-05-05} Added this class and included it into the DPCS.
+%
 % @new{0,4,dw,2011-05-04} Integrated this class to the property default value changed
 % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
 % extended constructor registering any user-relevant properties using
@@ -57,9 +61,12 @@ classdef EpsSelector < approx.selection.ASelector
     end
     
     methods(Access=protected)
-        function atd = select(this, model)
-            sn = model.Data.TrainingData;
-            x = sn(4:end,:);
+        function [xi, ti, mui] = select(this, model)
+            
+            if model.Data.getNumTrajectories > 1
+                warning('KerMor:approx:selection:EpsSelector','The epsilon-selector can only be used with one trajectory at the moment. Ignoring all but the first.');
+            end
+            [x, mu] = model.Data.getTrajectoryNr(1); 
             if this.SubspaceProject && ~isempty(model.SpaceReducer)
                 x = model.Data.V*(model.Data.W'*x);
             end
@@ -77,8 +84,9 @@ classdef EpsSelector < approx.selection.ASelector
                 cur = x(:,idx);
                 idx = idx+1;
             end
-            atd = sn(:,selidx);
-            this.LastUsed = selidx;
+            xi = x(:,selidx);
+            ti = model.Times(selidx);
+            mui = repmat(mu,1,length(selidx));
         end
     end
     
