@@ -31,10 +31,11 @@ classdef Orthonormalizer < KerMorObject
         % The orthogonalization algorithm used.
         % Possible choices:
         % "gs": Gram-Schmidt
-        % "qr": QR-Decomposition
         % "ch": Cholesky-Decomposition
         %
         % Default: "gs"
+        
+        % "qr": QR-Decomposition
         Algorithm = 'gs';
     end
     
@@ -129,6 +130,9 @@ classdef Orthonormalizer < KerMorObject
         end
         
         function onvec = ortho_qr(this, vec)
+            if 1==1 
+                error('orthogonalization by qr has implementation errors. Do not use.'); 
+            end
             onvec = vec;
             
             % incomplete cholesky of inner-product matrix:
@@ -174,9 +178,18 @@ classdef Orthonormalizer < KerMorObject
     
     methods(Static)
         function res = test_Orthogonalization
-            % @todo implement
-            warning('km:ortho','not yet implemented!');
-            res = true;
+            
+            A = rand(150,50);
+            
+            o = general.Orthonormalizer;
+            o.Algorithm = 'gs';
+            ov1 = o.orthonormalize(A);
+            o.Algorithm = 'ch';
+            ov2 = o.orthonormalize(A);
+%             o.Algorithm = 'qr';
+%             ov3 = o.orthonormalize(A)
+
+            res = norm(ov1-ov2) < sqrt(eps);
         end
     end
     

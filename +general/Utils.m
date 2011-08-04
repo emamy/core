@@ -394,7 +394,7 @@ classdef Utils
             % Returns a hash code using java classes for the given vector.
             
             % Must do for the moment.
-            h = sprintf('-%f-',vec);
+            h = sprintf('%f',vec);
             % Does NOT work as of course java assigns new adresses to the vectors each time.
 %             jvec = java_array('java.lang.Double',length(vec));
 %             for i=1:length(vec)

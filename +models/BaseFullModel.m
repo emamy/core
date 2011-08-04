@@ -86,7 +86,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         %
         % @propclass{important}
         %
-        % @default spacereduction.PODReducer
+        % @default spacereduction.TrajectoryGreedy
         % See also: spacereduction BaseSpaceReducer
         SpaceReducer;
         
@@ -171,11 +171,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             
             % Setup default values for the full model's components
             this.Sampler = sampling.RandomSampler;
-            this.SpaceReducer = spacereduction.PODReducer;
-            %             p = general.PODFixspace;
-            %             p.Mode = 'abs';
-            %             p.Value = 1;
-            %             this.PODFix = p;
+            
+            this.SpaceReducer = spacereduction.TrajectoryGreedy;
+            
             this.Approx = approx.KernelApprox;
             
             % ModelData defaults to MemoryData

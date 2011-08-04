@@ -108,7 +108,9 @@ classdef POD < KerMorObject
                 
                 err = sum(s(~sig));
                 rerr = 100*err/sum(s);
-                fprintf('POD mode ''%s'' with value %2.6f: Selecting %d singular values, error %.4e (%.4e%% relative)\n',this.Mode,this.Value,length(find(sig)),err,rerr);
+                if KerMor.App.Verbose > 2
+                    fprintf('POD mode ''%s'' with value %2.6f: Selecting %d singular values, error %.4e (%.4e%% relative)\n',this.Mode,this.Value,length(find(sig)),err,rerr);
+                end
                 % Select wanted subspace
                 u = u(:,sig);
                 v = v(:,sig);

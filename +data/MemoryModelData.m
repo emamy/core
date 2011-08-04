@@ -143,6 +143,7 @@ classdef MemoryModelData < data.AModelData
     
     methods(Static)
         function res = test_MemoryModelData
+            
             m = data.MemoryModelData;
             
             T = 10;
@@ -152,13 +153,13 @@ classdef MemoryModelData < data.AModelData
                 p(:,i) = rand(4,1);%#ok
                 in(i) = i;%#ok
             end
-            
+
             % Params only
             for i=1:T;
                 m.addTrajectory(tr(:,:,i),p(:,i),[]);
             end
             res = res && m.getNumTrajectories == T;
-            
+
             for i=1:T;
                 [x, pi] = m.getTrajectoryNr(i);
                 res = res && isequal(x,tr(:,:,i)) && isequal(p(:,i),pi);
@@ -166,13 +167,13 @@ classdef MemoryModelData < data.AModelData
                 res = res && isequal(x,tr(:,:,i));
             end
             m.clearTrajectories;
-            
+
             % Inputs only
             for i=1:T;
                 m.addTrajectory(tr(:,:,i),[],in(i));
             end
             res = res && m.getNumTrajectories == T;
-            
+
             for i=1:T;
                 [x, pi, ini] = m.getTrajectoryNr(i);
                 res = res && isequal(x,tr(:,:,i)) && isequal(ini,in(i));
@@ -180,13 +181,13 @@ classdef MemoryModelData < data.AModelData
                 res = res && isequal(x,tr(:,:,i));
             end
             m.clearTrajectories;
-            
+
             % both
             for i=1:T;
                 m.addTrajectory(tr(:,:,i),p(:,i),in(i));
             end
             res = res && m.getNumTrajectories == T;
-            
+
             for i=1:T;
                 [x, pi, ini] = m.getTrajectoryNr(i);
                 res = res && isequal(x,tr(:,:,i)) && isequal(ini,in(i)) && isequal(p(:,i),pi);
@@ -196,6 +197,5 @@ classdef MemoryModelData < data.AModelData
             m.clearTrajectories;
         end
     end
-    
 end
 
