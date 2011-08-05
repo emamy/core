@@ -113,6 +113,8 @@ classdef BaseDynSystem < KerMorObject
         % Can either be a scalar that will be used for every `f`-dimension, or a vector of the same
         % dimension as the system's core function `f` which will then be applied component-wise
         %
+        % See the @ref scaling documentation for more details.
+        %
         % @propclass{scaling}
         %
         % @type column vector

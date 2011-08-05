@@ -309,7 +309,7 @@ classdef BaseModel < KerMorObject
             % Assign jacobian evaluation function if available
             if isa(slv,'solvers.ode.BaseImplSolver')
                 if isa(this.System.f,'dscomponents.IJacobian')
-                    slv.JacFun = @(t,x)this.System.f.getStateJacobian(x, t, mu);
+                    slv.JacFun = @(t, x)this.System.f.getStateJacobian(x, t, mu);
                 else
                     slv.JacFun = [];
                 end

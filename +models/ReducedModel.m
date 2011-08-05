@@ -107,6 +107,7 @@ classdef ReducedModel < models.BaseModel
             % Copy data that is also needed in the reduced model
             this.V = fullmodel.Data.V;
             this.W = fullmodel.Data.W;
+            
             this.ParamSamples = fullmodel.Data.ParamSamples;
             
             % Create a new reducedSystem passing this reduced model
@@ -179,7 +180,9 @@ classdef ReducedModel < models.BaseModel
             %
             % If the estimator is enabled, x0 is extended by the e0
             % components of the error estimator.
+            
             x0 = getX0@models.BaseModel(this, mu);
+            %x0 = this.System.x0.evaluate(mu);
             if this.ErrorEstimator.Enabled
                 x0 = [x0; this.ErrorEstimator.getE0(mu)];
             end

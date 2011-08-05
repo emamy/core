@@ -123,7 +123,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & ...
             phi = this.fSK.evaluate(x, this.Centers.xi);
         end
                 
-        function J = getStateJacobian(this, x)
+        function J = getStateJacobian(this, x, varargin)
             % Evaluates the jacobian matrix of this function at the given point.
             %
             % As this is a component-wise kernel expansion, the jacobian is easily computed using

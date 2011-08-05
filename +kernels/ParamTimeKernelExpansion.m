@@ -139,7 +139,7 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
                 this.fPK.evaluate(mu, this.Centers.mui));
         end
                 
-        function J = getStateJacobian(this, x)
+        function J = getStateJacobian(this, x, t, mu)
             % Evaluates the jacobian matrix of this function at the given point.
             %
             % As this is a component-wise kernel expansion, the jacobian is easily computed using
