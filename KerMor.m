@@ -188,6 +188,9 @@ classdef KerMor < handle
     % trained on largest subspace, so would have to have more
     % approximations. or any possibility to project approximation into
     % sub-subspace??
+    %
+    % @todo Store distance matrix for centers (with rotation invariant kernels) and only update
+    % kernel matrix from that during iterations! saves a lot of computation time.
     
     properties(Constant)
         % The current KerMor main version number

@@ -20,6 +20,11 @@ function varargout = KernelExp2D(varargin)
 %
 % @author Daniel Wirtz @date 2011-07-26
 %
+% @change{0,5,dw,2011-08-08} 
+% - Made plotting work also if a dimension is of constant values. If such a
+% dimension is chosen as one of the base dimensions, a warning is issued and no plot generated.
+% - Fixed display of training points if all distances are zero (exchanged "<" by "<=").
+%
 % @change{0,5,dw,2011-08-02} Extracted the comparison polynomials from PN7_Nils cooperation to more
 % general external callbacks and created a small help description.
 
@@ -172,54 +177,60 @@ x = unique([x xr]','rows')';
 x1 = x(1,:);
 x2 = x(2,:);
 
-% Get triangulation
-tr = delaunay(x1,x2);
+% Only plot if current selected dimensions are non-empty (constant value)
+if any(x1(1) ~= x1) && any(x2(1) ~= x2)
+    
+    % Get triangulation
+    tr = delaunay(x1,x2);
 
-xf = repmat(c.basex,1,size(x,2));
-xf(xsel,:) = x;
+    xf = repmat(c.basex,1,size(x,2));
+    xf(xsel,:) = x;
 
-fx = kexp.evaluate(xf);
-fx = fx(c.dout,:);
+    fx = kexp.evaluate(xf);
+    fx = fx(c.dout,:);
 
-%% Plots
-hf = figure;
-cla(h.ax);
-hold(h.ax,'on');
-trisurf(tr, x1, x2, fx,'Parent',h.ax);
-shading(h.ax,'interp');
-% Add original points (select g% subset)
-d = xi - repmat(c.basex,1,size(xi,2));
-d(xsel,:) = [];
-d = sqrt(sum(d.^2,1));
-md = min(d); Md = max(d);
-sel = d < md + (Md-md)*(c.tperc/100);
-plot3(xi(c.d1,sel), xi(c.d2,sel), fxi(c.dout,sel),'black.','MarkerSize',5,'Parent',h.ax);
+    %% Plots
+    hf = figure;
+    cla(h.ax);
+    hold(h.ax,'on');
+    trisurf(tr, x1, x2, fx,'Parent',h.ax);
+    shading(h.ax,'interp');
+    % Add original points (select g% subset)
+    d = xi - repmat(c.basex,1,size(xi,2));
+    d(xsel,:) = [];
+    d = sqrt(sum(d.^2,1));
+    md = min(d); Md = max(d);
+    sel = d <= md + (Md-md)*(c.tperc/100);
+    plot3(xi(c.d1,sel), xi(c.d2,sel), fxi(c.dout,sel),'black.','MarkerSize',5,'Parent',h.ax);
 
-%% Evaluate any given callbacks for the given dimension
-cb = getappdata(h.main,'cb');
-for k=1:length(cb)
-    cbk = cb(k);
-    if all(cbk.sel([1 2]) == xsel) && c.dout == cbk.sel(3)
-        fxp = cbk.fcn(x1,x2);
-        col = 'r';
-        if isfield(cbk,'col')
-            col = cbk.col;
+    %% Evaluate any given callbacks for the given dimension
+    cb = getappdata(h.main,'cb');
+    for k=1:length(cb)
+        cbk = cb(k);
+        if all(cbk.sel([1 2]) == xsel) && c.dout == cbk.sel(3)
+            fxp = cbk.fcn(x1,x2);
+            col = 'r';
+            if isfield(cbk,'col')
+                col = cbk.col;
+            end
+            alph = .7;
+            if isfield(cbk,'alpha')
+                alph = cbk.alpha;
+            end
+            hp = trisurf(tr,x1,x2,fxp,'FaceColor',col,'EdgeColor','none','Parent',h.ax);
+            alpha(hp,alph);
         end
-        alph = .7;
-        if isfield(cbk,'alpha')
-            alph = cbk.alpha;
-        end
-        hp = trisurf(tr,x1,x2,fxp,'FaceColor',col,'EdgeColor','none','Parent',h.ax);
-        alpha(hp,alph);
     end
-end
 
-xlabel(h.ax,c.lbl.x{c.d1});
-ylabel(h.ax,c.lbl.x{c.d2});
-zlabel(h.ax,c.lbl.fx{c.dout});
-title(h.ax,sprintf('Plot of f(x)=%s against x=%s and y=%s',c.lbl.fx{c.dout},c.lbl.x{c.d1},c.lbl.x{c.d2}));
-hold(h.ax,'off');
-close(hf);
+    xlabel(h.ax,c.lbl.x{c.d1});
+    ylabel(h.ax,c.lbl.x{c.d2});
+    zlabel(h.ax,c.lbl.fx{c.dout});
+    title(h.ax,sprintf('Plot of f(x)=%s against x=%s and y=%s',c.lbl.fx{c.dout},c.lbl.x{c.d1},c.lbl.x{c.d2}));
+    hold(h.ax,'off');
+    close(hf);
+else
+    warning('KerMor:KernelExp2D','One of the currently selected dimensions is empty, i.e. the values are constant. Not plotting.');
+end
 
 function res = linspacev(x,y,n)
     n = double(n);
@@ -264,30 +275,32 @@ for dim = dims
     ctrls.labels(end+1) = label;
     valuelabel = label;
     
-    label = uicontrol('Tag',['runtime_lbl_min' name],'Style','text',...
-        'Parent',h.pnlBS,'HorizontalAlignment','right',...
-        'TooltipString',['Minimum value of ' name]);
-    set(label,'String',num2str(m),'Units','pixels','Position',[110 top 60 14]);
-    ctrls.labels(end+1) = label;
-    
-    label = uicontrol('Tag',['runtime_lbl_max' name],'Style','text',...
-        'Parent',h.pnlBS,'HorizontalAlignment','left',...
-        'TooltipString',['Maximum value of ' name]);
-    set(label,'String',num2str(M),'Units','pixels','Position',[370 top 60 14]);
-    ctrls.labels(end+1) = label;
-    
-    %% Create slider
-    ctrl = uicontrol('Tag',['runtime_slide_' name],'Parent',...
-        h.pnlBS,'HorizontalAlignment','left');
-    set(ctrl,'Style','slider', 'Value', c.basex(dim), 'Min', m, 'Max', M);
-    
-    % Position
-    set(ctrl,'Units','pixels','Position',[170 top 200 16],'UserData',dim);
-    % Set callback & string
-    set(ctrl,'Callback',@(h,e)(baseSliderChanged(h,guidata(h),valuelabel)));
-    
-    cnt = cnt + 1;
-    ctrls.slides(end+1) = ctrl;
+    if m ~= M
+        label = uicontrol('Tag',['runtime_lbl_min' name],'Style','text',...
+            'Parent',h.pnlBS,'HorizontalAlignment','right',...
+            'TooltipString',['Minimum value of ' name]);
+        set(label,'String',num2str(m),'Units','pixels','Position',[110 top 60 14]);
+        ctrls.labels(end+1) = label;
+
+        label = uicontrol('Tag',['runtime_lbl_max' name],'Style','text',...
+            'Parent',h.pnlBS,'HorizontalAlignment','left',...
+            'TooltipString',['Maximum value of ' name]);
+        set(label,'String',num2str(M),'Units','pixels','Position',[370 top 60 14]);
+        ctrls.labels(end+1) = label;
+
+        %% Create slider
+        ctrl = uicontrol('Tag',['runtime_slide_' name],'Parent',...
+            h.pnlBS,'HorizontalAlignment','left');
+        set(ctrl,'Style','slider', 'Value', c.basex(dim), 'Min', m, 'Max', M);
+
+        % Position
+        set(ctrl,'Units','pixels','Position',[170 top 200 16],'UserData',dim);
+        % Set callback & string
+        set(ctrl,'Callback',@(h,e)(baseSliderChanged(h,guidata(h),valuelabel)));
+
+        cnt = cnt + 1;
+        ctrls.slides(end+1) = ctrl;
+    end
 end
 setappdata(h.main, 'ctrls', ctrls);
 
