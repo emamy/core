@@ -132,7 +132,7 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
             end
             if isempty(svidx) 
                 if any(yi ~= 0)
-                    m = MException('KerMor:svr:nosupportvectors','No support vectors found. Problem unsolvable with current config?\nQuadprog exit flag:%d\nQuadprog out.message:%s',exitflag,out.message);
+                    m = MException('KerMor:svr:nosupportvectors','No support vectors found. Problem unsolvable with current config?');
                     m.throw;
                 else
                     % Otherwise "fake" a support vector with zero coefficient!

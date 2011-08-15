@@ -73,10 +73,10 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable
             if length(usedidx) < n
                 kexp.Ma = kexp.Ma(:,usedidx);
                 kexp.Centers.xi = kexp.Centers.xi(:,usedidx);
-                if isfield(kexp.Centers.ti) && ~isempty(kexp.Centers.ti)
+                if isfield(kexp.Centers,'ti') && ~isempty(kexp.Centers.ti)
                     kexp.Centers.ti = kexp.Centers.ti(:,usedidx);
                 end
-                if isfield(kexp.Centers.ti) && ~isempty(kexp.Centers.mui)
+                if isfield(kexp.Centers,'mui') && ~isempty(kexp.Centers.mui)
                     kexp.Centers.mui = kexp.Centers.mui(:,usedidx);
                 end
             end

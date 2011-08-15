@@ -186,7 +186,11 @@ if any(x1(1) ~= x1) && any(x2(1) ~= x2)
     xf = repmat(c.basex,1,size(x,2));
     xf(xsel,:) = x;
 
-    fx = kexp.evaluate(xf);
+    try
+        fx = kexp.evaluate(xf);
+    catch ME
+        fx = kexp.evaluate(xf,[],[]);
+    end
     fx = fx(c.dout,:);
 
     %% Plots

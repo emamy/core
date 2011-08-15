@@ -94,7 +94,7 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             % Performs a test of this class
             
             x = -5:.1:5;
-            fx = sinc(x);
+            fx = sinc(x)+1;
             %fx(30) = .5;
             %x = 1:10;
             %fx = ones(size(x))*5;
@@ -109,7 +109,7 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             %svr.QPSolver = solvers.qp.qpOASES;
             %kernel = kernels.PolyKernel(2);
             %kernel = kernels.LinearKernel;
-            kernel = kernels.GaussKernel(.7);
+            kernel = kernels.GaussKernel(.5);
             svr.K = kernel.evaluate(x,x);
             
             figure;
