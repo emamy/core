@@ -21,10 +21,26 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
         Lambda = 1;
         
         Vis = 1;
+        
+        Version = 1;
     end
     
     methods
         function ai = regress(this, fxi)
+            if this.Version == 1
+                % Call 1D-Optimizer
+                ai = this.regress1D(fxi);
+            else
+                % Call 2D-Optimizer
+                ai = this.regress2D(fxi);
+            end
+        end
+        
+    end
+    
+    methods(Access=private)
+        
+        function ai = regress1D(this, fxi)
             
             %% Preps
             this.Vis = 0;
@@ -150,9 +166,11 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
                 %% Update dW - only on side with change
                 Ki = this.K(idx1, :);
                 if idx <= n
-                    dW(1:n) = dW(1:n) - r * Ki;
+%                     dW(1:n) = dW(1:n) - r * Ki;
+                    dW = dW - r * [Ki -Ki];
                 else
-                    dW(n+1:end) = dW(n+1:end) - r * Ki;
+%                     dW(n+1:end) = dW(n+1:end) - r * Ki;
+                    dW = dW - r * [-Ki Ki];
                 end
                 
                 %% update stopping crits
@@ -190,7 +208,217 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             ai = (ai(1:n)-ai(n+1:end))';
         end
         
-        function ai = regress2(this, fxi)
+        function ai = regress2D(this, fxi)
+            
+            %% Preps
+            this.Vis = 0;
+            this.Vis = 1;
+%             this.Vis = 2;
+            maxcnt = 5000;
+            cnt = 1;
+            
+            n = length(fxi);
+            C = 1/(2*this.Lambda);
+            
+            sgn = ones(1,2*n);
+            sgn(n+1:end) = -1;
+            
+            S = zeros(1,maxcnt);
+            S(cnt) = n*C;
+            %% Init - cold start
+            T = 0;
+            ai = zeros(1,2*n); %1..n = a^+, n+1..2n=a^-
+            dW = [fxi -fxi] - this.Eps;
+            % End Init
+            
+            %% Init - kernel rule
+            %1..n = a^+, n+1..2n=a^-
+%             ai(1:n) = 1; ai(n+1:2*n) = 0;
+%             %ai = max(0,min(C,[fxi.*(fxi>=0) -fxi.*(fxi<0)]))/n; 
+%             a = ai(1:n)-ai(n+1:end);
+%             T = a*this.K*a' + this.Eps*sum(ai) + fxi*a';
+%             dW = [-ai(1:n)*this.K ai(n+1:end)*this.K] + [fxi -fxi] - this.Eps;
+            % End Init
+            
+            if this.Vis > 0
+                if this.Vis > 1
+                    h = figure(1);
+                end
+                err = []; T2 = S; T2(1) = T; E2 = S; E2(1) = 0;
+            end
+
+            a = ai;
+
+            stop = this.StopEps/(2*this.Lambda);
+            while S(cnt) > stop && cnt < maxcnt
+                
+                if this.Vis > 0
+                    afxi = (a(1:n)-a(n+1:end))*this.K;
+                    etmp = abs(fxi-afxi);
+                    err(end+1) = sum(etmp .* (etmp > this.Eps));%#ok
+                    if this.Vis > 1
+                        figure(h);
+                        subplot(1,2,1);
+                        plot(1:n,fxi,'r',1:n,[fxi-this.Eps; fxi+this.Eps],'r--',1:n,afxi,'b');
+                        title(sprintf('Current approximation, error: %e',err(end)));
+                        legend('f(x_i) training values','+\epsilon','-\epsilon','approximation values');
+                        axis tight;
+                    end
+                    
+                    %fprintf('%f ',sum(ai(1:n).*ai(n+1:end)));
+                    if sum(a(1:n) .* a(n+1:end)) ~= 0
+                        warning('some:id','Invalid ai config. please check now!');
+                        keyboard;
+                    end
+                end
+                
+                %% Max gain computation - O(n^2) strategy
+                % Checks which alpha values might be changed (only the ones with their partner
+                % variable equal to zero)
+                ind = 1:n;
+                
+                %% Find optima for changeable alpha^{+,-}
+                apch = ind(a(n+1:end) == 0);                
+                amch = ind(a(1:n) == 0);
+                ch = [apch amch];
+                Kch = this.K(ch,ch);
+                ch(numel(apch)+1:end) = ch(numel(apch)+1:end)+n;
+                [wj, wi] = meshgrid(dW(ch));
+                ai = repmat(a(ch), length(ch),1);
+                aj = repmat(a(ch)',1, length(ch));
+                sig = sgn(ch)'*sgn(ch);
+                div = 1./(1-Kch.^2);
+                div(isinf(div)) = 0;
+                r = (wi - sig .* Kch .* wj) .* div ;
+                s = (wj - sig .* Kch .* wi) .* div;
+%                 %% Kill NaN entries
+%                 m = numel(ch); tru = true(m,1);
+%                 setzero = spdiags([tru tru tru],[-numel(apch)+1, 0, numel(amch)],m,m);
+%                 r(setzero) = 0;
+%                 s(setzero) = 0;
+                %% Handle constraints
+                rup = r > C - ai;
+                rlb = r < - ai;
+                sup = s > C - aj;
+                slb = s < - aj;
+                % r is constrained
+                r(rup) = C - ai(rup); r(rlb) = -ai(rlb);
+                hlp = rup | rlb;
+                s(hlp) = min(C-aj(hlp), max(-aj(hlp), wj(hlp) - r(hlp) .* Kch(hlp)));
+                r2 = r; s2 = s;
+                % s is constrained
+                s(sup) = C - aj(sup); s(slb) = - aj(slb);
+                hlp = sup | slb;
+                r(hlp) = min(C-ai(hlp), max(-ai(hlp), wi(hlp) - s(hlp) .* Kch(hlp)));
+                % r and s are both bounded
+                % Determine update via get higher gain
+                hlp = (rup | rlb) & (sup | rlb);
+                g1 = r(hlp).*(wi(hlp)-.5*r(hlp)) + s(hlp).*(wj(hlp)-.5*s(hlp)) - r(hlp).*s(hlp).*Kch(hlp);
+                g2 = r2(hlp).*(wi(hlp)-.5*r2(hlp)) + s2(hlp).*(wj(hlp)-.5*s2(hlp)) - r2(hlp).*s2(hlp).*Kch(hlp);
+                cmp = g1 < g2;
+                r(cmp) = r2(cmp); s(cmp) = s2(cmp);
+                % Compute gain for r_i,s_j combinations
+                g = r .* (wi - .5 * r) + s .* (wj - .5 * s) - r .* s .* Kch;
+                % Extract i,j indices
+                [hlp, jch] = max(g,[],1);
+                [maxg, ich] = max(hlp);
+                jch = jch(ich);
+                i = ch(ich);
+                j = ch(jch);
+                r = r(ich, jch);
+                s = s(ich, jch);
+
+                a(i) = a(i) + r;
+                a(j) = a(j) + s;
+                
+                if any(a) < 0 || any(a) > C
+                    warning('some:id','constraint violation. please check.');
+                    keyboard;
+                end
+             
+                i1 = i - (i > n)*n;
+                j1 = j - (j > n)*n;
+                               
+                if this.Vis > 1
+                    [X,Y] = meshgrid(1:2*n,1:2*n);
+                    subplot(1,2,2);
+                    G = zeros(2*n,2*n);
+                    G(ch,ch) = g;
+                    surf(X,Y,G,'EdgeColor','none');
+                    hold on;
+                    plot3(X(ch(ich),ch(jch)),Y(ch(ich),ch(jch)),g(ich,jch),'r.','MarkerSize',6);
+                    hold off;
+                    title(sprintf('Best gain index: (%d,%d), gain: %e, \\alpha_{%d} change: %e, \\alpha_{%d} change: %e',i,j, maxg, i, r, j,s));
+                    axis tight;
+                    subplot(1,2,1);
+                    hold on;
+                    plot([i1 j1],afxi([i1 j1]),'.','MarkerSize',5);
+                    hold off;
+                end
+                
+                %% Update dW - only on side with change
+                Ki = this.K(i1, :);
+                Kj = this.K(j1, :);
+                
+                % Update dW
+                if i <= n
+                    dW = dW - r * [Ki -Ki];
+                else
+                    dW = dW - r * [-Ki Ki];
+                end
+                if j <= n
+                    dW = dW - s * [Kj -Kj];
+                else
+                    dW = dW - s * [-Kj Kj];
+                end
+
+%                 if vp >= vm
+%                     dWp = dWp - r * Ki - s * Kj;
+%                     dWm = dWm + r * Ki + s * Kj;
+%                     dW = dWp;
+%                 else
+%                     dWm = dWm - r * Ki - s * Kj;
+%                     dWp = dWp + r * Ki + s * Kj;
+%                     dW = dWm;
+%                 end
+                
+                %% update stopping crits
+                T = T + r*(r - 2*dW(i) - this.Eps + sgn(i)*fxi(i1)) ...
+                      + s*(s - 2*dW(j) - this.Eps + sgn(j)*fxi(j1));
+                
+                dif = (a(1:n)-a(n+1:end)) * this.K;
+                hlp = abs(fxi - min(1,max(-1,dif))) - this.Eps;
+                hlp(hlp < 0) = 0;
+                E = C * sum(hlp);
+
+                % Unclipped E term
+%                 hlp = abs(fxi - (ai(1:n)-ai(n+1:end)) * this.K) - this.Eps;
+%                 hlp(hlp < 0) = 0;
+%                 E2 = C * sum(hlp);
+
+                cnt = cnt+1;
+                S(cnt) = T + E;
+                T2(cnt) = T;
+                E2(cnt) = E;
+%                 pause;
+            end
+            
+            fprintf('Finished after %d/%d iterations.\n',cnt,maxcnt);
+            if this.Vis > 0
+                figure;
+                semilogy(1:cnt,S(1:cnt),'r',1:cnt,T2(1:cnt),'b',1:cnt,E2(1:cnt),'g',1:cnt,ones(1,cnt)*stop,'black');
+                title('S, T, E and stopping values'); legend('S = T+E','T','E','stop cond');
+
+                figure;
+                semilogy(err);
+                title('Approximation error (by eps-insensitive loss fcn)');
+            end
+            
+            % \alpha = \alpha^+ - \alpha^-
+            ai = (a(1:n)-a(n+1:end))';
+        end
+        
+        function ai = regress1D_testing(this, fxi)
             
             %% Preps
 %             showVis = false;
@@ -361,7 +589,7 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             svr = general.regression.ScalarEpsSVR_SMO;
             %svr.Eps = 0.073648;
             svr.Eps = .05;
-            svr.Lambda = eps;%1/20; % i.e. C=10 as in ScalarEpsSVR
+            svr.Lambda = 1/20;%1/20; % i.e. C=10 as in ScalarEpsSVR
             
             %kernel = kernels.PolyKernel(7);
             %kernel = kernels.LinearKernel;
@@ -517,3 +745,30 @@ end
 %                 T2(cnt) = T;
 %                 E2(cnt) = E;
 %             end
+
+% %% Handle upper constraints
+%                 % r_i > C-a_i
+%                 rup = r > C - aip;
+%                 % s_j > C-a_j
+%                 sup = s > C - ajp;
+%                 % r is constrained above
+%                 r_rup = zeros(size(r)); s_rup = r_rup;
+%                 r_rup(rup) = C - aip(rup);
+%                 s_rup(rup) = wj(rup) - r_rup(rup) .* Kch(rup);
+%                 % s is constrained above
+%                 r_sup = zeros(size(r)); s_sup = r_sup;
+%                 s_sup(sup) = C-ajp(sup);
+%                 r_sup(sup) = wi(sup) - s_sup(sup) .* Kch(sup);
+%                 % Transfer updates
+%                 % - r upper bounded (all, incl. s upper bounded)
+%                 r(rup) = r_rup(rup); s(rup) = s_rup(rup);
+%                 % - s upper bounded (all, incl. r upper bounded)
+%                 r(sup) = r_sup(sup); s(sup) = s_sup(sup);
+%                 % - r,s upper bounded (overwrites possibly wrong values from above cases)
+%                 % Determine update via get higher gain
+%                 hlp = rup & sup;
+%                 g1 = r_rup(hlp).*(wi(hlp)-.5*r_rup(hlp)) + s_rup(hlp).*(wj(hlp)-.5*s_rup(hlp)) - r_rup(hlp).*s_rup(hlp).*Kch(hlp);
+%                 g2 = r_sup(hlp).*(wi(hlp)-.5*r_sup(hlp)) + s_sup(hlp).*(wj(hlp)-.5*s_sup(hlp)) - r_sup(hlp).*s_sup(hlp).*Kch(hlp);
+%                 cmp = g2 <= g1;
+%                 r(cmp) = r_rup(cmp); s(cmp) = s_rup(cmp);
+%                 r(~cmp) = r_sup(cmp); s(~cmp) = s_sup(cmp);
