@@ -377,8 +377,8 @@ classdef BaseDynSystem < KerMorObject
         end
         
         function set.MaxTimestep(this, value)
-            if ~isposrealscalar(value) && ~isempty(value)
-                error('Value must be a positive integer scalar if not empty.');
+            if (~isscalar(value) || value <= 0) && ~isempty(value)
+                error('Value must be a positive real scalar if not empty.');
             end
             this.MaxTimestep = value;
         end

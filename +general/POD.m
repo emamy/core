@@ -187,7 +187,7 @@ classdef POD < KerMorObject
         end
         
         function set.Value(this, value)
-            if ~isposrealscalar(value)
+            if ~isreal(value) || ~isscalar(value)
                 error('Value property must be a positive real scalar.');
             end
             this.Value = value;

@@ -141,7 +141,7 @@ classdef GaussKernel < kernels.BellFunction
         
         function set.Gamma(this, value)
             % @todo check why penalty factor was set here to 1/value! ?!?
-            if ~isposrealscalar(value)
+            if ~isreal(value) ||~isscalar(value)
                 error('Only positive scalar values allowed for Gamma.');
             end
             this.Gamma = value;
