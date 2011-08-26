@@ -4,6 +4,9 @@ classdef AppExport
 %
 % @author Daniel Wirtz @date 2011-08-02
 %
+% @change{0,5,dw,2011-08-25} The saveRealMatrix and saveRealVector now save the matrix in the given
+% class, i.e. double,single (=float32, 4bytes), int32 etc.
+%
 % @new{0,5,dw,2011-08-02} Added this class.
 %
 % This class is part of the framework
@@ -145,9 +148,10 @@ classdef AppExport
             if ~isrealmat(mat)
                 error('Matrix must contain only real values');
             end
-            if ~isa(mat,'double')
-                warning('KerMor:AppExport:wrongtype','The matrix must be a double matrix. Converting.');
-                mat = double(mat);
+            prec = class(mat);
+            % single precision is encoded as float32
+            if strcmp(prec,'single')
+                prec = 'float32';
             end
             
             if nargin == 3
@@ -160,13 +164,19 @@ classdef AppExport
             f = fopen(file,'w+',general.AppExport.MachineFormat);
             try
                 [n,m] = size(mat);
+                if n > intmax('int32') || m > intmax('int32')
+                    error('Cannot save matrix: Dimensions exceed max int32 value.');
+                end
                 fwrite(f,n,'int32');
                 fwrite(f,m,'int32');
-                for i=1:n
-                    for j=1:m
-                        fwrite(f,mat(i,j),'double');
-                    end
-                end
+%                 for i=1:n
+%                     for j=1:m
+%                         fwrite(f,mat(i,j),prec);
+%                     end
+%                 end
+                % Matlab Rev. 2009a: entries are written in column order, which matches our
+                % specification.
+                fwrite(f,mat,prec);
             catch ME
                 fclose(f);
                 rethrow(ME);
@@ -182,9 +192,10 @@ classdef AppExport
             if ~isrealvec(vec)
                 error('vec must be a vector with real values');
             end
-            if ~isa(vec,'double')
-                warning('KerMor:AppExport:wrongtype','The vector must be of type double. Converting.');
-                vec = double(vec);
+            prec = class(vec);
+            % single precision is encoded as float32
+            if strcmp(prec,'single')
+                prec = 'float32';
             end
             
             if nargin == 3
@@ -197,10 +208,14 @@ classdef AppExport
             f = fopen(file,'w+',general.AppExport.MachineFormat);
             try
                 s = length(vec);
-                fwrite(f,s,'int32');
-                for i=1:s
-                    fwrite(f,vec(i),'double');
+                if s > intmax('int32')
+                    error('Cannot save vector: Dimension exceeds max int32 value.');
                 end
+                fwrite(f,s,'int32');
+%                 for i=1:s
+%                     fwrite(f,vec(i),prec);
+%                 end
+                fwrite(f, vec, prec);
             catch ME
                 fclose(f);
                 rethrow(ME);
