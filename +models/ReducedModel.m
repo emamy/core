@@ -13,6 +13,11 @@ classdef ReducedModel < models.BaseModel
     %
     % @author Daniel Wirtz @date 23.03.2010
     %
+    % @new{0,5,dw,2011-08-23} Added a createImage method that per default
+    % saves the KerMor Logo with the models name in the
+    % KerMor.TempDirectory. This is used for example in general.AppExport
+    % to create an representing image for a reduced model.
+    %
     % This class is part of the framework
     % KerMor - Model Order Reduction using Kernels:
     % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
@@ -170,7 +175,7 @@ classdef ReducedModel < models.BaseModel
             
             this.FullModel.Approx = a;
             this.FullModel.Data = d;
-        end        
+        end
     end
     
     methods(Access=protected,Sealed)
@@ -191,7 +196,23 @@ classdef ReducedModel < models.BaseModel
     end
     
     methods
-                
+        
+        function [file, folder] = createImage(this)
+            % This method can be invoked to obtain an image for the current
+            % model.
+            %
+            % If not overridden in subclasses, this method creates an png image
+            % using the KerMor logo and the model's name as text in it.
+            
+            n = this.Name;
+            h = KerMorLogo;
+            text(-6,5,1.05,n,'FontSize',14,'FontWeight','bold');
+            folder = KerMor.App.TempDirectory;
+            file = 'modelimage.png';
+            general.Utils.saveFigure(h, fullfile(folder,file),'png');
+            close(h);
+        end
+        
         function e = get.ErrorEstimator(this)
             e = this.fErrorEstimator;
         end

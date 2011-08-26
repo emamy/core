@@ -41,7 +41,11 @@ classdef AppExport
             fprintf(f,'<model type="kermor" machformat="be">\n');
             fprintf(f,'\t<description>\n');
             fprintf(f,'\t\t<short>%s</short>\n',rm.Name);
-            fprintf(f,'\t\t<image></image>\n');
+            % get image
+            [fn,fo] = rm.createImage;
+            copyfile(fullfile(fo,fn),fullfile(folder,fn));
+            fprintf(f,'\t\t<image>%s</image>\n',fn);
+            
             fprintf(f,'\t</description>\n');
             fprintf(f,'\t<data><kermor>\n');
             fprintf(f,'\t\t<T>%17.17f</T>\n',rm.T);
