@@ -180,7 +180,7 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
         end
         
         function set.r0(this, value)
-            if ~isposrealscalar(value) 
+            if ~isreal(value) || value < 0 || ~isscalar(value)
                 error('r0 must be a scalar greater than zero.');
             end
             this.fr0 = value;

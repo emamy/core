@@ -41,9 +41,14 @@ classdef AppExport
             %% Create Model XML
             f = fopen(fullfile(folder,'model.xml'),'w+');
             fprintf(f,'<?xml version="1.0" encoding="utf-8"?>\n');
-            fprintf(f,'<model type="kermor" title="%s" image="">\n',rm.Name);
-            fprintf(f,'\t<T>%17.17f</T>\n',rm.T);
-            fprintf(f,'\t<dt>%17.17f</dt>\n',rm.dt);
+            fprintf(f,'<model type="kermor" machformat="be">\n');
+            fprintf(f,'\t<description>\n');
+            fprintf(f,'\t\t<short>%s</short>\n',rm.Name);
+            fprintf(f,'\t\t<image></image>\n');
+            fprintf(f,'\t</description>\n');
+            fprintf(f,'\t<data><kermor>\n');
+            fprintf(f,'\t\t<T>%17.17f</T>\n',rm.T);
+            fprintf(f,'\t\t<dt>%17.17f</dt>\n',rm.dt);
             
             % Get system dimension from initial value
             mu = [];
@@ -63,13 +68,12 @@ classdef AppExport
             fprintf(f,'\t<parameters>\n');
             p = rm.FullModel.System.Params;
             if ~isempty(p)
-                pvals = zeros(length(p),2);
+                %pvals = zeros(length(p),2);
                 for k=1:length(p)
-                    fprintf(f,'\t\t<param%d name="%s"/>\n',k,p(k).Name);
-                    pvals(k,1) = p(k).MinVal;
-                    pvals(k,2) = p(k).MaxVal;
+                    fprintf(f,'\t\t<param name="%s" min="%17.17f" max="%17.17f" label="%s"/>\n',...
+                        p(k).Name,p(k).MinVal,p(k).MaxVal,p(k).Name);
                 end
-                general.AppExport.saveRealMatrix(pvals, 'paramvalues.bin', folder);
+                %general.AppExport.saveRealMatrix(pvals, 'paramvalues.bin', folder);
             end
             fprintf(f,'\t</parameters>\n');
             
@@ -126,6 +130,7 @@ classdef AppExport
             end
             fprintf(f,'\t<initialvaluetype>%s</initialvaluetype>\n',class(s.x0));
             
+            fprintf(f,'\t</kermor></data>\n');
             fprintf(f,'</model>\n');
             fclose(f);
             
@@ -145,7 +150,7 @@ classdef AppExport
             % The first 64bits are used to encode the row and column numbers as int32, then the next
             % bytes contain rows*cols*8bytes of double values.
             % The matrix is addressed linearly in a row-wise fashion, i.e. first row, second row ...
-            if ~isrealmat(mat)
+            if ~isreal(mat) || ~ismatrix(mat)
                 error('Matrix must contain only real values');
             end
             prec = class(mat);
@@ -189,7 +194,7 @@ classdef AppExport
             %
             % The first 64bits are used to encode the vector size as int32, then the next
             % bytes contain size*8bytes of double values.
-            if ~isrealvec(vec)
+            if ~isreal(vec) || ~isvector(vec)
                 error('vec must be a vector with real values');
             end
             prec = class(vec);

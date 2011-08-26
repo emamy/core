@@ -75,7 +75,7 @@ classdef AffParamMatrix < ICloneable
           
             if ~isa(coeff_fun,'char')
                 error('Coeff_fun must be a string.');
-            elseif ~isrealmat(mat)
+            elseif ~isreal(mat)
                 error('Parameter "mat" must be a real matrix.');
             end
             this.N = this.N + 1;

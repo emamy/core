@@ -383,7 +383,7 @@ classdef BaseModel < KerMorObject
         end
         
         function set.T(this, value)
-            if ~isposrealscalar(value)
+            if ~isscalar(value) || value < 0
                 error('T must be a positive real scalar.');
             end
             if this.T ~= value
@@ -393,7 +393,7 @@ classdef BaseModel < KerMorObject
         end
         
         function set.dt(this, value)
-            if ~isposrealscalar(value)
+            if ~isscalar(value) || value <= 0
                 error('dt must be a positive real scalar.');
             end
             if this.fdt ~= value
@@ -404,7 +404,7 @@ classdef BaseModel < KerMorObject
         end
         
         function set.tau(this, value)
-            if ~isposrealscalar(value)
+            if ~isreal(value) ||~isscalar(value)
                 error('tau must be a positive real scalar.');
             end
             if this.ftau ~= value

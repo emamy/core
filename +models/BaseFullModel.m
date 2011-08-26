@@ -479,7 +479,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % x: The state variables at the corresponding times t.
             
             if KerMor.App.UseDPCS
-                this.checkProperties;
+%                 this.checkProperties;
             end
             
             [t,x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
@@ -585,7 +585,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         
         function set.TrainingInputs(this, value)
             if ~isempty(value)
-                if ~isposintmat(value)
+                if any(value < 1)
                     error('Value may only contain valid indices for the Inputs cell array.');
                 elseif any(value > this.System.InputCount) || any(value < 1)
                     error('Invalid indices for Inputs.');    

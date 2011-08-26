@@ -164,7 +164,7 @@ classdef BaseEstimator < KerMorObject & ICloneable & ISimConstants
         end
         
         function set.ExtraODEDims(this, value)
-            if ~isposintscalar(value) && value ~= 0
+            if (~isscalar(value) || value < 0) && value ~= 0
                 error('The value must be 0 or positive integer');
             end
             this.ExtraODEDims = value;            
