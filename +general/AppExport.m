@@ -154,7 +154,7 @@ classdef AppExport
             % The first 64bits are used to encode the row and column numbers as int32, then the next
             % bytes contain rows*cols*8bytes of double values.
             % The matrix is addressed linearly in a row-wise fashion, i.e. first row, second row ...
-            if ~isreal(mat) || ~ismatrix(mat)
+            if ~isreal(mat)% || ~ismatrix(mat)
                 error('Matrix must contain only real values');
             end
             prec = class(mat);
@@ -183,9 +183,10 @@ classdef AppExport
 %                         fwrite(f,mat(i,j),prec);
 %                     end
 %                 end
-                % Matlab Rev. 2009a: entries are written in column order, which matches our
-                % specification.
-                fwrite(f,mat,prec);
+                % Matlab Rev. 2009a: entries are written in column order, which must be transposed
+                % in order to read them in row order (native storage format in java
+                % apache.commons.math
+                fwrite(f,mat',prec);
             catch ME
                 fclose(f);
                 rethrow(ME);

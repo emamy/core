@@ -3,16 +3,19 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
     %
     % Base class for any scalar SVR algorithm.
     %
-    % @todo: Implement hyperparameter estimations from [CM04]!
-    % @todo: Look into the "pattern search" algorithm from Momma&Bennet
-    % 2002
-    %
     % @author Daniel Wirtz @date 11.03.2010
+    %
+    % @change{0,5,dw,2011-08-22} Added the regularization parameter Lambda and made the C constraint
+    % dependent on that, as also done in literature.
     %
     % @change{0,4,dw,2011-05-31} Removed the 'svidx' parameter from the regress interface.
     %
     % @change{0,3,sa,2011-05-07} Implemented Setter for the properties of
     % this class
+    %
+    % @todo: Implement hyperparameter estimations from [CM04]!
+    % @todo: Look into the "pattern search" algorithm from Momma&Bennet
+    % 2002
     
     properties
         % The kernel matrix to use.
@@ -22,24 +25,43 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
         % vector set can be performed easily.
         %
         % @propclass{data} Needed for the SVR to run in the first place.
-        K;    
+        K;        
     end
     
-    properties(SetObservable)
-        % The weighting of the slack variables. For larger C, the slack
-        % variables are forced towards zero so that violations of the
+    properties(SetObservable, Dependent)
+        % The regularization parameter `\lambda` for the primary minimization problem.
+        %
+        % @propclass{critical} Overly regularized functions may not approximate the data correctly,
+        % while small `\lambda` lead to high coefficient values.
+        %
+        % @default 1
+        Lambda;
+    end
+    
+    properties(SetAccess=private, GetAccess=protected)
+        % The internal real value for lambda.
+        % Can be accessed in subclasses.
+        fLambda = 1;
+    end
+    
+    properties(SetAccess=private)
+        % The weighting of the slack variables.
+        % 
+        % For larger C, the slack variables are forced towards zero so that violations of the
         % eps-tube are getting penalized harder.
         % Theoretically, for C=Inf all fxi must be inside the eps-tube
         % around the original function.
         %
-        % @propclass{critical} Large `C` leads to possibly large coefficients. Strongly linked to
+        % @propclass{critical} Large `C` means possibly large coefficients. Strongly linked to
         % the `nu` property of the ScalarNuSVR and the `\epsilon` property of the ScalarEpsSVR.
         %
-        % @default 5
+        % @default 1/2*Lambda
         %
         % See also: ScalarNuSVR ScalarEpsSVR
-        C = 5;
-        
+        C = .5;
+    end
+    
+    properties(SetObservable)
         % Minimum relative value for any alpha to be considered a support vector
         % coefficient.
         %
@@ -66,7 +88,7 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
             this = this@KerMorObject;
             this.QPSolver = solvers.qp.qpOASES;
             
-            this.registerProps('K','C','AlphaRelMinValue','QPSolver');
+            this.registerProps('K','Lambda','AlphaRelMinValue','QPSolver');
         end
         
         function target = clone(this, target)
@@ -85,11 +107,16 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
             %this.K = .5*(value + value');
         end
         
-        function set.C(this, value)
+        function set.Lambda(this, value)
             if ~isposrealscalar(value)
-                error('C must be a positive real scalar');
+                error('Lambda must be a positive real scalar');
             end
-            this.C = value;
+            this.fLambda = value;
+            this.C = 1/(2*value);
+        end
+        
+        function value = get.Lambda(this)
+            value = this.fLambda;
         end
         
         function set.AlphaRelMinValue(this, value)
