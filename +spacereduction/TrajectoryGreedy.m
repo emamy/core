@@ -42,9 +42,8 @@ classdef TrajectoryGreedy < spacereduction.BaseSpaceReducer
             o.Algorithm = 'gs';
             
             md = model.Data;
-            x = md.getTrajectoryNr(1);
-            V = pod.computePOD(x);
-            [err, idx] = this.getMaxErr(V,md);
+            V = this.getInitialSpace(md, pod);
+            [err, idx] = this.getMaxErr(V, md);
             while (err(end) > this.Eps)
                 x = md.getTrajectoryNr(idx);
                 e = x - V*(V'*x);
@@ -66,6 +65,25 @@ classdef TrajectoryGreedy < spacereduction.BaseSpaceReducer
     end
     
     methods(Access=private)
+        
+        function V = getInitialSpace(this, md, pod)
+            % Simplest: POD the first trajectory
+            %x = md.getTrajectoryNr(1);
+            %V = pod.computePOD(x);
+            
+            % More advanced: Compute first POD mode of the initial values!
+            n = md.getNumTrajectories();
+            x = md.getTrajectoryNr(1);
+            x0 = zeros(size(x,1),n);
+            x0(:,1) = x(:,1);
+            for idx=2:n
+                x = md.getTrajectoryNr(idx);
+                x0(:,idx) = x(:,1);
+            end
+            V = pod.computePOD(x0);
+            V = V / norm(V);
+        end
+        
         function [maxerr, midx] = getMaxErr(this, V, md)%#ok
             midx = -1;
             maxerr = 0;
