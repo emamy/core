@@ -1,9 +1,14 @@
 classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
 % ScalarEpsSVR_SMO: 
 %
-%
+% Implements the 1D and 2D SMO algorithm introduced in SHS11: 
+% 'I. Steinwart, D. Hush, and C. Scovel. Training svms without o?set. J. Mach. Learn. Res.,
+% 12:141?202, February 2011'
 %
 % @author Daniel Wirtz @date 2011-08-09
+%
+% @change{0,5,dw,2011-09-09} Finished initial work on this class, fixed many bugs and implemented
+% all strategies required for the WSS7 described in SHS11.
 %
 % @new{0,5,dw,2011-08-09} Added this class.
 %
@@ -13,18 +18,50 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
     
-    properties
+    properties(SetObservable)
+        % The epsilon value to use for the loss function.
+        %
+        % @propclass{critical} Influences the precision of the result.
+        %
+        % @default .1;
         Eps = .1;
         
+        % Stopping criterion.
+        %
+        % @propclass{critical} Determines the precision of the solution. This eps is used within the
+        % stopping criterion introduced in SHS11.
         StopEps = 1e-4;
-                
-        Vis = 1;
+    
+        % Visual output.
+        %
+        % @propclass{optional}
+        %
+        % @default 0;
+        Vis = 0;
         
-        Version = 1;
+        % Which Version to use.
+        %
+        % Set to 1 for 1D SMO and 2 for 2D SMO.
+        % 2D is faster, uses the WSS7 as default.
+        %
+        % @propclass{important} Influences the performance and time needed for solving.
+        %
+        % @default 2
+        Version = 2;
         
         % Nearest neighbors to search for WSS4 strategy.
-        % 
+        %
+        % @propclass{optional} A higher number of neighbors might 
+        %
+        % @default 10
         NNk = 10;
+        
+        % The maximum number of iterations.
+        %
+        % @propclass{alglimit} Max iteration count.
+        %
+        % @default 60000
+        MaxCount = 60000;
     end
     
     methods
@@ -45,8 +82,13 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
         
         function ai = regress1D(this, fxi)
             
+            %% Init - cold start
+            [a, dW, T] = I0_ColdStart(this, fxi);
+            
+            %% Init - kernel rule
+%             [a, dW, T] = I1_ColdStartKernelRule(this, fxi);
+
             %% Preps
-            maxcnt = 20000;
             cnt = 1;
             
             n = length(fxi);
@@ -54,45 +96,23 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             sgn = ones(1,2*n);
             sgn(n+1:end) = -1;
             
-            Sall = zeros(1,maxcnt);
             S = n*this.C;
             
-            %% Init - cold start
-            [a, dW, T] = I0_ColdStart(this, fxi);
-            
-            %% Init - kernel rule
-%             [a, dW, T] = I1_ColdStartKernelRule(this, fxi);
-            
-            if this.Vis > 0
-                if this.Vis > 1
-                    h = figure(1);
-                end
-                err = Sall; 
-                Tall = Sall; 
-                Eall = Sall;
-%                 DualAll = Sall;
+            if this.Vis > 1
+                h = figure(1);
             end
             
             stop = this.StopEps/(2*this.Lambda);
-            while S > stop && cnt < maxcnt
+            while S > stop && cnt < this.MaxCount
                 
-                if this.Vis > 0
+                if this.Vis > 1
                     afxi = (a(1:n)-a(n+1:end))*this.K;
-                    etmp = abs(fxi-afxi);
-                    err(cnt) = sum(etmp .* (etmp > this.Eps));
-                    if this.Vis > 1
-                        figure(h);
-                        subplot(1,2,1);
-                        plot(1:n,fxi,'r',1:n,[fxi-this.Eps; fxi+this.Eps],'r--',1:n,afxi,'b');
-                        title(sprintf('Current approximation, error: %e',err(cnt)));
-                        legend('f(x_i) training values','+\epsilon','-\epsilon','approximation values');
-                        axis tight;
-                    end
-
-                    if sum(a(1:n).*a(n+1:end)) ~= 0
-                        warning('some:id','Invalid ai config. please check now!');
-                        keyboard;
-                    end
+                    figure(h);
+                    subplot(1,2,1);
+                    plot(1:n,fxi,'r',1:n,[fxi-this.Eps; fxi+this.Eps],'r--',1:n,afxi,'b');
+                    title(sprintf('Current approximation, error: %e',err(cnt)));
+                    legend('f(x_i) training values','+\epsilon','-\epsilon','approximation values');
+                    axis tight;
                 end
                 
                 %% Select working set
@@ -125,38 +145,12 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
                 
                 %% Update E
                 E = this.C * sum(max(0,min(2-this.Eps,dW)));
-                
-%                 %% Duality gap P-W (testing)
-%                 dif = (a(1:n)-a(n+1:end)) * this.K;
-%                 hlp = abs(fxi - dif) - this.Eps;
-%                 hlp(hlp < 0) = 0;
-%                 t_tmp = (dif-fxi)*(a(1:n)-a(n+1:end))' + this.Eps*sum(a);
-%                 e_tmp = this.C * sum(hlp);
-%                 DualAll(cnt) = t_tmp + e_tmp;
-                
+                                
                 S = T + E;
-                Sall(cnt) = S;
-                Tall(cnt) = T;
-                Eall(cnt) = E;
                 cnt = cnt+1;
             end
-            
-            fprintf('Finished after %d/%d iterations.\n',cnt,maxcnt);
             if this.Vis > 0
-                figure;
-                semilogy(1:cnt,Sall(1:cnt),'r',1:cnt,abs(Tall(1:cnt)),'b',1:cnt,Eall(1:cnt),'g',1:cnt,ones(1,cnt)*stop,'black');
-                axis tight;
-                title('S, T, E and stopping values'); legend('S = T+E','T','E','stop cond');
-
-                figure;
-                semilogy(err(1:cnt));
-                axis tight;
-                title('Approximation error (by eps-insensitive loss fcn)');
-                
-                figure;
-                semilogy(DualAll(1:cnt));
-                axis tight;
-                title('Duality Gap');
+                fprintf('Finished after %d/%d iterations.\n',cnt,this.MaxCount);
             end
             
             % \alpha = \alpha^+ - \alpha^-
@@ -165,156 +159,92 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
         
         function ai = regress2D(this, fxi)
             
-            %% Preps
-            maxcnt = 10000;
-            cnt = 1;
-            
-            n = length(fxi);
-            
-            sgn = ones(1,2*n);
-            sgn(n+1:end) = -1;
-            
-            Sall = zeros(1,maxcnt);
-            S = n*this.C;
-
             %% Init - cold start
             [a, dW, T] = I0_ColdStart(this, fxi);
             
             %% Init - kernel rule
 %             [a, dW, T] = I1_ColdStartKernelRule(this, fxi);
             
-            if this.Vis > 0
-                if this.Vis > 1
-                    h = figure(1);
-                end
-                err = Sall; 
-                Tall = Sall; 
-                Eall = Sall;
-%                 DualAll = Sall;
+            if this.Vis > 1
+                h = figure(1);
             end
+            
+            %% Preps
+            n = length(fxi);
+            sgn = ones(1,2*n);
+            sgn(n+1:end) = -1;
+            
+            S = n*this.C;
 
             % Initialize i to -1 if MaxGainPlusLast is used.
             i = -1;
             
+            cnt = 1;
             stop = this.StopEps/(2*this.Lambda);
-            while abs(S) > stop && cnt < maxcnt+1
+            while abs(S) > stop && cnt < this.MaxCount+1
                 
                 %% Max gain computation - O(n^2) strategy
-                ij = [];
+                ij = [];%#ok<*AGROW>
                 
-                %[i, j] = this.WSS0_BestGainIndices(a, dW, sgn);
+%                 ij = [ij; this.WSS0_BestGainIndices(a, dW, sgn);
                 
-                %[i, j] = this.WSS1024_RandomAdmissibleIndices(a);
+%                 ij = [ij; this.WSS1024_RandomAdmissibleIndices(a);
                 
-%                 ij = [ij; this.WSS1_1DMaxGainPlusLast(a, dW, i)]; %#ok<*AGROW>
+%                 ij = [ij; this.WSS1_1DMaxGainPlusLast(a, dW, i)];
                 
 %                 ij = [ij; this.WSS2_TwoSetMax1DGain(a, dW)];
                 
 %                 ij = [ij; this.WSS4_1DMaxGainPluskNN(a, dW)];
                 
-                ij = this.WSS7_Combi(a, dW, i);
-                
-                %[i, j] = WSS128_ApproxBestGainIndices(this, a, dW, sgn);
+                ij = [ij; this.WSS7_Combi(a, dW, i)];
                 
                 [r, s, idx] = this.getMax2DGainUpdatesForIndices(a, dW, ij);
+                
+                % Not usable with current scheme
+                %[i, j] = WSS128_ApproxBestGainIndices(this, a, dW, sgn);
+                
                 i = ij(idx,1);
                 j = ij(idx,2);
-                
                 i1 = i - (i > n)*n;
                 j1 = j - (j > n)*n;
                 
-                if this.Vis > 0
+                if this.Vis > 1
                     afxi = (a(1:n)-a(n+1:end))*this.K;
-                    etmp = abs(fxi-afxi);
-                    err(cnt) = sum(etmp .* (etmp > this.Eps));
-                    if this.Vis > 1
-                        figure(h);
-                        subplot(1,2,1);
-                        plot(1:n,fxi,'r',1:n,[fxi-this.Eps; fxi+this.Eps],'r--',1:n,afxi,'b');
-                        hold on;
-                        if (i1 == i)
-                            plot(i,afxi(i),'o','MarkerEdgeColor','k',...
-                                    'MarkerFaceColor',[.1 .8 .1],...
-                                    'MarkerSize',6);
-                        else
-                            plot(i1,afxi(i1),'o','MarkerEdgeColor','k',...
-                                    'MarkerFaceColor',[.8 .1 .1],...
-                                    'MarkerSize',6);
-                        end
-                        if (j1 == j)
-                            plot(j,afxi(j),'o','MarkerEdgeColor','k',...
-                                    'MarkerFaceColor',[.1 .8 .1],...
-                                    'MarkerSize',6);
-                        else
-                            plot(j1,afxi(j1),'o','MarkerEdgeColor','k',...
-                                    'MarkerFaceColor',[.8 .1 .1],...
-                                    'MarkerSize',6);
-                        end
-                        
-                        hold off;
-                        title(sprintf('Current approximation, error: %e',err(cnt)));
-                        %legend('f(x_i) training values','+\epsilon','-\epsilon','approximation values');
-                        axis tight;
+                    figure(h);
+                    subplot(1,2,1);
+                    plot(1:n,fxi,'r',1:n,[fxi-this.Eps; fxi+this.Eps],'r--',1:n,afxi,'b');
+                    hold on;
+                    if (i1 == i)
+                        plot(i,afxi(i),'o','MarkerEdgeColor','k',...
+                            'MarkerFaceColor',[.1 .8 .1],...
+                            'MarkerSize',6);
+                    else
+                        plot(i1,afxi(i1),'o','MarkerEdgeColor','k',...
+                            'MarkerFaceColor',[.8 .1 .1],...
+                            'MarkerSize',6);
+                    end
+                    if (j1 == j)
+                        plot(j,afxi(j),'o','MarkerEdgeColor','k',...
+                            'MarkerFaceColor',[.1 .8 .1],...
+                            'MarkerSize',6);
+                    else
+                        plot(j1,afxi(j1),'o','MarkerEdgeColor','k',...
+                            'MarkerFaceColor',[.8 .1 .1],...
+                            'MarkerSize',6);
                     end
                     
-                    %fprintf('%f ',sum(ai(1:n).*ai(n+1:end)));
-                    if sum(a(1:n) .* a(n+1:end)) ~= 0
-                        warning('some:id','Invalid ai config. please check now!');
-                        keyboard;
+                    hold off;
+                    title(sprintf('Current approximation, error: %e',err(cnt)));
+                    %legend('f(x_i) training values','+\epsilon','-\epsilon','approximation values');
+                    axis tight;
+                    if this.Vis > 2
+                        fprintf('alpha_{%d} change: %e, alpha_{%d} change: %e\n',i,r,j,s);
                     end
-                end
-                
-%                 %% Compute updates
-%                 kij = this.K(i1,j1);
-%                 % Compute plusminus sign of K_ij update.
-%                 % If difference is smaller than n, they are ++ or -- updates, meaning subtraction.
-%                 % otherwise, is |i-j| \geq n, we have +- or -+ cases, meaning addition.
-%                 % subtraction of .5 avoids having sign(0) = 0.
-%                 pm = sign(abs(i-j) - n - .5);
-%                 r = (dW(i) + pm * kij * dW(j)) / (1-kij^2);
-%                 s = (dW(j) + pm * kij * dW(i)) / (1-kij^2);
-%                 
-%                 % Handle constraint cases
-%                 r2 = []; s2 = [];
-%                 if r > this.C-a(i) || r < -a(i)
-%                     r = min(this.C-a(i), max(-a(i), r));
-%                     s2 = min(this.C-a(j), max(-a(j), dW(j) - r * kij));
-%                 end
-%                 if s > this.C-a(j) || s < -a(j)
-%                     s = min(this.C-a(j), max(-a(j), s));
-%                     r2 = min(this.C-a(i), max(-a(i), dW(i) - s * kij));
-%                 end
-%                 % Both updates are constrained, search for max gain
-%                 if ~isempty(r2) 
-%                     if ~isempty(s2)
-%                         % Gain if r is constrained and s accordingly updated
-%                         gr = r*(dW(i)-.5*r) + s2*(dW(j)-.5*s2) + pm * r * s2 * kij;
-%                         % Gain if s is constrained and r accordingly updated
-%                         gs = r2*(dW(i)-.5*r2) + s*(dW(j)-.5*s) + pm * r2 * s * kij;
-%                         if gr < gs
-%                             r = r2;
-%                         else
-%                             s = s2;
-%                         end
-%                     else
-%                         r = r2;
-%                     end
-%                 elseif ~isempty(s2)
-%                     s = s2;
-%                 end
-               
-                if this.Vis > 1
-                   fprintf('alpha_{%d} change: %e, alpha_{%d} change: %e\n',i,r,j,s);
                 end
                 
                 a(i) = a(i) + r;
                 a(j) = a(j) + s;
                 
-                if any(a < 0) || any(a > this.C)
-                    warning('some:id','constraint violation. please check.');
-                    keyboard;
-                end
-
                 % If difference is smaller than n, they are ++ or -- updates, meaning addition.
                 % otherwise, is |i-j| \geq n, we have +- or -+ cases, meaning subtraction.
                 % subtraction of .5 avoids having sign(0) = 0.
@@ -333,42 +263,30 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
                 %% Get new E term
                 E = this.C * sum(max(0,min(2-this.Eps,dW)));
                 
-%                 %% Duality gap P-W (testing)
-%                 dif = (a(1:n)-a(n+1:end)) * this.K;
-%                 hlp = abs(fxi - dif) - this.Eps;
-%                 hlp(hlp < 0) = 0;
-%                 t_tmp = (dif-fxi)*(a(1:n)-a(n+1:end))' + this.Eps*sum(a);
-%                 e_tmp = this.C * sum(hlp);
-%                 DualAll(cnt) = t_tmp + e_tmp;
-
                 S = T + E;
-                Sall(cnt) = S;
-                Tall(cnt) = T;
-                Eall(cnt) = E;
+%                 Sall(cnt) = S;
+%                 Tall(cnt) = T;
+%                 Eall(cnt) = E;
                 cnt = cnt+1;
             end
             cnt = cnt-1;
-            fprintf('Finished after %d/%d iterations.\n',cnt,maxcnt);
             if this.Vis > 0
-                figure;
-                semilogy(1:cnt,abs(Sall(1:cnt)),'r',1:cnt,abs(Tall(1:cnt)),'b',1:cnt,Eall(1:cnt),'g',1:cnt,ones(1,cnt)*stop,'black');
-                axis tight;
-                title('S, T, E and stopping values'); legend('S = T+E','T','E','stop cond');
-
-                figure;
-                semilogy(err(1:cnt));
-                axis tight;
-                title('Approximation error (by eps-insensitive loss fcn)');
-                
-%                 figure;
-%                 semilogy(DualAll(1:cnt));
-%                 axis tight;
-%                 title('Duality Gap');
+                fprintf('Finished after %d/%d iterations.\n',cnt,this.MaxCount);
             end
+%             if this.Vis > 0
+%                 figure;
+%                 semilogy(1:cnt,abs(Sall(1:cnt)),'r',1:cnt,abs(Tall(1:cnt)),'b',1:cnt,Eall(1:cnt),'g',1:cnt,ones(1,cnt)*stop,'black');
+%                 axis tight;
+%                 title('S, T, E and stopping values'); legend('S = T+E','T','E','stop cond');
+% 
+%                 figure;
+%                 semilogy(err(1:cnt));
+%                 axis tight;
+%                 title('Approximation error (by eps-insensitive loss fcn)');
+%             end
             
             % \alpha = \alpha^+ - \alpha^-
-            ai = (a(1:n)-a(n+1:end))';
-            
+            ai = (a(1:n)-a(n+1:end))';            
         end
         
         function [i, M] = WSS0_1D_GetMaxGainIndex(this, a, dW)
@@ -575,7 +493,8 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             end
             [dist, idx] = sort(sqrt(1-this.K(ki,:)));
             % Extract indices of alpha^+ that are "close" wrt to the kernel metric \sqrt{1-\Phi(x_i,x_j)}
-            nidx = idx(2:this.NNk+1);
+            % Start at 2 as i itself is not an option for second index
+            nidx = idx(2: min(this.NNk+1,numel(idx)));
             % Of course also consider the \alpha^-
             ij = [i*ones(size(nidx,2)*2,1) [nidx nidx+n]'];
         end
@@ -781,7 +700,7 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             
             %kernel = kernels.PolyKernel(7);
             %kernel = kernels.LinearKernel;
-            kernel = kernels.GaussKernel(.5);
+            kernel = kernels.GaussKernel(.2);
             svr.K = kernel.evaluate(x,x);
 
             [ai, svidx] = svr.computeKernelCoefficients(fx);
