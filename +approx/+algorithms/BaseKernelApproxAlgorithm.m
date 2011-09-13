@@ -4,6 +4,10 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable
     %
     % @author Daniel Wirtz @date 2011-07-07
     %
+    % @change{0,5,dw,2011-09-12} Added initial values that can be passed to
+    % the CoeffComp algorithms. Now computing coefficients at once if
+    % MultiTargetComputation of the CoeffComp property is true.
+    %
     % @new{0,5,dw,2011-07-07} Added this class.
     %
     % This class is part of the framework
@@ -99,7 +103,7 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable
     end
     
     methods(Access=protected)
-        function computeCoeffs(this, kexp, fxi)
+        function computeCoeffs(this, kexp, fxi, initialalpha)
             % Computes the coefficients for all components.
             %
             % Convenience method that any subclasses may (must?) use in
@@ -112,19 +116,19 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable
                 if KerMor.App.Verbose > 3
                     fprintf('Starting parallel component-wise coefficient computation\n');
                 end
-                this.computeCoeffsParallel(kexp, fxi);
+                this.computeCoeffsParallel(kexp, fxi, initialalpha);
             else
                 if KerMor.App.Verbose > 3
                     fprintf('Starting component-wise coefficient computation\n');
                 end
-                this.computeCoeffsSerial(kexp, fxi);
+                this.computeCoeffsSerial(kexp, fxi, initialalpha);
             end
         end
     end
     
     methods(Access=private)
         
-        function computeCoeffsSerial(this, kexp, fxi)
+        function computeCoeffsSerial(this, kexp, fxi, initialalpha)
             % Computes the coefficients using the CoeffComp instance
             % serially.
             %
@@ -137,16 +141,21 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable
             try
                 n = size(kexp.Centers.xi,2);
                 kexp.Ma = zeros(fdims, n);
-                for fdim = 1:fdims
+                if this.CoeffComp.MultiTargetComputation
                     if KerMor.App.Verbose > 3
-                        fprintf('Computing approximation for dimension %d/%d ... %2.0f %%\n',fdim,fdims,(fdim/fdims)*100);
+                        fprintf('Computing approximation for all %d dimensions...\n',fdims);
                     end
                     % Call template method
-                    [ai, svidx] = this.CoeffComp.computeKernelCoefficients(fxi(fdim,:)); 
-                    if ~isempty(svidx)
+                    [ai, svidx] = this.CoeffComp.computeKernelCoefficients(fxi,initialalpha);
+                    kexp.Ma(:,svidx) = ai;
+                else
+                    for fdim = 1:fdims
+                        if KerMor.App.Verbose > 3
+                            fprintf('Computing approximation for dimension %d/%d ... %2.0f %%\n',fdim,fdims,(fdim/fdims)*100);
+                        end
+                        % Call template method
+                        [ai, svidx] = this.CoeffComp.computeKernelCoefficients(fxi(fdim,:),initialalpha(fdim,:)); 
                         kexp.Ma(fdim,svidx) = ai;
-                    else
-                        kexp.Ma(fdim,:) = ai;
                     end
                 end
             catch ME
@@ -158,7 +167,7 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable
             end
         end
         
-        function computeCoeffsParallel(this, kexp, fxi)
+        function computeCoeffsParallel(this, kexp, fxi, initialalpha)
             %% Parallel execution
             n = size(kexp.Centers.xi,2);
             fdims = size(fxi,1);
@@ -172,7 +181,7 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable
                 %waitbar(fdim/fdims+10,wh,sprintf('Computing
                 %approximation for dimension %d/%d ... %2.0f %%',fdim,fdims,(fdim/fdims)*100));
                 % Call template method
-                [parAI{fdim}, parSV{fdim}] = cfun(fxi(fdim,:));
+                [parAI{fdim}, parSV{fdim}] = cfun(fxi(fdim,:),initialalpha(fdim,:));
             end
             
             kexp.Ma = zeros(fdims, n);

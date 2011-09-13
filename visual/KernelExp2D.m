@@ -5,11 +5,14 @@ function varargout = KernelExp2D(varargin)
 %
 % Parameters:
 % kexp: The kernel expansion, @type kernels.KernelExpansion
-% xi: The space/state centers `x_i`
-% fxi: The function evaluations `f(x_i)`
+% centers: The space/state centers `x_i`. If the kernel expansion is a
+% ParamTimeKernelExpansion, it has to be a struct with the three fields
+% xi,ti,mui. Otherwise a simple matrix with the state space data is
+% expected.
+% fxi: The function evaluations `f(x_i[,ti,mui])`
 % lbl: [optional] A struct with fields 'x' and 'fx', containing char cell arrays with the names for
 % the different dimensions. If not given, the labels `x_1,\ldots,x_n` and `f(x_1),\ldots,f(x_n)` are
-% used.
+% used. If time or parameters are used, the labels are created adequately.
 % custcallb: A struct array of custom function callbacks for specific input/output dimension
 % choices. Each struct must have a field 'fcn', which contains a function handle to a function `g`
 % taking two arguments `x_1,x_2` and yield scalar output `g(x_1,x_2)`. The field 'sel' is required
@@ -19,6 +22,11 @@ function varargout = KernelExp2D(varargin)
 % respectively.
 %
 % @author Daniel Wirtz @date 2011-07-26
+%
+% @change{0,5,dw,2011-09-12} Changed the base-x panel so that many
+% dimensions can be displayed. A scrollbar callback dynamically creates the
+% currently visible sliders. Added ParamTimeKernel expansion support (new
+% calling interface with struct for those)
 %
 % @change{0,5,dw,2011-08-08} 
 % - Made plotting work also if a dimension is of constant values. If such a
@@ -50,7 +58,7 @@ function varargout = KernelExp2D(varargin)
 
 % Edit the above text to modify the response to help KernelExp2D
 
-% Last Modified by GUIDE v2.5 29-Jul-2011 17:25:50
+% Last Modified by GUIDE v2.5 12-Sep-2011 15:03:40
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -96,7 +104,15 @@ if length(varargin) < 3
     error('This component needs at minimum three arguments: The kernel expansion, the source data xi and the fxi values.');
 end
 kexp = varargin{1};
-xi = varargin{2};
+conf.ispte = isa(kexp,'kernels.ParamTimeKernelExpansion');
+if conf.ispte
+    centers = [varargin{2}.xi; varargin{2}.ti; varargin{2}.mui];
+    conf.timeoff = size(varargin{2}.xi,1)+1;
+else
+    centers = varargin{2};
+end
+% Detect constant fields
+conf.const = find(max(centers,[],2) == min(centers,[],2));
 fxi = varargin{3};
 custcallb = []; lbl = [];
 if length(varargin) == 5
@@ -114,8 +130,20 @@ if isempty(lbl)
     % Automatically assign "useful" names to the dimensions
     lbl = struct;
     lbl.x = {};
-    for i=1:size(xi,1)
-        lbl.x{end+1} = ['x_' num2str(i)];
+    if conf.ispte
+        for i=setdiff(1:conf.timeoff-1,conf.const)
+            lbl.x{end+1} = ['x_' num2str(i)];
+        end
+        if all(conf.const ~= conf.timeoff)
+            lbl.x{end+1} = 't';
+        end
+        for i=setdiff(1:size(varargin{2}.mui,1),conf.const)
+            lbl.x{end+1} = ['mu_' num2str(i)];
+        end
+    else
+        for i=setdiff(1:size(centers,1),conf.const)
+            lbl.x{end+1} = ['x_' num2str(i)];
+        end
     end
     lbl.fx = {};
     for i=1:size(fxi,1)
@@ -128,12 +156,12 @@ if ~isempty(custcallb) && (~isfield(custcallb,'fcn') || ~isfield(custcallb,'sel'
 end
 
 setappdata(h.main,'kexp',kexp);
-setappdata(h.main,'xi',xi);
+setappdata(h.main,'centers',centers);
 setappdata(h.main,'fxi',fxi);
 setappdata(h.main,'cb',custcallb);
 
 %% Setup default values
-conf.dims = size(xi,1);
+conf.dims = size(centers,1);
 conf.outdims = size(fxi,1);
 conf.lbl = lbl;
 % Selected dimensions
@@ -142,7 +170,7 @@ conf.dout = 1;
 % Refinement factor
 conf.ref = 1;
 % The base x to use, starting with minimum of all values
-conf.basex = min(xi,[],2);
+conf.basex = min(centers,[],2);
 % The percentage of nearest training points to plot along with the approximation
 conf.tperc = 3;
 setappdata(h.main,'conf',conf)
@@ -157,20 +185,20 @@ set(h.dout,'String',lbl.fx,'Value',conf.dout);
 set(h.slRefine,'Value',conf.ref);
 set(h.slPerc,'Value',conf.tperc);
 
-updateBaseSliders(h, conf);
+setDimSliders(h);
 
 plotCurrent(h, conf);
 
 %% Plots the current settings
 function plotCurrent(h, c)
 
-xi = getappdata(h.main,'xi');
+centers = getappdata(h.main,'centers');
 fxi = getappdata(h.main,'fxi');
 kexp = getappdata(h.main,'kexp');
-nums = round(size(xi,2)*c.ref);
+nums = round(size(centers,2)*c.ref);
 
 xsel = [c.d1 c.d2];
-x = xi(xsel,:);
+x = centers(xsel,:);
 xr = linspacev(min(x,[],2), max(x,[],2), nums);
 x = unique([x xr]','rows')';
 
@@ -186,10 +214,12 @@ if any(x1(1) ~= x1) && any(x2(1) ~= x2)
     xf = repmat(c.basex,1,size(x,2));
     xf(xsel,:) = x;
 
-    try
+    if c.ispte        
+        fx = kexp.evaluate(xf(1:c.timeoff-1,:),...
+            xf(c.timeoff,:),...
+            xf((c.timeoff+1):end,:));
+    else
         fx = kexp.evaluate(xf);
-    catch ME
-        fx = kexp.evaluate(xf,[],[]);
     end
     fx = fx(c.dout,:);
 
@@ -200,12 +230,12 @@ if any(x1(1) ~= x1) && any(x2(1) ~= x2)
     trisurf(tr, x1, x2, fx,'Parent',h.ax);
     shading(h.ax,'interp');
     % Add original points (select g% subset)
-    d = xi - repmat(c.basex,1,size(xi,2));
+    d = centers - repmat(c.basex,1,size(centers,2));
     d(xsel,:) = [];
     d = sqrt(sum(d.^2,1));
     md = min(d); Md = max(d);
     sel = d <= md + (Md-md)*(c.tperc/100);
-    plot3(xi(c.d1,sel), xi(c.d2,sel), fxi(c.dout,sel),'black.','MarkerSize',5,'Parent',h.ax);
+    plot3(centers(c.d1,sel), centers(c.d2,sel), fxi(c.dout,sel),'black.','MarkerSize',5,'Parent',h.ax);
 
     %% Evaluate any given callbacks for the given dimension
     cb = getappdata(h.main,'cb');
@@ -231,6 +261,7 @@ if any(x1(1) ~= x1) && any(x2(1) ~= x2)
     zlabel(h.ax,c.lbl.fx{c.dout});
     title(h.ax,sprintf('Plot of f(x)=%s against x=%s and y=%s',c.lbl.fx{c.dout},c.lbl.x{c.d1},c.lbl.x{c.d2}));
     hold(h.ax,'off');
+    axis tight;
     close(hf);
 else
     warning('KerMor:KernelExp2D','One of the currently selected dimensions is empty, i.e. the values are constant. Not plotting.');
@@ -241,11 +272,11 @@ function res = linspacev(x,y,n)
     r = 0:n-2;
     res = [repmat(x,1,length(r)) + repmat(r,size(x,1),1) .* repmat((y-x),1,length(r))/(floor(n)-1) y];
 
-function updateBaseSliders(h, c)
-
-xi = getappdata(h.main,'xi');
-
-% Remove old ones if exist
+function setDimSliders(h)
+val = 1-get(h.panelslide,'Value');
+centers = getappdata(h.main,'centers');
+c = getappdata(h.main,'conf');
+% % Remove old ones if exist
 ctrls = getappdata(h.main, 'ctrls');
 if ~isempty(ctrls)
     delete(ctrls.labels);
@@ -253,58 +284,68 @@ if ~isempty(ctrls)
     clear ctrls;
 end
 
-dims = 1:c.dims;
-dims([c.d1 c.d2]) = []; 
-cnt = 1; 
-dist = 22;%px
 pos = get(h.pnlBS,'Position');
+pnlh = pos(4);
+
+dims = setdiff(1:c.dims,c.const);
+dims([c.d1 c.d2]) = []; 
+dist = 6;%px
+height = 16; %px
+eh = dist + height; % total element height
+dispsliders = floor(pnlh / eh)-1;
+totalheight = (length(dims)-dispsliders) * eh;
+curoffset = totalheight * val;
+firstidx = floor(curoffset / eh);
+
 ctrls.labels = [];
 ctrls.slides = [];
-for dim = dims
-    top = pos(4)-20-cnt*dist;
+for idx = 1:dispsliders
+    dim = dims(firstidx+idx);
+    top = pnlh-15-idx*eh;
     name = c.lbl.x{dim};
-    m = min(xi(dim,:));
-    M = max(xi(dim,:));
-    
-    % Create label
+    % Create labels
+    m = min(centers(dim,:));
+    M = max(centers(dim,:));
+    tooltip = sprintf('Range [%1.5e - %1.5e]',m,M);
+    % Dimension label
     label = uicontrol('Tag',['runtime_lbl_' name],'Style','text',...
         'Parent',h.pnlBS,'HorizontalAlignment','left');
-    set(label,'String',[name ': '],'Units','pixels','Position',[10 top 40 14]);
+    set(label,'String',[name ': '],'Units','pixels','Position',[10 top 40 14],...
+        'TooltipString',tooltip);
     ctrls.labels(end+1) = label;
     
-    label = uicontrol('Tag',['runtime_lbl_' name],'Style','text',...
+    % Value label
+    label = uicontrol('Tag',['runtime_lbl_val_' name],'Style','text',...
         'Parent',h.pnlBS,'HorizontalAlignment','left',...
         'TooltipString',['Value of ' name ' for current plot']);
-    set(label,'String',num2str(c.basex(dim)),'Units','pixels','Position',[50 top 60 14]);
+    set(label,'String',sprintf('%2.4e',c.basex(dim)),'Units','pixels','Position',[60 top 90 14],...
+        'TooltipString',tooltip);
     ctrls.labels(end+1) = label;
     valuelabel = label;
     
-    if m ~= M
-        label = uicontrol('Tag',['runtime_lbl_min' name],'Style','text',...
-            'Parent',h.pnlBS,'HorizontalAlignment','right',...
-            'TooltipString',['Minimum value of ' name]);
-        set(label,'String',num2str(m),'Units','pixels','Position',[110 top 60 14]);
-        ctrls.labels(end+1) = label;
-
-        label = uicontrol('Tag',['runtime_lbl_max' name],'Style','text',...
-            'Parent',h.pnlBS,'HorizontalAlignment','left',...
-            'TooltipString',['Maximum value of ' name]);
-        set(label,'String',num2str(M),'Units','pixels','Position',[370 top 60 14]);
-        ctrls.labels(end+1) = label;
-
-        %% Create slider
-        ctrl = uicontrol('Tag',['runtime_slide_' name],'Parent',...
-            h.pnlBS,'HorizontalAlignment','left');
-        set(ctrl,'Style','slider', 'Value', c.basex(dim), 'Min', m, 'Max', M);
-
-        % Position
-        set(ctrl,'Units','pixels','Position',[170 top 200 16],'UserData',dim);
-        % Set callback & string
-        set(ctrl,'Callback',@(h,e)(baseSliderChanged(h,guidata(h),valuelabel)));
-
-        cnt = cnt + 1;
-        ctrls.slides(end+1) = ctrl;
-    end
+%     % Min value label
+%     label = uicontrol('Tag',['runtime_lbl_min' name],'Style','text',...
+%         'Parent',h.pnlBS,'HorizontalAlignment','right',...
+%         'TooltipString',['Minimum value of ' name]);
+%     set(label,'String',sprintf('%1.1e',m),'Units','pixels','Position',[160 top 50 14]);
+%     ctrls.labels(end+1) = label;
+        
+    % Create slider
+    ctrl = uicontrol('Tag',['runtime_slide_' name],'Parent',...
+        h.pnlBS,'HorizontalAlignment','left');
+    set(ctrl,'Style','slider', 'Value', c.basex(dim),...
+        'Min', m, 'Max', M);
+    set(ctrl,'Units','pixels','Position',[160 top 250 16],'UserData',dim,...
+        'TooltipString',tooltip);
+    set(ctrl,'Callback',@(h,e)(baseSliderChanged(h,guidata(h),valuelabel)));
+    ctrls.slides(end+1) = ctrl;
+    
+    % Max value label
+%     label = uicontrol('Tag',['runtime_lbl_max' name],'Style','text',...
+%         'Parent',h.pnlBS,'HorizontalAlignment','left',...
+%         'TooltipString',['Maximum value of ' name]);
+%     set(label,'String',sprintf('%1.1e',M),'Units','pixels','Position',[350 top 50 14]);
+%     ctrls.labels(end+1) = label;
 end
 setappdata(h.main, 'ctrls', ctrls);
 
@@ -313,7 +354,7 @@ function baseSliderChanged(hObj, h, label)
 dim = get(hObj,'UserData');
 conf = getappdata(h.main,'conf');
 conf.basex(dim) = get(hObj,'Value');
-set(label,'String',num2str(conf.basex(dim)));
+set(label,'String',sprintf('%2.4e',conf.basex(dim)));
 setappdata(h.main,'conf',conf);
 
 plotCurrent(h, conf);
@@ -333,10 +374,11 @@ function varargout = KernelExp2D_OutputFcn(hObject, eventdata, handles)
 function dim1_Callback(hObject, eventdata, handles) %#ok<*INUSL,*DEFNU>
 conf = getappdata(handles.main,'conf');
 if get(hObject,'Value') ~= conf.d2
+    old = conf.d1;
     conf.d1 = get(hObject,'Value');
     setappdata(handles.main,'conf',conf);
 
-    updateBaseSliders(handles, conf);
+    setDimSliders(handles);
     plotCurrent(handles, conf);
 end
 
@@ -349,10 +391,11 @@ end
 function dim2_Callback(hObject, eventdata, handles)
 conf = getappdata(handles.main,'conf');
 if get(hObject,'Value') ~= conf.d1
+    old = conf.d2;
     conf.d2 = get(hObject,'Value');
     setappdata(handles.main,'conf',conf);
 
-    updateBaseSliders(handles, conf);
+    setDimSliders(handles);
     plotCurrent(handles, conf);
 end
 
@@ -432,6 +475,28 @@ plotCurrent(handles, conf);
 % --- Executes during object creation, after setting all properties.
 function slPerc_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to slPerc (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: slider controls usually have a light gray background.
+if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor',[.9 .9 .9]);
+end
+
+
+% --- Executes on slider movement.
+function panelslide_Callback(hObject, eventdata, h)
+% hObject    handle to panelslide (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+setDimSliders(h);
+
+% --- Executes during object creation, after setting all properties.
+function panelslide_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to panelslide (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 

@@ -9,12 +9,26 @@ classdef IKernelCoeffComp < handle
     %
     % @author Daniel Wirtz @date 2011-03-31
     %
+    % @change{0,5,dw,2011-09-12}
+    % - Added initial values that can be passed to the CoeffComp algorithms.
+    % - New Property
+    % approx.algorithms.IKernelCoeffComp.MultiTargetComputation that
+    % indicates of the algorithm at hand can handle a column vector matrix
+    % instead of a single vector.
+    %
     % @new{0,5,dw,2011-07-07} Moved this class to the approx.algorithms package.
     %
     % @change{0,3,dw,2011-05-03} Removed offset terms from interface as the `b` offsets for kernel
     % expansions arent used anymore.
     %
     % @new{0,3,dw,2011-03-31} Added this interface.
+    
+    properties(SetAccess=protected)
+        % A flag that indicates to users if the coefficient computation
+        % method is capable of using a matrix of column fxi vectors or only
+        % single vectors.
+        MultiTargetComputation = false;
+    end
     
     methods(Abstract)
         % Initialization template method.
@@ -23,7 +37,8 @@ classdef IKernelCoeffComp < handle
         % and every time the kernel matrix changes.
         %
         % Parameters:
-        % K: The Kernel matrix created from the centers `x_i`
+        % K: The Kernel matrix for the centers `x_i` @type
+        % data.AKernelMatrix
         %
         % See also: computeKernelCoefficients
         init(this, K);
@@ -36,14 +51,18 @@ classdef IKernelCoeffComp < handle
         % the approx.algorithms.IKernelCoeffComp#init method.
         %
         % Parameters:
-        % yi: The function values `f(x_i)` as row vector.
+        % yi: The function values `f(x_i)` as column vector. If
+        % MultiTargetComputation is true, this can be a matrix of column
+        % vectors.
         %
         % Return values:
-        % ai: The coefficients `\alpha_{k,i}` of `f_k(x)`.
-        % svidx: The used support vector indices `i` of `x_i`.
+        % ai: The coefficients `\alpha_{k,i}` of `f_k(x)` as ROW vector.
+        % svidx: The used support vector indices `i` of `x_i`. Always
+        % required. (Set to 1:n if no sparsity is given by the coeffcomp
+        % method)
         %
         % See also: init
-        [ai, svidx] = computeKernelCoefficients(this, yi);
+        [ai, svidx] = computeKernelCoefficients(this, yi, initialai);
     end
     
 end

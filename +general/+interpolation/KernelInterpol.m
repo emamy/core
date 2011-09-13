@@ -12,6 +12,11 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
     %
     % @author Daniel Wirtz @date 01.04.2010
     %
+    % @change{0,5,dw,2011-09-12} Set the UseLU flag to true per default.
+    % Using AKernelMatrix instances now, along with flags of whether to
+    % successively build the inverse, too. Moved the UseLU property to
+    % MemoryKernelMatrix.
+    %
     % @change{0,4,dw,2011-05-03} Removed the artificial offset term `b` from the interpolation
     % process (no longer used in kernel expansions)
     %
@@ -31,39 +36,10 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
         %
         % @propclass{data} Required for any interpolation computation.
         %
-        % See also: UseLU
         K;
     end
-        
-    properties(Dependent, SetObservable)
-        % Flag that indicates whether to use LU decomposition of the kernel
-        % matrix of not. Ideally set this property ''after'' you assigned
-        % the kernel matrix K
-        %
-        % @propclass{optional} Speedup maybe gained if subsequent calls to interpolate using the
-        % same kernel matrix are made.
-        %
-        % @default false
-        % See also: K
-        UseLU;
-    end
     
     properties(Access=private)
-        % Private variable to store the lower left part of the optional LU
-        % decomp.
-        %
-        % See also: K UseLU
-        L;
-        
-        % Private variable to store the lower left part of the optional LU
-        % decomp.
-        %
-        % See also: K UseLU
-        U;
-    end
-    
-    properties(Access=private)
-        fUseLU = false;
         fK;
     end
     
@@ -71,7 +47,8 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
         
         function this = KernelInterpol
             this = this@KerMorObject;
-            this.registerProps('K','UseLU');
+            this.MultiTargetComputation = true;
+            this.registerProps('K');
         end
         
         function a = interpolate(this, fxi)
@@ -82,39 +59,31 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
             %
             % Return values:
             % a: The coefficient vector `\alpha`
-            if all(abs(fxi) < 10*eps)
-                a = zeros(size(fxi))';
-                if KerMor.App.Verbose > 3
-                    fprintf('KernelInterpol note: All mean-cleaned fxi values < 10eps, assuming zero coefficients!\n');
-                end
-            else
-                if this.fUseLU
-                    %norm(this.K*fxi'-this.K'*fxi')
-                    %eps*norm(fxi')
-                    %keyboard
-                    %a = bicg(this.K,fxi',[],20000);
-                    a = this.U\(this.L\fxi');
-                else
-                    a = this.fK\fxi';
+
+%             if all(abs(fxi) < 10*eps)
+%                 a = zeros(size(fxi))';
+%                 if KerMor.App.Verbose > 3
+%                     fprintf('KernelInterpol note: All fxi values < 10eps, assuming zero coefficients!\n');
+%                 end
+%             else
+            if isa(this.fK, 'data.MemoryKernelMatrix')
+                if this.fK.UseLU
+                    a = this.fK.U\(this.fK.L\fxi');
+                    return;
+                elseif this.fK.BuildInverse
+                    a = this.fK.Kinv * fxi';
+                    return;
                 end
             end
-        end
-        
-        function set.UseLU(this, value)
-            % Sets the UseLU property and ensures that if it was set after
-            % the kernel matrix was assigned the LU decomposition is
-            % computed in each case.
-            this.fUseLU = value;
-            if value && ~isempty(this.K)
-                [this.L, this.U] = lu(this.K);
-            end
+            a = this.fK\fxi';
+%             end
         end
         
         function set.K(this, value)
             % Sets the kernel matrix property and computes the LU
             % decomposition if the UseLU flag is set to true.
-            if this.UseLU
-                [this.L, this.U] = lu(value);
+            if ~isa(value, 'data.AKernelMatrix')
+                error('K must be a data.AKernelMatrix');
             end
             this.fK = value;
         end
@@ -123,19 +92,16 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
             K = this.fK;
         end
         
-        function flag = get.UseLU(this)
-            flag = this.fUseLU;
-        end
-        
         %% approx.algorithms.IKernelCoeffComp interface members
         function init(this, K)
-            this.UseLU = true;
             this.K = K;
         end
         
         function [ai, svidx] = computeKernelCoefficients(this, yi, dummy)%#ok
-            ai = this.interpolate(yi);
-            svidx = [];
+            
+            % Transform to row vector
+            ai = this.interpolate(yi)';
+            svidx = 1:size(ai,2);
         end
     end
     

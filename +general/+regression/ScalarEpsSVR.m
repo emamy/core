@@ -10,6 +10,8 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
 %
 % @author Daniel Wirtz @date 11.03.2010
 %
+% @change{0,5,dw,2011-09-09} Moved the QPSolver property to this class.
+%
 % @change{0,4,dw,2011-06-01} Fitted the interface to the changed one in
 % general.regression.BaseScalarSVR
 %
@@ -19,12 +21,26 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
 % removing the equality constraint for the coefficient vectors) as kernel expansions no longer
 % use offset terms.
     
-    properties
+    properties(SetObservable)
         % The margin for the approximation-to-source distance.
         % Effectiveness also depends on C
         %
+        % @propclass{critical} Determines the precision of the
+        % approximation.
+        %
+        % @default 0.05
+        %
         % See also: C
         eps = 0.05;
+        
+        % The quadratic solver internally used
+        %
+        % @propclass{optional} Different solvers should have different performance but should not
+        % change the result. qpOASES so far is the fastest solver available in KerMor.
+        %
+        % @default solvers.qp.qpOASES
+        % @type solvers.qp.BaseQPSolver
+        QPSolver;
     end
     
     methods
@@ -32,6 +48,7 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             % Default constructor. Calls superconstructor to initialize
             % properties
             this = this@general.regression.BaseScalarSVR;
+            this.registerProps('eps','QPSolver');
         end
         
         function ai = regress(this, fxi, ainit)
@@ -76,6 +93,13 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             end
             this.eps = value;
         end
+        
+        function set.QPSolver(this, value)
+            if ~isa(value,'solvers.qp.BaseQPSolver')
+                error('The given value has to be a solvers.qp instance.');
+            end            
+            this.QPSolver = value;
+        end
     end
     
     methods(Sealed)
@@ -86,6 +110,7 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             copy = clone@general.regression.BaseScalarSVR(this, copy);
             % Copy local props
             copy.eps = this.eps;
+            copy.QPSolver = this.QPSolver.clone;
         end
     end
     

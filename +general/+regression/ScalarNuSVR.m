@@ -10,6 +10,8 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
 %
 % @author Daniel Wirtz @date 11.03.2010
 %
+% @change{0,5,dw,2011-09-09} Moved the QPSolver property to this class.
+%
 % @change{0,4,dw,2011-06-01} Fitted the interface to the changed one in
 % general.regression.BaseScalarSVR
 %
@@ -29,6 +31,15 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
         %
         % See also: C
         nu = .4;
+        
+        % The quadratic solver internally used
+        %
+        % @propclass{optional} Different solvers should have different performance but should not
+        % change the result. qpOASES so far is the fastest solver available in KerMor.
+        %
+        % @default solvers.qp.qpOASES
+        % @type solvers.qp.BaseQPSolver
+        QPSolver;
     end
     
     properties(Transient, SetAccess=private)
@@ -39,7 +50,7 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
         
         function this = ScalarNuSVR
             this = this@general.regression.BaseScalarSVR;
-            this.registerProps('nu');
+            this.registerProps('nu','QPSolver');
         end
         
         function ai = regress(this, fxi, ainit)
@@ -106,6 +117,13 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             end
             this.nu = value;
         end
+        
+        function set.QPSolver(this, value)
+            if ~isa(value,'solvers.qp.BaseQPSolver')
+                error('The given value has to be a solvers.qp instance.');
+            end            
+            this.QPSolver = value;
+        end
     end
     
     methods(Sealed)
@@ -116,6 +134,7 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             copy = clone@general.regression.BaseScalarSVR(this, copy);
             % Copy local props
             copy.nu = this.nu;
+            copy.QPSolver = this.QPSolver.clone;
         end
     end
     

@@ -5,6 +5,9 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
 %
 % See also: BaseApprox KernelApprox
 %
+% @change{0,5,dw,2011-09-09} Fixed setters for MaxRelErr and
+% MaxAbsErrFactor, now setting values to 'this' instead of 'kexp'
+%
 % @change{0,5,dw,2011-07-28} Changed the algorithm part so that it can also work with
 % kernels.KernelExpansion instead of only on kernels.ParamTimeKernelExpansion.
 %
@@ -395,12 +398,14 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
                     %% Compute coefficients
                     %warning('off','MATLAB:nearlySingularMatrix');
                     % Call coeffcomp preparation method and pass kernel matrix
-                    K = kexp.getKernelMatrix;
+                    K = data.MemoryKernelMatrix(kexp.getKernelMatrix);
+                    %K.UseLU = true;
+                    %K.BuildInverse = true;
                     this.CoeffComp.init(K);
                     
                     % Call protected method
                     try
-                        this.computeCoeffs(kexp, fxi(:,used));
+                        this.computeCoeffs(kexp, fxi(:,used), [kexp.Ma zeros(size(fxi,1),1)]);
                     catch ME
                         if strcmp(ME.identifier,'KerMor:coeffcomp:failed')                            
                             exception = true;
@@ -582,14 +587,14 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
             if ~isposrealscalar(value)
                 error('The value must be a positive scalar');
             end
-            kexp.MaxRelErr = value;
+            this.MaxRelErr = value;
         end
         
         function set.MaxAbsErrFactor(this, value)
             if ~isposrealscalar(value)
                 error('The value must be a positive scalar');
             end
-            kexp.MaxAbsErrFactor = value;
+            this.MaxAbsErrFactor = value;
         end
         
         function set.ErrFun(this, value)

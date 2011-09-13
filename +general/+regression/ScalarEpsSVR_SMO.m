@@ -8,7 +8,8 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
 % @author Daniel Wirtz @date 2011-08-09
 %
 % @change{0,5,dw,2011-09-09} Finished initial work on this class, fixed many bugs and implemented
-% all strategies required for the WSS7 described in SHS11.
+% all strategies required for the WSS7 described in SHS11. Added initial
+% value (warm start) support.
 %
 % @new{0,5,dw,2011-08-09} Added this class.
 %
@@ -65,28 +66,34 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
     end
     
     methods
-        function ai = regress(this, fxi)
+        function ai = regress(this, fxi, initialai)
             % Make sure it's a row vector.
             fxi = reshape(fxi,1,[]);
+%             initialai = reshape(initialai,1,[]);
             if this.Version == 1
                 % Call 1D-Optimizer
-                ai = this.regress1D(fxi);
+                ai = this.regress1D(fxi, initialai);
             else
                 % Call 2D-Optimizer
-                ai = this.regress2D(fxi);
+                ai = this.regress2D(fxi, initialai);
             end
         end
     end
     
     methods(Access=private)
         
-        function ai = regress1D(this, fxi)
+        function ai = regress1D(this, fxi, initialai)
             
-            %% Init - cold start
-            [a, dW, T] = I0_ColdStart(this, fxi);
-            
-            %% Init - kernel rule
-%             [a, dW, T] = I1_ColdStartKernelRule(this, fxi);
+            if ~isempty(initialai)
+                % Init - warm start
+                [a, dW, T] = I2_WarmStart(this, fxi, initialai);
+            else
+                % Init - cold start
+                [a, dW, T] = I0_ColdStart(this, fxi);
+                
+                % Init - kernel rule
+%                 [a, dW, T] = I1_ColdStartKernelRule(this, fxi);
+            end
 
             %% Preps
             cnt = 1;
@@ -157,13 +164,18 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             ai = (a(1:n)-a(n+1:end))';
         end
         
-        function ai = regress2D(this, fxi)
+        function ai = regress2D(this, fxi, initialai)
             
-            %% Init - cold start
-            [a, dW, T] = I0_ColdStart(this, fxi);
-            
-            %% Init - kernel rule
-%             [a, dW, T] = I1_ColdStartKernelRule(this, fxi);
+            if ~isempty(initialai)
+                % Init - warm start
+                [a, dW, T] = I2_WarmStart(this, fxi, initialai);
+            else
+                % Init - cold start
+                [a, dW, T] = I0_ColdStart(this, fxi);
+
+                % Init - kernel rule
+%                 [a, dW, T] = I1_ColdStartKernelRule(this, fxi);
+            end
             
             if this.Vis > 1
                 h = figure(1);
@@ -212,7 +224,7 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
                     afxi = (a(1:n)-a(n+1:end))*this.K;
                     figure(h);
                     subplot(1,2,1);
-                    plot(1:n,fxi,'r',1:n,[fxi-this.Eps; fxi+this.Eps],'r--',1:n,afxi,'b');
+                    plot(1:n,fxi,'r',1:n,[fxi-this.Eps; fxi+this.Eps]','r--',1:n,afxi,'b');
                     hold on;
                     if (i1 == i)
                         plot(i,afxi(i),'o','MarkerEdgeColor','k',...
@@ -234,7 +246,7 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
                     end
                     
                     hold off;
-                    title(sprintf('Current approximation, error: %e',err(cnt)));
+%                     title(sprintf('Current approximation, error: %e',err(cnt)));
                     %legend('f(x_i) training values','+\epsilon','-\epsilon','approximation values');
                     axis tight;
                     if this.Vis > 2
@@ -248,7 +260,7 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
                 % If difference is smaller than n, they are ++ or -- updates, meaning addition.
                 % otherwise, is |i-j| \geq n, we have +- or -+ cases, meaning subtraction.
                 % subtraction of .5 avoids having sign(0) = 0.
-                pm = -sign(abs(i-j) - n - .5);
+                pm = sign(i - n - .5)*sign(j - n - .5);
                 %% Update T using old dW
                 T = T + r*(r - 2*dW(i) - this.Eps + sgn(i)*fxi(i1)) ...
                       + s*(s - 2*dW(j) - this.Eps + sgn(j)*fxi(j1)) ...
@@ -343,97 +355,6 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             ij = [I(I~=0) J(J~=0)];
             % Remove indices that would look at moving the same alpha up and down at the same time
             ij(ij(:,1)-ij(:,2)-n == 0,:) = [];
-            
-            
-%             % Only consider changeable \alpha^{+,-}, i.e. the ones whos partner \alpha equals zero.
-%             n = numel(a)/2;
-%             ind = 1:n;
-%             apch = ind(a(n+1:end) == 0);
-%             amch = ind(a(1:n) == 0);
-%             ch = [apch amch];
-%             Kch = this.K(ch,ch);
-%             ch(numel(apch)+1:end) = ch(numel(apch)+1:end)+n;
-%             [wj, wi] = meshgrid(dW(ch));
-%             ai = repmat(a(ch)', 1, length(ch));
-%             aj = ai';
-%             sig = sgn(ch)' * sgn(ch);
-%             div = 1 ./ (1-Kch.^2);
-%             div(isinf(div)) = 0;
-%             
-%             % Compute update r
-%             r = (wi - sig .* Kch .* wj) .* div;
-%             s = r';
-%             
-%             %% Handle constraints
-%             ub = r > this.C - ai;
-%             lb = r < - ai;
-%                         
-%             % r is constrained only
-%             ronly = (ub | lb) & ~(ub' | lb');
-%             r(ronly) = min(this.C - ai(ronly),max(- ai(ronly), r(ronly)));
-%             s(ronly) = min(this.C-aj(ronly), max(-aj(ronly), wj(ronly) - r(ronly) .* Kch(ronly)));
-%             
-%             % s is constrained only
-%             sonly = (ub' | lb') & ~(ub | lb);
-%             s(sonly) = min(this.C - aj(sonly),max(- aj(sonly), s(sonly)));
-%             r(sonly) = min(this.C-ai(sonly), max(-ai(sonly), wi(sonly) - s(sonly) .* Kch(sonly)));
-%             
-%             % Case of both vars constrained
-%             % Update s2 and r2 for the cases of the other one is constrained
-%             both = (ub | lb) & (ub' | lb');
-%             if sum(both) > 0
-%                 a = 5;
-%             end
-%             r1 = zeros(size(r)); r2=r1; s1=r1; s2=r1;
-%             r1(both) = min(this.C - ai(both),max(- ai(both), r(both)));
-%             s1(both) = min(this.C-aj(both), max(-aj(both), wj(both) - r1(both) .* Kch(both)));
-%             s2(both) = min(this.C - aj(both),max(- aj(both), s(both)));
-%             r2(both) = min(this.C-ai(both), max(-ai(both), wi(both) - s2(both) .* Kch(both)));
-%             
-%             % Determine update via get higher gain
-%             % Gain if r is constrained and s accordingly updated
-%             g1 = zeros(size(r)); g2 = g1;
-%             %gr(hlp) = r(hlp) .* (wi(hlp) -.5*r(hlp)) + s2(hlp).*(wj(hlp) -.5 * s2(hlp))- r(hlp) .* s2(hlp).* Kch(hlp);
-%             g1(both) = r1(both) .* (wi(both) -.5*r1(both)) + s1(both).*(wj(both) -.5 * s1(both)) - r1(both) .* s1(both).* Kch(both);
-%             % Gain if s is constrained and r accordingly updated
-%             g2(both) = r2(both).* (wi(both) -.5*r2(both))+ s2(both) .*(wj(both) -.5 * s2(both)) - r2(both).* s2(both) .* Kch(both);
-%             
-%             %% See which gain is higher.
-%             % If gs is larger, r must be updated with the r2 values at those points
-%             cmp = false(size(r));
-%             cmp(both) = g1(both) >= g2(both);
-%             r(both & cmp) = r1(both & cmp);
-%             s(both & cmp) = s1(both & cmp);
-%             % If gr is larger, s must be updated with the s2 values at those points
-%             cmp2 = false(size(r));
-%             cmp2(both) = g1(both) < g2(both);
-%             r(both & cmp2) = r2(both & cmp2);
-%             s(both & cmp2) = s2(both & cmp2);
-%             
-%             %% Compute gain for r_i,s_j combinations
-%             g = r .* (wi - .5 * r) + s .* (wj - .5 * s) - sig .* r .* s .* Kch;
-%             
-%             % Extract i,j indices
-%             [hlp, i] = max(g,[],1);
-%             [maxg, j] = max(hlp);
-%             i = i(j);
-%             
-%             % Transfer back to full indices
-%             i = ch(i);
-%             j = ch(j);
-            
-%             if this.Vis > 1
-%                 [X,Y] = meshgrid(1:2*n,1:2*n);
-%                 subplot(1,2,2);
-%                 G = zeros(2*n,2*n);
-%                 G(ch,ch) = g;
-%                 surf(X,Y,G,'EdgeColor','none');
-%                 hold on;
-%                 plot3(X(i,j),Y(i,j),G(i,j),'black.','MarkerSize',8);
-%                 hold off;
-%                 title(sprintf('Best gain index: (%d,%d), gain: %e',i,j, maxg));
-%                 axis tight;
-%             end
         end
         
         function ij = WSS1_1DMaxGainPlusLast(this, a, dW, i)
@@ -501,8 +422,11 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
         
         function ij = WSS7_Combi(this, a, dW, i)
             ij = this.WSS2_TwoSetMax1DGain(a, dW);
-                
+                try
             ij = [ij; this.WSS4_1DMaxGainPluskNN(a, dW)];
+                catch ME
+                    keyboard;
+                end
             
             % Implement Max1DGainPlusLast directly to save a call to the 1D method.
             in = ij(end,1);
@@ -609,12 +533,24 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             T = -sum(ai .* dW);
         end       
         
+        function [ai, dW, T] = I2_WarmStart(this, fxi, initialai)
+            n = length(fxi);
+            ap = zeros(1,n);
+            am = ap;
+            ap(initialai > 0) = initialai(initialai>0);
+            am(initialai < 0) = initialai(initialai<0);
+            ai = [ap am];
+            hlp = -(ap-am)*this.K + fxi;
+            dW = [hlp -hlp] - this.Eps;
+            T = -sum(ai .* dW);
+        end
+        
         function [r, s, idx] = getMax2DGainUpdatesForIndices(this, a, dW, ij)
             n = numel(a)/2;
             kijidx = ij;
             kijidxup = kijidx > n;
             kijidx(kijidxup) = kijidx(kijidxup)-n;
-            kijidx = sub2ind(size(this.K),kijidx(:,1),kijidx(:,2));
+            kijidx = sub2ind([n n],kijidx(:,1),kijidx(:,2));
             Kij = this.K(kijidx);
             
             sgn = 1-mod(sum(kijidxup,2),2)*2;
@@ -657,9 +593,9 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
                 
                 % Determine update via get higher gain
                 % Gain if r is constrained and s accordingly updated
-                g1 = r1 .* (dwi(both,1) -.5*r1) + s1 .*(dwi(both,2) -.5 * s1) - sgn(both) .* r1 .* s1.* Kijb;
+                g1 = r1 .* (dwi(both,1) -.5*r1) + s1 .*(dwi(both,2) -.5 * s1) + sgn(both) .* r1 .* s1.* Kijb;
                 % Gain if s is constrained and r accordingly updated
-                g2 = r2 .* (dwi(both,1) -.5*r2) + s2 .*(dwi(both,2) -.5 * s2) - sgn(both) .* r2 .* s2 .* Kijb;
+                g2 = r2 .* (dwi(both,1) -.5*r2) + s2 .*(dwi(both,2) -.5 * s2) + sgn(both) .* r2 .* s2 .* Kijb;
 
                 %% See which gain is higher.
                 cmp = g1 > g2;
@@ -670,7 +606,7 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             end
             
             %% Compute gain
-            g = sum(rs .* (dwi - .5*rs),2) - sgn.*rs(:,1).*rs(:,2).*Kij;
+            g = sum(rs .* (dwi - .5*rs),2) + sgn.*rs(:,1).*rs(:,2).*Kij;
             
             % Extract r,s updates
             [dummy, idx] = max(g);
@@ -694,13 +630,13 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             svr = general.regression.ScalarEpsSVR_SMO;
             svr.Version = version;
             %svr.Eps = 0.073648;
-            svr.Eps = .05;
+            svr.Eps = .1;
             svr.Lambda = 1/20;%1/20; % i.e. C=10 as in ScalarEpsSVR
             svr.Vis = 1;
             
             %kernel = kernels.PolyKernel(7);
             %kernel = kernels.LinearKernel;
-            kernel = kernels.GaussKernel(.2);
+            kernel = kernels.GaussKernel(.8);
             svr.K = kernel.evaluate(x,x);
 
             [ai, svidx] = svr.computeKernelCoefficients(fx);

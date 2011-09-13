@@ -392,6 +392,8 @@ classdef Utils
         
         function h = getHash(vec)
             % Returns a hash code using java classes for the given vector.
+            %
+            % @todo Implement proper hash algorithm for vectors or find a quick one!
             
             % Must do for the moment.
             h = sprintf('%f',vec);

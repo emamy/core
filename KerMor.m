@@ -554,9 +554,6 @@ classdef KerMor < handle
                 desktop.restoreLayout(this.DesktopLayout);
             end
             
-            
-            
-            
             disp('<<<<<<<<< Ready to go. >>>>>>>>>>');
             
             function initDirectories
@@ -730,7 +727,7 @@ classdef KerMor < handle
                     ' version with KerMor?\n(Y)es/(N)o: ']);
                 ds = lower(input(str,'s'));
                 if isequal(ds,'y')
-                    d = uigetdir(h,'Please select the rbmatlab source root folder.');
+                    d = uigetdir(pwd,'Please select the rbmatlab source root folder.');
                     if d ~= 0
                         try
                             a.rbmatlabDirectory = d;
