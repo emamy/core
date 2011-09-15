@@ -23,6 +23,9 @@ function varargout = KernelExp2D(varargin)
 %
 % @author Daniel Wirtz @date 2011-07-26
 %
+% @change{0,5,dw,2011-09-15} Fixed display of less dimensions if not the
+% full space in the slider-panel is needed
+%
 % @change{0,5,dw,2011-09-12} Changed the base-x panel so that many
 % dimensions can be displayed. A scrollbar callback dynamically creates the
 % currently visible sliders. Added ParamTimeKernel expansion support (new
@@ -58,7 +61,7 @@ function varargout = KernelExp2D(varargin)
 
 % Edit the above text to modify the response to help KernelExp2D
 
-% Last Modified by GUIDE v2.5 12-Sep-2011 15:03:40
+% Last Modified by GUIDE v2.5 14-Sep-2011 11:16:33
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -224,7 +227,6 @@ if any(x1(1) ~= x1) && any(x2(1) ~= x2)
     fx = fx(c.dout,:);
 
     %% Plots
-    hf = figure;
     cla(h.ax);
     hold(h.ax,'on');
     trisurf(tr, x1, x2, fx,'Parent',h.ax);
@@ -262,7 +264,7 @@ if any(x1(1) ~= x1) && any(x2(1) ~= x2)
     title(h.ax,sprintf('Plot of f(x)=%s against x=%s and y=%s',c.lbl.fx{c.dout},c.lbl.x{c.d1},c.lbl.x{c.d2}));
     hold(h.ax,'off');
     axis tight;
-    close(hf);
+    grid(h.ax,'on');
 else
     warning('KerMor:KernelExp2D','One of the currently selected dimensions is empty, i.e. the values are constant. Not plotting.');
 end
@@ -292,10 +294,16 @@ dims([c.d1 c.d2]) = [];
 dist = 6;%px
 height = 16; %px
 eh = dist + height; % total element height
-dispsliders = floor(pnlh / eh)-1;
+dispsliders = min(length(dims), floor(pnlh / eh)-1);
 totalheight = (length(dims)-dispsliders) * eh;
-curoffset = totalheight * val;
-firstidx = floor(curoffset / eh);
+if totalheight > pnlh
+    curoffset = totalheight * val;
+    firstidx = floor(curoffset / eh);
+else
+    set(h.panelslide,'Visible','off');
+    firstidx = 0;
+end
+
 
 ctrls.labels = [];
 ctrls.slides = [];
@@ -367,7 +375,7 @@ function varargout = KernelExp2D_OutputFcn(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Get default command line output from handles structure
-%varargout{1} = handles.output;
+varargout{1} = handles.main;
 
 
 % --- Executes on selection change in dim1.
@@ -504,3 +512,11 @@ function panelslide_CreateFcn(hObject, eventdata, handles)
 if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor',[.9 .9 .9]);
 end
+
+
+% --------------------------------------------------------------------
+function uipushtool2_ClickedCallback(hObject, eventdata, handles)
+% hObject    handle to uipushtool2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+general.Utils.saveAxes(handles.ax);

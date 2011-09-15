@@ -3,6 +3,12 @@ classdef Utils
     %
     % @author Daniel Wirtz @date 11.10.2010
     %
+    % @change{0,5,dw,2011-09-15} 
+    % - saveAxes and saveFigure now store the last save location in the
+    % preferences and reuse them.
+    % - removeMargin now properly works, together with saveFigure or
+    % saveAxes.
+    %
     % @new{0,5,dw,2011-07-05} Added the @ref implode function.
     %
     % @new{0,3,dw,2011-04-20} Added a new function general.Utils.getHelpShort to extract the first
@@ -311,13 +317,15 @@ classdef Utils
             if nargin < 3
                 extidx = 1;
                 if nargin < 2
+                    path = getpref('KERMOR','LASTPATH',pwd);
                     [filename, pathname, extidx] = ...
                         uiputfile({'*.eps','Extended PostScript (*.eps)';...
                        '*.jpg','JPEG Image (*.jpg)';...
                        '*.fig','Figures (*.fig)';...
                        '*.pdf','PDF Files (*.pdf)';...
-                       '*.png','Portable Network Graphic (*.png)}'}, 'Save figure as');
+                       '*.png','Portable Network Graphic (*.png)}'}, 'Save figure as',path);
                     file = [pathname filename];
+                    setpref('KERMOR','LASTPATH',pathname);
                 else
                     file = [filename '.' exts{extidx}];
                 end
@@ -336,6 +344,8 @@ classdef Utils
                 % Store old position and remove margin for export
                 oldap = get(a,'ActivePosition');
                 oldpos = get(a,'Position');
+                %oldmode = get(f,'PaperPositionMode');
+                set(fig,'PaperPositionMode','auto');%,'InvertHardcopy','off');
                 
                 if (extidx == 1)
                     %print(fig,file,'-depsc2',['-r' ExportDPI],'-tiff');
@@ -369,25 +379,32 @@ classdef Utils
             % contained on the source figure.
             
             fig = figure('Visible','off','MenuBar','none','ToolBar','none');
-            a = copyobj(ax, fig);
+            %fig = figure;
+            % Set fig size to axis size
+            %set(fig,'Position', [fpos(1:2) (apos(3:4)+ti(3:4))/2]);
+            copyobj(ax, fig);
             
             %% Fit style
             % Just copy the colormap
-            set(fig,'Colormap',get(get(ax,'Parent'),'Colormap'));
-            
-            general.Utils.removeMargin(fig);
-            
+            %set(fig,'Colormap',get(get(ax,'Parent'),'Colormap'));
+                        
             %% Save
             general.Utils.saveFigure(fig, varargin{:});
             close(fig);
         end
         
         function removeMargin(f)
+            % Requires the axes and figure units to be the same.
             a = gca(f);
-            ti = get(a,'TightInset');
-            set(a, 'ActivePosition','Position');
-            marginr = .3;
-            set(a, 'Position', [ti(1:2) 1-ti(3:4)*(1+marginr)-ti(1:2)]);
+            fpos = get(f,'Position');
+            apos = get(a,'Position');
+            ati = get(a,'TightInset');
+            set(f,'Units','pixels');
+            set(a,'Units','pixels');
+            set(f,'ActivePositionProperty','Position');
+            set(a,'ActivePositionProperty','Position');
+            set(f,'Position',[fpos(1:2) apos(3:4)+ati(1:2)+ati(3:4)]);
+            set(a,'Position',[ati(1:2) apos(3:4)]);
         end
         
         function h = getHash(vec)

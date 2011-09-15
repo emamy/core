@@ -208,6 +208,19 @@ classdef KerMor < handle
         %
         % See also: MainVersion
         SubVersion = '5';
+        
+        % The KerMor documentation directory, i.e. where createDocs places
+        % the generated documentation.
+        %
+        % Can be set during KerMor.install
+        % Readonly.
+        DocumentationDirectory = getenv('KERMOR_DOCS');
+        
+        % The doxygen binary used to create the documentation.
+        %
+        % Can be set during KerMor.install
+        % Readonly.
+        Doxygen = getenv('KERMOR_DOXYBIN');
     end
     
     properties
@@ -715,9 +728,9 @@ classdef KerMor < handle
                 str = sprintf('Do you want to Use Matlab Parallel Processing?\n(Y)es/(N)o: ');
                 value = lower(input(str,'s'));
                 if isequal(value,'y')
-                    setpref('KERMOR','USEMATLABPARALLELCOMPUTING','true');
+                    setpref('KERMOR','USEMATLABPARALLELCOMPUTING',true);
                 else
-                    setpref('KERMOR','USEMATLABPARALLELCOMPUTING','false');
+                    setpref('KERMOR','USEMATLABPARALLELCOMPUTING',false);
                 end
             end
             %% Optional: rbmatlab

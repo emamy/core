@@ -5,8 +5,11 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
 %
 % See also: BaseApprox KernelApprox
 %
-% @change{0,5,dw,2011-09-09} Fixed setters for MaxRelErr and
-% MaxAbsErrFactor, now setting values to 'this' instead of 'kexp'
+% @change{0,5,dw,2011-09-09} 
+% - Fixed setters for MaxRelErr and
+% MaxAbsErrFactor, now setting values to 'this' instead of 'kexp'.
+% - Added initial coefficient support
+% - Using AKernelMatrix now
 %
 % @change{0,5,dw,2011-07-28} Changed the algorithm part so that it can also work with
 % kernels.KernelExpansion instead of only on kernels.ParamTimeKernelExpansion.
