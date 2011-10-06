@@ -396,11 +396,11 @@ classdef Utils
         function removeMargin(f)
             % Requires the axes and figure units to be the same.
             a = gca(f);
+            set(f,'Units','pixels');
+            set(a,'Units','pixels');
             fpos = get(f,'Position');
             apos = get(a,'Position');
             ati = get(a,'TightInset');
-            set(f,'Units','pixels');
-            set(a,'Units','pixels');
             set(f,'ActivePositionProperty','Position');
             set(a,'ActivePositionProperty','Position');
             set(f,'Position',[fpos(1:2) apos(3:4)+ati(1:2)+ati(3:4)]);

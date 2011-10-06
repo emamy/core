@@ -11,6 +11,14 @@ classdef BaseModel < KerMorObject
     %
     % @author Daniel Wirtz @date 19.03.2010
     %
+    % @change{0,5,dw,2011-09-29}
+    % - New flag-field RealTimePlotting that calls the new plotSingle
+    % method in order to display the system as it is simulated.
+    % - Made ODESolver dependent to implement connection to
+    % RealTimePlotting.
+    % - New double field RealTimePlottingMinPause to enable timely display
+    % of in-simulation states.
+    %
     % @change{0,3,sa,2011-05-10} Implemented setters for the rest of the
     % properties
     %
@@ -69,17 +77,7 @@ classdef BaseModel < KerMorObject
         % @propclass{important} Defines the end time `T` up to which the dynamical system has to be
         % simulated.
         T = 1;
-        
-        % The solver to use for the ODE.
-        % Must be an instance of any solvers.ode.BaseSolver subclass.
-        %
-        % Default: @code solvers.ode.MLWrapper(@ode23) @endcode
-        %
-        % See also: solvers BaseSolver ode23 ode45 ode113
-        %
-        % @propclass{important}
-        ODESolver;
-        
+              
         % The custom scalar product matrix `G`
         %
         % In some settings the state variables have a special meaning (like
@@ -95,6 +93,16 @@ classdef BaseModel < KerMorObject
         %
         % @default 1
         G = 1;
+        
+        % Minimum pause between successive steps when RealTimePlotting is
+        % enabled.
+        %
+        % @propclass{optional} Changes pause length between timesteps
+        %
+        % @default .1 @type double
+        %
+        % @see RealTimePlotting
+        RealTimePlottingMinPause = .1;
     end
     
     properties(SetAccess=private, Dependent)
@@ -146,6 +154,28 @@ classdef BaseModel < KerMorObject
         %
         % See also: dtscaled
         dt;
+        
+        % The solver to use for the ODE.
+        % Must be an instance of any solvers.ode.BaseSolver subclass.
+        %
+        % Default: @code solvers.ode.MLWrapper(@ode23) @endcode
+        %
+        % See also: solvers BaseSolver ode23 ode45 ode113
+        %
+        % @propclass{important} Choose an appropriate ODE solver for your
+        % system.
+        ODESolver;
+        
+        % Determines if the simulation should plot intermediate steps
+        % during computation.
+        %
+        % Disabled by default.
+        %
+        % @propclass{optional} Additionally displays the system's plot
+        % during simulations.
+        %
+        % @default false @type logical
+        RealTimePlotting;
     end
     
     properties(Access=protected)
@@ -185,6 +215,10 @@ classdef BaseModel < KerMorObject
     properties(Access=private)
         ftau = 1;
         fdt = .1;
+        frtp = false;
+        fODEs;
+        steplistener;
+        ctime;
     end
     
     methods
@@ -199,7 +233,8 @@ classdef BaseModel < KerMorObject
             this.ODESolver = solvers.ode.MLWrapper(@ode23);
             
             % Register default properties
-            this.registerProps('System','T','ODESolver','dt','G','tau');
+            this.registerProps('System','T','ODESolver','dt','G',...
+                'tau','RealTimePlottingMinPause','RealTimePlotting');
         end
         
         function [t, y, sec, x] = simulate(this, mu, inputidx)
@@ -233,15 +268,18 @@ classdef BaseModel < KerMorObject
             
             starttime = tic;
             
+            if this.RealTimePlotting
+                this.ctime = tic;
+            end
             % Get scaled state trajectory
             [t,x] = this.computeTrajectory(mu, inputidx);
-            
-            % Scale times back to real units
+            % Re-scale state variable
             x = bsxfun(@times,x,this.System.StateScaling);
-            t = t*this.tau;
-            
             % Convert to output
             y = this.System.C.computeOutput(t,x,mu);
+            
+            % Scale times back to real units
+            t = t*this.tau;
             
             sec = toc(starttime);
             
@@ -265,6 +303,19 @@ classdef BaseModel < KerMorObject
             plot(ax,t,y);
             title(ax,sprintf('Plot for output of model "%s"', this.Name));
             xlabel(ax,'Time'); ylabel(ax,'Output functions');
+        end
+        
+        function plotSingle(this, t, y, ax)
+            % Plots a single solution.
+            % Override in subclasses for specific plot behaviour.
+            %
+            % The default method is simply to use the full plot default
+            % method.
+            if nargin < 4
+                this.plot(t, y);
+            else
+                this.plot(t, y, ax);
+            end
         end
         
         function [t, x] = computeTrajectory(this, mu, inputidx)
@@ -351,7 +402,22 @@ classdef BaseModel < KerMorObject
             x0 = this.System.x0.evaluate(mu) ./ this.System.StateScaling;
         end
     end
-        
+    
+    methods(Access=protected, Sealed)
+        function plotstep(this, src, ed)%#ok
+            % Callback for the ODE solvers StepPerformed event that enables
+            % during-simulation-plotting.
+            y = this.System.C.computeOutput(ed.Times, ...
+                this.System.StateScaling .* ed.States, this.System.mu);
+            this.plotSingle(ed.Times * this.tau,y);
+            drawnow;
+            % Gets first set in "simulate"
+            per = toc(this.ctime);
+            pause(max(0,this.RealTimePlottingMinPause-per));
+            this.ctime = tic;
+        end
+    end
+    
     %% Getter & Setter
     methods
         function value = get.Times(this)
@@ -430,8 +496,20 @@ classdef BaseModel < KerMorObject
         end
         
         function set.ODESolver(this, value)
-            this.checkType(value,'solvers.ode.BaseSolver');%#ok
-            this.ODESolver = value;
+            this.checkType(value,'solvers.ode.BaseSolver');
+            % Add listener if new ODE solver is passed and real time
+            % plotting is turned on.
+            if this.frtp && this.fODES ~= value
+                if ~isempty(this.steplistener)
+                    delete(this.steplistener);
+                end
+                this.steplistener = value.addlistener('StepPerformed',@this.plotstep);
+            end
+            this.fODEs = value;
+        end
+        
+        function value = get.ODESolver(this)
+            value = this.fODEs;
         end
         
         function set.Name(this, value)
@@ -448,6 +526,26 @@ classdef BaseModel < KerMorObject
             this.TimeDirty = value;
         end
         
+        function value = get.RealTimePlotting(this)
+            value = this.frtp;
+        end
+        
+        function set.RealTimePlotting(this, value)
+            if ~islogical(value)
+                error('Value must be boolean.');
+            end
+            if value
+                if isempty(this.steplistener)
+                    this.steplistener = this.ODESolver.addlistener('StepPerformed',@this.plotstep);
+                end
+            else
+                if ~isempty(this.steplistener)
+                    delete(this.steplistener);
+                    this.steplistener = [];
+                end
+            end
+            this.frtp = value;
+        end
     end
 end
 

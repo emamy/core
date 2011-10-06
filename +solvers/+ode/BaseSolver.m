@@ -10,7 +10,6 @@ classdef BaseSolver < KerMorObject
     % KerMorObject.registerProps.
     %
     % @todo Write tests for solvers.
-    % @todo Rename BaseSolver to BaseODESolver
     
     properties(SetObservable)
         % Maximum time step for solver.
@@ -62,8 +61,7 @@ classdef BaseSolver < KerMorObject
         % property, the solver can work with a finer time step internally.
         % x0: The initial value
         %
-        solve(this, odefun, t, x0);
-        %[t,x] = solve(odefun, t, x0);
+        [t,x] = solve(odefun, t, x0);
     end
     
     %% Getter & Setter
@@ -86,6 +84,13 @@ classdef BaseSolver < KerMorObject
             end
             this.InitialStep = value;
         end
+    end
+    
+    events
+        % Gets fired when an ODE solver performs an intermediate step
+        %
+        % @see models.BaseModel.RealTimePlotting
+        StepPerformed;
     end
     
     methods(Static)

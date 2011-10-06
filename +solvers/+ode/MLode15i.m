@@ -45,12 +45,16 @@ classdef MLode15i < solvers.ode.BaseImplSolver
         % See also: RelTol ode15i odeset
         AbsTol = 1e-9;
     end
+    
+    properties(Access=private)
+        fED;
+    end
         
     methods
         function this = MLode15i
             this = this@solvers.ode.BaseImplSolver;
             this.Name = 'MatLab ode15i implicit solver wrapper';
-            
+            this.fED = solvers.ode.SolverEventData;
             this.registerProps('RelTol','AbsTol');
         end
         
@@ -59,9 +63,27 @@ classdef MLode15i < solvers.ode.BaseImplSolver
                 opts = odeset;
             end
             opts = odeset(opts, 'RelTol', this.RelTol, 'AbsTol', this.AbsTol);
+            opts = odeset(opts, 'OutputFcn',@this.ODEOutputFcn);
             [t,x] = ode15i(implfun, t, x0, x0p, opts);
             x = x';
             t = t';
+        end
+    end
+    
+    methods(Access=protected, Sealed)
+        function status = ODEOutputFcn(this, t, y, flag)
+            % Wraps the OutputFcn of the Matlab ODE solver into
+            % the StepPerformed event
+            if ~strcmp(flag,'init')
+                % For some reason the t and y args have more than one
+                % entry, so loop over all of them.
+                for idx=1:length(t)
+                    this.fED.Times = t(idx); % when flag==init the t var is larger than one
+                    this.fED.States = y(:,idx);
+                    this.notify('StepPerformed',this.fED);
+                end
+            end
+            status = 0;
         end
     end
     

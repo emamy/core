@@ -10,6 +10,9 @@ classdef Heun < solvers.ode.BaseCustomSolver
     %
     % @author Daniel Wirtz @date 2010-11-03
     %
+    % @change{0,5,dw,2011-09-29} Added step-wise event implementation for real time
+    % plotting.
+    %
     % @change{0,4,dw,2011-05-31} Added a new middle class solvers.ode.BaseCustomSolver which
     % extracts the getCompTimes into a new abstraction layer.
         
@@ -35,16 +38,20 @@ classdef Heun < solvers.ode.BaseCustomSolver
     end
     
     methods(Access=protected,Sealed)
-        function x = customSolve(this, odefun, t, x0)%#ok
+        function x = customSolve(this, odefun, t, x0)
             % Initialize result
             steps = length(t);
             x = [x0 zeros(size(x0,1),steps-1)];
             dt = t(2:end)-t(1:end-1);
+            ed = solvers.ode.SolverEventData;
             % Solve for each time step
             for idx = 2:steps;
                 f = odefun(t(idx-1),x(:,idx-1));
                 hlp = x(:,idx-1) + dt(idx-1)*f;
                 x(:,idx) = x(:,idx-1) + (dt(idx-1)/2)*(f + odefun(t(idx),hlp));
+                ed.Times = t(idx);
+                ed.States = x(:,idx);
+                this.notify('StepPerformed',ed);
             end
         end
     end

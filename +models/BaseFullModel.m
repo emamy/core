@@ -226,6 +226,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             
             % Clear old trajectory data.
             this.Data.clearTrajectories;
+            this.RealTimePlotting = false;
             
             %% Parallel - computation
             if this.ComputeParallel
@@ -298,7 +299,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         end
 
                         % Get trajectory
-                        [t, x] = this.computeTrajectory(mu, inputidx);
+                        [t, x] = this.computeTrajectory(mu, inputidx);%#ok
                                                 
                         % Assign snapshot values
                         this.Data.addTrajectory(x, mu, inputidx);
@@ -308,7 +309,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     fprintf('\n');
                 end
             end
-            
             time = toc(time);
         end
         
@@ -479,7 +479,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % x: The state variables at the corresponding times t.
             
             if KerMor.App.UseDPCS
-%                 this.checkProperties;
+                this.checkProperties;
             end
             
             [t,x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
@@ -608,7 +608,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         end
     end
     
-    methods(Access=private)        
+    methods(Access=private)
          function checkProperties(this)
              % Checks all the model's properties recursively for unchanged default settings
              counts = struct;
@@ -628,7 +628,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
              this.msg = messages;
              
              % Some total stats now
-             c = [struct2array(notchanged); struct2array(counts)];
+             %c = [struct2array(notchanged); struct2array(counts)];
+             c = cell2mat([struct2cell(notchanged) struct2cell(counts)])';
              c(3,:) = round(10000 * c(1,:) ./ c(2,:))/100;
              c(3,isnan(c(3,:))) = 100;
              this.pstats = c;

@@ -10,6 +10,11 @@ classdef TrajectoryGreedy < spacereduction.BaseSpaceReducer
 %
 % @author Daniel Wirtz @date 2011-08-04
 %
+% @change{0,5,dw,2011-09-29} Fixed initial subspace setup when all vectors
+% are identical or even zero. Also added a new alglimit-property
+% TrajectoryGreedy.MaxSubspaceSize to have an upper bound to the subspace
+% size.
+%
 % @new{0,5,dw,2011-08-04} Added this class.
 %
 % This class is part of the framework
@@ -24,8 +29,15 @@ classdef TrajectoryGreedy < spacereduction.BaseSpaceReducer
         % @propclass{critical} Ultimately determines the projection error on all training
         % trajectories.
         %
-        % @default 1e-5
-        Eps = 1e-5;
+        % @default 1e-6 @type double
+        Eps = 1e-6;
+        
+        % The maximum subspace size
+        %
+        % @propclass{alglimit}
+        %
+        % @default 100 @type integer
+        MaxSubspaceSize = 100;
     end
     
     methods
@@ -35,7 +47,7 @@ classdef TrajectoryGreedy < spacereduction.BaseSpaceReducer
         
         function [V,W] = generateReducedSpace(this, model)
             pod = general.POD;
-            pod.Value = 1;
+            pod.Value = 1; % MUST stay at 1 or getInitialSpace will fail.
             pod.Mode = 'abs';
             
             o = general.Orthonormalizer;
@@ -44,23 +56,33 @@ classdef TrajectoryGreedy < spacereduction.BaseSpaceReducer
             md = model.Data;
             V = this.getInitialSpace(md, pod);
             [err, idx] = this.getMaxErr(V, md);
-            while (err(end) > this.Eps)
+            cnt = 1; 
+            % Maximum possible subspace size
+            ss = size(V,1);
+            while (err(end) > this.Eps) && cnt < this.MaxSubspaceSize && size(V,2) < ss
                 x = md.getTrajectoryNr(idx);
                 e = x - V*(V'*x);
                 Vn = pod.computePOD(e);
                 V = o.orthonormalize([V Vn]);
                 [err(end+1), idx] = this.getMaxErr(V,md);%#ok
+                cnt = cnt+1;
             end
-            if KerMor.App.Verbose > 2
-                semilogy(err);
-                xlabel('Iterations'); ylabel('Error norms');
-                title('L_2 norm sum over whole projection error trajectory vectors');
+            if cnt == this.MaxSubspaceSize
+                fprintf('POD-Greedy: Maximum predefined subspace size %d reached. Aborting.\n',this.MaxSubspaceSize);
+            end
+            if size(V,2) == ss
+                fprintf('POD-Greedy: Maximum possible subspace size %d reached. Aborting.\n',ss);
+            end
+            if KerMor.App.Verbose > 1
+                fprintf('Trajectory greedy finished with subspace size %d and error %e.\n',size(V,2),err(end));
+                if KerMor.App.Verbose > 2
+                    figure;
+                    semilogy(err);
+                    xlabel('POD-Greedy Iterations'); ylabel('Error norms');
+                    title('L_2 norm sum over whole projection error trajectory vectors');
+                end
             end
             W = V;
-            
-            if KerMor.App.Verbose > 1
-                fprintf('Trajectory greedy finished with subspace size %d.\n',size(V,2));
-            end
         end
     end
     
@@ -74,13 +96,25 @@ classdef TrajectoryGreedy < spacereduction.BaseSpaceReducer
             % More advanced: Compute first POD mode of the initial values!
             n = md.getNumTrajectories();
             x = md.getTrajectoryNr(1);
-            x0 = zeros(size(x,1),n);
-            x0(:,1) = x(:,1);
+            %x0 = zeros(size(x,1),n);
+            x0 = x(:,1);
             for idx=2:n
                 x = md.getTrajectoryNr(idx);
-                x0(:,idx) = x(:,1);
+                x = x(:,1);
+                if isempty(general.Utils.findVecInMatrix(x0,x))
+                    x0 = [x0 x];%#ok
+                end
             end
-            V = pod.computePOD(x0);
+            if size(x0,2) > 1
+                V = pod.computePOD(x0);
+            elseif all(x0 == 0)
+                if KerMor.App.Verbose > 1
+                    fprintf('Initial values are all zero vectors. Using main POD mode of first trajectory as initial space.\n');
+                end
+                V = pod.computePOD(md.getTrajectoryNr(1));
+            else
+                V = x0;
+            end
             V = V / norm(V);
         end
         
@@ -96,8 +130,8 @@ classdef TrajectoryGreedy < spacereduction.BaseSpaceReducer
                     midx = k;
                 end
             end
-            if KerMor.App.Verbose > 2
-                fprintf('TrajectoryGreedy max error in iteration %d: %f\n',size(V,2),e);
+             if KerMor.App.Verbose > 0
+                fprintf('POD-Greedy max error for subspace size %d: %e\n',size(V,2),e);
             end
         end
     end

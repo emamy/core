@@ -23,9 +23,11 @@ classdef SolverEventData < event.EventData
     
     methods
         function this = SolverEventData(t,x)
-            this.Times = t;
-            if nargin == 2
-                this.States = x;
+            if nargin > 0
+                this.Times = t;
+                if nargin > 1
+                    this.States = x;
+                end
             end
         end
     end

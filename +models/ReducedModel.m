@@ -74,6 +74,7 @@ classdef ReducedModel < models.BaseModel
             % Parameters:
             % fullmodel: A full model where the reduced model shall be
             % created from. [Optional]
+            this = this@models.BaseModel;
             if nargin == 1
                 this.setFullModel(fullmodel);
             end
@@ -101,6 +102,7 @@ classdef ReducedModel < models.BaseModel
             this.FullModel = fullmodel;
             % Update name ;-)
             this.Name = ['Reduced: ' fullmodel.Name];
+            this.JavaExportPackage = fullmodel.JavaExportPackage;
             
             % Copy common values from the full model
             this.T = fullmodel.T;
@@ -195,6 +197,16 @@ classdef ReducedModel < models.BaseModel
         
     end
     
+    methods(Sealed)
+        function plot(this, t, y)
+            this.FullModel.plot(t,y);
+        end
+        
+        function plotSingle(this, t, y)
+            this.FullModel.plotSingle(t,y);
+        end
+    end
+    
     methods
         
         function [file, folder] = createImage(this)
@@ -208,8 +220,9 @@ classdef ReducedModel < models.BaseModel
             h = KerMorLogo;
             text(-6,5,1.05,n,'FontSize',14,'FontWeight','bold');
             folder = KerMor.App.TempDirectory;
-            file = 'modelimage.png';
+            file = 'modelimage';
             general.Utils.saveFigure(h, fullfile(folder,file),'png');
+            file = [file '.png'];
             close(h);
         end
         
