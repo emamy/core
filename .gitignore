@@ -9,3 +9,5 @@
 *.jpg
 *.bin
 *.log
+/data
+/temp

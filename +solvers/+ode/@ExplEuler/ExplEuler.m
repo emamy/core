@@ -11,6 +11,9 @@ classdef ExplEuler < solvers.ode.BaseCustomSolver
     %
     % See also: solvers BaseSolver BaseCustomSolver Heun
     %
+    % @change{0,5,dw,2011-09-29} Added step-wise event implementation for real time
+    % plotting.
+    %
     % @change{0,4,dw,2011-05-31} Added a new middle class solvers.ode.BaseCustomSolver which
     % extracts the getCompTimes into a new abstraction layer.
     %
@@ -59,8 +62,12 @@ classdef ExplEuler < solvers.ode.BaseCustomSolver
             dt = t(2:end)-t(1:end-1);
             
             % Solve for each time step
+            ed = solvers.ode.SolverEventData;
             for idx = 2:steps;
                 x(:,idx) = x(:,idx-1) + dt(idx-1)*odefun(t(idx-1),x(:,idx-1));
+                ed.Times = t(idx);
+                ed.States = x(:,idx);
+                this.notify('StepPerformed',ed);
             end
 
             %y = this.solveMex(odefun, times, x0);

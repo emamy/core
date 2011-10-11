@@ -251,6 +251,9 @@ classdef KerMor < handle
         % @default []
         rbmatlabDirectory = '';
         
+        % The source directory for JKerMor, if available
+        JKerMorSourceDirectory = '';
+        
         % Verbose output level
         %
         % @default 1
@@ -383,6 +386,29 @@ classdef KerMor < handle
             fprintf('rbmatlab root directory: %s\n',value);
         end
         
+        function set.JKerMorSourceDirectory(this, value)
+            % Sets the JKerMor source directory
+            %
+            % Parameters:
+            % ds: The directory of an JKerMor source. Use empty string or
+            % cell to "uninstall" JKerMor.
+            %
+            % Throws an exception if the path is invalid or does not
+            % contain a selected JKerMor class.
+            if ~isempty(value)
+                if ~isdir(value)
+                    error('Invalid directory: %s',value);
+                end
+                chk = fullfile(value,['kermor' Filesep 'java' Filesep 'ReducedModel.java']);
+                if ~exist(chk,'file')
+                    error('Invalid JKerMor directory (no ReducedModel.java found): %s',value);
+                end
+            end
+            setpref('KERMOR','JKERMORDIR',value);
+            this.JKerMorSourceDirectory = value;
+            fprintf('JKerMor root directory: %s\n',value);
+        end
+        
         function value = get.UseMatlabParallelComputing(this)
             % recover values if clear classes has been issued or Matlab
             % Parallel processing toolbox deleted            
@@ -460,6 +486,19 @@ classdef KerMor < handle
                 end
             else
                 h = this.rbmatlabDirectory;
+            end
+        end
+        
+        function h = get.JKerMorSourceDirectory(this)
+            
+            % recover values if clear classes has been issued
+            if isempty(this.JKerMorSourceDirectory)
+                h = getpref('KERMOR','JKERMORDIR','');
+                if ~isempty(h)
+                    this.JKerMorSourceDirectory = h;
+                end
+            else
+                h = this.JKerMorSourceDirectory;
             end
         end
         
@@ -733,6 +772,7 @@ classdef KerMor < handle
                     setpref('KERMOR','USEMATLABPARALLELCOMPUTING',false);
                 end
             end
+            
             %% Optional: rbmatlab
             a = KerMor.App;
             if isempty(a.rbmatlabDirectory)
@@ -747,7 +787,26 @@ classdef KerMor < handle
                         catch ME
                             disp('Setting the rbmatlab directory failed:');
                             disp(getReport(ME, 'basic'));
-                            disp('You can still connect to rbmatlab later by setting the rbmatlabDirectory property.');
+                            disp('You can still connect to rbmatlab later by setting the KerMor.rbmatlabDirectory property.');
+                        end
+                    end
+                end
+            end
+            
+            %% Optional: JKerMor
+            if isempty(a.JKerMorSourceDirectory)
+                str = sprintf(['Do you want to register a local JKerMor '...
+                    ' version with KerMor?\n(Y)es/(N)o: ']);
+                ds = lower(input(str,'s'));
+                if isequal(ds,'y')
+                    d = uigetdir(pwd,'Please select the JKerMor source root folder.');
+                    if d ~= 0
+                        try
+                            a.JKerMorSourceDirectory = d;
+                        catch ME
+                            disp('Setting the JKerMor directory failed:');
+                            disp(getReport(ME, 'basic'));
+                            disp('You can still connect to JKerMor later by setting the KerMor.JKerMorSourceDirectory property.');
                         end
                     end
                 end

@@ -184,7 +184,7 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
         % However, for speed reasons, if both are true one might as well override the 'evaluate' member directly as it
         % basically cares for the cases when one of the flags is not true. In that case it is still
         % important to set both flags to true as some components rely on them.
-        y = evaluateCoreFun(this, x, t, mu);
+        fx = evaluateCoreFun(this, x, t, mu);
     end
     
 end

@@ -27,6 +27,13 @@ classdef AppExport
     methods(Static)
         
         function exportReducedModel(rm, folder)
+            if ~isa(rm.FullModel,'export.JKerMorExportable')
+                error('rm.FullModel property must be an export.JKerMorExportable');
+            end
+            if nargin == 1
+                folder = uigetdir(getpref('KERMOR','LASTDIR','.'));
+                setpref('KERMOR','LASTDIR',folder);
+            end
             %% Validations
             if exist(folder,'dir') ~= 7
                 try
@@ -50,7 +57,7 @@ classdef AppExport
             fprintf(f,'\t\t<image>%s</image>\n',fn);
             
             fprintf(f,'\t</description>\n');
-            fprintf(f,'\t<data><kermor>\n');
+            fprintf(f,'\t<kermor_model>\n');
             fprintf(f,'\t\t<T>%17.17f</T>\n',rm.T);
             fprintf(f,'\t\t<dt>%17.17f</dt>\n',rm.dt);
             
@@ -100,6 +107,8 @@ classdef AppExport
                     exportKernel(cf.ParamKernel,'paramkernel.bin',folder);
                     fprintf(f,'\t\t<paramkernel>%s</paramkernel>\n',class(cf.ParamKernel));
                 end
+            elseif isa(cf, 'dscomponents.LinearCoreFun')
+                general.AppExport.saveRealMatrix(cf.A,'A.bin',folder);
             else
                 error('System function must be a kernel expansion.');
             end
@@ -130,11 +139,34 @@ classdef AppExport
             if isa(s.x0,'dscomponents.ConstInitialValue')
                 general.AppExport.saveRealVector(s.x0.x0,'x0.bin',folder);
             elseif isa(s.B,'dscomponents.AffineInitialValue')
-                
+                error('Not yet implemented.');
             end
             fprintf(f,'\t<initialvaluetype>%s</initialvaluetype>\n',class(s.x0));
             
-            fprintf(f,'\t</kermor></data>\n');
+            fprintf(f,'\t</kermor_model>\n');
+            
+            %% Inputs
+            if rm.System.InputCount > 0
+                if isempty(KerMor.App.JKerMorSourceDirectory)
+                    error('KerMor.JKerMorSourceDirectory is not set.');
+                end
+                j = general.Java;
+                j.TargetFolder = folder;
+                j.Package = rm.FullModel.JavaExportPackage;
+                j.JProjectSource = KerMor.App.JKerMorSourceDirectory;
+                j.Sourcefile = 'Inputs.java';
+                j.CreateAndroid = true;
+                j.exportFunctions;
+                
+                fprintf(f,'<affinefunctions>\n');
+                fprintf(f,'\t<package>%s</package>\n',rm.FullModel.JavaExportPackage);
+                fprintf(f,'</affinefunctions>\n');
+            end
+            
+            fprintf(f,'<geometry>\n');
+            rm.FullModel.exportGeometry(f);
+            fprintf(f,'</geometry>\n');
+            
             fprintf(f,'</model>\n');
             fclose(f);
             

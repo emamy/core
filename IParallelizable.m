@@ -20,7 +20,7 @@ classdef IParallelizable < handle
                 if KerMor.App.UseMatlabParallelComputing
                     this.ComputeParallel = value;
                 else
-                    warning('MatlabParallelComputing:NOT_ENABLED','Matlab Parallel Processing toolbox not activated. Refer to the property KerMor.App.UseMatlabParallelComputing');
+                    warning('MatlabParallelComputing:NOT_ENABLED','Not setting flag as Matlab Parallel Processing toolbox not activated. Refer to the property KerMor.App.UseMatlabParallelComputing for more information.');
                 end
             else
                 this.ComputeParallel = value;
