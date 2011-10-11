@@ -229,10 +229,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             
             %% Parallel - computation
             if this.ComputeParallel
-                error('Parallel computing not yet tested with new ModelData structure / model.Data.addTrajectory might not be thread-safe!');
+                %error('Parallel computing not yet tested with new ModelData structure / model.Data.addTrajectory might not be thread-safe!');
                 
-                idxmat = general.Utils.createCombinations(1:num_s,this.System.TrainingInputs);
-                sn = zeros(dims+3,trajlen,size(idxmat,2));
+                idxmat = general.Utils.createCombinations(1:num_s,1:num_in);
                 
                 fprintf('Starting parallel projection training data computation of %d trajectories on %d workers...\n',size(idxmat,2),matlabpool('size'));
                 % Iterate through all param/input combinations
@@ -244,7 +243,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     
                     % Check for parameters
                     mu = []; munum = 0;
-                    if this.Data.SampleCount > 0
+                    if this.Data.SampleCount > 0 %#ok
                         munum = paridx(idx);
                         mu = this.Data.getParams(munum);
                     end
@@ -570,14 +569,14 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         end
         
         function set.preApproximationTrainingCallback(this, value)
-            if ~isa(value, 'function_handle')
+            if ~isempty(value) && ~isa(value, 'function_handle')
                 error('Value must be a function handle taking the current model instance');
             end
             this.preApproximationTrainingCallback = value;
         end
         
         function set.postApproximationTrainingCallback(this, value)
-            if ~isa(value, 'function_handle')
+            if ~isempty(value) && ~isa(value, 'function_handle')
                 error('Value must be a function handle taking the current model instance');
             end
             this.postApproximationTrainingCallback = value;

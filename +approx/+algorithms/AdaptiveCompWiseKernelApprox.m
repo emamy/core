@@ -38,6 +38,8 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
 % parameters.
 %
 % @new{0,3,dw,2011-04-01} Added this class.
+%
+% @todo Think about suitable stopping condition (relative error change?)
     
     properties(SetObservable)
         % The maximum size of the expansion to produce.
@@ -49,12 +51,16 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
         % @propclass{alglimit} 
         % Some text describing the importance of this property.
         %
+        % @type integer
+        %
         % @default 200
         MaxExpansionSize = 200;
         
         % The number of different Gamma values to try.
         %
         % @propclass{important} 
+        %
+        % @default 10 @type integer
         NumGammas = 10;
         
         % Percentage `p` of the training data to use as validation data
@@ -64,11 +70,15 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
         % @propclass{optional} 
         %
         % @default .2
+        % @type double
         ValidationPercent = .2;
         
         % Value for initial Gamma choice.
         %
         % @propclass{experimental} 
+        %
+        % @type double
+        % @default .6
         gameps = .6;
         
         % Stopping condition property. Maximum relative error that may occur
@@ -153,9 +163,14 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
         function detailedComputeApproximation(this, kexp, xi, ti, mui, fxi)
             % Performs adaptive approximation generation.
             %
-            % @docupdate
-            % @todo Think about suitable stopping condition (relative error
-            % change?)
+            % Parameters:
+            % kexp: The kernel expansion. @type kernels.KernelExpansion
+            % xi: The state data training vectors `x(t_i)`. @type double
+            % ti: The time data training points. 
+            % @type double
+            % mui: The parameter training points `\mu_i`. @type double
+            % fxi: The target function values at training points
+            % `f(x_i,t_i,\mu_i)`. @type double
             
             dfun = @logsp; % gamma distances comp fun (linsp / logsp)
             if this.ErrFun == 1

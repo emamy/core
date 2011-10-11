@@ -173,7 +173,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & ...
     methods    
         function set.Centers(this, value)
             C = {'xi','ti','mui'};            
-            if any(isfield(value, C))
+            if isempty(value) || any(isfield(value, C))
                 this.Centers = value;
 %                 if ~isfield(value,'xi')
 %                     warning('REQUIRED_FIELD:Empty','xi is a required field, which is left empty');

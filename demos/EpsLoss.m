@@ -20,6 +20,4 @@ annotation(h,'textbox',[0.5858 0.1229 0.0394 0.06729],...
     'FontWeight','bold',...
     'FontSize',20,'LineStyle','none');
 axis([x(1) x(end) -ep/3 max(lx)]);
-
 end
-

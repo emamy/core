@@ -15,7 +15,7 @@ classdef FileModelData < data.AModelData
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
     
-    properties(Access=private)
+    properties%(Access=private)
         % The HashMap used to store the indices for each trajectory.
         hm;
         
@@ -130,6 +130,34 @@ classdef FileModelData < data.AModelData
                 end
             end
             this.hm.clear;
+        end
+        
+        function consolidate(this, model, model_ID)
+            % Rebuild the hashmap for the current FileData. DEBUG METHOD.
+            %
+            % Uses the model's parameter samples to compute hashes, look up
+            % if the files exist in the given folder corresponding to
+            % model_ID (if not given the second arguments ID is used) and
+            % re-insert them into the hash map.
+            if nargin < 3
+                model_ID = model.ID;
+            end
+            this.datadir = fullfile(KerMor.App.DataStoreDirectory,['rm_' num2str(model_ID)]);
+            for u=1:max(model.TrainingInputCount,1)
+                ui = u;
+                if model.TrainingInputCount == 0
+                    ui = [];
+                end
+                for n=1:this.SampleCount
+                    mu = this.ParamSamples(:,n);
+                    key = general.Utils.getHash([mu; ui]);
+                    file = [key '.mat'];
+                    ffile = fullfile(this.datadir, file);
+                    if exist(ffile,'file') == 2
+                        this.hm.put(key,file);
+                    end
+                end
+            end
         end
     end
     

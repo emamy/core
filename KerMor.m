@@ -322,7 +322,7 @@ classdef KerMor < handle
                    this.UseMatlabParallelComputing = value;
                    setpref('KERMOR','USEMATLABPARALLELCOMPUTING',value);
                    if s == 0
-                       matlabpool open;
+                       %matlabpool open;
                    end                
                 else
                     error('No parallel computing toolbox available.');
@@ -386,7 +386,7 @@ classdef KerMor < handle
         function value = get.UseMatlabParallelComputing(this)
             % recover values if clear classes has been issued or Matlab
             % Parallel processing toolbox deleted            
-            value = getpref('KERMOR','USEMATLABPARALLELCOMPUTING','');
+            value = getpref('KERMOR','USEMATLABPARALLELCOMPUTING',[]);
             t = which('matlabpool');
             if ~isempty(value)
                 if ~isempty(t)
@@ -652,13 +652,13 @@ classdef KerMor < handle
                 % @note The 'feature' command is undocumented, see
                 % http://www.mathworks.com/matlabcentral/newsreader/view_thread/154551
                 % for more information.
-                disp('Checking for and starting parallel computing..');
                 
                 % Open matlabpool only if UseMatlabParallelComputing is set to
                 % true
                 if this.UseMatlabParallelComputing
+                    disp('Checking for and starting parallel computing..');
                     if matlabpool('size') == 0
-                        matlabpool open;
+                        %matlabpool open;
                     end
                 end
                 

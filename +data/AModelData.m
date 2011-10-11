@@ -6,17 +6,15 @@ classdef AModelData < handle
 %
 % @new{0,5,dw,2011-08-03} 
 % - Added this class.
-% - Removed the field ApproxfValues and put it into a struct with ApproxTrainData.
+% - Removed the field ApproxfValues and put it into a struct with
+% ApproxTrainData.
 %
 % This class is part of the framework
 % KerMor - Model Order Reduction using Kernels:
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
-%
-% @todo Find different representation of model data / trajectory saving! (allows sequential POD of
-% trajectories for subspace comp)
-    
+
     properties
         % A Model's parameter samples
         ParamSamples = [];

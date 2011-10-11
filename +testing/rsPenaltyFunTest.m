@@ -21,7 +21,7 @@ g = logspace(-3,2,30);
 for gamma = g
     k.Gamma = gamma;
     
-    x = linspace(0,2*k.rR,200);
+    x = linspace(0,2*k.rm,200);
     
     fx = k.evaluateScalar(x);
     
@@ -29,7 +29,7 @@ for gamma = g
     nx2 = k.evaluateD1(x) - (k.evaluateScalar(x)-k.evaluateScalar(k.r0/2))./(x-k.r0/2);
     nx3 = k.evaluateD1(x) - (k.evaluateScalar(x)-k.evaluateScalar(k.r0))./(x-k.r0);
     
-    plot(x,fx,'r',x,nx,'b',x,nx2,'g',x,[nx3; 3*[0 diff(nx3)]],'m',[k.rR k.rR],[0 k.evaluateD1(k.rR) - (k.evaluateScalar(k.rR)-1)/k.rR],'black',x,0,'black');
+    plot(x,fx,'r',x,nx,'b',x,nx2,'g',x,[nx3; 3*[0 diff(nx3)]],'m',[k.rm k.rm],[0 k.evaluateD1(k.rm) - (k.evaluateScalar(k.rm)-1)/k.rm],'black',x,0,'black');
     axis tight;
     pause;
 end

@@ -637,9 +637,9 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             %kernel = kernels.PolyKernel(7);
             %kernel = kernels.LinearKernel;
             kernel = kernels.GaussKernel(.8);
-            svr.K = kernel.evaluate(x,x);
+            svr.K = data.MemoryKernelMatrix(kernel.evaluate(x,x));
 
-            [ai, svidx] = svr.computeKernelCoefficients(fx);
+            [ai, svidx] = svr.computeKernelCoefficients(fx,[]);
             sv = x(:,svidx);
             svfun = @(x)ai'*(kernel.evaluate(x,sv)');
             
@@ -655,7 +655,8 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             hold on;
             plot(x,fsvr,'b',x,[fsvr-svr.Eps; fsvr+svr.Eps],'b--');
             skipped = setdiff(1:length(x),svidx);
-            plot(sv,fx(svidx),'.r',x(skipped),fx(skipped),'xr');
+            plot(sv,fx(svidx),'.r','MarkerSize',20);
+            plot(x(skipped),fx(skipped),'xr');
             
             if ~res
                 plot(x(svidx(errors)),fx(svidx(errors)),'blackx','LineWidth',4);

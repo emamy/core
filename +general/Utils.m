@@ -32,7 +32,16 @@ classdef Utils
     methods(Static)
         
         function short = getHelpShort(txt)
-            % Gets the first block of a text that goes until the first blank line.
+            % Extracts the help short subtext from a given text.
+            %
+            % Gets the first block of a text that goes until the first
+            % blank line.
+            %
+            % Parameters:
+            % txt: The text to use. @type char
+            %
+            % Return values:
+            % short: The subtext. @type char
             pos = regexp(txt,sprintf('\n[ ]*\n'));
             short = '';
             if ~isempty(pos)
@@ -52,12 +61,13 @@ classdef Utils
             % 
             % Parameters:
             % vectors: A `n\times m` matrix containing `m` column vectors
+            % @type double
             % 
             % Return values:
             % bmin: A `n\times 1` vector representing the minimum value
-            % corner of the bounding box
+            % corner of the bounding box @type double
             % bmax: A `n\times 1` vector representing the maximum value
-            % corner of the bounding box
+            % corner of the bounding box @type double
             bmin = min(vectors,[],2);
             bmax = max(vectors,[],2);
         end
@@ -76,7 +86,7 @@ classdef Utils
             % comb: A matrix containing the combinations, each row
             % corresponds to an input vector's range.
             %
-            % @author Daniel Wirtz @date 11.10.2010
+            % @author Daniel Wirtz @date 2010-10-11
             
             if ~isa(ranges,'cell')
                 if isempty(varargin)
@@ -110,7 +120,7 @@ classdef Utils
             %
             % Effectively implements a struct.clone() method.
             %
-            % @author Daniel Wirtz @date 03.11.2010
+            % @author Daniel Wirtz @date 2010-11-03
             if ~isstruct(source) || ~isstruct(target)
                 error('Both source and target arguments must be structs.');
             end
@@ -137,8 +147,8 @@ classdef Utils
             %
             % Parameters:
             % obj: The object to get the configuration of
-            % depth: [Optional, default 5] The maximum depth to go for
-            % sub-objects in properties.
+            % depth: The maximum depth to go for
+            % sub-objects in properties. @type integer
             % numtabs: [Optional, default 0] The number of tabs to insert
             % before each output.
             % Not necessary to set for normal calls as this is used upon
@@ -396,11 +406,11 @@ classdef Utils
         function removeMargin(f)
             % Requires the axes and figure units to be the same.
             a = gca(f);
+            set(f,'Units','pixels');
+            set(a,'Units','pixels');
             fpos = get(f,'Position');
             apos = get(a,'Position');
             ati = get(a,'TightInset');
-            set(f,'Units','pixels');
-            set(a,'Units','pixels');
             set(f,'ActivePositionProperty','Position');
             set(a,'ActivePositionProperty','Position');
             set(f,'Position',[fpos(1:2) apos(3:4)+ati(1:2)+ati(3:4)]);

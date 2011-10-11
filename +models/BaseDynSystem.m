@@ -1,4 +1,4 @@
-classdef BaseDynSystem < KerMorObject
+classdef BaseDynSystem < KerMorObject & ISimConstants
     % Base class for all KerMor dynamical systems.
     %
     % To setup custom dynamical systems, inherit from this class.
@@ -160,7 +160,7 @@ classdef BaseDynSystem < KerMorObject
             this.registerProps('f','B','C','x0','Inputs','Params','MaxTimestep','StateScaling');
         end
        
-        function setConfig(this, mu, inputidx)
+        function prepareConstants(this, mu, inputidx)
             % Sets the dynamical system's configuration
             %
             % With configuration are meant the parameter `\mu` and input `u(t)` that effectively
@@ -200,6 +200,12 @@ classdef BaseDynSystem < KerMorObject
             else
                 this.u = [];
                 this.inputidx = [];
+            end
+            
+            %% Setup simulation-time constant data for the core function,
+            %% if so
+            if isa(this.f,'ISimConstants')
+                this.f.prepareConstants(mu, inputidx);
             end
         end
     

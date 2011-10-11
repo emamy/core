@@ -288,16 +288,11 @@ classdef BaseModel < KerMorObject
                 end
             end
             
-            %% Setup simulation-time constant data (if available)
-            if isa(this.System,'ISimConstants')
-                this.System.prepareConstants;
-            end
-            if isa(this.System.f,'ISimConstants')
-                this.System.f.prepareConstants;
-            end
-  
-            %% Pass mu and input to system
-            this.System.setConfig(mu, inputidx);
+            % Prepare the system by setting mu and inputindex.
+            % The BaseDynSystem is a ISimConstants, and it's implementation
+            % calls the same method for the system's core function as well
+            % (if also an ISimConstants)
+            this.System.prepareConstants(mu, inputidx);
             
             %% Solve ODE
             slv = this.ODESolver;
@@ -439,15 +434,7 @@ classdef BaseModel < KerMorObject
                 error('name is acharacter field');
             end
             this.Name = value;
-        end
-        
-        function set.TimeDirty(this, value)
-            if ~islogical(value)
-                error('value must be a logical');
-            end
-            this.TimeDirty = value;
-        end
-        
+        end        
     end
 end
 

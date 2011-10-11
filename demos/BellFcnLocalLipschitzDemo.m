@@ -26,14 +26,14 @@ df = @(x)K.evaluateD1(x);
 ddf = @(x)K.evaluateD2(x);
 
 fx = f(x);
-maxR = K.x0;
+maxR = K.r0;
 
 % precompute xfeats-vector
 %xfeats = newton(maxR+sign(maxR-x),x,f,df,ddf,...
-%    K.NewtonTolerance,K.x0,K.PenaltyFactor);
+%    K.NewtonTolerance,K.r0,K.PenaltyFactor);
 
 for C = Cint
-    maxder = ones(size(x))*abs(df(K.x0));
+    maxder = ones(size(x))*abs(df(K.r0));
     e1 = maxder;
     e2 = maxder;
     e3 = maxder;
@@ -53,7 +53,7 @@ for C = Cint
             e3(i) = e2(i);
         else
             xfeat = newton(maxR+sign(maxR-d),d,f,df,ddf,...
-               K.NewtonTolerance,K.x0,K.PenaltyFactor);
+               K.NewtonTolerance,K.r0,K.PenaltyFactor);
             if d + C - xfeat < 0
                 e3(i) = (f(d) - f(d+C)) / C;
             elseif d - C - xfeat > 0
@@ -68,7 +68,7 @@ for C = Cint
 %         xfeat = maxR;
 %         if abs(d-maxR) < C
 %             xfeat = newton(maxR+sign(maxR-d),d,f,df,ddf,...
-%                 K.NewtonTolerance,K.x0,K.PenaltyFactor);
+%                 K.NewtonTolerance,K.r0,K.PenaltyFactor);
 %         end
 %         if d + C - xfeat < 0
 %             e1(i) = abs(df(d+C));

@@ -1,28 +1,57 @@
 classdef ModelParam < handle
-    %MODELPARAM Summary of this class goes here
-    %   Detailed explanation goes here
-    %
-    % @change{0,3,sa,2011-05-10} Implemented setters for the properties
-    %
+% Stores model parameters.
+% 
+% This is a simple container for model parameters that stores a
+% parameters name and range as well as other parameter-related values.
+%
+% @author Daniel Wirtz @date 2010-05-01
+%
+% @change{0,5,dw,2011-09-15} Added some documentation
+%
+% @change{0,3,sa,2011-05-10} Implemented setters for the properties
+%
+% This class is part of the framework
+% KerMor - Model Order Reduction using Kernels:
+% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+% - \c License @ref licensing
     
     properties
         % The Name of the Parameter
+        %
+        % @default New Parameter @type char
         Name = 'New Parameter';
         
         % The range of the values the parameter may take
+        %
+        % @default [] @type double
         Range;
         
         % For Sampling: The desired number of samples.
         % This field may be used differently, refer to the sampling module
         % for its usage.
         %
+        % @default 1 @type integer
+        %
         % See also: sampling
         Desired = 1;
     end
     
     properties(Dependent)
+        % The maximum value of the parameter's data.ModelParam.Range
+        %
+        % @type double
         MinVal;
+        
+        % The minimum value of the parameters Range
+        %
+        % @type @double
         MaxVal;
+        
+        % Flag that indicates if this parameter is constant or has a range
+        % to vary within.
+        %
+        % @type boolean
         HasRange;
     end
     
@@ -31,9 +60,10 @@ classdef ModelParam < handle
             % Creates a new model parameter.
             %
             % Paramters:
-            % name: Parameter name
-            % range: Can be either a scalar or a 1x2 double vector.
-            % desired: The desired number for GridSampling
+            % name: Parameter name. @type char
+            % range: Can be either a scalar or a 1x2 double vector. @type
+            % double
+            % desired: The desired number for GridSampling @type integer
             %
             % If an argument is specified, all have to be specified. This
             % is only done to enable creation of empty ModelParam-instances

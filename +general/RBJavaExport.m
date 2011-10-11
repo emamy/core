@@ -1,5 +1,5 @@
-classdef ModelExport < handle
-    % ModelExport: Exporting rbmatlab models for the JRB project.
+classdef RBJavaExport < handle
+    % RBJavaExport: Exporting rbmatlab models for the JRB project.
     % This class is only here for having a safe version inside a git repo.
     %
     % Exports rbmatlab models to a specific folder.
@@ -23,7 +23,6 @@ classdef ModelExport < handle
         
         % The source of the JRB software
         JRBSource = '/home/dwirtz/aghhome/Software/Eclipse/JRB/src';
-        %         JRBSource = 'D:\CreaByte\Software\Java\JRB\src';
         
         % Some additional export parameters.
         %
@@ -49,7 +48,6 @@ classdef ModelExport < handle
         %
         % @default ''
         AffFcnsJava = '';
-%         AffFcnsJava = 'D:\CreaByte\Software\Java\JRB\models\aghdemo\AffineFunctions.java';
 
         % Flag that indicates if the export is for a web folder.
         %
@@ -62,13 +60,6 @@ classdef ModelExport < handle
     end
     
     methods
-        
-        function this = ModelExport
-%             this.TargetFolder = '/home/dwirtz/aghhome/Software/Eclipse/JRB/models/adv_diff_tc';
-%              this.TargetFolder = '/home/dwirtz/aghwww/rbapp/demo';
-%             this.TargetFolder = 'D:\CreaByte\Software\Java\ROMSim\assets\adv_diff_rb';
-%             this.TargetFolder = 'D:\CreaByte\Software\Java\JRB\models\adv_diff_rb_tc';
-        end
         
         function set.TargetFolder(this, value)
             if isempty(value)

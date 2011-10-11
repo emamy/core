@@ -251,7 +251,8 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
     end
     
     methods(Static)
-        function rsDemo(b)
+        function KMdemo_rsDemoImages(b)
+            % Produces the demo images for rs positions
             if nargin == 0
                 b = kernels.GaussKernel(2);
             end
@@ -306,7 +307,7 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
                 axis([0 maxR -.5 f(r0)+abs(df(r0))*r0]);
                 hold off;
                 
-                lh = legend('\phi','\phi(r_s) + \phi''(r_s)(r_s-s)');%, '|\phi''|'
+                lh = legend('\phi','\phi(r_s) + \phi''(r_s)(x-r_s)');%, '|\phi''|'
                 set(lh,'FontSize',fs);
                 title(sprintf('Bell function demo, s=%f, rs=%f',s,rs(k)),'FontSize',fs);
                 pause;
@@ -325,7 +326,7 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
             b = kernels.GaussKernel(Gamma);
             r0 = b.r0; rm = b.rm;
             lfun = error.lipfun.ImprovedLocalSecantLipschitz(b);
-            lfun.NewtonTolerance = 1e-3;
+            b.NewtonTolerance = 1e-3;
             lfun.prepareConstants;
             
             h = figure(1);
@@ -337,7 +338,7 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
             r = union(r,[r0,rm]);
             
             rstart = repmat(r0/2,1,size(r,2));
-            rss = lfun.ModifiedNewton(rstart,r);
+            rss = b.ModifiedNewton(rstart,r);
             
             f = @b.evaluateScalar;
             df = @b.evaluateD1;
@@ -366,7 +367,7 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
                 dn(3,isinf(dn(3,:))) = b.evaluateD2(rm)/2;
                 
                 % Get optimization function
-                [opt,dummy,inner,l0,gxr] = lfun.optFun(r,repmat(s,1,size(r,2)),n,dn,b);
+                [opt,dummy,inner,l0,gxr] = b.optFun(r,repmat(s,1,size(r,2)),n,dn);
                 std = ~inner & ~l0 & ~gxr;
                                 
                 % f and df
@@ -381,14 +382,9 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
                     st{end+1} = '|\phi''(r_s)| = |S_s(r_s))| \forall s';
                 end
                 % Plot f tangent for max secant gradient
-                plot([0 maxR],f(s) + drf(k)*[s (s-maxR)],'g--','LineWidth',lw);
-                st{end+1} = '\phi(r_s) + \phi''(r_s)(r_s-s)';
+                plot([0 maxR],f(s) + drf(k)*[s (s-maxR)],'k--','LineWidth',lw);
+                st{end+1} = '\phi(r_s) + \phi''(r_s)(x-r_s)';
                 % Plot 
-                plot(r0,f(r0),'blacks','MarkerSize',6,'MarkerFaceColor','black');
-                plot(rm,f(rm),'bs','MarkerSize',6,'MarkerFaceColor','blue');
-                plot(s,f(s),'ro','MarkerSize',6,'MarkerFaceColor','red');
-                plot(rss(k),f(rss(k)),'mo','MarkerSize',6,'MarkerFaceColor','magenta');
-                st(end+1:end+4) = {'\phi(r_0)','\phi(r_m)','\phi(s)','\phi(r_s)'};
                 if any(std)
                     plot(r(std),opt(std),'b','LineWidth',lw);
                     st{end+1} = 'n(r)'; 
@@ -410,8 +406,28 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
                     plot([rss(k) s],[abs(drf(k)) abs(drf(k))],'--black','LineWidth',lw);
                 end
                 st{end+1} = '\phi(r_s) <-> d\phi(rs) = |S_s(r_s)|';
+                
+                fs = 16;
+                off = .04; off2 = .07;
+                plot([r0 r0],[0 f(r0)],'blacks','MarkerSize',6,'MarkerFaceColor','black');
+                text(r0+off,f(r0)+off,'\phi(r_0)','FontSize',fs);
+                text(r0,-off2,'r_0','FontSize',fs);
+                plot([rm rm],[0 f(rm)],'bs','MarkerSize',6,'MarkerFaceColor','blue');
+                text(rm+off,f(rm)+off,'\phi(r_m)','FontSize',fs);
+                text(rm,-off2,'r_m','FontSize',fs);
+                plot([s s],[0 f(s)],'ro','MarkerSize',6,'MarkerFaceColor','red');
+                text(s+off,f(s)+off,'\phi(s)','FontSize',fs);
+                text(s,-off2,'s','FontSize',fs);
+                plot([rss(k) rss(k)],[0 f(rss(k))],'mo','MarkerSize',6,'MarkerFaceColor','magenta');
+                text(rss(k)+off,f(rss(k))+off,'\phi(r_s)','FontSize',fs);
+                text(rss(k),-off2,'r_s','FontSize',fs);
+                %st(end+1:end+4) = {'\phi(r_0)','\phi(r_m)','\phi(s)','\phi(r_s)'};
+                
+                
                 % Plot line through zero
                 plot(r,0,'black');
+
+                
                 axis([0 maxR -.5 f(r0)+abs(df(r0))*r0]);
                 hold off;
                 
