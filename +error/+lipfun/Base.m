@@ -1,4 +1,4 @@
-classdef Base < KerMorObject & ISimConstants & ICloneable
+classdef Base < KerMorObject & ICloneable
 % Base: 
 %
 %
@@ -16,6 +16,9 @@ classdef Base < KerMorObject & ISimConstants & ICloneable
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
+%
+% @todo remove old ISimConstants interface implementation
+% prepareConstants, at least rename it somehow
     
     properties(Access=protected)
         bellfcn;

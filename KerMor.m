@@ -9,6 +9,9 @@ classdef KerMor < handle
     %
     % @author Daniel Wirtz @date 2011-03-04
     %
+    % @change{0,5,dw,2011-10-13} Moved all documentation related stuff to
+    % an own class @ref Documentation.
+    %
     % @new{0,5,dw,2011-08-04} Added flag UseDPCS to switch the default property changed system
     % on/off.
     %
@@ -208,19 +211,6 @@ classdef KerMor < handle
         %
         % See also: MainVersion
         SubVersion = '5';
-        
-        % The KerMor documentation directory, i.e. where createDocs places
-        % the generated documentation.
-        %
-        % Can be set during KerMor.install
-        % Readonly.
-        DocumentationDirectory = getenv('KERMOR_DOCS');
-        
-        % The doxygen binary used to create the documentation.
-        %
-        % Can be set during KerMor.install
-        % Readonly.
-        Doxygen = getenv('KERMOR_DOXYBIN');
     end
     
     properties
@@ -304,13 +294,6 @@ classdef KerMor < handle
         Hasrbmatlab = false;
     end
     
-    properties(Dependent)
-        % Returns where the documentation is located.
-        %
-        % This is either a web-site or the local documentation.
-        DocumentationLocation;
-    end
-    
     methods
         function set.UseMatlabParallelComputing(this, value)
             if ~islogical(value)
@@ -325,7 +308,7 @@ classdef KerMor < handle
                    this.UseMatlabParallelComputing = value;
                    setpref('KERMOR','USEMATLABPARALLELCOMPUTING',value);
                    if s == 0
-                       %matlabpool open;
+                       matlabpool open;
                    end                
                 else
                     error('No parallel computing toolbox available.');
@@ -431,13 +414,6 @@ classdef KerMor < handle
                 this.HomeDirectory = fileparts(which('KerMor'));
             end
             h = this.HomeDirectory;
-        end
-        
-        function d = get.DocumentationLocation(this)%#ok
-            d = getenv('KERMOR_DOCS');
-            if isempty(d) || ~exist(fullfile(d,'index.html'),'file')
-                d = 'http://www.agh.ians.uni-stuttgart.de/documentation/kermor';
-            end
         end
         
         function h = get.DataStoreDirectory(this)
@@ -697,7 +673,7 @@ classdef KerMor < handle
                 if this.UseMatlabParallelComputing
                     disp('Checking for and starting parallel computing..');
                     if matlabpool('size') == 0
-                        %matlabpool open;
+                        matlabpool open;
                     end
                 end
                 
@@ -725,6 +701,9 @@ classdef KerMor < handle
             % The singleton KerMor instance
             %
             % Access to the main programs instance via KerMor.App!
+            %
+            % Return values:
+            % theinstance: The singleton instance @type KerMor
             persistent instance;
             if isempty(instance)
                 instance = KerMor;
@@ -814,31 +793,7 @@ classdef KerMor < handle
             disp('<<<<<<<<<< Setup complete. You can now start KerMor by running "KerMor.start;". >>>>>>>>>>');
         end
         
-        function createDocs(uml, open)
-            % Creates the Doxygen documentation
-            %
-            % Parameters:
-            % uml: Set to true to create UML-like graphics output
-            % @default false
-            % open: Set to true if the documentation should be opened after
-            % successful compilation
-            % @default false
-            if nargin < 2
-                open = false;
-                if nargin < 1
-                    uml = false;
-                end
-            end
-            
-            %% Operation-system dependent actions
-            if isunix
-                KerMor.createDocsUnix(uml, open);
-            elseif ispc
-                KerMor.createDocsWindows(uml, open);
-            end
-        end
-        
-        function application = start
+        function app = start
             % Starts the KerMor application
             %
             % This static method initializes the environment and performs
@@ -850,14 +805,9 @@ classdef KerMor < handle
             % user is prompted to select them!
             %
             % Return values:
-            % application: The KerMor instance.
-            application = KerMor.App;
-            application.initialize;
-            %             if ~application.Started
-            %                 application.initialize;
-            %             else
-            %                 error('The application is already started.');
-            %             end
+            % app: The KerMor instance @type KerMor
+            app = KerMor.App;
+            app.initialize;
         end
         
         function stop
@@ -871,45 +821,7 @@ classdef KerMor < handle
         end
     end
     
-    methods(Static,Access=private)
-        
-        function createDocsUnix(uml, open)
-            cmd = fullfile(KerMor.App.HomeDirectory,'documentation','make.sh');
-            % Add version argument
-            cmd = [cmd ' ' KerMor.MainVersion '.' KerMor.SubVersion];
-            % Add uml argument
-            if uml
-                cmd = [cmd ' uml'];
-            end
-            [s,r] = system(cmd);
-            wpos = strfind(r,'Logged warnings:');
-            if ~isempty(wpos)
-                endpos = strfind(r,'Complete log file');
-                cprintf([0 .5 0],r(1:wpos-1));
-                cprintf([1,.4,0],strrep(r(wpos:endpos-1),'\','\\')); 
-                cprintf([0 .5 0],r(endpos:end));
-            else
-                cprintf([0 .5 0],strrep(r,'\','\\'));
-            end
-            fprintf('\n');
-            index = fullfile(getenv('KERMOR_DOCS'), 'index.html');
-            if open
-                % Try to use iceweasel per default (nasty, uhm?)
-                [s,r] = system('which iceweasel');
-                if ~isempty(r)
-                    cmd = 'iceweasel ';
-                else
-                    % Otherwise: use user preferred browser
-                    cmd = 'xdg-open ';
-                end
-                system([cmd index]);
-            end
-        end
-        
-        function createDocsWindows(uml, open)%#ok
-            error('Creating documentation on Windows is currently not supported.');
-        end
-        
+    methods(Static, Access=private) 
         function installUnix
             % Install script for unix systems
             %
@@ -924,72 +836,27 @@ classdef KerMor < handle
             % - 'KERMOR_SOURCE' The source directory
             % - 'KERMOR_DOCS' The documentation output directory
             % - 'KERMOR_DOXYBIN' Path to the doxygen binary (autodetect)
+            % The last two are being inserted inside the
+            % Documentation.setup function.
             %
             % @todo compile any mex files!
             
             h = fileparts(which('KerMor'));
             fid = fopen('~/.bashrc','a+');
-            try
-                
-                fprintf(fid,'\n# KerMor environment variables (added by KerMor.install script on %s)\n',date);
-                fprintf(fid,'export KERMOR_SOURCE="%s"\n',h);
-                % Set in running environment (until restart)
-                setenv('KERMOR_SOURCE',h);
-                
-                
-                %% Documentation directory
-                if isempty(getenv('KERMOR_DOCS'))
-                    d = fullfile(h,'documentation','output');
-                    str = sprintf(['No documentation output directory has been set yet.\n'...
-                        'The default will be %s\n'...
-                        'Do you want to specify a custom output directory? (Y)es/(N)o: '],d);
-                    ds = lower(input(str,'s'));
-                    if isequal(ds,'y')
-                        d = uigetdir(h,'Please select the documentation output folder.');
-                        if d == 0
-                            d = fullfile(h,'documentation','output');
-                            fprintf('Operation cancelled, using default directory %s...\n',d);
-                        end
-                    end
-                    fprintf(fid,'export KERMOR_DOCS="%s"\n',d);
-                    setenv('KERMOR_DOCS',d)
-                end
-                
-                %% Doxygen binary
-                if isempty(getenv('KERMOR_DOXYBIN'))
-                    [s,r] = system('which doxygen');
-                    db = [];
-                    if ~isempty(r)
-                        db = 'doxygen';
-                        str = sprintf(['Doxygen installation is available (%s).\n'...
-                            'Do you want to use a different doxygen binary? (Y)es/(N)o: '],strrep(r,char(10),''));
-                        yn = lower(input(str,'s'));
-                    end
-                    if isempty(r) || isequal(yn,'y')
-                        [f,p] = uigetfile('~/*.*','Select the custom doxygen binary file.');
-                        if f ~= 0
-                            db = fullfile(p, f);
-                        end
-                    end
-                    if ~isempty(db)
-                        fprintf(fid,'export KERMOR_DOXYBIN="%s"\n',db);
-                        setenv('KERMOR_DOXYBIN',db);
-                    else
-                        warning('KerMor:installUnix','No doxygen binary selected. Documentation creation will not work.');
-                    end
-                end
-                
-                fclose(fid);
-                
-                % Reload terminal bashrc
-                system('. ~/.bashrc');
-            catch ME%#ok
-                fclose(fid);
-            end
+            fprintf(fid,'\n# KerMor environment variables (added by KerMor.install script on %s)\n',date);
+            fprintf(fid,'export KERMOR_SOURCE="%s"\n',h);
+            % Set in running environment (until restart)
+            setenv('KERMOR_SOURCE',h);
+            fclose(fid);
+            
+            Documentation.setup;
+
+            % Reload terminal bashrc
+            system('. ~/.bashrc');
         end
         
         function installWindows
-            % installation script for Microsoft Windows based systems.
+            % Installation script for Microsoft Windows based systems.
             %
             % Not yet implemented/necessary (docs make-script is linux only!)
             %

@@ -16,7 +16,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
 %
 % @new{0,5,dw,2011-07-07} Moved the old approx.AdaptiveCompWiseKernelApprox class to this class.
 %
-% @change{0,4,dw,2011-05-31} Added new experimental properties @ref MinGFactor and @ref MaxGFactor.
+% @change{0,4,dw,2011-05-31} Added new experimental properties approx.algorithms.BaseKernelApproxAlgorithm.MinGFactor and approx.algorithms.BaseKernelApproxAlgorithm.MaxGFactor.
 %
 % @change{0,4,dw,2011-05-19} Disconnected the Approx classes from taking a BaseModel instance at
 % approx computation. This way external tools can use the approximation algorithms, too.
@@ -417,8 +417,6 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
                     %warning('off','MATLAB:nearlySingularMatrix');
                     % Call coeffcomp preparation method and pass kernel matrix
                     K = data.MemoryKernelMatrix(kexp.getKernelMatrix);
-                    %K.UseLU = true;
-                    %K.BuildInverse = true;
                     this.CoeffComp.init(K);
                     
                     % Call protected method

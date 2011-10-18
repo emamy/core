@@ -11,6 +11,9 @@ classdef BaseModel < KerMorObject
     %
     % @author Daniel Wirtz @date 19.03.2010
     %
+    % @change{0,5,dw,2011-10-14} Removed the TimeDirty flag as it wasnt
+    % used properly/at all.
+    %
     % @change{0,5,dw,2011-09-29}
     % - New flag-field RealTimePlotting that calls the new plotSingle
     % method in order to display the system as it is simulated.
@@ -178,14 +181,6 @@ classdef BaseModel < KerMorObject
         RealTimePlotting;
     end
     
-    properties(Access=protected)
-        % Flag that indicates changes in either T or dt after
-        % offlineGenerations have been performed.
-        %
-        % @todo check if this property still makes sense
-        TimeDirty;
-    end
-    
     properties(SetAccess=private, GetAccess=protected)
         % The variable name of the variable denoting the current model instance.
         %
@@ -286,19 +281,13 @@ classdef BaseModel < KerMorObject
             this.WorkspaceVariableName = '';
         end
         
-        function plot(this, t, y, ax)
+        function plot(this, t, y)
             % Plots the results of the simulation.
             % Override in subclasses for a more specific plot if desired.
             %
             % Parameters:
             % t: The simulation times `t_i`
             % y: The simulation output matrix `y`, i.e. `y(t_i)`
-            % ax: An axes handle as plotting target. Optional; if not
-            % specified a new figure is created.
-            if nargin < 4
-                figure;
-                ax = gca;
-            end
             y = general.Utils.preparePlainPlot(y);
             plot(ax,t,y);
             title(ax,sprintf('Plot for output of model "%s"', this.Name));
@@ -340,10 +329,7 @@ classdef BaseModel < KerMorObject
             end
             
             % Prepare the system by setting mu and inputindex.
-            % The BaseDynSystem is a ISimConstants, and it's implementation
-            % calls the same method for the system's core function as well
-            % (if also an ISimConstants)
-            this.System.prepareConstants(mu, inputidx);
+            this.System.setConfig(mu, inputidx);
             
             %% Solve ODE
             slv = this.ODESolver;
@@ -378,7 +364,6 @@ classdef BaseModel < KerMorObject
 %             target.dt = this.dt;
 %             target.G = this.G;
 %             target.tau = this.tau;
-%             target.TimeDirty = this.TimeDirty;
 %             target.dtscaled = this.dtscaled;
 %         end
     end
@@ -447,10 +432,7 @@ classdef BaseModel < KerMorObject
             if ~isscalar(value) || value < 0
                 error('T must be a positive real scalar.');
             end
-            if this.T ~= value
-                this.T = value;
-                this.TimeDirty = true;%#ok -> setter does not change anything
-            end
+            this.T = value;
         end
         
         function set.dt(this, value)
@@ -460,7 +442,6 @@ classdef BaseModel < KerMorObject
             if this.fdt ~= value
                 this.dtscaled = value/this.ftau;
                 this.fdt = value;
-                this.TimeDirty = true;
             end
         end
         
@@ -471,7 +452,6 @@ classdef BaseModel < KerMorObject
             if this.ftau ~= value
                 this.dtscaled = this.fdt/value;
                 this.ftau = value;
-                this.TimeDirty = true;
             end
         end
         

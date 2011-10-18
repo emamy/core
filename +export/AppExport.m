@@ -1,8 +1,10 @@
 classdef AppExport
-% AppExport: Export class for Android KerMORDSApp
+% AppExport: Export class for Android ROMSim App
 %
 %
 % @author Daniel Wirtz @date 2011-08-02
+%
+% @change{0,5,dw,2011-10-06} Moved this class to the export package.
 %
 % @change{0,5,dw,2011-08-25} The saveRealMatrix and saveRealVector now save the matrix in the given
 % class, i.e. double,single (=float32, 4bytes), int32 etc.
@@ -69,9 +71,9 @@ classdef AppExport
             fprintf(f,'\t<dim>%d</dim>\n',size(rm.System.x0.evaluate(mu),1));
             
             %% Export model data
-            general.AppExport.saveRealMatrix(rm.V,'V.bin',folder);
-            general.AppExport.saveRealMatrix(rm.W,'W.bin',folder);
-            %general.AppExport.saveRealMatrix(rm.W,'G.bin',folder);
+            export.AppExport.saveRealMatrix(rm.V,'V.bin',folder);
+            export.AppExport.saveRealMatrix(rm.W,'W.bin',folder);
+            %export.AppExport.saveRealMatrix(rm.W,'G.bin',folder);
             
             %% Export system data
             
@@ -84,7 +86,7 @@ classdef AppExport
                     fprintf(f,'\t\t<param name="%s" min="%17.17f" max="%17.17f" label="%s"/>\n',...
                         p(k).Name,p(k).MinVal,p(k).MaxVal,p(k).Name);
                 end
-                %general.AppExport.saveRealMatrix(pvals, 'paramvalues.bin', folder);
+                %export.AppExport.saveRealMatrix(pvals, 'paramvalues.bin', folder);
             end
             fprintf(f,'\t</parameters>\n');
             
@@ -94,21 +96,21 @@ classdef AppExport
             fprintf(f,'\t<corefun>\n');
             fprintf(f,'\t\t<corefuntype>%s</corefuntype>\n',class(cf));
             if isa(cf,'kernels.KernelExpansion')
-                general.AppExport.saveRealMatrix(cf.Ma,'Ma.bin',folder);
-                general.AppExport.saveRealMatrix(cf.Centers.xi,'xi.bin',folder);
+                export.AppExport.saveRealMatrix(cf.Ma,'Ma.bin',folder);
+                export.AppExport.saveRealMatrix(cf.Centers.xi,'xi.bin',folder);
                 exportKernel(cf.Kernel,'kernel.bin',folder);
                 fprintf(f,'\t\t<statekernel>%s</statekernel>\n',class(cf.Kernel));
                 if isa(cf,'kernels.ParamTimeKernelExpansion')
-                    general.AppExport.saveRealVector(cf.Centers.ti,'ti.bin',folder);
+                    export.AppExport.saveRealVector(cf.Centers.ti,'ti.bin',folder);
                     exportKernel(cf.TimeKernel,'timekernel.bin',folder);
                     fprintf(f,'\t\t<timekernel>%s</timekernel>\n',class(cf.TimeKernel));
                     
-                    general.AppExport.saveRealMatrix(cf.Centers.mui,'mui.bin',folder);
+                    export.AppExport.saveRealMatrix(cf.Centers.mui,'mui.bin',folder);
                     exportKernel(cf.ParamKernel,'paramkernel.bin',folder);
                     fprintf(f,'\t\t<paramkernel>%s</paramkernel>\n',class(cf.ParamKernel));
                 end
             elseif isa(cf, 'dscomponents.LinearCoreFun')
-                general.AppExport.saveRealMatrix(cf.A,'A.bin',folder);
+                export.AppExport.saveRealMatrix(cf.A,'A.bin',folder);
             else
                 error('System function must be a kernel expansion.');
             end
@@ -117,7 +119,7 @@ classdef AppExport
             % Input
             if ~isempty(s.B)
                 if isa(s.B,'dscomponents.LinearInputConv')
-                    general.AppExport.saveRealMatrix(s.B.B,'B.bin',folder);
+                    export.AppExport.saveRealMatrix(s.B.B,'B.bin',folder);
                     
                 elseif isa(s.B,'dscomponents.AffLinInputConv')
                     
@@ -128,7 +130,7 @@ classdef AppExport
             % Output
             if ~isempty(s.C)
                 if isa(s.C,'dscomponents.LinearOutputConv')
-                    general.AppExport.saveRealMatrix(s.C.C,'C.bin',folder);
+                    export.AppExport.saveRealMatrix(s.C.C,'C.bin',folder);
                 elseif isa(s.B,'dscomponents.AffLinOutputConv')
                     
                 end
@@ -137,7 +139,7 @@ classdef AppExport
             
             % Initial value
             if isa(s.x0,'dscomponents.ConstInitialValue')
-                general.AppExport.saveRealVector(s.x0.x0,'x0.bin',folder);
+                export.AppExport.saveRealVector(s.x0.x0,'x0.bin',folder);
             elseif isa(s.B,'dscomponents.AffineInitialValue')
                 error('Not yet implemented.');
             end
@@ -172,7 +174,7 @@ classdef AppExport
             
             function exportKernel(k, file, folder)
                 if isa(k,'kernels.GaussKernel')
-                    general.AppExport.saveRealVector(k.Gamma,file,folder);
+                    export.AppExport.saveRealVector(k.Gamma,file,folder);
                 elseif isa(k,'kernels.LinearKernel')
                     % do nothing.
                 end
@@ -202,7 +204,7 @@ classdef AppExport
                 file = fullfile(folder,file);
             end
             
-            f = fopen(file,'w+',general.AppExport.MachineFormat);
+            f = fopen(file,'w+',export.AppExport.MachineFormat);
             try
                 [n,m] = size(mat);
                 if n > intmax('int32') || m > intmax('int32')
@@ -247,7 +249,7 @@ classdef AppExport
                 file = fullfile(folder,file);
             end
             
-            f = fopen(file,'w+',general.AppExport.MachineFormat);
+            f = fopen(file,'w+',export.AppExport.MachineFormat);
             try
                 s = length(vec);
                 if s > intmax('int32')

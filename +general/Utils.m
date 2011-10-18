@@ -9,7 +9,7 @@ classdef Utils
     % - removeMargin now properly works, together with saveFigure or
     % saveAxes.
     %
-    % @new{0,5,dw,2011-07-05} Added the @ref implode function.
+    % @new{0,5,dw,2011-07-05} Added the general.Utils.implode function.
     %
     % @new{0,3,dw,2011-04-20} Added a new function general.Utils.getHelpShort to extract the first
     % line(s) of a help text in matlab style (text until first emtpy line = short)

@@ -1,4 +1,4 @@
-classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
+classdef BellFunction < kernels.BaseKernel & kernels.ARotationInvariant
     %BELLFUNCTION Summary of this class goes here
     %   Detailed explanation goes here
     %
@@ -74,6 +74,7 @@ classdef BellFunction < kernels.BaseKernel & kernels.IRotationInvariant
         
         function this = BellFunction
             this = this@kernels.BaseKernel;
+            this = this@kernels.ARotationInvariant;
             this.registerProps('r0','NewtonTolerance','MaxNewtonIterations');
         end
         

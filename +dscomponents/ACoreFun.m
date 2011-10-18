@@ -10,6 +10,10 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
 %
 % @author Daniel Wirtz @date 17.03.2010
 %
+% @change{0,5,dw,2011-10-15} Improved the evaluate method and added a
+% generic test method to test the multiargumentevaluation-capability (calls
+% once with whole vector and then via singledim-loop, then compares diff up to eps)
+%
 % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
 % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
 % extended constructor registering any user-relevant properties using
@@ -130,19 +134,15 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             end
             % check if fast evaluation is possible
             if size(x,2) == 1 || this.MultiArgumentEvaluations
-            %if false && (size(x,2) == 1 || this.MultiArgumentEvaluations)
                 fx = this.evaluateCoreFun(x, t, mu);
             else
                 % evaluate each point extra
                 fx = zeros(size(x));
                 if isempty(mu)
-                    for idx = 1:size(x,2)
-                        fx(:,idx) = this.evaluateCoreFun(x(:,idx), t(idx), []);
-                    end
-                else
-                    for idx = 1:size(x,2)
-                        fx(:,idx) = this.evaluateCoreFun(x(:,idx), t(idx), mu(:,idx));
-                    end
+                    mu = double.empty(0,size(x,2));
+                end
+                for idx = 1:size(x,2)
+                    fx(:,idx) = this.evaluateCoreFun(x(:,idx), t(idx), mu(:,idx));
                 end
             end
             if proj
@@ -174,6 +174,29 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             copy.V = this.V;
             copy.W = this.W;
         end
+        
+        function res = test_MultiArgEval(this, sdim, mudim)
+            % Convenience function that tests if a custom
+            % MultiArgumentEvaluation works as if called with single
+            % arguments.
+            %
+            if true || (this.MultiArgumentEvaluations)
+                x = rand(sdim,200);
+                mu = rand(mudim,200);
+                fxm = this.evaluate(x,1:200,mu);
+                fxs = zeros(size(x));
+                for i=1:200
+                    fxs(:,i) = this.evaluate(x(:,i),i,mu(:,i));
+                end
+                err = sum((fxm-fxs).^2,1);
+                res = all(err < eps);
+                if ~res
+                    plot(err);
+                end
+            else
+                error('MultiArgumentEvaluations not switched on.');
+            end
+        end
     end
         
     methods(Abstract)
@@ -186,6 +209,5 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
         % important to set both flags to true as some components rely on them.
         fx = evaluateCoreFun(this, x, t, mu);
     end
-    
 end
 

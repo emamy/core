@@ -21,6 +21,8 @@ classdef Devel < handle
     % @new{0,3,dw,2011-04-12} Added this class to aid new class creation and offer customized class
     % / function skeletons.
     %
+    % @todo Check class/function name string validity for newClass/newFun
+    %
     % This class is part of the framework
     % KerMor - Model Order Reduction using Kernels:
     % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
@@ -29,9 +31,12 @@ classdef Devel < handle
     
     properties(Dependent)
         % The current developing author
+        %
+        % @type char
         Author;
         
         % Author's short tag for identification in doxygen @@new and @@change tags
+        % @type char
         AuthorShort;
         
         % Always today's date
@@ -60,6 +65,10 @@ classdef Devel < handle
     methods(Static)
         
         function inst = Instance
+            % Returns the singleton instance of Devel.
+            %
+            % Return values:
+            % inst: The instance @type Devel
             inst = Devel;
         end 
         
@@ -82,9 +91,7 @@ classdef Devel < handle
             %
             % Parameters:
             % name: The target class name
-            % overwrite: [Optional] Overwrite any existing file
-            %
-            % @todo check class name validity!
+            % overwrite: Overwrite any existing file @default false
             if ~isa(name,'char')
                 error('The class name must be a string');
             end

@@ -1,4 +1,4 @@
-classdef BaseDynSystem < KerMorObject & ISimConstants
+classdef BaseDynSystem < KerMorObject
     % Base class for all KerMor dynamical systems.
     %
     % To setup custom dynamical systems, inherit from this class.
@@ -11,9 +11,18 @@ classdef BaseDynSystem < KerMorObject & ISimConstants
     % settings combined at one class one should rather pass the custom
     % system's instance to the ACoreFun implementing classes' constructor
     % and read settings from that instead.
-    % For an example see the models.pcd.PCDSystem and models.pcd.CoreFun.
+    % For an example see the models.pcd.PCDSystem2D and pcd.CoreFun2D.
     %
     % @author Daniel Wirtz @date 17.03.2010
+    %
+    % @change{0,5,dw,2011-10-17}
+    % - Removed the ISimConstants interface as the
+    % concept is too confusing when reducing models (core function
+    % evaluations must be fully self-contained regarding current mu and
+    % especially inputs)
+    % - Renamed the prepareConstants to BaseDynSystem.setConfig
+    % - New BaseDynSystem.getParamInfo method to display formatted
+    % information about a given parameter vector.
     %
     % @change{0,5,dw,2011-07-07} New method getParamIndexFromName and fixed setConfig checks.
     %
@@ -21,8 +30,8 @@ classdef BaseDynSystem < KerMorObject & ISimConstants
     % flexibility during subsequent simulations are to be rated higher than proper setting of the
     % property, which should be assumed is being done (especially) for `x0(\mu)`
     %
-    % @change{0,4,dw,2011-05-13} Created new transient properties models.BaseDynSystem.mu and
-    % models.BaseDynSystem.u in order to store the current `\mu` and `u(t)` used for simulations on
+    % @change{0,4,dw,2011-05-13} Created new transient properties BaseDynSystem.mu and
+    % BaseDynSystem.u in order to store the current `\mu` and `u(t)` used for simulations on
     % a higher level. Removed the old 'getODEFun' function and replaced it by a direct
     % implementation 'ODEFun'. This enables to avoid nested function handles with in turn allow for
     % a speedup of reduced simulations by almost a factor of 2.
@@ -160,7 +169,7 @@ classdef BaseDynSystem < KerMorObject & ISimConstants
             this.registerProps('f','B','C','x0','Inputs','Params','MaxTimestep','StateScaling');
         end
        
-        function prepareConstants(this, mu, inputidx)
+        function setConfig(this, mu, inputidx)
             % Sets the dynamical system's configuration
             %
             % With configuration are meant the parameter `\mu` and input `u(t)` that effectively
@@ -200,12 +209,6 @@ classdef BaseDynSystem < KerMorObject & ISimConstants
             else
                 this.u = [];
                 this.inputidx = [];
-            end
-            
-            %% Setup simulation-time constant data for the core function,
-            %% if so
-            if isa(this.f,'ISimConstants')
-                this.f.prepareConstants(mu, inputidx);
             end
         end
     
@@ -299,6 +302,13 @@ classdef BaseDynSystem < KerMorObject & ISimConstants
 %             if isempty(pidx)
 %                 error('No parameter for name "%s" found.',paramname);
 %             end
+        end
+        
+        function str = getParamInfo(this, mu)
+            str = '';
+            for i=1:this.ParamCount
+                str = sprintf('%s%d - %s: %f\n',str,i,this.Params(i).Name,mu(i));
+            end
         end
     end
     

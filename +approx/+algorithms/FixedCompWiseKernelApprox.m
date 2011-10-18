@@ -3,6 +3,13 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
 %
 % @author Daniel Wirtz @date 2011-06-01
 %
+% @new{0,5,dw,2011-10-14}
+% - Added the method
+% FixedCompWiseKernelApprox.guessGammas as a helper
+% method to determine suitable Gaussian kernel configurations. The
+% algorithm used is basically the same as in AdaptiveCompWiseKernelApprox.
+% - This algorithm now also works with kernels.ParamTimeKernelExpansion's
+% 
 % @new{0,5,dw,2011-07-07} Moved the old approx.FixedCompWiseKernelApprox class to this class.
 %
 % @new{0,4,dw,2011-06-01} Added this class.
@@ -48,6 +55,49 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
 %             
 %             copy.MaxErrors = this.MaxErrors;
 %         end
+
+        function guessGammas(this, data, ng, mf, Mf)
+            gameps = .1;
+            if nargin < 5
+                Mf = 2;
+                if nargin < 4
+                    mf = .5;
+                end
+            end
+            dfun = @logsp;
+            %% Compute bounding boxes & center
+            [BXmin, BXmax] = general.Utils.getBoundingBox(data.ApproxTrainData.xi);
+            % Get bounding box diameters
+            bxdia = norm(BXmax - BXmin);
+            xdists = dfun(mf*bxdia, Mf*bxdia);
+            ti = data.ApproxTrainData.ti;
+            if ~isempty(ti)
+                Btmin = min(ti);
+                Btmax = max(ti);
+                btdia = Btmax-Btmin;
+                tdists = dfun(mf*btdia, Mf*btdia);
+                mui = data.ApproxTrainData.mui;
+                if ~isempty(mui)        
+                    [BPmin, BPmax] = general.Utils.getBoundingBox(mui);
+                    bpdia = norm(BPmax - BPmin);
+                    pdists = dfun(mf*bpdia, Mf*bpdia);
+                end
+            end
+            k = kernels.GaussKernel;
+            for i=1:length(xdists)
+               this.Gammas(1,i) = k.setGammaForDistance(xdists(i),gameps);
+               this.Gammas(2,i) = k.setGammaForDistance(tdists(i),gameps);
+               this.Gammas(3,i) = k.setGammaForDistance(pdists(i),gameps);
+            end
+            
+            function linsp(from, to)%#ok
+                d = linspace(from,to,ng);
+            end
+            
+            function d = logsp(from, to)
+                d = logspace(log10(from),log10(to),ng);
+            end
+        end
     end
     
     methods(Access=protected, Sealed)
@@ -60,9 +110,11 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
             
             %% Checks
             % This algorithm so far works only with Gaussian kernels
+            pte = isa(kexp,'kernels.ParamTimeKernelExpansion');
+            tkg = isa(kexp.TimeKernel,'kernels.GaussKernel');
             if ~isa(kexp.Kernel,'kernels.GaussKernel') || ...
-                    (~isa(kexp.TimeKernel,'kernels.GaussKernel') && ~isa(kexp.TimeKernel,'kernels.NoKernel')) || ...
-                    (~isa(kexp.ParamKernel,'kernels.GaussKernel') && ~isa(kexp.ParamKernel,'kernels.NoKernel'))
+                    (pte && ((~tkg && ~isa(kexp.TimeKernel,'kernels.NoKernel')) || ...
+                    ~isa(kexp.ParamKernel,'kernels.GaussKernel')))
                 error('Any kernels used have to be Gaussian kernels for this approximation algorithm so far');
             end
             
@@ -75,26 +127,38 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
                         
             % Keep track of maximum errors
             this.MaxErrors = zeros(1,length(this.Gammas));
-            minerr = Inf; bestg = 0; bestMa = [];
-            for gidx = 1:length(this.Gammas)
+            minerr = Inf;
+            bestg = []; 
+            bestMa = [];
+            for gidx = 1:size(this.Gammas,2)
                 
-                g = this.Gammas(gidx);
-                kexp.Kernel.Gamma = g;
+                g = this.Gammas(:,gidx);
+                kexp.Kernel.Gamma = g(1);
+                if pte
+                    if tkg
+                        kexp.TimeKernel.Gamma = g(2);
+                    end
+                    kexp.ParamKernel.Gamma = g(3);
+                end
                 
                 if KerMor.App.Verbose > 2
-                    fprintf('xg:%.5e',g);
+                    fprintf('xg: %.5e',g(1));
+                    if pte
+                        fprintf(', tg: %.5e, pg:%.5e',g(1),g(2));
+                    end
+                    fprintf('\n');
                 end
                 
                 %% Compute coefficients
                 %warning('off','MATLAB:nearlySingularMatrix');
                 % Call coeffcomp preparation method and pass kernel matrix
-                K = kexp.getKernelMatrix;
+                K = data.MemoryKernelMatrix(kexp.getKernelMatrix);
                 this.CoeffComp.init(K);
 
                 % Call protected method
                 ex = [];
                 try
-                    this.computeCoeffs(kexp, fxi);
+                    this.computeCoeffs(kexp, fxi, []);
                 catch ME
                     if gidx > 1 && strcmp(ME.identifier,'KerMor:coeffcomp:failed')    
                         ex = ME;
@@ -105,7 +169,7 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
                 end
                 
                 %% Determine maximum error over training data
-                fhat = kexp.evaluate(xi,ti,mui);
+                fhat = kexp.evaluate(xi, ti, mui);
                 [val, maxidx, errs] = errfun(fxi,fhat);
                 rel = val / (norm(fxi(maxidx))+eps);
                 this.MaxErrors(gidx) = val;
@@ -130,13 +194,13 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
             
                 
             %% Assign best values
-            kexp.Kernel.Gamma = bestg;
-%             if ~isa(kexp.TimeKernel,'kernels.NoKernel')
-%                 kexp.TimeKernel.Gamma = bestgt;
-%             end
-%             if hasparams && ~isa(kexp.ParamKernel,'kernels.NoKernel')
-%                 kexp.ParamKernel.Gamma = bestgp;
-%             end
+            kexp.Kernel.Gamma = bestg(1);
+            if pte
+                if isa(kexp.TimeKernel,'kernels.GaussKernel')
+                    kexp.TimeKernel.Gamma = bestg(2);
+                end
+                kexp.ParamKernel.Gamma = bestg(3);
+            end
             kexp.Ma = bestMa;
 
             if ~isempty(ex)

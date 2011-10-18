@@ -43,8 +43,8 @@ classdef RBJavaExport < handle
         %
         % When using the version 'jrb' (default), leave this field empty in order for the
         % ModelExport to search within the JRB sources for the appropriate AffineFunctions class.
-        % There, the package named "models.<modelfolder>" package is searched for the file, where
-        % <modelfolder> is the folder name gained by using fileparts on the TargetFolder string.
+        % There, the package named "models.&lt;modelfolder&gt;" package is searched for the file, where
+        % &lt;modelfolder&gt; is the folder name gained by using fileparts on the TargetFolder string.
         %
         % @default ''
         AffFcnsJava = '';
@@ -277,8 +277,8 @@ classdef RBJavaExport < handle
             end
             faces = int16(reshape(g.VI',[],1));
             
-            general.AppExport.saveRealVector(nodes,'vertices.bin',this.TargetFolder);
-            general.AppExport.saveRealVector(faces,'faces.bin',this.TargetFolder);
+            export.AppExport.saveRealVector(nodes,'vertices.bin',this.TargetFolder);
+            export.AppExport.saveRealVector(faces,'faces.bin',this.TargetFolder);
 %             save geo nodes faces;
         end
         
@@ -664,7 +664,7 @@ classdef RBJavaExport < handle
             
             %% Model output
             disp('Writing output');
-            general.AppExport.saveRealVector(double(red.s_RB),'output_000_000.bin',this.TargetFolder);
+            export.AppExport.saveRealVector(double(red.s_RB),'output_000_000.bin',this.TargetFolder);
             % Dual norms
             model.decomp_mode = 0;
             v=norm(model.operators_output(model,model_data));
@@ -674,12 +674,12 @@ classdef RBJavaExport < handle
             if numel(v) > 1    
                 warning('Model:Export','Export of dual norms for more than one output not yet checked.');
             end
-            general.AppExport.saveRealVector(double(v),'output_000_dual_norms.bin',this.TargetFolder);
+            export.AppExport.saveRealVector(double(v),'output_000_dual_norms.bin',this.TargetFolder);
             
             %% Model initial value data
             disp('Writing initial data');
             for q=1:length(red.a0)
-                general.AppExport.saveRealVector(double(red.a0{q}),...
+                export.AppExport.saveRealVector(double(red.a0{q}),...
                     sprintf('RB_initial_%.3d.bin',q-1),this.TargetFolder);
             end
             
@@ -688,30 +688,30 @@ classdef RBJavaExport < handle
             % L_E operator components (JRB: A_q matrices)
             disp('Writing LL_E');
             for q=1:Qa
-                general.AppExport.saveRealMatrix(double(red.LL_E{q}),...
+                export.AppExport.saveRealMatrix(double(red.LL_E{q}),...
                     sprintf('RB_A_%.3d.bin',q-1),this.TargetFolder);
             end
             
             % Write rhs b components (JRB: F_q vectors)
             disp('Writing bb')
             for q=1:Qf
-                general.AppExport.saveRealVector(double(red.bb{q}),...
+                export.AppExport.saveRealVector(double(red.bb{q}),...
                     sprintf('RB_F_%.3d.bin',q-1),this.TargetFolder);
             end
             
             % Write M matrix (identity matrix, JRB: M_q matrices)
             disp('Writing M')
             M = double(eye(size(red.LL_E{1},1), size(red.LL_E{1},2)));
-            general.AppExport.saveRealMatrix(M, 'RB_M_000.bin',this.TargetFolder);
+            export.AppExport.saveRealMatrix(M, 'RB_M_000.bin',this.TargetFolder);
             
             % JRB: read in TransientRBSystem
             % Here: identity matrix
-            general.AppExport.saveRealMatrix(M, 'RB_L2_matrix.bin',this.TargetFolder);
+            export.AppExport.saveRealMatrix(M, 'RB_L2_matrix.bin',this.TargetFolder);
             
             %write RB-vectors
             disp('Writing RB-vectors');
             for n=1:size(det.RB,2)
-                general.AppExport.saveRealVector(single(det.RB(:,n)),...
+                export.AppExport.saveRealVector(single(det.RB(:,n)),...
                     sprintf('Z_000_%.3d.bin',n-1),...
                     this.TargetFolder);    
             end
@@ -722,7 +722,7 @@ classdef RBJavaExport < handle
             hlp = this.uppertria(red.M_EE);
             for i=1:Qa
                 for j=1:Qa-i+1
-                    general.AppExport.saveRealMatrix(double(hlp{(i-1)*Qa + j}),...
+                    export.AppExport.saveRealMatrix(double(hlp{(i-1)*Qa + j}),...
                         sprintf('Aq_Aq_%.3d_%.3d_norms.bin',i-1,j-1),...
                         this.TargetFolder);
                 end
@@ -733,7 +733,7 @@ classdef RBJavaExport < handle
             disp('Writing Fq Aq norms.')
             for i=1:Qa
                 for j=1:Qf
-                    general.AppExport.saveRealVector(double(red.M_Eb{j+(i-1)*Qf}),...
+                    export.AppExport.saveRealVector(double(red.M_Eb{j+(i-1)*Qf}),...
                         sprintf('Fq_Aq_%.3d_%.3d.bin',j-1,i-1),this.TargetFolder);
                 end
             end
@@ -741,14 +741,14 @@ classdef RBJavaExport < handle
             %write Fq_Fq
             disp('Writing Fq norms');
             norms = this.uppertria([red.M_bb{:}]);
-            general.AppExport.saveRealVector(double(norms),...
+            export.AppExport.saveRealVector(double(norms),...
                     'Fq_norms.bin',this.TargetFolder); 
             
             % Write Aq_Mq norms
             disp('Writing Aq_Mq')
             for i=1:Qa
                 for j=1:Qm
-                    general.AppExport.saveRealMatrix(double(red.M_E{(i-1)*Qm+j}),...
+                    export.AppExport.saveRealMatrix(double(red.M_E{(i-1)*Qm+j}),...
                         sprintf('Aq_Mq_%.3d_%.3d_norms.bin',i-1,j-1),this.TargetFolder);
                 end
             end
@@ -757,7 +757,7 @@ classdef RBJavaExport < handle
             disp('Writing Fq_Mq')
             for i=1:Qf
                 for j=1:Qm
-                    general.AppExport.saveRealVector(double(red.M_b{(i-1)*Qm+j}),...
+                    export.AppExport.saveRealVector(double(red.M_b{(i-1)*Qm+j}),...
                         sprintf('Fq_Mq_%.3d_%.3d.bin',i-1,j-1),this.TargetFolder);
                 end
             end
@@ -766,7 +766,7 @@ classdef RBJavaExport < handle
             disp('Writing M_M_norms and Mq_Mq_norms');
             for i=1:Qm
                 for j=1:Qm-i+1
-                    general.AppExport.saveRealMatrix(M,...
+                    export.AppExport.saveRealMatrix(M,...
                         sprintf('Mq_Mq_%.3d_%.3d.bin',i-1,j-1),this.TargetFolder);
                 end
             end

@@ -4,6 +4,9 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable
     %
     % @author Daniel Wirtz @date 2011-07-07
     %
+    % @change{0,5,dw,2011-10-14} Improved the parallel computation of
+    % kernel expansion coefficients.
+    %
     % @change{0,5,dw,2011-09-12} Added initial values that can be passed to
     % the CoeffComp algorithms. Now computing coefficients at once if
     % MultiTargetComputation of the CoeffComp property is true.
@@ -112,6 +115,9 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable
             %
             % Please take care that the CoeffComp.init method was called
             % before executing this function.
+            if isempty(initialalpha)
+                initialalpha = double.empty(size(fxi,1),0);
+            end
             if this.ComputeParallel
                 if KerMor.App.Verbose > 3
                     fprintf('Starting parallel component-wise coefficient computation\n');
@@ -172,26 +178,16 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable
             n = size(kexp.Centers.xi,2);
             fdims = size(fxi,1);
             fprintf('Starting parallel component-wise approximation computation of %d dimensions on %d workers...\n',fdims,matlabpool('size'));
-            parAI = cell(fdims, n);
-            parSV = cell(1,fdims);
-            % Create handle to speedup communications (otherwise the
-            % whole object will be copied to each worker)
-            cfun = @this.CoeffComp.computeKernelCoefficients;
+            Ma = zeros(fdims, n);
             parfor fdim = 1:fdims
-                %waitbar(fdim/fdims+10,wh,sprintf('Computing
-                %approximation for dimension %d/%d ... %2.0f %%',fdim,fdims,(fdim/fdims)*100));
                 % Call template method
-                [parAI{fdim}, parSV{fdim}] = cfun(fxi(fdim,:),initialalpha(fdim,:));
+                [ai, sv] = this.CoeffComp.computeKernelCoefficients(...
+                    fxi(fdim,:),initialalpha(fdim,:));%#ok
+                Ai = zeros(1,n);
+                Ai(sv) = ai;
+                Ma(fdim,:) = Ai;
             end
-            
-            kexp.Ma = zeros(fdims, n);
-            for idx = 1:fdims
-                if ~isempty(parSV{idx})
-                    kexp.Ma(idx,parSV{idx}) = parAI{idx};
-                else
-                    kexp.Ma(idx,:) = parAI{idx};
-                end
-            end
+            kexp.Ma = Ma;
         end
     end
     

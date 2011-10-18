@@ -19,39 +19,37 @@ classdef Documentation
         % the generated documentation.
         %
         % Can be set during Documentation.setup
-        % Readonly.
-        DocumentationDirectory = 'df';%getenv('KERMOR_DOCS');
+        %
+        % @type char
+        DocumentationDirectory = getenv('KERMOR_DOCS');
         
         % The doxygen binary used to create the documentation.
         %
         % Can be set during Documentation.setup
-        % Readonly.
-        Doxygen = 'asdf';%getenv('KERMOR_DOXYBIN');
-    end
-    
-    properties(Dependent)
-        % Returns where the documentation is located.
         %
-        % This is either a web-site or the local documentation.
-        DocumentationLocation;
+        % @type char
+        Doxygen = getenv('KERMOR_DOXYBIN');
     end
-    
-    methods
-        function d = get.DocumentationLocation(this)%#ok
+        
+    methods(Static)
+        
+        function d = DocumentationLocation
+            % Returns the location of the kermor documentation.
+            %
+            % Return values:
+            % d: The docs directory @type char
             d = getenv('KERMOR_DOCS');
             if isempty(d) || ~exist(fullfile(d,'index.html'),'file')
                 d = 'http://www.agh.ians.uni-stuttgart.de/documentation/kermor';
             end
         end
-    end
-    
-    methods(Static)
         
         function create(uml, open)
             % Creates the Doxygen documentation
             %
             % Parameters:
-            % uml: Set to true to create UML-like graphics output @default false @type boolean
+            % uml: Set to true to create UML-like graphics output @default
+            % false @type bool
             % open: Set to true if the documentation should be opened after
             % successful compilation @default false @type bool
             if nargin < 2
@@ -144,10 +142,10 @@ classdef Documentation
             if ~isempty(wpos)
                 endpos = strfind(r,'Complete log file');
                 cprintf([0 .5 0],r(1:wpos-1));
-%                 cprintf([1,.4,0],strrep(r(wpos:endpos-1),'\','\\'));
+                cprintf([1,.4,0],strrep(r(wpos:endpos-1),'\','\\'));
                 cprintf([0 .5 0],r(endpos:end));
             else
-%                 cprintf([0 .5 0],strrep(r,'\','\\'));
+                cprintf([0 .5 0],strrep(r,'\','\\'));
             end
             fprintf('\n');
             index = fullfile(getenv('KERMOR_DOCS'), 'index.html');

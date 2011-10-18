@@ -21,6 +21,11 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
     %
     % @author Daniel Wirtz @date 16.03.2010
     %
+    % @change{0,5,dw,2011-10-16} Fixed the parallel computation of
+    % BaseFullModel.off2_genTrainingData so that it also works with
+    % data.FileModelData (parallel execution did not sync the hashmaps, now
+    % running data.FileModelData.consolidate fixes this)
+    %
     % @change{0,5,dw,2011-08-04} Adopted the off2_genTrainingData method to the new data.AModelData
     % structure. Now all trajectories are stored either in memory or disk, and the data.AModelData
     % classes take care of storage.
@@ -172,7 +177,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % Setup default values for the full model's components
             this.Sampler = sampling.RandomSampler;
             
-            this.SpaceReducer = spacereduction.TrajectoryGreedy;
+            this.SpaceReducer = spacereduction.PODGreedy;
             
             this.Approx = approx.KernelApprox;
             
@@ -240,26 +245,33 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 inidx = idxmat(2,:);
                 clear idxmat;
                 
-                parfor idx = 1:size(paridx,2)
-                    
+                % Notation switch to be reminded that the remote variable will not
+                % exist in the local context outside the parfor!
+                remote = this;
+                n = size(paridx,2);
+                parfor idx = 1:n
                     % Check for parameters
-                    mu = []; munum = 0;
-                    if this.Data.SampleCount > 0 %#ok
-                        munum = paridx(idx);
-                        mu = this.Data.getParams(munum);
+                    mu = [];
+                    if remote.Data.SampleCount > 0 %#ok<PFBNS>
+                        mu = remote.Data.getParams(paridx(idx));
                     end
                     % Check for inputs
-                    inputidx = []; innum = 0;
-                    if this.TrainingInputCount > 0
+                    inputidx = [];
+                    if remote.TrainingInputCount > 0
                         inputidx = inidx(idx);
-                        innum = inputidx;
                     end
                     
                     % Get trajectory
-                    [t, x] = this.computeTrajectory(mu, inputidx);                    
+                    [t, x] = remote.computeTrajectory(mu, inputidx);  
                     
                     % Assign snapshot values
-                    this.Data.addTrajectory(x,mu,inputidx);    
+                    remote.Data.addTrajectory(x, mu, inputidx);
+                end
+                % Build the hash map for the local FileModelData (parfor
+                % add them to remotely instantiated FileModelDatas and does
+                % not syn them (not generically possible)
+                if isa(this.Data,'data.FileModelData')
+                    this.Data.consolidate(this);
                 end
                 
                 %% Non-parallel computation
@@ -298,7 +310,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         end
 
                         % Get trajectory
-                        [t, x] = this.computeTrajectory(mu, inputidx);%#ok
+                        [t, x] = this.computeTrajectory(mu, inputidx);
                                                 
                         % Assign snapshot values
                         this.Data.addTrajectory(x, mu, inputidx);
@@ -354,18 +366,19 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 else
                     atdmui = atd.mui;
                 end
+                
                 if this.ComputeParallel
-                    fval = zeros(size(atd,1)-3,size(atd,2));
                     atdxi = atd.xi;
                     atdti = atd.ti;
+                    fval = zeros(size(atdxi));
                     if KerMor.App.Verbose > 0
                         fprintf('Starting parallel f-values computation at %d points on %d workers...\n',size(atd,2),matlabpool('size'));
                     end
-                    parfor sidx=1:size(atddata,2)
+                    parfor sidx=1:size(atdxi,2)
                         fval(:,sidx) = ...
-                            this.System.f.evaluate(atdxi(:,sidx),... % x
+                            this.System.f.evaluateCoreFun(atdxi(:,sidx),... % x
                             atdti(sidx),... % t
-                            atdmui(:,sidx)); % mu
+                            atdmui(:,sidx)); %#ok mu
                     end
                     this.Data.ApproxTrainData.fxi = fval;
                 else
@@ -394,12 +407,15 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 end
                 
                 if KerMor.App.Verbose > 0
-                    fprintf('Serial approximation computation for %d dimensions ...\n',size(this.Data.ApproxTrainData.fxi,1));
+                    fprintf('Starting approximation process for %d dimensions ...\n',size(this.Data.ApproxTrainData.fxi,1));
                 end
                 
+                
+                warning off MATLAB:nearlySingularMatrix;
                 %% Approximate core function (is parallelizable for its own)
                 % Compile necessary data
                 this.Approx.approximateSystemFunction(this);
+                warning on MATLAB:nearlySingularMatrix;
                 
                 if ~isempty(this.postApproximationTrainingCallback)
                     this.postApproximationTrainingCallback();
@@ -427,10 +443,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             
             % Store the computation times
             this.OfflinePhaseTimes = times;
-            
-            % Set time dirt flag to false as current sn fit the
-            % times used.
-            this.TimeDirty = false;
         end
         
         function [reduced,time] = buildReducedModel(this)
@@ -447,10 +459,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % See also: offlineGenerations
             % @docupdate
             
-%             if this.TimeDirty
-%                 warning(['The T or dt parameters have been changed since the last offline generations.\n'...
-%                     'A call to offlineGenerations is required.']);
-%             else
             if isempty(this.Data) 
                 error('No ModelData class found. Forgot to call offlineGenerations?');
             end
@@ -681,7 +689,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                              end
                          elseif ~p.SetObservable && ~pc.containsKey([p.DefiningClass.Name '.' p.Name])
                              link2 = editLink(p.DefiningClass.Name);
-                             fprintf('WARNING: Property %s of class %s is not <a href="matlab:docsearch SetObservable">SetObservable</a> but a candidate for a user-definable public property!\nFor more details see <a href="%s/propclasses.html">Property classes and levels</a>\n\n',p.Name,link2,KerMor.App.DocumentationLocation);
+                             fprintf('WARNING: Property %s of class %s is not <a href="matlab:docsearch SetObservable">SetObservable</a> but a candidate for a user-definable public property!\nFor more details see <a href="%s/propclasses.html">Property classes and levels</a>\n\n',p.Name,link2,Documentation.DocumentationLocation);
                          end
                          pobj = obj.(p.Name);
                          % Recursively register subobject's properties

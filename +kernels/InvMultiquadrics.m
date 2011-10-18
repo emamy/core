@@ -1,4 +1,4 @@
-classdef InvMultiquadrics < kernels.BaseKernel & kernels.IRotationInvariant
+classdef InvMultiquadrics < kernels.BaseKernel & kernels.ARotationInvariant
     %InvMULTIQUADRICS Summary of this class goes here
     %   Detailed explanation goes here
     %
@@ -23,6 +23,9 @@ classdef InvMultiquadrics < kernels.BaseKernel & kernels.IRotationInvariant
             % Constructor offering the possibility to initialize kernel
             % specifics at creation time.
             
+            this = this@kernels.BaseKernel;
+            this = this@kernels.ARotationInvariant;
+            
             % Register before processing arguments, because if set that's a custom user option.
             this.registerProps('beta','c');
             
@@ -44,22 +47,22 @@ classdef InvMultiquadrics < kernels.BaseKernel & kernels.IRotationInvariant
             error('Not implemented yet');
         end
         
-        function K = evaluate(this, x, y)
-            % Original source from Bernard Haasdonk / KerMet
-            n1sq = sum(x.^2,1);
-            n1 = size(x,2);
-            
-            if nargin == 2;
-                n2sq = n1sq;
-                n2 = n1;
-                y = x;
-            else
-                n2sq = sum(y.^2,1);
-                n2 = size(y,2);
-            end;
-            r = (ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*x'*y;
-            K = (this.c^2 + r.^2).^this.beta;
-        end
+%         function K = evaluate(this, x, y)
+%             % Original source from Bernard Haasdonk / KerMet
+%             n1sq = sum(x.^2,1);
+%             n1 = size(x,2);
+%             
+%             if nargin == 2;
+%                 n2sq = n1sq;
+%                 n2 = n1;
+%                 y = x;
+%             else
+%                 n2sq = sum(y.^2,1);
+%                 n2 = size(y,2);
+%             end;
+%             r = (ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*x'*y;
+%             K = (this.c^2 + r.^2).^this.beta;
+%         end
         
         function Ks = evaluateScalar(this, x)
             Ks = (this.c^2 + x^2).^this.beta;

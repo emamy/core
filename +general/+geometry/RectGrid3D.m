@@ -72,17 +72,17 @@ classdef RectGrid3D < handle
             this.Inner = find(convn(ones(m,k,dim3),cat(3,[0 0 0; 0 1 0; 0 0 0],[0 1 0;1 0 1; 0 1 0],[0 0 0; 0 1 0; 0 0 0]),'same') == 6);
             
             this.Sides = struct;
-            % Front boundary neumann
+            % Front boundary
             this.Sides.F = reshape(L(2:end-1,2:end-1,1),[],1);
-            % Back boundary neumann
+            % Back boundary
             this.Sides.Ba = reshape(L(2:end-1,2:end-1,end),[],1);
-            % Left boundary neumann
+            % Left boundary
             this.Sides.L = reshape(L(2:end-1,1,2:end-1),[],1);
-            % Right boundary neumann
+            % Right boundary
             this.Sides.R = reshape(L(2:end-1,end,2:end-1),[],1);
-            % Top boundary neumann
+            % Top boundary
             this.Sides.T = reshape(L(1,2:end-1,2:end-1),[],1);
-            % Bottom boundary neumann
+            % Bottom boundary
             this.Sides.Bo = reshape(L(end,2:end-1,2:end-1),[],1);
 
             % Corner points

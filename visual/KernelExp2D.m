@@ -3,6 +3,10 @@ function varargout = KernelExp2D(varargin)
 %
 % User interface to visualize kernel expansions using two input dimensions and one putput dimension.
 %
+% The first and only argument can also be a BaseFullModel with computed
+% Approx class, which is a KernelApprox descendent. The visualization will
+% use the models Data.ApproxTrainData to display the approximation.
+%
 % Parameters:
 % kexp: The kernel expansion, @type kernels.KernelExpansion
 % centers: The space/state centers `x_i`. If the kernel expansion is a
@@ -38,6 +42,8 @@ function varargout = KernelExp2D(varargin)
 %
 % @change{0,5,dw,2011-08-02} Extracted the comparison polynomials from PN7_Nils cooperation to more
 % general external callbacks and created a small help description.
+%
+% @todo fix slider display for parameters (not all shown correctly)
 
 %      KERNELEXP2D, by itself, creates a new KERNELEXP2D or raises the existing
 %      singleton*.
@@ -102,21 +108,32 @@ guidata(hObject, handles);
 
 %% Custom Code
 h = handles;
-if length(varargin) < 3
-    close(h.main);
-    error('This component needs at minimum three arguments: The kernel expansion, the source data xi and the fxi values.');
+if isa(varargin{1},'models.BaseFullModel')
+    m = varargin{1};
+    if ~isa(m.Approx,'kernels.KernelExpansion')
+        error('If a full model is passed, it''s Approx field must contain a kernels.KernelExpansion descendant.');
+    end
+    kexp = m.Approx;
+    atd = m.Data.ApproxTrainData;
+    fxi = atd.fxi;
+else
+    if length(varargin) < 3
+        close(h.main);
+        error('This component needs at minimum three arguments: The kernel expansion, the source data xi and the fxi values.');
+    end
+    kexp = varargin{1};
+    atd = varargin{2};
+    fxi = varargin{3};
 end
-kexp = varargin{1};
 conf.ispte = isa(kexp,'kernels.ParamTimeKernelExpansion');
 if conf.ispte
-    centers = [varargin{2}.xi; varargin{2}.ti; varargin{2}.mui];
-    conf.timeoff = size(varargin{2}.xi,1)+1;
+    centers = [atd.xi; atd.ti; atd.mui];
+    conf.timeoff = size(atd.xi,1)+1;
 else
-    centers = varargin{2};
+    centers = atd;
 end
 % Detect constant fields
 conf.const = find(max(centers,[],2) == min(centers,[],2));
-fxi = varargin{3};
 custcallb = []; lbl = [];
 if length(varargin) == 5
     lbl = varargin{4};
@@ -140,8 +157,10 @@ if isempty(lbl)
         if all(conf.const ~= conf.timeoff)
             lbl.x{end+1} = 't';
         end
-        for i=setdiff(1:size(varargin{2}.mui,1),conf.const)
-            lbl.x{end+1} = ['mu_' num2str(i)];
+        munum = 1:size(atd.mui,1);
+        [diff, idx] = setdiff(munum+conf.timeoff+1,conf.const);
+        for i=1:length(diff)
+            lbl.x{end+1} = ['mu_' num2str(munum(idx(i)))];
         end
     else
         for i=setdiff(1:size(centers,1),conf.const)
@@ -165,6 +184,7 @@ setappdata(h.main,'cb',custcallb);
 
 %% Setup default values
 conf.dims = size(centers,1);
+[dummy, conf.idxmap] = setdiff(1:size(centers,1),conf.const);
 conf.outdims = size(fxi,1);
 conf.lbl = lbl;
 % Selected dimensions
@@ -200,7 +220,7 @@ fxi = getappdata(h.main,'fxi');
 kexp = getappdata(h.main,'kexp');
 nums = round(size(centers,2)*c.ref);
 
-xsel = [c.d1 c.d2];
+xsel = c.idxmap([c.d1 c.d2]);
 x = centers(xsel,:);
 xr = linspacev(min(x,[],2), max(x,[],2), nums);
 x = unique([x xr]','rows')';
@@ -289,7 +309,7 @@ end
 pos = get(h.pnlBS,'Position');
 pnlh = pos(4);
 
-dims = setdiff(1:c.dims,c.const);
+dims = c.idxmap;
 dims([c.d1 c.d2]) = []; 
 dist = 6;%px
 height = 16; %px
@@ -310,7 +330,7 @@ ctrls.slides = [];
 for idx = 1:dispsliders
     dim = dims(firstidx+idx);
     top = pnlh-15-idx*eh;
-    name = c.lbl.x{dim};
+    name = c.lbl.x{firstidx+idx};
     % Create labels
     m = min(centers(dim,:));
     M = max(centers(dim,:));

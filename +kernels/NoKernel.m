@@ -1,4 +1,4 @@
-classdef NoKernel < kernels.BaseKernel & kernels.IRotationInvariant
+classdef NoKernel < kernels.BaseKernel & kernels.ARotationInvariant
     % Neutral Kernel which has no effect.
     %
     % A call to evaluate just returns 1.

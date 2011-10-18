@@ -1,6 +1,13 @@
 classdef MLWrapper < solvers.ode.BaseSolver
     % Allows to wrap a MatLab ODE solver into the KerMor framework.
     %
+    % @author Daniel Wirtz @date 2010-08-09
+    %
+    % @change{0,5,dw,2011-10-15} Moved the creation of the SolverEventData
+    % into the solve function as creation in the constructor seems to crash
+    % Matlab versions prior to the 2011a which was used to program this
+    % functionality in the first place.
+    %
     % @change{0,5,dw,2011-09-29} Added callback for StepPerformed to enable
     % "real time" plotting.
     %
@@ -29,10 +36,8 @@ classdef MLWrapper < solvers.ode.BaseSolver
     methods
         
         function this = MLWrapper(solver)
-            
             this = this@solvers.ode.BaseSolver;
             this.registerProps('MLSolver');
-            this.fED = solvers.ode.SolverEventData;
             if nargin > 0
                 this.MLSolver = solver;
             end
@@ -46,6 +51,7 @@ classdef MLWrapper < solvers.ode.BaseSolver
             if ~isempty(this.InitialStep)
                 opts = odeset(opts, 'InitialStep', this.InitialStep);
             end
+            this.fED = solvers.ode.SolverEventData;
             [t,y] = this.MLSolver(odefun, t, x0, opts);
             y = y';
             t = t';

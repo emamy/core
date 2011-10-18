@@ -7,6 +7,12 @@ classdef FileModelData < data.AModelData
 %
 % @author Daniel Wirtz @date 2011-08-04
 %
+% @new{0,5,dw,2011-10-14} Added a new consolidate method in order to
+% rebuild the internal index hashmap from the files in a directory and the
+% data.AModelData.ParamSamples. This method is called after parallel
+% trajectory computation as the remotely constructed hashmaps are not joint
+% back together as one.
+%
 % @new{0,5,dw,2011-08-04} Added this class.
 %
 % This class is part of the framework
@@ -105,7 +111,7 @@ classdef FileModelData < data.AModelData
             
             key = general.Utils.getHash([mu; inputidx]);
             if this.hm.containsKey(key)
-                warning('KerMor:MemoryModelData','Trajectory already present. Replacing.'); 
+                warning('KerMor:MemoryModelData','Trajectory already present. Replacing.');
             end
             file = [key '.mat'];
             this.hm.put(key,file);
@@ -133,16 +139,31 @@ classdef FileModelData < data.AModelData
         end
         
         function consolidate(this, model, model_ID)
-            % Rebuild the hashmap for the current FileData. DEBUG METHOD.
+            % Rebuild the hashmap for the current FileData using the current ParamSamples and the models training inputs.
+            %
+            % This method is used when trajectories are generated within a
+            % parfor loop, as then the FileModelData's are remotely
+            % instantiated and their inner hash maps not synced with the
+            % local one.
             %
             % Uses the model's parameter samples to compute hashes, look up
             % if the files exist in the given folder corresponding to
             % model_ID (if not given the second arguments ID is used) and
             % re-insert them into the hash map.
-            if nargin < 3
-                model_ID = model.ID;
+            %
+            % Parameters:
+            % model: The model to use for consolidation (the
+            % TrainingInputs property is needed)
+            % model_ID: DEBUG PARAM. Allows the consolidation to be
+            % performed for a different model ID, for which the model data
+            % files have been created. If given, the directory is renamed
+            % according to the current model ID.
+            if nargin == 3
+                olddir = fullfile(KerMor.App.DataStoreDirectory,['rm_' num2str(model_ID)]);
+                newdir = fullfile(KerMor.App.DataStoreDirectory,['rm_' num2str(model.ID)]);
+                movefile(olddir,newdir);
             end
-            this.datadir = fullfile(KerMor.App.DataStoreDirectory,['rm_' num2str(model_ID)]);
+            this.datadir = fullfile(KerMor.App.DataStoreDirectory,['rm_' num2str(model.ID)]);
             for u=1:max(model.TrainingInputCount,1)
                 ui = u;
                 if model.TrainingInputCount == 0

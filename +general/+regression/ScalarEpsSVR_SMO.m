@@ -117,7 +117,8 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
                     figure(h);
                     subplot(1,2,1);
                     plot(1:n,fxi,'r',1:n,[fxi-this.Eps; fxi+this.Eps],'r--',1:n,afxi,'b');
-                    title(sprintf('Current approximation, error: %e',err(cnt)));
+                    %err = sum((fxi-afxi).^2);
+                    %title(sprintf('Current approximation, error: %e',err(cnt)));
                     legend('f(x_i) training values','+\epsilon','-\epsilon','approximation values');
                     axis tight;
                 end
@@ -252,6 +253,7 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
                     if this.Vis > 2
                         fprintf('alpha_{%d} change: %e, alpha_{%d} change: %e\n',i,r,j,s);
                     end
+                    pause;
                 end
                 
                 a(i) = a(i) + r;
@@ -282,8 +284,8 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
                 cnt = cnt+1;
             end
             cnt = cnt-1;
-            if this.Vis > 0
-                fprintf('Finished after %d/%d iterations.\n',cnt,this.MaxCount);
+            if this.Vis > 0 || KerMor.App.Verbose > 0
+                fprintf('ScalarEpsSVR_SMO: Finished after %d/%d iterations.\n',cnt,this.MaxCount);
             end
 %             if this.Vis > 0
 %                 figure;
@@ -632,7 +634,7 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             %svr.Eps = 0.073648;
             svr.Eps = .1;
             svr.Lambda = 1/20;%1/20; % i.e. C=10 as in ScalarEpsSVR
-            svr.Vis = 1;
+            svr.Vis = 3;
             
             %kernel = kernels.PolyKernel(7);
             %kernel = kernels.LinearKernel;

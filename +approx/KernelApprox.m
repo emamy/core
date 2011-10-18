@@ -1,5 +1,5 @@
 classdef KernelApprox < approx.BaseApprox & ...
-        dscomponents.ParamTimeKernelCoreFun %& approx.IAutoConfig
+        dscomponents.ParamTimeKernelCoreFun
     %Base class for component-wise kernel approximations
     %
     % For each dimension `k` there is a representation
@@ -12,6 +12,11 @@ classdef KernelApprox < approx.BaseApprox & ...
     % Centers that are relevant for the evaluation of the approximated
     % function. (No matter how many originally have been used for the
     % approximation computation)
+    %
+    % @change{0,5,dw,2011-10-16} Included setting the projection-induced
+    % norm `V^tGV` to any kernels.ARotationInvariant implementing classes
+    % as required by the theory. (So far made no difference as we had
+    % `V^tGV=I_r` all the time)
     %
     % @change{0,5,dw,2011-07-07} Now inherits from kernels.ParamTimeKernelExpansion and has a
     % strategy pattern class reference for the approximation generation algorithm "Algorithm".
@@ -70,6 +75,15 @@ classdef KernelApprox < approx.BaseApprox & ...
         
         function approximateSystemFunction(this, model)
             atd = model.Data.ApproxTrainData;
+            
+            % If V=W, we have W^tV = I_r by assumption, so if G=1 we have
+            % V^tGV = I_r and we dont need to set a custom norm for the
+            % kernels (would mean additional rounding error)
+            if isa(this.Kernel,'kernels.ARotationInvariant') && ...
+                    ~isequal(model.Data.V,model.Data.W) || model.G ~= 1
+                % Set norm matrix to V^tGV as required by theory.
+                this.Kernel.G = model.Data.V'*(model.G*model.Data.V);
+            end
                         
             % First argument: this kernel expansion!
             this.Algorithm.computeApproximation(this, atd.xi, atd.ti, atd.mui, atd.fxi);

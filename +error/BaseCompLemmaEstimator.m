@@ -16,6 +16,9 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
     % - \c License @ref licensing
     %
     % @todo make listener fields transient and re-register upon loading!
+    %
+    % @todo remove old ISimConstants interface implementation
+    % prepareConstants, at least rename it somehow
     
     properties(Transient, SetAccess=private, GetAccess=protected)
         % The current step

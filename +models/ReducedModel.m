@@ -102,7 +102,6 @@ classdef ReducedModel < models.BaseModel
             this.FullModel = fullmodel;
             % Update name ;-)
             this.Name = ['Reduced: ' fullmodel.Name];
-            this.JavaExportPackage = fullmodel.JavaExportPackage;
             
             % Copy common values from the full model
             this.T = fullmodel.T;

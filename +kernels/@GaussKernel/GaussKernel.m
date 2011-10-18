@@ -7,6 +7,12 @@ classdef GaussKernel < kernels.BellFunction
     %
     % @author Daniel Wirtz @date 11.03.2011
     %
+    % @change{0,5,dw,2011-10-16} Exported the evaluate function to
+    % kernels.ARotationInvariant, but re-implemented the customized
+    % evaluate function as the norm squared is already computed fast and
+    % first taking the square root and then squaring again would introduce
+    % unecessary overhead.
+    %
     % @change{0,3,dw,2011-04-26} Fixed the x0 computation for the new Gamma property version; so far
     % a square was missing, rendering the LipschitzEstimator modified newton method useless.
     %
@@ -23,18 +29,19 @@ classdef GaussKernel < kernels.BellFunction
         % Univariate scaling
         %
         % @propclass{critical} Greatly influences the kernels behaviour.
-        Gamma = 1;
-        
-        % Multivariate scaling (under investigation)
         %
-        % @propclass{experimental} Greatly influences the kernels behaviour.
-        Sigma = 1;
+        % @type double @default 1
+        Gamma = 1;
     end    
     
     methods
         function this = GaussKernel(Gamma)
+            % Creates a new GaussKernel
+            %
+            % Parameters:
+            % Gamma: The Gamma property to use. @optional
             this = this@kernels.BellFunction;
-            this.registerProps('Gamma','Sigma');
+            this.registerProps('Gamma');%,'Sigma'
             
             if nargin == 1
                 this.Gamma = Gamma;
@@ -45,45 +52,23 @@ classdef GaussKernel < kernels.BellFunction
         end
         
         function K = evaluate(this, x, y)
-            n1sq = sum(x.^2,1);
-            n1 = size(x,2);
-
-            if nargin == 2;
-                n2sq = n1sq;
-                n2 = n1;
-                y = x;
-            else
-                n2sq = sum(y.^2,1);
-                n2 = size(y,2);
-            end;
-%             try
-                K = (ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*x'*y;
-%             catch ME
-%                 keyboard;
-%             end
-            K(K<0) = 0;
-            K = exp(-K/this.Gamma^2);
-        end
-        
-        function K = evaluateMV(this, x, y)
-            % Multivariate evaluation
-            sx = this.Sigma.^2*x;
+            % Evaluates the gaussian. Overrides the ARotationInvariant
+            % implementation as it would take the root and then re-square
+            % it upon evaluateScalar.
+            sx = this.G*x;
             n1sq = sum(x.*sx,1);
             n1 = size(x,2);
-
             if nargin == 2;
                 n2sq = n1sq;
                 n2 = n1;
                 y = x;
             else
-                n2sq = sum(y.*(this.Sigma.^2*y),1);
+                n2sq = sum(y.*(this.G*y),1);
                 n2 = size(y,2);
             end;
-            K = (ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*sx'*y;
-            K(K<0) = 0;
-            K = exp(-K);
+            K = exp(-((ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*sx'*y)/this.Gamma^2);
         end
-        
+                
         function Nablax = getNabla(this, x, y)
             % Method for first derivative evaluation
             if size(x,2) > 1 && size(y,2) > 1
@@ -133,10 +118,10 @@ classdef GaussKernel < kernels.BellFunction
             ddx = (2/this.Gamma^2) * (2*x.^2/this.Gamma^2-1) .* exp(-x.^2/this.Gamma^2);
         end
         
-        function Kx = evaluateScalar(this, x)
+        function phi = evaluateScalar(this, x)
             % Implements the required method from the IRotationInvariant
             % interface
-            Kx = exp(-x.^2/this.Gamma^2);
+            phi = exp(-x.^2/this.Gamma^2);
         end
         
         function set.Gamma(this, value)
