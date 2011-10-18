@@ -26,7 +26,7 @@ classdef Heun < solvers.ode.BaseCustomSolver
             % manually for each case.
             %
             % Parameters:
-            % MaxStep: Maximum time step. Optional.
+            % MaxStep: Maximum time step. @default [] @type double
             
             this = this@solvers.ode.BaseCustomSolver;
             
@@ -39,6 +39,19 @@ classdef Heun < solvers.ode.BaseCustomSolver
     
     methods(Access=protected,Sealed)
         function x = customSolve(this, odefun, t, x0)
+            % Solves the ode using Heuns method.
+            %
+            % Parameters:
+            % odefun: A function handle to the ode function, satisfying the
+            % interface also required by matlab's explicit ode solvers.
+            % @type function_handle
+            % t: The desired times `t_0,\ldots,t_N` as row vector. @type rowvec
+            % x0: The initial value `x(0) = x_0` for `t=0` @type colvec
+            %
+            % Return values:
+            % x: The solution of the ode at the time steps `t_0,\ldots,t_N`
+            % as matrix. @type matrix
+            
             % Initialize result
             steps = length(t);
             x = [x0 zeros(size(x0,1),steps-1)];

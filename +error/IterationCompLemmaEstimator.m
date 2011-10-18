@@ -248,6 +248,11 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
         
         function b = getBeta(this, xfull, t, mu)
             % Compute the local lipschitz constant estimations
+            %
+            % Parameters:
+            % xfull: The current state variable vector @type colvec
+            % t: The current time `t`
+            % mu: The current parameter `\mu`
             
             % Project x variable back to full space if centers are not within the space spanned by V
             % (indicated by smallz_flag)

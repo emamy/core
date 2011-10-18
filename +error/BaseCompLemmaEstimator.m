@@ -63,38 +63,36 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
         end
         
         function e = evalODEPart(this, x, t, mu, ut)
+            % Evaluates the auxiliary ode part for the comparison-lemma
+            % based error estimators.
+            %
+            % Parameters:
+            % x: The full extended state variable vector. Extended means that
+            % the last @ref ExtraODEDims rows contain the error estimators own
+            % data. If not used, implementers must take care to ditch those
+            % values if any function evaluations are performed within the
+            % integral part. @type colvec
+            % t: The current time `t` @type double
+            % mu: The current parameter `\mu` @type colvec
+            % ut: The value of the input function `u(t)` if given, [] else.
+            % @type double
+            %
+            % Return values:
+            % e: The auxiliary ode part value.
             phi = this.ReducedModel.System.f.getKernelVector(x(1:end-1), t, mu);
             
-%             if this.StepNr == 250
-%                 dummy2 = 5;
-%             end
             a = this.aComp.getAlpha(phi, ut, t, mu);
             b = this.getBeta(x, t, mu);
-%             if ~isreal(a) || ~isreal(b)
-%                 dummy = 5;
-%             end
             e = b*x(end) + a;
             
             this.EstimationData(:,this.StepNr) = [t; a; b];
             this.StepNr = this.StepNr + 1;
         end
         
-        % offlineComputations
-        % getE0(mu)
-        % getBeta(x,t,mu)
-        % getAlpha(phi, ut)
-        % getIterationBeta(C,di)
-        
         function prepareConstants(this, mu, inputidx)%#ok
             this.lstPreSolve.Enabled = true;
             this.StepNr = 1;
         end
-        
-%         function e0 = getE0(this, mu)
-%             % Returns the initial error at `t=0` of the integral part.
-%             
-%             e0 = this.ReducedModel.getExo(mu);
-%         end
         
         function copy = clone(this, copy)
             copy = clone@error.BaseEstimator(this, copy);
@@ -122,9 +120,9 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
         %
         % Parameters:
         % x: The current reduced state variable, composed by `Vz(t)` and any extra dimensions set up
-        % by the error estimator.
-        % t: The current time `t\in[0,T]`
-        % mu: The current parameter `\mu`
+        % by the error estimator. @type colvec
+        % t: The current time `t\in[0,T]` @type double
+        % mu: The current parameter `\mu` @type colvec
         b = getBeta(this, x, t, mu);
     end
     

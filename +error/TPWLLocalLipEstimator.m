@@ -138,7 +138,25 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
         end
         
         function e = evalODEPart(this, x, t, mu, ut)
+            % Evaluates the auxiliary ode part for the TPWL estimator.
+            %
+            % @attention: NOT WORKING PROPERLY YET.
+            %
+            % Parameters:
+            % x: The full extended state variable vector. Extended means that
+            % the last @ref ExtraODEDims rows contain the error estimators own
+            % data. If not used, implementers must take care to ditch those
+            % values if any function evaluations are performed within the
+            % integral part. @type colvec
+            % t: The current time `t` @type double
+            % mu: The current parameter `\mu` @type colvec
+            % ut: The value of the input function `u(t)` if given, [] else.
+            % @type double
+            %
+            % Return values:
+            % e: The auxiliary ode part value.
             % extract current error
+            
             eold = x(end-this.ExtraODEDims+1:end);
             e = zeros(this.ExtraODEDims,1);
             wf = this.ReducedModel.System.f.GaussWeight;

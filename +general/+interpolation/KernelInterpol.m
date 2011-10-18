@@ -36,6 +36,7 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
         %
         % @propclass{data} Required for any interpolation computation.
         %
+        % @type data.AKernelMatrix
         K;
     end
     
@@ -97,11 +98,22 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
             this.K = K;
         end
         
-        function [ai, svidx] = computeKernelCoefficients(this, yi, dummy)%#ok
+        function [ci, svidx] = computeKernelCoefficients(this, yi, dummy)%#ok
+            % Implementation of the kernels.ICoeffComp interface
+            %
+            % Parameters:
+            % yi: The target values `y_i` as row vector @type rowvec
+            % dummy: Initial values for the coefficients `c_i`. Not needed
+            % with interpolation.
+            %
+            % Return values:
+            % ci: The coefficients `c_i` as row vector @type rowvec
+            % svidx: The support vector indices of all elements of `c_i`
+            % that regarded to be support vectors. @type integer
             
             % Transform to row vector
-            ai = this.interpolate(yi)';
-            svidx = 1:size(ai,2);
+            ci = this.interpolate(yi)';
+            svidx = 1:size(ci,2);
         end
     end
     

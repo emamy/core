@@ -37,8 +37,7 @@ classdef IKernelCoeffComp < handle
         % and every time the kernel matrix changes.
         %
         % Parameters:
-        % K: The Kernel matrix for the centers `x_i` @type
-        % data.AKernelMatrix
+        % K: The Kernel matrix for the centers `x_i` @type data.AKernelMatrix
         %
         % See also: computeKernelCoefficients
         init(this, K);
@@ -54,15 +53,18 @@ classdef IKernelCoeffComp < handle
         % yi: The function values `f(x_i)` as column vector. If
         % MultiTargetComputation is true, this can be a matrix of column
         % vectors.
+        % initialai: The values to use as initial coefficients. It is up to
+        % the implementing classes to use those if passed; however, a call
+        % with empty argument must be possible, too.
         %
         % Return values:
-        % ai: The coefficients `\alpha_{k,i}` of `f_k(x)` as ROW vector.
+        % ci: The coefficients `c_{k,i}` of `f_k(x)` as ROW vector. @type rowvec
         % svidx: The used support vector indices `i` of `x_i`. Always
         % required. (Set to 1:n if no sparsity is given by the coeffcomp
-        % method)
+        % method) @type integer
         %
         % See also: init
-        [ai, svidx] = computeKernelCoefficients(this, yi, initialai);
+        [ci, svidx] = computeKernelCoefficients(this, yi, initialai);
     end
     
 end

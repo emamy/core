@@ -53,7 +53,7 @@ classdef BaseImplSolver < solvers.ode.BaseSolver
             this.registerProps('JacFun');
         end
         
-        function [t,x] = solve(this, odefun, t, x0)
+        function [t, x] = solve(this, odefun, t, x0)
             % Solves the ode specified by odefun implicitly.
             %
             % Parameters:
@@ -118,10 +118,16 @@ classdef BaseImplSolver < solvers.ode.BaseSolver
         % Template method to perform actual implicit solving of the ODE.
         %
         % Parameters:
-        % implfun: A handle to the implicit function `f` which describes the ODE via `f(t,x,x') = 0`
-        % t: The times `t_i` at which the ODE is to be computed
-        % x0: Initial condition `x_0 = x(0)`
-        % xp0: Initial condition `x'_0 = x'(0)`
+        % implfun: A handle to the implicit function `f` which describes
+        % the ODE via `f(t,x,x') = 0` @type function_handle
+        % t: The times `t_i` at which the ODE is to be computed @type rowvec
+        % x0: Initial condition `x_0 = x(0)` @type colvec
+        % xp0: Initial condition `x'_0 = x'(0)` @type colvec
+        % opts: An odeset struct for additional options. @type struct
+        %
+        % Return values:
+        % t: The times `t_i` @type rowvec
+        % x: The solution `x(t_i)` of the ode at the times `t_i` @type matrix
         [t,x] = implicit_solve(this, implfun, t, x0, xp0, opts);
     end
     

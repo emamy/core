@@ -21,6 +21,20 @@ classdef BaseCustomSolver < solvers.ode.BaseSolver
         end
     
         function [t, x] = solve(this, odefun, t, x0)
+            % Solves the ode and wraps the actual solving method.
+            %
+            % Parameters:
+            % odefun: A function handle to the ode function, satisfying the
+            % interface also required by matlab's explicit ode solvers.
+            % @type function_handle
+            % t: The desired times `t_0,\ldots,t_N` as row vector. @type rowvec
+            % x0: The initial value `x(0) = x_0` for `t=0` @type colvec
+            %
+            % Return values:
+            % t: The times `t_i` @type rowvec
+            % x: The solution of the ode at the time steps `t_0,\ldots,t_N`
+            % as matrix. @type matrix
+            
             % Get computation times
             [times, outputtimes] = this.getCompTimes(t);
             

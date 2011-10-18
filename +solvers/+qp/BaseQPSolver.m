@@ -20,13 +20,15 @@ classdef BaseQPSolver < KerMorObject & ICloneable
         %
         % @propclass{alglimit} Works as an execution limit when the qp does not converge.
         %
-        % @default 5000
+        % @default 5000 @type integer
         MaxIterations = 5000;
         
         % The name of the Solver
         %
         % @propclass{optional} The qp solver's name.
-        Name = 'Not specified - BaseQPSolver';
+        %
+        % @type char @default BaseQPSolver
+        Name = 'BaseQPSolver';
     end
     
     methods
@@ -46,19 +48,25 @@ classdef BaseQPSolver < KerMorObject & ICloneable
         end
         
         function [p,d,info] = solve(this,Q,c,lb,ub,A,Alb,Aub,x0)
-            % Solves the given quadratic problem according to the
-            % subclasses' algorithm.
+            % Solves the given quadratic problem `\frac{1}{2}\beta Q\beta +
+            % c^t\beta` according to the subclasses' algorithm.
             %
             % Throws an error if the solver does not come to a solution
             % satisfying the requirements (MaxIterations, Tolerance etc
             % depending on subclasses)
             %
             % Parameters:
-            % Q:
-            % c:
+            % Q: The quadratic pos. def. matrix Q @type matrix
+            % c: The linear part `c` @type colvec
+            % lb: The lower bounds of `\beta` @type colvec
+            % ub: The upper bounds of `\beta` @type colvec
+            % A: The equality constraint matrix `A\beta=0` @type matrix
+            % Alb: The lower bound matrix `lb < A_{lb}\beta` @type matrix
+            % Aub: The upper bound matrix `A_{ub}\beta < ub` @type matrix
+            % x0: The initial value for `\beta`
             %
             % Return values:
-            % p:
+            % p: The primary variable `\beta`
             % d: The dual variables, i.e. the LaGrange multipliers for the
             % constraints. Correspond to a column vector composed as
             % [lambda_bounds; lambda_equality; lambda_inequality]
@@ -114,13 +122,24 @@ classdef BaseQPSolver < KerMorObject & ICloneable
         % algorithms.
         %
         % Parameters:
-        % x0: If none is given, [] is passed.
+        % Q: The quadratic pos. def. matrix Q @type matrix
+        % c: The linear part `c` @type colvec
+        % lb: The lower bounds of `\beta` @type colvec
+        % ub: The upper bounds of `\beta` @type colvec
+        % A: The equality constraint matrix `A\beta=0` @type matrix
+        % Alb: The lower bound matrix `lb < A_{lb}\beta` @type matrix
+        % Aub: The upper bound matrix `A_{ub}\beta < ub` @type matrix
+        % x0: The initial value for `\beta`
         %
         % Return values:
+        % p: The primary variable `\beta`
+        % d: The dual variables, i.e. the LaGrange multipliers for the
+        % constraints. Correspond to a column vector composed as
+        % [lambda_bounds; lambda_equality; lambda_inequality]
         % cflag: Boolean. Set to true if satisfying result was obtained
         % info: Struct that contains algorithm-specific output information.
         % Must contain a field "Iterations"
-        [p,d,cflag,info] = internal_solve(Q,c,lb,ub,A,Alb,Aub,x0);
+        [p,d,cflag,info] = internal_solve(this,Q,c,lb,ub,A,Alb,Aub,x0);
     end
     
     methods(Static)

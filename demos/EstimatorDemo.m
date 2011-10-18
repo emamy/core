@@ -10,12 +10,20 @@ classdef EstimatorDemo < handle
     
     properties
         % The used model
+        %
+        % @type models.BaseFullModel
         Model;
         
         % The reduced model
+        %
+        % @type models.ReducedModel
         ReducedModel;
         
         % How many estimator iterations should be performed?
+        %
+        % Is an integer row vector.
+        %
+        % @type rowvec
         EstimatorIterations = [1 2];
         
         % Chooses the estimator versions. Set to 1 for use, 0 for not use.
@@ -28,33 +36,49 @@ classdef EstimatorDemo < handle
         % 7: LSL TD, Time Discrete Local Secant Lipschitz
         % 8: ILSL TD, Time Discrete Improved Local Secant Lipschitz
         % 9: Expensive best-estimator (with full traj simulation)
+        %
+        % @type rowvec
         EstimatorVersions = [1 1 0 0 1 0 0 1 1];
         
         % Whether to put the estimations and computations times into a
         % single figure using subplots or using separate figures.
+        %
+        % @type logical @default false
         SingleFigures = false;
         
         % Determines whether to plot the errors on a logarithmic scale or
         % not
+        %
+        % @type logical @default true
         LogarithmicPlot = true;
         
         % Flag whether to save the time results as a LaTeX-Table into a
         % text file
         %
         % Set to [] to disable
+        %
+        % @type char @default tables.tex
         SaveTexTables = 'tables.tex';
         
         % Set flag to sort the resulting computation time and estimates
         % table by the product of comp-time and error estimate.
+        %
+        % @type logical @default false
         SortResultTable = false;
         
         % Flag wether to use the output errors or state variable errors
+        %
+        % @type logical @default true
         UseOutputError = true;
         
         % The figure handles for the created figures.
+        %
+        % @type handle
         Figures;
         
         % Axes
+        %
+        % @type handle
         Axes;
         
         % The marker size for error and relative errors plots.
@@ -65,10 +89,14 @@ classdef EstimatorDemo < handle
     end
     
     properties(SetAccess=private)
-        % estimator struct
+        % A struct containing information about different error estimators.
+        %
+        % @type struct
         Est;
-%         Errs;
-%         RelErrs;
+
+        % A struct with fields Name, ErrsT, RelErrsT that contains
+        % information about the estimations of the different error
+        % estimators.
         ModelData;
     end
     
@@ -95,7 +123,10 @@ classdef EstimatorDemo < handle
         function [ctimes, errs] = start(this, mu, inidx)
             % Runs the demo with the current settings.
             %
-            % Texty text.
+            % Parameters:
+            % mu: The parameter `\mu` to use @type colvec
+            % inidx: The input index `i` of the input function `u_i` to use
+            % @type integer
             
             if nargin < 3
                 inidx = [];

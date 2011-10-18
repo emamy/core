@@ -61,12 +61,23 @@ classdef Base < handle
         % Computes the `\alpha(x, t,\mu)` value of the error estimator.
         %
         % Template method.
+        %
+        % Parameters:
+        % phi: The kernel vector `\Phi(x,x_i)` @type colvec
+        % ut: The evaluation of the current input `u(t)` at time `t`
+        % @type double
+        % t: The current time `t` @type double
+        % mu: The current parameter `\mu` @type colvec
         a = getAlpha(this, phi, ut, t, mu);
         
         % Performs the offline stage for the error estimators regarding the inputs.
         %
         % Template method.
-        inputOfflineComputations(this, rmodel);
+        %
+        % Parameters:
+        % rmodel: The reduced model @type models.ReducedModel
+        % M: The projected coefficient matrix `M_{\alpha} - VW^tM_{\alpha})` @type matrix
+        inputOfflineComputations(this, rmodel, M);
     end
     
 end

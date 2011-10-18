@@ -40,12 +40,16 @@ classdef KernelExpansion < KerMorObject & ICloneable & ...
         % behaviour.
         %
         % @default kernels.GaussKernel
+        % @type kernels.BaseKernel
         %
-        % See also: TimeKernel ParamKernel
+        % See also: kernels
         Kernel;
     end
     
     properties(SetAccess=private, Dependent)
+        % The norms of the coefficient matrix of the kernel expansion
+        %
+        % @type rowvec
         Ma_norms;
     end
     
@@ -65,11 +69,14 @@ classdef KernelExpansion < KerMorObject & ICloneable & ...
         % @propclass{data}
         %
         % @default @code struct('xi',[],'ti',[],'mui',[]) @endcode
+        % @type struct
         Centers;
         
         % The coefficient data for each dimension.
         %
         % @propclass{data}
+        %
+        % @type matrix
         Ma;
     end
     
@@ -78,10 +85,15 @@ classdef KernelExpansion < KerMorObject & ICloneable & ...
         % function is rotation invariant.
         % 
         % Depending on the flag projection of subclasses can be different.
+        %
+        % @default false @type logical
         RotationInvariant = false;
     end
     
     properties(SetAccess=private, GetAccess=protected)
+        % The inner (state) kernel object
+        %
+        % @type kernels.BaseKernel @default kernels.GaussKernel;
         fSK;
     end
     
@@ -95,16 +107,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & ...
             % overridden
             this = this@KerMorObject;
             
-%             this.CustomProjection = true;
-%             % Kernel based core functions allow for multi-argument evaluations by nature.
-%             this.MultiArgumentEvaluations = true;
-            
             this.fSK = kernels.GaussKernel;
-            % The default kernels for time and parameters are neutral (=1)
-            % kernels as not all models have time or parameter dependent
-            % system functions.
-%             this.fTK = kernels.NoKernel;
-%             this.fPK = kernels.NoKernel;
             
             % DONT CHANGE THIS LINE unless you know what you are doing or
             % you are me :-)
@@ -128,6 +131,12 @@ classdef KernelExpansion < KerMorObject & ICloneable & ...
             %
             % As this is a component-wise kernel expansion, the jacobian is easily computed using
             % the coefficient vectors and the state variable nablas.
+            %
+            % Parameters:
+            % x: The state vector at which the jacobian is required.
+            % varargin: Dummy parameter to satisfy the interface calls for
+            % kernels.ParamTimeKernelExpansion classes, which also give a
+            % `t` and `\mu` parameter.
             %
             % See also: dscomponents.IJacobian kernels.BaseKernel
             if size(x, 2) > 1

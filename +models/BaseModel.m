@@ -300,6 +300,11 @@ classdef BaseModel < KerMorObject
             %
             % The default method is simply to use the full plot default
             % method.
+            %
+            % Parameters:
+            % t: The current time `t`
+            % y: The system's output `y(t)`
+            % ax: The target axes to plot into. @default []
             if nargin < 4
                 this.plot(t, y);
             else

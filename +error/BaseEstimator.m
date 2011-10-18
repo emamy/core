@@ -192,13 +192,22 @@ classdef BaseEstimator < KerMorObject & ICloneable
     end
     
     methods(Abstract)
+        % Template method for evaluation of the auxiliary ode part of the
+        % error estimator.
+        %
         % Parameters:
         % x: The full extended state variable vector. Extended means that
         % the last @ref ExtraODEDims rows contain the error estimators own
         % data. If not used, implementers must take care to ditch those
         % values if any function evaluations are performed within the
-        % integral part.
+        % integral part. @type colvec
+        % t: The current time `t` @type double
+        % mu: The current parameter `\mu` @type colvec
         % ut: The value of the input function `u(t)` if given, [] else.
+        % @type double
+        %
+        % Return values:
+        % eint: The auxiliary ode part value.
         eint = evalODEPart(this, x, t, mu, ut);
     end
     

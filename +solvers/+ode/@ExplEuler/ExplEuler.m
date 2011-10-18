@@ -37,7 +37,7 @@ classdef ExplEuler < solvers.ode.BaseCustomSolver
             % manually for each case.
             %
             % Parameters:
-            % MaxStep: Maximum time step. Optional.
+            % MaxStep: Maximum time step. @default [] @type double
             this = this@solvers.ode.BaseCustomSolver;
             
             this.Name = 'Explicit forward euler';
@@ -48,13 +48,24 @@ classdef ExplEuler < solvers.ode.BaseCustomSolver
     end
     
     methods(Access=protected,Sealed)
-        function x = customSolve(this, odefun, t, x0)%#ok
-            % Solves the ODE
+        function x = customSolve(this, odefun, t, x0)
+            % Solves the ODE using the explicit Euler method.
             %
             % There is a mex-implementation of the explicit euler scheme,
             % unfortunately it is almost double the times slower than
             % matlab! (So mexing files to get rid of for loops does not
             % work well :-))
+            %
+            % Parameters:
+            % odefun: A function handle to the ode function, satisfying the
+            % interface also required by matlab's explicit ode solvers.
+            % @type function_handle
+            % t: The desired times `t_0,\ldots,t_N` as row vector. @type rowvec
+            % x0: The initial value `x(0) = x_0` for `t=0` @type colvec
+            %
+            % Return values:
+            % x: The solution of the ode at the time steps `t_0,\ldots,t_N`
+            % as matrix. @type matrix
             
             % Initialize vector
             steps = length(t);

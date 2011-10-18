@@ -62,7 +62,17 @@ classdef EpsSelector < approx.selection.ASelector
     
     methods(Access=protected)
         function [xi, ti, mui] = select(this, model)
-            
+            % Selects training points with distance EpsSelector.EpsRad,
+            % starting from the initial values for each trajectory.
+            %
+            % Parameters:
+            % model: The full model with the training data @type models.BaseFullModel
+            %
+            % Return values:
+            % xi: The selected `x_i = x(t_i)` training data @type matrix
+            % ti: The selected training times `t_i` @type rowvec
+            % mui: The selected parameter samples `\mu_i` with which the states
+            % `x_i` have been reached @type matrix
             if model.Data.getNumTrajectories > 1
                 warning('KerMor:approx:selection:EpsSelector','The epsilon-selector can only be used with one trajectory at the moment. Ignoring all but the first.');
             end

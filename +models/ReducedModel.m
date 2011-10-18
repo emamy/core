@@ -33,27 +33,31 @@ classdef ReducedModel < models.BaseModel
         % space reduction since these properties are not necessarily used
         % by the reduced system. So far, only error computations will take
         % longer since the initial snapshots are not available anymore.
+        %
+        % @type models.BaseFullModel
         FullModel;
         
         % The matrix that has been used for projection
         %
+        % @type matrix
         V;
         
         % The biorthogonal matrix for V, i.e. `W^tV = I_d`
         %
+        % @type matrix
         W;
         
         % The originally used parameter samples.
         %
         % The parameter samples that have been used for computation of the
         % reduced model.
+        %
+        % @type matrix
         ParamSamples;
     end
     
     properties(Dependent)
         % The error estimator for the reduced model
-        %
-        %
         %
         % @type error.BaseEstimator
         ErrorEstimator;

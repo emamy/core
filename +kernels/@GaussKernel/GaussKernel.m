@@ -39,7 +39,7 @@ classdef GaussKernel < kernels.BellFunction
             % Creates a new GaussKernel
             %
             % Parameters:
-            % Gamma: The Gamma property to use. @optional
+            % Gamma: The Gamma property to use. @default 1 @type double
             this = this@kernels.BellFunction;
             this.registerProps('Gamma');%,'Sigma'
             

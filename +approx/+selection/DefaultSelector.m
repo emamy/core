@@ -23,6 +23,16 @@ classdef DefaultSelector < approx.selection.ASelector
 
     methods(Access=protected,Sealed)
         function [xi, ti, mui] = select(this, model)%#ok
+            % Selects ALL the trajectory data as training.
+            %
+            % Parameters:
+            % model: The full model with the training data @type models.BaseFullModel
+            %
+            % Return values:
+            % xi: The selected `x_i = x(t_i)` training data @type matrix
+            % ti: The selected training times `t_i` @type rowvec
+            % mui: The selected parameter samples `\mu_i` with which the states
+            % `x_i` have been reached @type matrix
             xi = [];
             ti = [];
             mui = [];

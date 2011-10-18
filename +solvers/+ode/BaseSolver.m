@@ -59,9 +59,16 @@ classdef BaseSolver < KerMorObject
         % dimensional, strictly monotoneously increasing vector explicitly
         % setting the desired output times. Depending on the MaxStep
         % property, the solver can work with a finer time step internally.
-        % x0: The initial value
+        % @type rowvec
+        % x0: The initial value @type colvec
         %
-        [t,x] = solve(odefun, t, x0);
+        % Return values:
+        % t: The times `t_i` which equal the given times or the linspace
+        % between both given times (two-elem t param) with distance `dt`
+        % @type rowvec
+        % x: The solution of the ode at times `t_i` @type matrix
+        %
+        [t,x] = solve(this, odefun, t, x0);
     end
     
     %% Getter & Setter

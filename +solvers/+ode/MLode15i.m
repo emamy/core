@@ -26,7 +26,7 @@ classdef MLode15i < solvers.ode.BaseImplSolver
         % @propclass{critical} The correct relative tolerance guarantees the right number of
         % significant figures.
         %
-        % @default 1e-4;
+        % @default 1e-4 @type double
         %
         % See also: AbsTol ode15i odeset
         RelTol = 1e-4;
@@ -40,7 +40,7 @@ classdef MLode15i < solvers.ode.BaseImplSolver
         % @propclass{critical} Absolute error tolerances require adoption to the current situation
         % and scale of computations.
         %
-        % @default 1e-9;
+        % @default 1e-9 @type double
         %
         % See also: RelTol ode15i odeset
         AbsTol = 1e-9;
@@ -54,16 +54,25 @@ classdef MLode15i < solvers.ode.BaseImplSolver
         function this = MLode15i
             this = this@solvers.ode.BaseImplSolver;
             this.Name = 'MatLab ode15i implicit solver wrapper';
-            this.fED = solvers.ode.SolverEventData;
             this.registerProps('RelTol','AbsTol');
         end
         
         function [t,x] = implicit_solve(this, implfun, t, x0, x0p, opts)
+            % Solves the ode implicitly.
+            %
+            % Parameters:
+            % implfun: A handle to the implicit function `f` which describes
+            % the ODE via `f(t,x,x') = 0` @type function_handle
+            % t: The times `t_i` at which the ODE is to be computed @type rowvec
+            % x0: Initial condition `x_0 = x(0)` @type colvec
+            % x0p: Initial condition `x'_0 = x'(0)` @type colvec
+            % opts: An odeset struct for additional options. @type struct
             if nargin < 6
                 opts = odeset;
             end
             opts = odeset(opts, 'RelTol', this.RelTol, 'AbsTol', this.AbsTol);
             opts = odeset(opts, 'OutputFcn',@this.ODEOutputFcn);
+            this.fED = solvers.ode.SolverEventData;
             [t,x] = ode15i(implfun, t, x0, x0p, opts);
             x = x';
             t = t';
@@ -74,6 +83,14 @@ classdef MLode15i < solvers.ode.BaseImplSolver
         function status = ODEOutputFcn(this, t, y, flag)
             % Wraps the OutputFcn of the Matlab ODE solver into
             % the StepPerformed event
+            %
+            % Parameters:
+            % t: The current time `t`
+            % y: The system's output `y(t)`
+            % flag: The flag passed from the ODE solver as argument of the
+            % 'OutputFcn' setting in odeset.
+            %
+            % See also: odeset
             if ~strcmp(flag,'init')
                 % For some reason the t and y args have more than one
                 % entry, so loop over all of them.

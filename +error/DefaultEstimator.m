@@ -58,6 +58,22 @@ classdef DefaultEstimator < error.BaseEstimator
         end
         
         function eint = evalODEPart(this, x, t, mu, ut)%#ok
+            % The default estimator does not have an ODE part as it
+            % computes the full error in the postprocessing step.
+            %
+            % Parameters:
+            % x: The full extended state variable vector. Extended means that
+            % the last @ref ExtraODEDims rows contain the error estimators own
+            % data. If not used, implementers must take care to ditch those
+            % values if any function evaluations are performed within the
+            % integral part. @type colvec
+            % t: The current time `t` @type double
+            % mu: The current parameter `\mu` @type colvec
+            % ut: The value of the input function `u(t)` if given, [] else.
+            % @type double
+            %
+            % Return values:
+            % eint: The auxiliary ode part value.
             eint = [];
         end
                 

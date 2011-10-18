@@ -27,7 +27,7 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
         % @propclass{optional} The threshold of 16 magnitudes below the maximum coefficient should
         % be small enough to not have any bad influence but improve performance.
         %
-        % @default: eps (2.2e-16)
+        % @default: eps (2.2e-16) @type double
         AlphaRelMinValue = eps;
     end
     
@@ -50,7 +50,7 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
         % @propclass{critical} Overly regularized functions may not approximate the data correctly,
         % while small `\lambda` lead to high coefficient values.
         %
-        % @default 1
+        % @default 1 @type double
         Lambda;
     end
     
@@ -59,6 +59,8 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
         % 
         % Gets computed when Lambda is set, equals `C =
         % \frac{1}{2\lambda}`.
+        %
+        % @type double
         %
         % See also: ScalarNuSVR ScalarEpsSVR
         C = .5;
@@ -114,16 +116,26 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
             this.K = K;
         end
         
-        function [ai, svidx] = computeKernelCoefficients(this, yi, initialai)
+        function [ci, svidx] = computeKernelCoefficients(this, yi, initialai)
+            % Implementation of the kernels.ICoeffComp interface
+            %
+            % Parameters:
+            % yi: The target values `y_i` as row vector @type rowvec
+            % initialai: Initial values for the coefficients `c_i`
+            %
+            % Return values:
+            % ci: The coefficients `c_i` as row vector @type rowvec
+            % svidx: The support vector indices of all elements of `c_i`
+            % that regarded to be support vectors. @type integer
+            %
             % @throws KerMor:coeffcomp:failed Thrown if the coefficient computation failed for a
             % reason known within KerMor.
             %
-            % @throws KerMor:svr:nosupportvectors No support vectors could be found for the given
-            % configuration.
+            % See also: AlphaRelMinValue
             try
-                ai = this.regress(yi, initialai);
-                svidx = find(abs(ai) ./ max(abs(ai)) > this.AlphaRelMinValue);
-                ai = ai(svidx);
+                ci = this.regress(yi, initialai);
+                svidx = find(abs(ci) ./ max(abs(ci)) > this.AlphaRelMinValue);
+                ci = ci(svidx);
             catch ME
                 if strcmp(ME.identifier,'KerMor:solvers:qp:notconverged')
                     m = MException('KerMor:coeffcomp:failed','Regression failed');
@@ -134,14 +146,8 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
                 end
             end
             if isempty(svidx)
-%                 if any(yi ~= 0)
-%                     m = MException('KerMor:svr:nosupportvectors','No support vectors found. Problem unsolvable with current config?');
-%                     m.throw;
-%                 else
-                    % Otherwise "fake" a support vector with zero coefficient!
-                    ai = 0;
-                    svidx = 1;
-%                 end
+                ci = 0;
+                svidx = 1;
             end
         end
     end
@@ -152,10 +158,12 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
         % Parameters:
         % fxi: The `f(x_i)` values to regress given the kernel matrix `K` computed from
         % `\Phi(x_i,x_j)`.
+        % initialai: The initial values to use for the coefficients `c_i`.
+        % @default [] @type rowvec
         %
         % Return values:
-        % ai: The kernel expansion coefficients `\alpha_i`.
-        ai = regress(this, fxi, initialai);
+        % ci: The kernel expansion coefficients `c_i`.
+        ci = regress(this, fxi, initialai);
     end
     
 end

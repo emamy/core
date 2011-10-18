@@ -59,12 +59,18 @@ classdef Documentation
                 end
             end
             
+            % Save current working dir and change into the KerMor home
+            % directory; only from there all classes and packages are
+            % detected properly.
+            curdir = pwd;
+            cd(KerMor.App.HomeDirectory);
             %% Operation-system dependent actions
             if isunix
                 Documentation.createUnix(uml, open);
             elseif ispc
                 Documentation.createWindows(uml, open);
             end
+            cd(curdir);
         end
         
         function setup

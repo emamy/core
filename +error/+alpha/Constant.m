@@ -25,6 +25,13 @@ classdef Constant < error.alpha.Base
         end
         
         function inputOfflineComputations(this, rmodel, M)
+            % Performs the offline stage for the error estimators regarding
+            % the inputs.
+            %
+            % Parameters:
+            % rmodel: The reduced model @type models.ReducedModel
+            % M: The projected coefficient matrix `M_{\alpha} -
+            % VW^tM_{\alpha})` @type matrix
             fm = rmodel.FullModel;
             
             if ~isempty(fm.System.B)
@@ -54,6 +61,14 @@ classdef Constant < error.alpha.Base
         end
         
         function a = getAlpha(this, phi, ut, t, mu)%#ok
+            % Computes the alpha term for the error estimator
+            %
+            % Parameters:
+            % phi: The kernel vector `\Phi(x,x_i)` @type colvec
+            % ut: The evaluation of the current input `u(t)` at time `t`
+            % @type double
+            % t: The current time `t` @type double
+            % mu: The current parameter `\mu` @type colvec
             a = phi*this.M1*phi';
             if ~isempty(ut) % An input function u is set
                 a = a + phi*this.M2*ut + ut'*this.M3*ut;

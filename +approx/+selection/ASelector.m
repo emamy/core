@@ -4,10 +4,10 @@ classdef ASelector < KerMorObject & ICloneable
     % @attention Any subclass must set the LastUsed property to the indices corresponding to the
     % selected samples from the training data. Otherwise an error will be thrown and the generation
     % process is terminated.
-    % 
+    %
     % @note Note that the selected training data is projected into the
     % precomputed subspace if spacereduction is performed.
-    % 
+    %
     % @author Daniel Wirtz @date 2011-04-12
     %
     % @new{0,5,dw,2011-08-04} Removed the LastUsed property as it is incompatible with the new
@@ -28,13 +28,13 @@ classdef ASelector < KerMorObject & ICloneable
             this = this@KerMorObject;
         end
         
-         function copy = clone(this, copy)
-%              copy = clone@KerMorObject(this, copy);
-         end
+        function copy = clone(this, copy)
+            copy = clone@KerMorObject(this, copy);
+        end
         
         function atd = selectTrainingData(this, model)
             % Performs the selection procedure
-            % 
+            %
             % After some validity checks the template method is called to
             % start the actual selection algorithm.
             %
@@ -56,10 +56,19 @@ classdef ASelector < KerMorObject & ICloneable
             atd.ti = ti;
             atd.mui = mui;
         end
-    end   
+    end
     
     methods(Abstract, Access=protected)
         % Template method for subclasses to specify selection behaviour.
+        %
+        % Parameters:
+        % model: The full model with the training data @type models.BaseFullModel
+        %
+        % Return values:
+        % xi: The selected `x_i = x(t_i)` training data @type matrix
+        % ti: The selected training times `t_i` @type rowvec
+        % mui: The selected parameter samples `\mu_i` with which the states
+        % `x_i` have been reached @type matrix
         [xi, ti, mui] = select(this, model)
     end
 end

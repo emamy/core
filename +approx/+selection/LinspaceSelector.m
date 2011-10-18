@@ -60,6 +60,15 @@ classdef LinspaceSelector < approx.selection.ASelector
             % Equally spaced in this context means with respect to the indices over the WHOLE
             % trajectories summarized length, NOT to the spatial distances between the training
             % samples.
+            %
+            % Parameters:
+            % model: The full model with the training data @type models.BaseFullModel
+            %
+            % Return values:
+            % xi: The selected `x_i = x(t_i)` training data @type matrix
+            % ti: The selected training times `t_i` @type rowvec
+            % mui: The selected parameter samples `\mu_i` with which the states
+            % `x_i` have been reached @type matrix
             
             nt = model.Data.getNumTrajectories;
             

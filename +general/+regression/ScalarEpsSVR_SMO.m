@@ -634,7 +634,7 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             %svr.Eps = 0.073648;
             svr.Eps = .1;
             svr.Lambda = 1/20;%1/20; % i.e. C=10 as in ScalarEpsSVR
-            svr.Vis = 3;
+            svr.Vis = 0;
             
             %kernel = kernels.PolyKernel(7);
             %kernel = kernels.LinearKernel;

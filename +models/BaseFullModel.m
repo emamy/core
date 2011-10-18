@@ -69,37 +69,45 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % The full model's data container.
         % Defaults to an empty container.
         %
-        % @propclass{data}
+        % @propclass{data} The model's data container
         %
-        % @type data.AModelData
+        % @default data.MemoryModelData @type data.AModelData
         %
-        % @default data.MemoryModelData
-        %
-        % See also: AModelData
+        % See also: data.AModelData
         Data;
     end
     
     properties(SetObservable)
         % The sampling strategy the Model uses
         %
-        % @propclass{important}
+        % @propclass{important} The sampling strategy affects the quality
+        % of the parameter samples used for training.
+        %
+        % @default sampling.RandomSampler @type sampling.BaseSampler
         %
         % See also: sampling BaseSampler
         Sampler;
         
         % The reduction algorithm for subspaces
         %
-        % @propclass{important}
+        % @propclass{critical} The subspace computation strategy is
+        % critical for the quality of the projection subspace
         %
-        % @default spacereduction.TrajectoryGreedy
-        % See also: spacereduction BaseSpaceReducer
+        % @default spacereduction.PODGreedy
+        % @type spacereduction.BaseSpaceReducer
+        %
+        % See also: spacereduction spacereduction.BaseSpaceReducer
         SpaceReducer;
         
         % The approximation method for the CoreFunction
         %
-        % @propclass{important}
+        % @propclass{critical} The approximation technique is critical for
+        % the quality of the reduced model.
         %
         % @default approx.KernelApprox
+        % @type approx.BaseApprox
+        %
+        % See also: approx approx.algorithms approx.selection
         Approx;
         
         % Advanced property. 
@@ -115,9 +123,11 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % model, which is in fact homogeneous in y-direction. Thus, only
         % distinct x-direction points have to be trained for.
         %
-        % @propclass{optional}
+        % @propclass{optional} A callback that can be set to execute user
+        % defined code before training the approximation.
         %
         % @default []
+        % @type function_handle
         %
         % @todo (optional) create class events from this
         preApproximationTrainingCallback;
@@ -128,9 +138,11 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % The handle is invoked at the end of the off4_computeApproximation
         % method.
         %
-        % @propclass{optional}
+        % @propclass{optional} A callback that can be set to execute user
+        % defined code after training the approximation.
         %
         % @default []
+        % @type function_handle
         %
         % See also: preApproximationTrainingCallback
         postApproximationTrainingCallback;
@@ -143,11 +155,14 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % inputs.
         %
         % @default 1:InputCount
+        % @type integer
         TrainingInputs;
     end
     
     properties(SetAccess=private, Dependent)
         % Gets the number of inputs used for training.
+        %
+        % @type integer
         TrainingInputCount;
     end
     
@@ -158,6 +173,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % phases.
         %
         % @default []
+        % @type rowvec
         OfflinePhaseTimes = [];
     end
     
@@ -209,25 +225,25 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function time = off2_genTrainingData(this)
             % Offline phase 2: Snapshot generation for subspace computation
             %
-            % @todo 
+            % @todo
             % - Optimize snapshot array augmentation by preallocation
             % (later will be some storage class)
             % - Remove waitbar and connect to messaging system
             time = tic;
             
-%             if this.Data.SampleCount == 0 && this.TrainingInputCount == 0
-%                 fprintf('BaseFullModel.genTrainingData: No parameters or inputs configured for training, nothing to do.\n');
-%                 time = toc(time);
-%                 return;
-%             end
+            %             if this.Data.SampleCount == 0 && this.TrainingInputCount == 0
+            %                 fprintf('BaseFullModel.genTrainingData: No parameters or inputs configured for training, nothing to do.\n');
+            %                 time = toc(time);
+            %                 return;
+            %             end
             
             num_s = max(1,this.Data.SampleCount);
             num_in = max(1,this.TrainingInputCount);
             
-%             if num_s*num_in < matlabpool('size')
-%                 % @TODO: switch back if changed!
-%                 this.ComputeParallel = false;
-%             end
+            %             if num_s*num_in < matlabpool('size')
+            %                 % @TODO: switch back if changed!
+            %                 this.ComputeParallel = false;
+            %             end
             
             % Clear old trajectory data.
             this.Data.clearTrajectories;
@@ -262,7 +278,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     end
                     
                     % Get trajectory
-                    [t, x] = remote.computeTrajectory(mu, inputidx);  
+                    [t, x] = remote.computeTrajectory(mu, inputidx);
                     
                     % Assign snapshot values
                     remote.Data.addTrajectory(x, mu, inputidx);
@@ -279,7 +295,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 % Assume no parameters or inputs
                 mu = [];
                 inputidx = [];
-               
+                
                 if KerMor.App.Verbose > 0
                     fprintf('Generating projection training data... ');
                     p = 0;
@@ -289,7 +305,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 for inidx = 1:num_in
                     % Iterate through all parameter samples
                     for pidx = 1:num_s
-
+                        
                         % Display
                         if KerMor.App.Verbose > 0
                             perc = cnt/(num_in*num_s);
@@ -308,10 +324,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         if this.TrainingInputCount > 0
                             inputidx = this.TrainingInputs(inidx);
                         end
-
+                        
                         % Get trajectory
                         [t, x] = this.computeTrajectory(mu, inputidx);
-                                                
+                        
                         % Assign snapshot values
                         this.Data.addTrajectory(x, mu, inputidx);
                     end
@@ -344,7 +360,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % Generates the training data `x_i` for the
             % `\hat{f}`-approximation and precomputes `f(x_i)` values.
             %
-            % @todo 
+            % @todo
             % - include/check MultiArgumentEvaluations-possibility in parallel execution code
             % - Deactivated due to immense overhead and matlab crashes. investigate further
             time = tic;
@@ -386,7 +402,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         fprintf('Serial computation of f-values at %d points ...\n',size(atd.xi,2));
                     end
                     this.Data.ApproxTrainData.fxi = this.System.f.evaluate(atd.xi, atd.ti, atdmui);
-                end                
+                end
             end
             time = toc(time);
         end
@@ -459,7 +475,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % See also: offlineGenerations
             % @docupdate
             
-            if isempty(this.Data) 
+            if isempty(this.Data)
                 error('No ModelData class found. Forgot to call offlineGenerations?');
             end
             if isempty(this.Data.getNumTrajectories == 0) && ~(this.Data.SampleCount == 0 && this.TrainingInputCount == 0)
@@ -560,155 +576,155 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.checkType(value, 'sampling.BaseSampler');%#ok
             this.Sampler = value;
         end
-        
+
         function set.Data(this, value)
             this.checkType(value, 'data.AModelData');%#ok
             this.Data = value;
         end
-        
+
         function set.SpaceReducer(this, value)
             this.checkType(value, 'spacereduction.BaseSpaceReducer');%#ok
             this.SpaceReducer = value;
         end
-        
+
         function set.Approx(this, value)
             this.checkType(value, 'approx.BaseApprox');%#ok
             this.Approx = value;
         end
-        
+
         function set.preApproximationTrainingCallback(this, value)
             if ~isempty(value) && ~isa(value, 'function_handle')
                 error('Value must be a function handle taking the current model instance');
             end
             this.preApproximationTrainingCallback = value;
         end
-        
+
         function set.postApproximationTrainingCallback(this, value)
             if ~isempty(value) && ~isa(value, 'function_handle')
                 error('Value must be a function handle taking the current model instance');
             end
             this.postApproximationTrainingCallback = value;
         end
-        
+
         function set.TrainingInputs(this, value)
             if ~isempty(value)
                 if any(value < 1)
                     error('Value may only contain valid indices for the Inputs cell array.');
                 elseif any(value > this.System.InputCount) || any(value < 1)
-                    error('Invalid indices for Inputs.');    
+                    error('Invalid indices for Inputs.');
                 elseif isempty(this.System.B)
                     error('You must set the system''s property B when using training inputs.');
                 end
             end
             this.fTrainingInputs = value;
         end
-        
+
         function ti = get.TrainingInputs(this)
             ti = this.fTrainingInputs;
-%             if isempty(ti) && ~isempty(this.System)
-%                 ti = 1:this.System.InputCount;
-%             end
+            %             if isempty(ti) && ~isempty(this.System)
+            %                 ti = 1:this.System.InputCount;
+            %             end
         end
-        
+
         function c = get.TrainingInputCount(this)
             c = length(this.TrainingInputs);
         end
     end
     
     methods(Access=private)
-         function checkProperties(this)
-             % Checks all the model's properties recursively for unchanged default settings
-             counts = struct;
-             notchanged = struct;
-             messages = struct;
-             levels = KerMorObject.getPropClasses;
-             for lidx=1:length(levels)
-                 counts.(levels{lidx}) = 0;
-                 messages.(levels{lidx}) = {};
-             end
-             notchanged = counts;
-             
-             %% Run recursive check
-             recurCheck(this, general.collections.Dictionary, this.Name);
-             
-             % Store collected messages
-             this.msg = messages;
-             
-             % Some total stats now
-             %c = [struct2array(notchanged); struct2array(counts)];
-             c = cell2mat([struct2cell(notchanged) struct2cell(counts)])';
-             c(3,:) = round(10000 * c(1,:) ./ c(2,:))/100;
-             c(3,isnan(c(3,:))) = 100;
-             this.pstats = c;
-             
-             if KerMor.App.Verbose > 1
-                 total = sum(c,2);
-                 total(3) = total(3)/size(c,2);
-
-                 col = [total(3)/100 1-total(3)/100 0];
-                 cprintf(col,'Total unchanged properties: %d of %d (%2.2f%%%%)\n',total);
-             end
-             
-             % Issue warning if some critical properties are still unchanged
-             if notchanged.critical > 0
-                 if ~isempty(this.WorkspaceVariableName)
+        function checkProperties(this)
+            % Checks all the model's properties recursively for unchanged default settings
+            counts = struct;
+            notchanged = struct;
+            messages = struct;
+            levels = KerMorObject.getPropClasses;
+            for lidx=1:length(levels)
+                counts.(levels{lidx}) = 0;
+                messages.(levels{lidx}) = {};
+            end
+            notchanged = counts;
+            
+            %% Run recursive check
+            recurCheck(this, general.collections.Dictionary, this.Name);
+            
+            % Store collected messages
+            this.msg = messages;
+            
+            % Some total stats now
+            %c = [struct2array(notchanged); struct2array(counts)];
+            c = cell2mat([struct2cell(notchanged) struct2cell(counts)])';
+            c(3,:) = round(10000 * c(1,:) ./ c(2,:))/100;
+            c(3,isnan(c(3,:))) = 100;
+            this.pstats = c;
+            
+            if KerMor.App.Verbose > 1
+                total = sum(c,2);
+                total(3) = total(3)/size(c,2);
+                
+                col = [total(3)/100 1-total(3)/100 0];
+                cprintf(col,'Total unchanged properties: %d of %d (%2.2f%%%%)\n',total);
+            end
+            
+            % Issue warning if some critical properties are still unchanged
+            if notchanged.critical > 0
+                if ~isempty(this.WorkspaceVariableName)
                     link = sprintf('<a href="matlab:%s.printPropertyChangedReport(''critical'')">critical properties</a>',this.WorkspaceVariableName);
-                 else
+                else
                     link = 'critical properties';
                     this.printPropertyChangedReport('critical');
-                 end
-                 fprintf(['SIMULATION RESULTS QUESTIONABLE: %d of %d ' link ' are still at their default value.\n'],...
-                     notchanged.critical,counts.critical);
-             end
-             
-             function recurCheck(obj, done, lvl)
-                 mc = metaclass(obj);
-                 done(obj.ID) = true;
-                 
-                 %% Link name preparations
-                 objlink = editLink(mc.Name);
-                 
-                 %% Check the local properties
-                 pc = obj.PropertiesChanged;
-                 for pidx = 1:length(mc.Properties)
-                     p = mc.Properties{pidx};
-                     if strcmp(p.GetAccess,'public') && ~p.Constant && ~p.Transient && strcmp(p.SetAccess,'public') %~strcmp(p.SetAccess,'private')
-                         key = [p.DefiningClass.Name '.' p.Name];
-                         if pc.containsKey(key)
-                             p = pc(key);
-                             counts.(p.Level) = counts.(p.Level) + 1;
-                             if ~p.Changed
-                                 notchanged.(p.Level) = notchanged.(p.Level) + 1;
-                                 if ~any(strcmp(p.Level,'data'))
-                                     hlp = messages.(p.Level);
-                                     %if strcmp(mc.Name,p.)
-                                     hlp{end+1} = sprintf('%s is still unchanged!\nProperty brief: %s\nPropclass tag description:\n%s\n',...
-                                         [lvl '[' objlink '] -> ' p.Name],p.Short,p.Text);%#ok
-                                     messages.(p.Level) = hlp;
-                                 end
-                             end
-                         elseif ~p.SetObservable && ~pc.containsKey([p.DefiningClass.Name '.' p.Name])
-                             link2 = editLink(p.DefiningClass.Name);
-                             fprintf('WARNING: Property %s of class %s is not <a href="matlab:docsearch SetObservable">SetObservable</a> but a candidate for a user-definable public property!\nFor more details see <a href="%s/propclasses.html">Property classes and levels</a>\n\n',p.Name,link2,Documentation.DocumentationLocation);
-                         end
-                         pobj = obj.(p.Name);
-                         % Recursively register subobject's properties
-                         if isa(pobj, 'KerMorObject') && isempty(done(pobj.ID))
-                             recurCheck(pobj, done, [lvl '[' objlink '] -> ' p.Name]);
-                         end
-                     end
-                 end
-             end
-             
-             function l = editLink(classname)
-                 dotpos = strfind(classname,'.');
-                 if ~isempty(dotpos)
-                     lname = classname(dotpos(end)+1:end);
-                 else
-                     lname = classname;
-                 end
-                 l = sprintf('<a href="matlab:edit %s">%s</a>',classname,lname);
-             end
+                end
+                fprintf(['SIMULATION RESULTS QUESTIONABLE: %d of %d ' link ' are still at their default value.\n'],...
+                    notchanged.critical,counts.critical);
+            end
+            
+            function recurCheck(obj, done, lvl)
+                mc = metaclass(obj);
+                done(obj.ID) = true;
+                
+                %% Link name preparations
+                objlink = editLink(mc.Name);
+                
+                %% Check the local properties
+                pc = obj.PropertiesChanged;
+                for pidx = 1:length(mc.Properties)
+                    p = mc.Properties{pidx};
+                    if strcmp(p.GetAccess,'public') && ~p.Constant && ~p.Transient && strcmp(p.SetAccess,'public') %~strcmp(p.SetAccess,'private')
+                        key = [p.DefiningClass.Name '.' p.Name];
+                        if pc.containsKey(key)
+                            p = pc(key);
+                            counts.(p.Level) = counts.(p.Level) + 1;
+                            if ~p.Changed
+                                notchanged.(p.Level) = notchanged.(p.Level) + 1;
+                                if ~any(strcmp(p.Level,'data'))
+                                    hlp = messages.(p.Level);
+                                    %if strcmp(mc.Name,p.)
+                                    hlp{end+1} = sprintf('%s is still unchanged!\nProperty brief: %s\nPropclass tag description:\n%s\n',...
+                                        [lvl '[' objlink '] -> ' p.Name],p.Short,p.Text);%#ok
+                                    messages.(p.Level) = hlp;
+                                end
+                            end
+                        elseif ~p.SetObservable && ~pc.containsKey([p.DefiningClass.Name '.' p.Name])
+                            link2 = editLink(p.DefiningClass.Name);
+                            fprintf('WARNING: Property %s of class %s is not <a href="matlab:docsearch SetObservable">SetObservable</a> but a candidate for a user-definable public property!\nFor more details see <a href="%s/propclasses.html">Property classes and levels</a>\n\n',p.Name,link2,Documentation.DocumentationLocation);
+                        end
+                        pobj = obj.(p.Name);
+                        % Recursively register subobject's properties
+                        if isa(pobj, 'KerMorObject') && isempty(done(pobj.ID))
+                            recurCheck(pobj, done, [lvl '[' objlink '] -> ' p.Name]);
+                        end
+                    end
+                end
+            end
+            
+            function l = editLink(classname)
+                dotpos = strfind(classname,'.');
+                if ~isempty(dotpos)
+                    lname = classname(dotpos(end)+1:end);
+                else
+                    lname = classname;
+                end
+                l = sprintf('<a href="matlab:edit %s">%s</a>',classname,lname);
+            end
         end
     end
            

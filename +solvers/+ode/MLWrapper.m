@@ -18,11 +18,13 @@ classdef MLWrapper < solvers.ode.BaseSolver
     
     properties(SetObservable)
         % The wrapped Matlab-Solver
-        % Function handle.
+        %
+        % Has to be a function handle to one of Matlab's implemented ODE
+        % solvers.
         %
         % @propclass{critical} The correct underlying MatLab builtin solver can make the difference.
         %
-        % @default ode23
+        % @default ode23 @type function_handle
         %
         % See also: ode23 ode45
         MLSolver = @ode23;
@@ -71,6 +73,14 @@ classdef MLWrapper < solvers.ode.BaseSolver
         function status = ODEOutputFcn(this, t, y, flag)
             % Wraps the OutputFcn of the Matlab ODE solver into
             % the StepPerformed event
+            %
+            % Parameters:
+            % t: The current time `t`
+            % y: The system's output `y(t)`
+            % flag: The flag passed from the ODE solver as argument of the
+            % 'OutputFcn' setting in odeset.
+            %
+            % See also: odeset
             if ~strcmp(flag,'init')
                 % For some reason the t and y args have more than one
                 % entry, so loop over all of them.

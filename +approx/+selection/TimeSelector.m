@@ -1,5 +1,6 @@
 classdef TimeSelector < approx.selection.ASelector
-% TimeSelector: Approximation training data selection utilizing time information
+% TimeSelector: Approximation training data selection utilizing time
+% information
 %
 % '''THE USE OF THIS SELECTOR HAS BEEN DISABLED DUE TO A NEW MODEL DATA STRUCTURE.'''
 %
@@ -64,9 +65,22 @@ classdef TimeSelector < approx.selection.ASelector
     end
     
     methods(Access=protected,Sealed)
-        function [xi, ti, mui] = select(this, model)
+        function [xi, ti, mui] = select(this, model)%#ok
             % Performs selection of samples adjusted to the apperances of different times.
-            sn = model.Data.TrainingData;
+            %
+            % Parameters:
+            % model: The full model with the training data @type models.BaseFullModel
+            %
+            % Return values:
+            % xi: The selected `x_i = x(t_i)` training data @type matrix
+            % ti: The selected training times `t_i` @type rowvec
+            % mui: The selected parameter samples `\mu_i` with which the states
+            % `x_i` have been reached @type matrix
+            %
+            % @todo Adopt to current KerMor model data structure.
+            
+            error('Not yet adopted to the current KerMor ModelData structure');
+            sn = model.Data.TrainingData;%#ok
             if (size(sn,2) > this.Size)
                 times = unique(sn(3,:));
                 tcnt = length(times);
