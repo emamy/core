@@ -1,20 +1,28 @@
 classdef Heun < solvers.ode.BaseCustomSolver
-    % ODE solver implementing the method of heun
-    %
-    % Method description:
-    % `` x_{i+1} = x_i + \frac{\Delta t}{2}f(t_i,x_i) + \frac{\Delta
-    % t}{2}f(t_{i+1},\nu)``
-    % `` \nu = x_i + \Delta t f(t_i,x_i) ``
-    %
-    % See also: solvers BaseSolver ExplEuler
-    %
-    % @author Daniel Wirtz @date 2010-11-03
-    %
-    % @change{0,5,dw,2011-09-29} Added step-wise event implementation for real time
-    % plotting.
-    %
-    % @change{0,4,dw,2011-05-31} Added a new middle class solvers.ode.BaseCustomSolver which
-    % extracts the getCompTimes into a new abstraction layer.
+% ODE solver implementing the method of heun
+%
+% Method description:
+% `` x_{i+1} = x_i + \frac{\Delta t}{2}f(t_i,x_i) + \frac{\Delta
+% t}{2}f(t_{i+1},\nu)``
+% `` \nu = x_i + \Delta t f(t_i,x_i) ``
+%
+% See also: solvers BaseSolver ExplEuler
+%
+% @author Daniel Wirtz @date 2010-11-03
+%
+% @change{0,5,dw,2011-10-16} Adopted to the new BaseSolver.RealTimeMode flag.
+%
+% @change{0,5,dw,2011-09-29} Added step-wise event implementation for real time
+% plotting.
+%
+% @change{0,4,dw,2011-05-31} Added a new middle class solvers.ode.BaseCustomSolver which
+% extracts the getCompTimes into a new abstraction layer.
+%
+% This class is part of the framework
+% KerMor - Model Order Reduction using Kernels:
+% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+% - \c License @ref licensing
         
     methods
         
@@ -54,17 +62,29 @@ classdef Heun < solvers.ode.BaseCustomSolver
             
             % Initialize result
             steps = length(t);
-            x = [x0 zeros(size(x0,1),steps-1)];
             dt = t(2:end)-t(1:end-1);
-            ed = solvers.ode.SolverEventData;
+            
+            rtm = this.RealTimeMode;
+            if rtm
+                ed = solvers.ode.SolverEventData;
+                x = [];
+            else
+                x = [x0 zeros(size(x0,1),steps-1)];
+            end
             % Solve for each time step
+            oldx = x0;
             for idx = 2:steps;
-                f = odefun(t(idx-1),x(:,idx-1));
-                hlp = x(:,idx-1) + dt(idx-1)*f;
-                x(:,idx) = x(:,idx-1) + (dt(idx-1)/2)*(f + odefun(t(idx),hlp));
-                ed.Times = t(idx);
-                ed.States = x(:,idx);
-                this.notify('StepPerformed',ed);
+                f = odefun(t(idx-1),oldx);
+                hlp = oldx + dt(idx-1)*f;
+                newx = oldx + (dt(idx-1)/2)*(f + odefun(t(idx),hlp));
+                if rtm
+                    ed.Times = t(idx);
+                    ed.States = newx;
+                    this.notify('StepPerformed',ed);
+                else
+                    x(:,idx) = newx;%#ok
+                end
+                oldx = newx;
             end
         end
     end

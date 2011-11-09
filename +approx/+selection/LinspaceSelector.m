@@ -41,7 +41,7 @@ classdef LinspaceSelector < approx.selection.ASelector
         
         function copy = clone(this)
             copy = approx.selection.LinspaceSelector;
-            copy = clone@approx.selection.ASelector(this, copy);
+            %copy = clone@approx.selection.ASelector(this, copy);
             copy.Size = this.Size;
         end
         

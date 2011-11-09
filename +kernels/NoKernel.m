@@ -5,6 +5,12 @@ classdef NoKernel < kernels.BaseKernel & kernels.ARotationInvariant
     
     methods
         
+        function this = NoKernel
+            this = this@kernels.BaseKernel;
+            this = this@kernels.ARotationInvariant;
+            this.G = [];
+        end
+        
         function K = evaluate(this, x, y)%#ok
             K = 1;
         end

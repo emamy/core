@@ -37,7 +37,7 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
         % @propclass{optional} Different solvers should have different performance but should not
         % change the result. qpOASES so far is the fastest solver available in KerMor.
         %
-        % @default solvers.qp.qpOASES
+        % @default solvers.qp.qpMatlab
         % @type solvers.qp.BaseQPSolver
         QPSolver;
     end
@@ -50,6 +50,7 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
         
         function this = ScalarNuSVR
             this = this@general.regression.BaseScalarSVR;
+            this.QPSolver = solvers.qp.qpMatlab;
             this.registerProps('nu','QPSolver');
         end
         
@@ -90,7 +91,7 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             A = ones(1,2*m);
             
             % Starting point
-            if nargin < 3
+            if nargin < 3 || isempty(ainit)
                 ainit = ones(m,1)*this.C/m;
                 %ainit = [];
             end
@@ -106,7 +107,7 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             
             %% Convert results
             ai = T*p;
-            this.LastEpsilon = -d(end);
+            this.LastEpsilon = d(end);
         end
         
         function set.nu(this, value)
@@ -149,17 +150,17 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             
             svr = general.regression.ScalarNuSVR;
             svr.nu = .1;
-            svr.C = 50;
-            %svr.QPSolver = solvers.qp.qpMatlab;
+            svr.Lambda = 1/100;
+            svr.QPSolver = solvers.qp.qpMatlab;
             %svr.QPSolver = solvers.qp.qpMosek;
-            svr.QPSolver = solvers.qp.qpOASES;
+            %svr.QPSolver = solvers.qp.qpOASES;
             %kernel = kernels.PolyKernel(2);
             %kernel = kernels.LinearKernel;
             kernel = kernels.GaussKernel(1);
             svr.K = kernel.evaluate(x,x);
             
             figure(2);
-            [ai, svidx] = svr.computeKernelCoefficients(fx);
+            [ai, svidx] = svr.computeKernelCoefficients(fx, []);
             epsi = svr.LastEpsilon;
             plot(x,fx,'r',x,[fx-epsi; fx+epsi],'r--');
             
@@ -201,10 +202,10 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             
             svr = general.regression.ScalarNuSVR;
             svr.nu = 0.3;
-            svr.C = 10;
+            svr.Lambda = 1/20;
             kernel = kernels.GaussKernel(1);
             svr.K = kernel.evaluate(x,x);
-            [ai,svidx] = svr.computeKernelCoefficients(fx);
+            [ai,svidx] = svr.computeKernelCoefficients(fx,[]);
             epsi = svr.LastEpsilon;
             sv = x(:,svidx);
             svfun = @(x)ai'*kernel.evaluate(sv,x);
@@ -213,8 +214,8 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             esvr = general.regression.ScalarEpsSVR;
             esvr.eps = epsi;
             esvr.K = svr.K;
-            esvr.C = svr.C;
-            [eai,esvidx] = esvr.computeKernelCoefficients(fx);
+            esvr.Lambda = svr.Lambda;
+            [eai,esvidx] = esvr.computeKernelCoefficients(fx,[]);
             esv = x(:,esvidx);
             esvfun = @(x)eai'*kernel.evaluate(esv,x);
             
@@ -229,7 +230,7 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             plot(xp,fsvr,'b',xp,[fsvr-epsi; fsvr+epsi],'b--');
             skipped = setdiff(1:length(x),svidx);
             plot(sv(1,:),fx(svidx),'.r',xp(skipped),fx(skipped),'xr');
-            title(sprintf('nu = %f, b = %f, epsilon = %f, #SV = %d, C = %d',svr.nu,b,epsi,length(svidx),svr.C));
+            title(sprintf('nu = %f, epsilon = %f, #SV = %d, C = %d',svr.nu,epsi,length(svidx),svr.C));
             hold off;
             subplot(1,2,2);
             plot(xp,fx,'r');%,xp,[fx-eps; fx+eps],'r--');
@@ -237,10 +238,10 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             hold on;
             
             % Plot approximated function
-            plot(xp,efsvr,'b',xp,[efsvr-eeps; efsvr+eeps],'b--');
+            plot(xp,efsvr,'b',xp,[efsvr-epsi; efsvr+epsi],'b--');
             skipped = setdiff(1:length(x),esvidx);
             plot(esv(1,:),fx(esvidx),'.r',xp(skipped),fx(skipped),'xr');
-            title(sprintf('b = %f, epsilon = %f, #SV = %d, C = %d',eb,eeps,length(esvidx),esvr.C));
+            title(sprintf('epsilon = %f, #SV = %d, C = %d',epsi,length(esvidx),esvr.C));
             hold off;
             
             res = norm(fsvr-efsvr) < sqrt(eps);

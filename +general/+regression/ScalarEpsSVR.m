@@ -38,7 +38,7 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
         % @propclass{optional} Different solvers should have different performance but should not
         % change the result. qpOASES so far is the fastest solver available in KerMor.
         %
-        % @default solvers.qp.qpOASES
+        % @default solvers.qp.qpMatlab
         % @type solvers.qp.BaseQPSolver
         QPSolver;
     end
@@ -48,6 +48,7 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             % Default constructor. Calls superconstructor to initialize
             % properties
             this = this@general.regression.BaseScalarSVR;
+            this.QPSolver = solvers.qp.qpMatlab;
             this.registerProps('eps','QPSolver');
         end
         
@@ -127,7 +128,7 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             svr = general.regression.ScalarEpsSVR;
             %svr.eps = 0.073648;
             svr.eps = .1;
-            svr.C = 10;
+            svr.Lambda = 1/20;
             %svr.QPSolver.MaxIterations = 1000;
             svr.QPSolver = solvers.qp.qpMatlab;
             %svr.QPSolver = solvers.qp.qpMosek;
@@ -140,7 +141,7 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             figure;
             plot(x,fx,'r',x,[fx-svr.eps; fx+svr.eps],'r--');
             
-            [ai, svidx] = svr.computeKernelCoefficients(fx);
+            [ai, svidx] = svr.computeKernelCoefficients(fx, []);
             sv = x(:,svidx);
             svfun = @(x)ai'*(kernel.evaluate(x,sv)');
             

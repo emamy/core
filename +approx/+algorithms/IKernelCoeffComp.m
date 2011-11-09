@@ -37,7 +37,7 @@ classdef IKernelCoeffComp < handle
         % and every time the kernel matrix changes.
         %
         % Parameters:
-        % K: The Kernel matrix for the centers `x_i` @type data.AKernelMatrix
+        % K: The Kernel matrix for the centers `x_i` @type data.IKernelMatrix
         %
         % See also: computeKernelCoefficients
         init(this, K);

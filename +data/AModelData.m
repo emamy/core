@@ -4,6 +4,9 @@ classdef AModelData < handle
 %
 % @author Daniel Wirtz @date 2011-08-03
 %
+% @new{0,5,dw,2011-10-20} Added the AModelData.getBoundingBox method and
+% implementations in MemoryModelData and FileModelData.
+%
 % @new{0,5,dw,2011-08-03} 
 % - Added this class.
 % - Removed the field ApproxfValues and put it into a struct with
@@ -16,24 +19,25 @@ classdef AModelData < handle
 % - \c License @ref licensing
 
     properties
-        % A Model's parameter samples
+        % A Model's parameter samples as column vector collection
+        %
+        % @type matrix @default []
         ParamSamples = [];
         
         % Training data for the core function approximation.
         %
-        % This struct has the following fields:
-        % xi: The system's state variable `x_i=x(t_i)`.
-        % ti: The times `t_i`
-        % mui: The parameter values `\mu_i`
-        % fxi: The f evaluations `f(x_i)`. If subspace projection is used, this will equal
-        % `f(Vz_i)`.
-        ApproxTrainData = struct('xi',[],'ti',[],'mui',[],'fxi',[]);
+        % @type data.ApproxTrainData @default []
+        ApproxTrainData = [];
                 
         % The projection matrix `V` for the reduced subspace.
-        V;
+        %
+        % @type matrix @default []
+        V = [];
         
         % The V-biorthogonal matrix `W` for the reduced subspace (`W^tV=I_d`)
-        W;
+        %
+        % @type matrix @default []
+        W = [];
     end
     
     properties(Dependent)
@@ -84,6 +88,9 @@ classdef AModelData < handle
         
         % Clears all stored trajectory data.
         clearTrajectories(this);
+        
+        % Gets the bounding box of the state space of all trajectories.
+        [x,X] = getBoundingBox(this);
     end
     
     %% Getter & Setter
@@ -93,9 +100,8 @@ classdef AModelData < handle
         end
              
         function set.ApproxTrainData(this, value)
-            if ~isa(value, 'struct') || ~isfield(value,'xi') || ~isfield(value,'ti')...
-                    || ~isfield(value,'mui') || ~isfield(value,'fxi')
-                error('The property must be struct with the fields xi,ti,mui and fxi.');
+            if ~isa(value, 'data.ApproxTrainData')
+                error('The property must be a data.ApproxTrainData subclass.');
             end
             this.ApproxTrainData = value;
         end

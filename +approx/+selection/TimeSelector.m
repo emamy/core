@@ -1,8 +1,5 @@
 classdef TimeSelector < approx.selection.ASelector
-% TimeSelector: Approximation training data selection utilizing time
-% information
-%
-% '''THE USE OF THIS SELECTOR HAS BEEN DISABLED DUE TO A NEW MODEL DATA STRUCTURE.'''
+% TimeSelector: Approximation training data selection utilizing time information
 %
 % This algorithm searches for unique values of times in the training data and determines how many
 % samples for each time should be taken according to it's apperance in the training data. Due to
@@ -10,6 +7,9 @@ classdef TimeSelector < approx.selection.ASelector
 % linspaced elements are selected to fill up the MaxSize selection.
 %
 % @author Daniel Wirtz @date 2011-04-12
+%
+% @change{0,5,dw,2011-11-09} Re-enabled the use of this selector after adopting to new
+% data.ApproxTrainData structure.
 %
 % @change{0,5,dw,2011-08-04} Disabled the use of this selector, as the new data.AModelData structure
 % does not cater sensefully for this type of approximation training data selection.
@@ -51,21 +51,20 @@ classdef TimeSelector < approx.selection.ASelector
     
     methods
         function this = TimeSelector
-            error('Cannot use the TimeSelector any more. See help for details.');
-            this = this@approx.selection.ASelector;%#ok
+            this = this@approx.selection.ASelector;
             this.registerProps('Size','Seed');
         end
         
         function copy = clone(this)
             copy = approx.selection.TimeSelector;
-            copy = clone@approx.selection.ASelector(this, copy);
+            %copy = clone@approx.selection.ASelector(this, copy);
             copy.Size = this.Size;
             copy.Seed = this.Seed;
         end
     end
     
     methods(Access=protected,Sealed)
-        function [xi, ti, mui] = select(this, model)%#ok
+        function [xi, ti, mui] = select(this, model)
             % Performs selection of samples adjusted to the apperances of different times.
             %
             % Parameters:
@@ -79,17 +78,27 @@ classdef TimeSelector < approx.selection.ASelector
             %
             % @todo Adopt to current KerMor model data structure.
             
-            error('Not yet adopted to the current KerMor ModelData structure');
-            sn = model.Data.TrainingData;%#ok
+            % Build sn array similar to old one
+            d = model.Data;
+            tn = d.getNumTrajectories;
+            tlen = length(model.Times);
+            [x, mu] = d.getTrajectoryNr(1);
+            xdim = size(x,1);
+            sn = zeros(xdim+1+size(mu,2),tlen*tn);
+            for i=1:tn
+                [x, mu] = d.getTrajectoryNr(i);
+                sn(:,1+(i-1)*tlen:i*tlen) = [model.Times; x; mu(:,ones(1,tlen))];
+            end
+            
             if (size(sn,2) > this.Size)
-                times = unique(sn(3,:));
+                times = unique(sn(1,:));
                 tcnt = length(times);
                 occ = cell(1,tcnt);
                 num = zeros(1,tcnt);
                 
                 % Collect time apperances
                 for idx=1:tcnt
-                    occ{idx} = find(sn(3,:) == times(idx));
+                    occ{idx} = find(sn(1,:) == times(idx));
                     num(idx) = length(occ{idx});
                 end
                 num = round((this.Size/sum(num)) * num);
@@ -108,11 +117,14 @@ classdef TimeSelector < approx.selection.ASelector
                 addidx = round(linspace(1,length(left),this.Size-length(selection)));
                 selection = sort([selection left(addidx)]);
                 atd = sn(:,selection);
-                this.LastUsed = selection;
             else
                 atd = sn;
-                this.LastUsed = 1:size(sn,2);
             end
+            
+            % Transform atd back
+            ti = atd(1,:);
+            xi = atd(2:xdim+1,:);
+            mui = atd(xdim+2:end,:);
         end
     end
     

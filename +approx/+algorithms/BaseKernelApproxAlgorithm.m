@@ -1,23 +1,29 @@
-classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable
-    % BaseKernelApproxAlgorithm: Base class for any approximation generation algorithms for kernel
-    % expansions,
-    %
-    % @author Daniel Wirtz @date 2011-07-07
-    %
-    % @change{0,5,dw,2011-10-14} Improved the parallel computation of
-    % kernel expansion coefficients.
-    %
-    % @change{0,5,dw,2011-09-12} Added initial values that can be passed to
-    % the CoeffComp algorithms. Now computing coefficients at once if
-    % MultiTargetComputation of the CoeffComp property is true.
-    %
-    % @new{0,5,dw,2011-07-07} Added this class.
-    %
-    % This class is part of the framework
-    % KerMor - Model Order Reduction using Kernels:
-    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
-    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
-    % - \c License @ref licensing
+classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable & ICloneable
+% BaseKernelApproxAlgorithm: Base class for any approximation generation algorithms for kernel
+% expansions,
+%
+% @author Daniel Wirtz @date 2011-07-07
+%
+% @change{0,5,dw,2011-11-02} 
+% - New interface for approximation computation: Passing an data.ApproxTrainData instance now
+% instead of 'xi,ti,mui' parameters.
+% - New default value 'false' for the UsefScaling property; recent experiments suggested 'true'
+% might not be a wise default value but an extra source of errors.
+%
+% @change{0,5,dw,2011-10-14} Improved the parallel computation of
+% kernel expansion coefficients.
+%
+% @change{0,5,dw,2011-09-12} Added initial values that can be passed to
+% the CoeffComp algorithms. Now computing coefficients at once if
+% MultiTargetComputation of the CoeffComp property is true.
+%
+% @new{0,5,dw,2011-07-07} Added this class.
+%
+% This class is part of the framework
+% KerMor - Model Order Reduction using Kernels:
+% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+% - \c License @ref licensing
     
     properties(SetObservable)
         % An instance of a class implementing the approx.algorithms.IKernelCoeffComp
@@ -38,8 +44,8 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable
         % @propclass{optional} This option makes sense when using univariate rotation-invariant
         % kernels as different dimensions might have different scales
         %
-        % @default true
-        UsefScaling = true;
+        % @default false
+        UsefScaling = false;
     end
     
     methods
@@ -51,23 +57,30 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable
             this.registerProps('CoeffComp','UsefScaling');
         end
         
+        function copy = clone(this, copy)
+            copy.CoeffComp = this.CoeffComp; % Dont clone the coefficient computation method
+            copy.UsefScaling = this.UsefScaling;
+        end
         
-        function computeApproximation(this, kexp, xi, ti, mui, fxi)
+        
+        function computeApproximation(this, kexp, atd)
             
             % Scale f-values if wanted
             if this.UsefScaling
-                [fm,fM] = general.Utils.getBoundingBox(fxi);
+                [fm,fM] = general.Utils.getBoundingBox(atd.fxi);
                 s = max(abs(fm),abs(fM));
                 s(s==0) = 1;
-                fxi = fxi ./ repmat(s,1,size(fxi,2));
+                oldfxi = atd.fxi;
+                atd.fxi = atd.fxi ./ repmat(s,1,size(atd.fxi,2));
             end
             
             % Call template method for component wise approximation
-            this.detailedComputeApproximation(kexp, xi, ti, mui, fxi);
+            this.detailedComputeApproximation(kexp, atd);
             
             % Rescale if set
             if this.UsefScaling
                 kexp.Ma = diag(s)*kexp.Ma;
+                atd.fxi = oldfxi;
             end
             
             % Reduce the snapshot array and coeff data to the
@@ -195,7 +208,7 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable
         % Performs the actual approximation after scaling.
         %
         % Template method.
-        detailedComputeApproximation(this, kexp, xi, ti, mui, fxi);
+        detailedComputeApproximation(this, kexp, atd);
     end
     
 end

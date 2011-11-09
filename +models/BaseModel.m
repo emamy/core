@@ -1,63 +1,66 @@
 classdef BaseModel < KerMorObject
-    % Base class for both full and reduced models.
-    %
-    % This class gathers all common functionalities of models in the
-    % KerMor framework.
-    % The most important method would be @code [t,y] =
-    % simulate(mu,inputidx) @endcode which computes the system's solution
-    % for given `\mu` and input number (if applicable).  Also a plot
-    % wrapper is provided that refers to the plotting methods within the
-    % model's system.
-    %
-    % @author Daniel Wirtz @date 19.03.2010
-    %
-    % @change{0,5,dw,2011-10-14} Removed the TimeDirty flag as it wasnt
-    % used properly/at all.
-    %
-    % @change{0,5,dw,2011-09-29}
-    % - New flag-field RealTimePlotting that calls the new plotSingle
-    % method in order to display the system as it is simulated.
-    % - Made ODESolver dependent to implement connection to
-    % RealTimePlotting.
-    % - New double field RealTimePlottingMinPause to enable timely display
-    % of in-simulation states.
-    %
-    % @change{0,3,sa,2011-05-10} Implemented setters for the rest of the
-    % properties
-    %
-    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
-    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
-    % extended constructor registering any user-relevant properties using
-    % KerMorObject.registerProps.
-    % 
-    % @change{0,3,dw,2011-04-15} Added a dependent GScaled property that returns the norm-inducing
-    % matrix G scaled with the current System.StateScaling property.
-    %
-    % @change{0,3,dw,2011-04-05} 
-    % - Removed the getConfigStr-Method and moved it to
-    % general.Utils.getObjectConfig
-    % - Added a setter for System checking for self-references
-    %
-    % @new{0,2,dw,2011-03-08} Implemented time scaling via addition of the
-    % property models.BaseModel.tau and dependent attributes
-    % models.BaseModel.dtscaled and models.BaseModel.Tscaled. This
-    % way model data can be entered in original units and the
-    % system calculates with the scaled time values. The main change is in
-    % @ref models.BaseModel.computeTrajectory where the ODE solver is
-    % called with the scaled time steps and the resulting timesteps are
-    % re-scaled to their original unit.
-    %
-    % @change{0,1,dw} Generalized scalar product via `<x,y>_G = x^tGy`,
-    % default `I_d` for `d\in\N`
-    %
-    % @new{0,1,dw} String output of all model settings via method
-    % getObjectConfig
-    %
-    % This class is part of the framework
-    % KerMor - Model Order Reduction using Kernels:
-    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
-    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
-    % - \c License @ref licensing    
+% BaseModel: Base class for both full and reduced models.
+%
+% This class gathers all common functionalities of models in the
+% KerMor framework.
+% The most important method would be @code [t,y] =
+% simulate(mu,inputidx) @endcode which computes the system's solution
+% for given `\mu` and input number (if applicable).  Also a plot
+% wrapper is provided that refers to the plotting methods within the
+% model's system.
+%
+% @author Daniel Wirtz @date 19.03.2010
+%
+% @change{0,5,dw,2011-11-02} Modified the set.ODESolver method so that the MaxTimestep value is
+% set to empty if implicit solvers are used. If again an explicit solver is used, a warning is
+% issued if the models.BaseDynSystem.MaxTimestep value of the corresponding System is empty.
+%
+% @change{0,5,dw,2011-10-14} Removed the TimeDirty flag as it wasnt used properly/at all.
+%
+% @change{0,5,dw,2011-09-29}
+% - New flag-field RealTimePlotting that calls the new plotSingle
+% method in order to display the system as it is simulated.
+% - Made ODESolver dependent to implement connection to
+% RealTimePlotting.
+% - New double field RealTimePlottingMinPause to enable timely display
+% of in-simulation states.
+%
+% @change{0,3,sa,2011-05-10} Implemented setters for the rest of the
+% properties
+%
+% @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+% supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+% extended constructor registering any user-relevant properties using
+% KerMorObject.registerProps.
+% 
+% @change{0,3,dw,2011-04-15} Added a dependent GScaled property that returns the norm-inducing
+% matrix G scaled with the current System.StateScaling property.
+%
+% @change{0,3,dw,2011-04-05} 
+% - Removed the getConfigStr-Method and moved it to
+% general.Utils.getObjectConfig
+% - Added a setter for System checking for self-references
+%
+% @new{0,2,dw,2011-03-08} Implemented time scaling via addition of the
+% property models.BaseModel.tau and dependent attributes
+% models.BaseModel.dtscaled and models.BaseModel.Tscaled. This
+% way model data can be entered in original units and the
+% system calculates with the scaled time values. The main change is in
+% @ref models.BaseModel.computeTrajectory where the ODE solver is
+% called with the scaled time steps and the resulting timesteps are
+% re-scaled to their original unit.
+%
+% @change{0,1,dw} Generalized scalar product via `<x,y>_G = x^tGy`,
+% default `I_d` for `d\in\N`
+%
+% @new{0,1,dw} String output of all model settings via method
+% getObjectConfig
+%
+% This class is part of the framework
+% KerMor - Model Order Reduction using Kernels:
+% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+% - \c License @ref licensing    
     
     properties(SetObservable)
         % The actual dynamical system used in the model.
@@ -484,6 +487,17 @@ classdef BaseModel < KerMorObject
                     delete(this.steplistener);
                 end
                 this.steplistener = value.addlistener('StepPerformed',@this.plotstep);
+            end
+            % Disable the MaxTimestep value if an implicit solver is used.
+            if ~isempty(this.System) 
+                if isa(value,'solvers.ode.BaseImplSolver')
+                    if ~isempty(this.System.MaxTimestep)
+                        fprintf('BaseModel: Disabling system''s MaxTimestep due to use of an implicit solver.\n');
+                    end
+                    this.System.MaxTimestep = [];
+                elseif isempty(this.System.MaxTimestep)
+                    warning('KerMor:BaseModel','Attention: Setting an explicit solver for a system without MaxTimestep set. Please check.');
+                end
             end
             this.fODEs = value;
         end

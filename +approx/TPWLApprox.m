@@ -161,6 +161,7 @@ classdef TPWLApprox < approx.BaseApprox
             % Implements BaseApprox abstract template method
             %
             % @todo create sparse matrices if suitable!
+            % @todo update to new approximation interface
             
             atd = model.Data.ApproxTrainData;
             this.xi = atd(4:end,:);

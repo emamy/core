@@ -116,13 +116,31 @@ classdef KernelExpansion < KerMorObject & ICloneable & ...
             this.registerProps('Kernel','Centers');
         end
         
-        function fx = evaluate(this, x)
+        function fx = evaluate(this, x, varargin)
+            % Evaluates the kernel expansion.
+            %
+            % Parameters:
+            % x: The state space vector(s) to evaluate at @type matrix
+            % varargin: Dummy variable to also allow calls to this class
+            % with `t_i,\mu_i` parameters as in ParamTimeKernelExpansion.
+            %
+            % Return values:
+            % fxi: The evaluation `f(x) = \sumi c_i \Phi(x,x_i)`
+            
             %fx = this.Ma * this.fSK.evaluate(x, this.Centers.xi)';
             fx = this.Ma * this.getKernelVector(x)';
         end
         
-        function phi = getKernelVector(this, x)
-            % Returns the kernel vector `\varphi(x) = (\Phi(x,x_i))_i`.
+        function phi = getKernelVector(this, x, varargin)
+            % Evaluates the kernel expansion.
+            %
+            % Parameters:
+            % x: The state space vector(s) to evaluate at @type matrix
+            % varargin: Dummy variable to also allow calls to this class
+            % with `t_i,\mu_i` parameters as in ParamTimeKernelExpansion.
+            %
+            % Return values:
+            % phi: The kernel vector `\varphi(x) =\left(\Phi(x,x_i)\right)_{i}`.
             phi = this.fSK.evaluate(x, this.Centers.xi);
         end
                 
@@ -210,7 +228,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & ...
         function updateRotInv(this)
             % Updates the RotationInvariant property of this CoreFun by
             % checking all registered kernels.
-            this.RotationInvariant = isa(this.fSK,'kernels.IRotationInvariant');
+            this.RotationInvariant = isa(this.fSK,'kernels.ARotationInvariant');
         end
     end
     

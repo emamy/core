@@ -53,7 +53,7 @@ classdef BaseApprox < dscomponents.ACoreFun
     
     methods
         function set.TrainDataSelector(this, value)
-            this.checkType(value, 'approx.selection.ASelector');%#ok
+            this.checkType(value, 'approx.selection.ASelector');
             this.TrainDataSelector = value;
         end
         
@@ -97,7 +97,8 @@ classdef BaseApprox < dscomponents.ACoreFun
             kexp = approx.KernelApprox;
             x = rand(ts.testdim, samples);
             t = 1:size(x,2);
-            fx = ts.fnlin(x,repmat(1:samples,ts.testdim,1));
+            atd = data.ApproxTrainData(x, t, []);
+            atd.fxi = ts.fnlin(x,repmat(1:samples,ts.testdim,1));
 
             pr = spacereduction.PODReducer;
             pr.Value = 2;
@@ -111,7 +112,7 @@ classdef BaseApprox < dscomponents.ACoreFun
                     mc = metaclass(app);
                     name = mc.Name;
                     cprintf(testing.MUnit.GreenCol,['Testing ' name '...\n']);
-                    app.computeApproximation(kexp, x, t, [], fx);
+                    app.computeApproximation(kexp, atd);
                     b{idx} = kexp.project(v,v);
                     
                     ifxfull = kexp.evaluate(x,t,[]);

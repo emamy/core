@@ -10,6 +10,9 @@ classdef ASelector < KerMorObject & ICloneable
     %
     % @author Daniel Wirtz @date 2011-04-12
     %
+    % @change{0,5,dw,2011-11-09} Changed the return type of selectTrainingData to an instance
+    % of data.ApproxTrainData (not having the fxi property set yet)
+    %
     % @new{0,5,dw,2011-08-04} Removed the LastUsed property as it is incompatible with the new
     % data.AModelData structure (the approximation training data is not a subset of TrainingData
     % anymore). Subclasses have been changed in order to adopt to the new structure, too.
@@ -28,10 +31,6 @@ classdef ASelector < KerMorObject & ICloneable
             this = this@KerMorObject;
         end
         
-        function copy = clone(this, copy)
-            copy = clone@KerMorObject(this, copy);
-        end
-        
         function atd = selectTrainingData(this, model)
             % Performs the selection procedure
             %
@@ -43,18 +42,15 @@ classdef ASelector < KerMorObject & ICloneable
             % training data in its Data property.
             %
             % Return values:
-            % atd: The approximation training data
+            % atd: The approximation training data @type data.ApproxTrainData
             if ~isa(model,'models.BaseFullModel')
                 error('The model parameter must be a BaseFullModel subclass.');
             elseif model.Data.getNumTrajectories == 0
                 error('No training data available to select approximation training data from.');
             end
             
-            atd = model.Data.ApproxTrainData;
             [xi, ti, mui] = this.select(model);
-            atd.xi = xi;
-            atd.ti = ti;
-            atd.mui = mui;
+            atd = data.ApproxTrainData(xi, ti, mui);
         end
     end
     

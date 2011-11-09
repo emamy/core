@@ -9,8 +9,19 @@ classdef KerMor < handle
     %
     % @author Daniel Wirtz @date 2011-03-04
     %
+    % @change{0,5,dw,2011-11-08}
+    % - Renamed "install" to "setup".
+    % - Removed the initDirectories method and moved them to the setup.
+    % - Upon subsequent calls to setup, KerMor asks if to keep previously set values for
+    % rbmatlab of JKerMor paths.
+    %
+    % @change{0,5,dw,2011-11-08} Changed the name of the install method to
+    % setup and refactored the setup routine. Now using the new mtoc++
+    % MatlabDocMaker and running setup again does propose previously set
+    % values as first guess.
+    %
     % @change{0,5,dw,2011-10-13} Moved all documentation related stuff to
-    % an own class @ref Documentation.
+    % an own class @ref MatlabDocMaker.
     %
     % @new{0,5,dw,2011-08-04} Added flag UseDPCS to switch the default property changed system
     % on/off.
@@ -98,6 +109,8 @@ classdef KerMor < handle
     % -> book scattered data approx
     %
     % @todo: fft-approximation (?)
+    %
+    % @todo: use new matlab classes possibilities!
     %
     % @todo: Kern mit `\Phi(x,y) = (1-||x-y||_2)_+` oder so
     %
@@ -194,6 +207,10 @@ classdef KerMor < handle
     %
     % @todo Store distance matrix for centers (with rotation invariant kernels) and only update
     % kernel matrix from that during iterations! saves a lot of computation time.
+    %
+    % @todo 
+    % - sort demos and +testing directories
+    % - sort out "groups" in documentation, probably remove them?
     
     properties(Constant)
         % The current KerMor main version number
@@ -382,7 +399,7 @@ classdef KerMor < handle
                 if ~isdir(value)
                     error('Invalid directory: %s',value);
                 end
-                chk = fullfile(value,['kermor' Filesep 'java' Filesep 'ReducedModel.java']);
+                chk = fullfile(value,['kermor' filesep 'java' filesep 'ReducedModel.java']);
                 if ~exist(chk,'file')
                     error('Invalid JKerMor directory (no ReducedModel.java found): %s',value);
                 end
@@ -568,7 +585,6 @@ classdef KerMor < handle
                 set(0,'DefaultFigurePosition',this.DefaultFigurePosition);
             end
             
-            initDirectories;
             init3rdparty;            
             initParallelization;
             
@@ -583,32 +599,6 @@ classdef KerMor < handle
             end
             
             disp('<<<<<<<<< Ready to go. >>>>>>>>>>');
-            
-            function initDirectories
-                % Setup the data storage directory
-                ds = this.DataStoreDirectory;
-                if isempty(ds)
-                    ds = input(['Please specify the KerMor data file directory.\n'...
-                        'Leaving it empty creates a new "data" folder within the KerMor home directory.\n'...
-                        'Absolute path: '],'s');
-                    if isempty(ds)
-                        ds = fullfile(this.HomeDirectory,'data');
-                    end
-                    this.DataStoreDirectory = ds;
-                end
-                
-                % Setup the data storage directory
-                tmp = this.TempDirectory;
-                if isempty(tmp)
-                    tmp = input(['Please specify the KerMor temporary data file directory.\n'...
-                        'Leaving it empty creates a new "temp" folder within the KerMor home directory.\n'...
-                        'Absolute path: '],'s');
-                    if isempty(tmp)
-                        tmp = fullfile(this.HomeDirectory,'temp');
-                    end
-                    this.TempDirectory = tmp;
-                end
-            end
             
             function init3rdparty
                 % Checks for 3rd party software availability
@@ -711,7 +701,7 @@ classdef KerMor < handle
             theinstance = instance;
         end
         
-        function install
+        function setup
             % Performs installation of KerMor on a system
             %
             % Adds variables to the users environment, so far only needed
@@ -725,12 +715,53 @@ classdef KerMor < handle
             % See also: installUnix installWindows
             disp('<<<<<<<<<< Welcome to the KerMor install script. >>>>>>>>>>');
             
-            %% Operation-system dependent actions
-            if isunix
-                KerMor.installUnix;
-            elseif ispc
-                KerMor.installWindows;
+            a = KerMor.App;
+            %% KerMor directories
+            % Setup the data storage directory
+            ds = a.DataStoreDirectory;
+            word = 'keep';
+            if isempty(ds)
+                ds = fullfile(a.HomeDirectory,'data');
+                word = 'set';
             end
+            str = sprintf('Do you want to %s %s as your KerMor data file directory? Choosing "No" opens a directory selection dialog.\n(Y)es/(N)o?: ',word,ds);
+            ds = lower(input(str,'s'));
+            if isequal(ds,'n')
+                d = uigetdir(ds,'Please specify the KerMor data file directory');
+                if d == 0
+                    error('No KerMor data file directory specified. Aborting setup.');
+                end
+                ds = d;
+            end
+            a.DataStoreDirectory = ds;
+
+            % Setup the temp directory
+            ds = a.TempDirectory;
+            word = 'keep';
+            if isempty(ds)
+                ds = fullfile(a.HomeDirectory,'data');
+                word = 'set';
+            end
+            str = sprintf('Do you want to %s %s as your KerMor temporary file directory? Choosing "No" opens a directory selection dialog.\n(Y)es/(N)o?: ',word,ds);
+            ds = lower(input(str,'s'));
+            if isequal(ds,'n')
+                d = uigetdir(ds,'Please specify the KerMor temporary file directory');
+                if d == 0
+                    error('No KerMor temporary file directory specified. Aborting setup.');
+                end
+                ds = d;
+            end
+            a.TempDirectory = ds;
+            
+            %% Call setup for documentation creation
+            MatlabDocMaker.setup;
+            
+%             %% Operation-system dependent actions
+%             if isunix
+%                 KerMor.installUnix;
+%             elseif ispc
+%                 KerMor.installWindows;
+%             end
             
             %% Setup KerMor development
             if isempty(getpref('KERMOR_DEVEL','author',''))
@@ -753,41 +784,43 @@ classdef KerMor < handle
             end
             
             %% Optional: rbmatlab
-            a = KerMor.App;
-            if isempty(a.rbmatlabDirectory)
-                str = sprintf(['Do you want to register a local rbmatlab '...
-                    ' version with KerMor?\n(Y)es/(N)o: ']);
-                ds = lower(input(str,'s'));
-                if isequal(ds,'y')
-                    d = uigetdir(pwd,'Please select the rbmatlab source root folder.');
-                    if d ~= 0
-                        try
-                            a.rbmatlabDirectory = d;
-                        catch ME
-                            disp('Setting the rbmatlab directory failed:');
-                            disp(getReport(ME, 'basic'));
-                            disp('You can still connect to rbmatlab later by setting the KerMor.rbmatlabDirectory property.');
-                        end
-                    end
+            rbmat = a.rbmatlabDirectory;
+            if ~isempty(rbmat)
+                str = sprintf('Do you want to keep the local rbmatlab version at %s with KerMor?\n(Y)es/(N)o: ',rbmat);
+                resp = 'n';
+            else
+                str = sprintf('Do you want to register a local rbmatlab version with KerMor?\n(Y)es/(N)o: ');
+                resp = 'y';
+            end
+            ds = lower(input(str,'s'));
+            if isequal(ds,resp)
+                rbmat = uigetdir(pwd,'Please select the rbmatlab source root folder.');
+                if rbmat == 0
+                    warning('KerMor:setup',['No rbmatlab directory specified. Continuing witout using rbmatlab.\n'...
+                        'You can still register a local version of rbmatlab by setting the KerMor.App.rbmatlabDirectory manually.']);
+                else
+                    a.rbmatlabDirectory = rbmat;
                 end
             end
             
+            
             %% Optional: JKerMor
-            if isempty(a.JKerMorSourceDirectory)
-                str = sprintf(['Do you want to register a local JKerMor '...
-                    ' version with KerMor?\n(Y)es/(N)o: ']);
-                ds = lower(input(str,'s'));
-                if isequal(ds,'y')
-                    d = uigetdir(pwd,'Please select the JKerMor source root folder.');
-                    if d ~= 0
-                        try
-                            a.JKerMorSourceDirectory = d;
-                        catch ME
-                            disp('Setting the JKerMor directory failed:');
-                            disp(getReport(ME, 'basic'));
-                            disp('You can still connect to JKerMor later by setting the KerMor.JKerMorSourceDirectory property.');
-                        end
-                    end
+            jk = a.JKerMorSourceDirectory;
+            if ~isempty(jk)
+                str = sprintf('Do you want to keep the local JKerMor version at %s with KerMor?\n(Y)es/(N)o: ',jk);
+                resp = 'n';
+            else
+                str = sprintf('Do you want to register a local JKerMor version with KerMor?\n(Y)es/(N)o: ');
+                resp = 'y';
+            end
+            ds = lower(input(str,'s'));
+            if isequal(ds,resp)
+                jk = uigetdir(pwd,'Please select the JKerMor source root folder.');
+                if jk == 0
+                    warning('KerMor:setup',['No JKerMor directory specified. Continuing witout using JKerMor.\n'...
+                        'You can still register a local version of JKerMor by setting the KerMor.App.JKerMorSourceDirectory manually.']);
+                else
+                    a.JKerMorSourceDirectory = jk;
                 end
             end
             disp('<<<<<<<<<< Setup complete. You can now start KerMor by running "KerMor.start;". >>>>>>>>>>');
@@ -819,53 +852,36 @@ classdef KerMor < handle
             % if in use.
             KerMor.App.shutdown;
         end
+        
+        function d = DocumentationLocation
+            % Returns the location of the kermor documentation.
+            %
+            % Looks up the MatlabDocMaker.getOutputDirectory value and
+            % returns the default online documentation URL if no value is
+            % set.
+            %
+            % Return values:
+            % d: The docs directory @type char
+            d = MatlabDocMaker.getOutputDirectory;
+            if isempty(d) || ~exist(fullfile(d,'index.html'),'file')
+                d = 'http://www.agh.ians.uni-stuttgart.de/documentation/kermor';
+            end
+        end
     end
     
-    methods(Static, Access=private) 
-        function installUnix
-            % Install script for unix systems
-            %
-            % Adds kermor specific variables to the user's environment by
-            % inserting them into the ~/.bashrc file.
-            %
-            % @note If you run this install script more than once, old path
-            % variables will be overwritten (as multiple entries will
-            % appear in the .bashrc file)
-            %
-            % The custom variable names are
-            % - 'KERMOR_SOURCE' The source directory
-            % - 'KERMOR_DOCS' The documentation output directory
-            % - 'KERMOR_DOXYBIN' Path to the doxygen binary (autodetect)
-            % The last two are being inserted inside the
-            % Documentation.setup function.
-            %
-            % @todo compile any mex files!
-            
-            h = fileparts(which('KerMor'));
-            fid = fopen('~/.bashrc','a+');
-            fprintf(fid,'\n# KerMor environment variables (added by KerMor.install script on %s)\n',date);
-            fprintf(fid,'export KERMOR_SOURCE="%s"\n',h);
-            % Set in running environment (until restart)
-            setenv('KERMOR_SOURCE',h);
-            fclose(fid);
-            
-            Documentation.setup;
-
-            % Reload terminal bashrc
-            system('. ~/.bashrc');
-        end
+%     methods(Static, Access=private) 
+%         function installUnix
+%             % Install script for unix systems
+%             %
+%             % @todo compile any mex files!
+%         end
         
-        function installWindows
-            % Installation script for Microsoft Windows based systems.
-            %
-            % Not yet implemented/necessary (docs make-script is linux only!)
-            %
-            % @todo
-            % - Install script for Windows
-            % - Create batch file for documentation creation on windows
-            error('Installation routine not yet implemented.\nPlease refer to the KerMor documentation at http://www.agh.ians.uni-stuttgart.de/documentation/kermor for help.');
-        end
-    end
+%         function installWindows
+%             % Installation script for Microsoft Windows based systems.
+%             %
+%             error('Installation routine not yet implemented.\nPlease refer to the KerMor documentation at http://www.agh.ians.uni-stuttgart.de/documentation/kermor for help.');
+%         end
+%     end
     
     methods(Access=private)
         function this = KerMor

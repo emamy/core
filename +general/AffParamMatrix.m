@@ -27,7 +27,7 @@ classdef AffParamMatrix < ICloneable
         
         % The matrices for the affine function
         % @propclass{critical}
-        Matrices = double.empty(0,0,0);
+        Matrices = {};
     end
     
     properties(Access=private)
@@ -46,10 +46,25 @@ classdef AffParamMatrix < ICloneable
             % mu: The current parameter vector `\mu`
             %
             % Return values:
-            % M: The sum `M(t,\mu) = \sum\limits_{i=0}^Q \theta_i(t,\mu)A_i`
-            co = repmat(reshape(this.cfun(t,mu),1,1,[]),size(this.Matrices,1),size(this.Matrices,2));
-            M = sum(co .* this.Matrices, 3);
+            % M: The sum `M(t,\mu) = \sum\limits_{i=0}^Q\theta_i(t,\mu)A_i`
+            if this.N == 0
+                M = [];
+                return;
+            end
+            c = this.cfun(t,mu);
+            M = c(1) * this.Matrices{1};
+            for i=2:this.N
+                M = M + c(i) * this.Matrices{i};
+            end
         end
+        
+%         function varargout = subsref(this, S)
+%             if S(1).type(1) == '('
+%                 varargout{1} = this.compose(S.subs{1},S.subs{2});
+%             else
+%                 [varargout{1:nargout}] = builtin('subsref',this,S);
+%             end
+%         end
                 
         function copy = clone(this, copy)
             % Creates a copy of this affine parametric matrix.
@@ -83,7 +98,7 @@ classdef AffParamMatrix < ICloneable
             this.funStr{end+1} = coeff_fun;
             %this.Coefficients{end+1} = coeff_fun;
             
-            this.Matrices(:,:,end+1) = mat;
+            this.Matrices{end+1} = mat;
             
             % Create the coefficient function
             this.buildCoeffFun;
@@ -93,30 +108,26 @@ classdef AffParamMatrix < ICloneable
             % Implements the default multiplication method.
             if isa(A,'general.AffParamMatrix') && isa(B,'general.AffParamMatrix')
                 prod = general.AffParamMatrix;
+                prod.N = A.N * B.N;
+                prod.Matrices = cell(1,prod.N);
                 for i = 1:A.N
                     % Add self-mixed terms
                     for j = 1:B.N
-                        prod.Matrices(:,:,end+1) = A.Matrices(:,:,i) * B.Matrices(:,:,j);
+                        prod.Matrices{(i-1)*B.N + j} = A.Matrices{i} * B.Matrices{j};
                         prod.funStr{end+1} = ['(' A.funStr{i} ')*(' B.funStr{j} ')'];
                     end
                 end
-                prod.N = A.N * B.N;
+                
                 prod.buildCoeffFun;
             elseif isa(A,'general.AffParamMatrix')
                 prod = A.clone;
-                if ~isscalar(B)
-                    prod.Matrices = zeros(size(A.Matrices,1),size(B,2),A.N);
-                end
                 for i=1:A.N
-                    prod.Matrices(:,:,i) = A.Matrices(:,:,i) * B;
+                    prod.Matrices{i} = A.Matrices{i} * B;
                 end 
             elseif isa(B,'general.AffParamMatrix')
                 prod = B.clone;
-                if ~isscalar(A)
-                    prod.Matrices = zeros(size(A,1),size(B.Matrices,2),B.N);
-                end
                 for i=1:B.N
-                    prod.Matrices(:,:,i) = A * B.Matrices(:,:,i);
+                    prod.Matrices{i} = A * B.Matrices{i};
                 end 
             end
         end
@@ -131,7 +142,7 @@ classdef AffParamMatrix < ICloneable
                 if A.N == B.N && all(strcmp(A.funStr,B.funStr))
                     diff = A.clone;
                     for i = 1:A.N
-                        diff.Matrices(:,:,i) = A.Matrices(:,:,i) - B.Matrices(:,:,i);
+                        diff.Matrices{i} = A.Matrices{i} - B.Matrices{i};
                     end
                 else
                     error('If two AffParamMatrices are subtracted, the number of elements must be the same and the coefficient functions must match.');
@@ -139,12 +150,12 @@ classdef AffParamMatrix < ICloneable
             elseif isa(A,'general.AffParamMatrix')
                 prod = A.clone;
                 for i=1:A.N
-                    prod.Matrices(:,:,i) = A.Matrices(:,:,i) - B;
+                    prod.Matrices{i} = A.Matrices{i} - B;
                 end 
             elseif isa(B,'general.AffParamMatrix')
                 prod = B.clone;
                 for i=1:B.N
-                    prod.Matrices(:,:,i) = A - B.Matrices(:,:,i);
+                    prod.Matrices{i} = A - B.Matrices{i};
                 end 
             end
         end
@@ -152,9 +163,8 @@ classdef AffParamMatrix < ICloneable
         function transp = ctranspose(this)
             % Implements the transposition for affine parametric matrices.
             transp = this.clone;
-            transp.Matrices = [];
             for i=1:this.N
-                transp.Matrices(:,:,i) = this.Matrices(:,:,i)';
+                transp.Matrices{i} = this.Matrices{i}';
             end
         end
         

@@ -83,13 +83,13 @@ classdef CombinationKernel < kernels.BaseKernel
             svr = general.regression.ScalarEpsSVR;
             svr.QPSolver = solvers.qp.qpMatlab;
             svr.eps = .3;
-            svr.C = 2;
+            svr.Lambda = 1/4;
             svr.K = k.evaluate(x,x);
             
             figure(1);
             plot(x,fx,'r',x,[fx-svr.eps; fx+svr.eps],'r--');
             
-            [ai,svidx] = svr.computeKernelCoefficients(fx);
+            [ai,svidx] = svr.computeKernelCoefficients(fx,[]);
             sv = x(svidx);
             svfun = @(x)ai' * k.evaluate(sv,x);
             

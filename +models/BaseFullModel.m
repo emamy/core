@@ -1,69 +1,73 @@
 classdef BaseFullModel < models.BaseModel & IParallelizable
-    % The base class for any KerMor detailed model
-    %
-    % Implementers of custom models are to inherit from this base class
-    % in order for it to work with KerMor.
-    % For custom models, the properties of this class (combined with
-    % those from BaseModel) can be set to influence the model behaviour
-    % and reduction methods.
-    % For the implementation of custom dynamical systems, refer to
-    % BaseDynSystem.
-    %
-    % Setting default values for properties that are handle classes will have the negative
-    % side-effect of having each instance of BaseFullModel initialized with the SAME instance of the
-    % Sampler, Approx etc. instances which of course is NOT desireable.
-    % See http://www.mathworks.com/access/helpdesk/help/techdoc/matlab_oop/bsdtcz7.html#bsdu1g9-1
-    % for details.
-    %
-    % @todo build in time-tracking for offline phase etc
-    %
-    % See also: models BaseModel BaseDynSystem
-    %
-    % @author Daniel Wirtz @date 16.03.2010
-    %
-    % @change{0,5,dw,2011-10-16} Fixed the parallel computation of
-    % BaseFullModel.off2_genTrainingData so that it also works with
-    % data.FileModelData (parallel execution did not sync the hashmaps, now
-    % running data.FileModelData.consolidate fixes this)
-    %
-    % @change{0,5,dw,2011-08-04} Adopted the off2_genTrainingData method to the new data.AModelData
-    % structure. Now all trajectories are stored either in memory or disk, and the data.AModelData
-    % classes take care of storage.
-    %
-    % @new{0,4,dw,2011-05-31} Added the models.BaseFullModel.OfflinePhaseTimes property.
-    %
-    % @change{0,4,sa,2011-05-11} Implemented setters for the
-    % preApproximationTrainingCallback and
-    % postApproximationTrainingCallback
-    %
-    % @new{0,4,dw,2011-05-06} Small improvements to the DPCS, the correct links to the properties
-    % defining classes are now used. Further a link to the correct class is created if the property
-    % wsa inherited from a superclass.
-    %
-    % @new{0,4,dw,2011-05-04} Added a new property models.BaseFullModel.TrainingInputs. Now one can
-    % specifiy which defined inputs are to be used within offline generations.
-    %
-    % @change{0,3,dw,2011-04-26} The property changed descriptions now contain links to the
-    % respective classes containing the property.
-    %
-    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
-    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
-    % extended constructor registering any user-relevant properties using
-    % KerMorObject.registerProps.
-    %
-    % @new{0,3,dw,2011-04-21} - Implemented the recursive property changed search on a
-    % per-BaseFullModel basis as made possible by the changes in KerMorObject.
-    % - Added a new method models.BaseFullModel.printPropertyChangedReport that gives detailed
-    % information about any properties of the model and its subclasses that remained set to their
-    % default value since initialization.
-    % - Overloaded the models.BaseModel.computeTrajectory method in order to previously run the
-    % property changed checks
-    %
-    % This class is part of the framework
-    % KerMor - Model Order Reduction using Kernels:
-    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
-    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
-    % - \c License @ref licensing    
+% The base class for any KerMor detailed model
+%
+% Implementers of custom models are to inherit from this base class
+% in order for it to work with KerMor.
+% For custom models, the properties of this class (combined with
+% those from BaseModel) can be set to influence the model behaviour
+% and reduction methods.
+% For the implementation of custom dynamical systems, refer to
+% BaseDynSystem.
+%
+% Setting default values for properties that are handle classes will have the negative
+% side-effect of having each instance of BaseFullModel initialized with the SAME instance of the
+% Sampler, Approx etc. instances which of course is NOT desireable.
+% See http://www.mathworks.com/access/helpdesk/help/techdoc/matlab_oop/bsdtcz7.html#bsdu1g9-1
+% for details.
+%
+% @todo build in time-tracking for offline phase etc
+%
+% See also: models BaseModel BaseDynSystem
+%
+% @author Daniel Wirtz @date 16.03.2010
+%
+% @new{0,5,dw,2011-10-15} Added a new method getTrajApproxError that computes the approximation
+% error of the Approx class against the full trajectory. This method provides generic means to
+% assess the approximation quality of approx.BaseApprox classes for full trajectories.
+%
+% @change{0,5,dw,2011-10-16} Fixed the parallel computation of
+% BaseFullModel.off2_genTrainingData so that it also works with
+% data.FileModelData (parallel execution did not sync the hashmaps, now
+% running data.FileModelData.consolidate fixes this)
+%
+% @change{0,5,dw,2011-08-04} Adopted the off2_genTrainingData method to the new data.AModelData
+% structure. Now all trajectories are stored either in memory or disk, and the data.AModelData
+% classes take care of storage.
+%
+% @new{0,4,dw,2011-05-31} Added the models.BaseFullModel.OfflinePhaseTimes property.
+%
+% @change{0,4,sa,2011-05-11} Implemented setters for the
+% preApproximationTrainingCallback and
+% postApproximationTrainingCallback
+%
+% @new{0,4,dw,2011-05-06} Small improvements to the DPCS, the correct links to the properties
+% defining classes are now used. Further a link to the correct class is created if the property
+% wsa inherited from a superclass.
+%
+% @new{0,4,dw,2011-05-04} Added a new property models.BaseFullModel.TrainingInputs. Now one can
+% specifiy which defined inputs are to be used within offline generations.
+%
+% @change{0,3,dw,2011-04-26} The property changed descriptions now contain links to the
+% respective classes containing the property.
+%
+% @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+% supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+% extended constructor registering any user-relevant properties using
+% KerMorObject.registerProps.
+%
+% @new{0,3,dw,2011-04-21} - Implemented the recursive property changed search on a
+% per-BaseFullModel basis as made possible by the changes in KerMorObject.
+% - Added a new method models.BaseFullModel.printPropertyChangedReport that gives detailed
+% information about any properties of the model and its subclasses that remained set to their
+% default value since initialization.
+% - Overloaded the models.BaseModel.computeTrajectory method in order to previously run the
+% property changed checks
+%
+% This class is part of the framework
+% KerMor - Model Order Reduction using Kernels:
+% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+% - \c License @ref licensing    
     
     properties
         % The full model's data container.
@@ -568,6 +572,34 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 end
             end
         end
+        
+        function e = getTrajApproxError(this, mu, inputidx)
+            % Computes the approximation training error on the trajectory
+            % for given mu and inputidx.
+            %
+            % @todo include check for FullModel.Data if full traj is
+            % already there
+            if ~isempty(this.Approx)
+                
+                if nargin == 2
+                    inputidx = [];
+                end
+                x = this.Data.getTrajectory(mu,inputidx);
+                if ~isempty(x)
+                    this.System.setConfig(mu, inputidx);
+                    t = this.scaledTimes;
+                else
+                    [t,x] = this.computeTrajectory(mu, inputidx);
+                end
+                mu = repmat(mu,1,numel(t));
+                fx = this.Approx.evaluate(x,t,mu);
+                afx = this.System.f.evaluate(x,t,mu);
+                %e = sqrt(sum((fx-afx).^2,1));
+                e = max(abs(fx-afx),[],1);
+            else
+                error('The approximation error can only be computed for models with an approx.BaseApprox instance present.');
+            end
+        end
     end
         
     %% Getter & Setter
@@ -705,7 +737,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                             end
                         elseif ~p.SetObservable && ~pc.containsKey([p.DefiningClass.Name '.' p.Name])
                             link2 = editLink(p.DefiningClass.Name);
-                            fprintf('WARNING: Property %s of class %s is not <a href="matlab:docsearch SetObservable">SetObservable</a> but a candidate for a user-definable public property!\nFor more details see <a href="%s/propclasses.html">Property classes and levels</a>\n\n',p.Name,link2,Documentation.DocumentationLocation);
+                            fprintf('WARNING: Property %s of class %s is not <a href="matlab:docsearch SetObservable">SetObservable</a> but a candidate for a user-definable public property!\nFor more details see <a href="%s/propclasses.html">Property classes and levels</a>\n\n',p.Name,link2,KerMor.DocumentationLocation);
                         end
                         pobj = obj.(p.Name);
                         % Recursively register subobject's properties

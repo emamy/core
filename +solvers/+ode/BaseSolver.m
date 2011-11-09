@@ -1,15 +1,25 @@
 classdef BaseSolver < KerMorObject
-    % Base class for all KerMor ODE solvers
-    %
-    % Simply defines an interfaces for a solve function and provides common
-    % ODE solver properties.
-    %
-    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
-    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
-    % extended constructor registering any user-relevant properties using
-    % KerMorObject.registerProps.
-    %
-    % @todo Write tests for solvers.
+% Base class for all KerMor ODE solvers
+%
+% Simply defines an interfaces for a solve function and provides common
+% ODE solver properties.
+%
+% @new{0,5,dw,2011-10-16} Added a new property RealTimeMode. If set to true, the solver
+% will issue StepPerformed events on each integration timestep instead of collecting the
+% results in a column matrix.
+%
+% @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+% supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+% extended constructor registering any user-relevant properties using
+% KerMorObject.registerProps.
+%
+% @todo Write tests for solvers.
+%
+% This class is part of the framework
+% KerMor - Model Order Reduction using Kernels:
+% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+% - \c License @ref licensing
     
     properties(SetObservable)
         % Maximum time step for solver.
@@ -21,7 +31,7 @@ classdef BaseSolver < KerMorObject
         % vector `t` may lead to errorneous results. This property limits the maximum time-step size
         % used in the implementations. Set to [] in order to rely on the times `t`.
         %
-        % @default [] (Use solver's default settings)
+        % @default [] (Use solver's default settings) @type double
         MaxStep = [];
         
         % The initial step size for the solver.
@@ -30,8 +40,16 @@ classdef BaseSolver < KerMorObject
         %
         % @propclass{important} Some odes require a certain (small) initial step. 
         %
-        % @default [] (User solver's default settings)
+        % @default [] (User solver's default settings) @type double
         InitialStep = [];
+        
+        % Determines if the solver's StepPerformed event should be used
+        % upon solving instead of returning the full trajectory as one.
+        %
+        % @propclass{optional} This setting is model dependent
+        %
+        % @default false @type logical
+        RealTimeMode = false;
     end
     
     properties(SetAccess=protected)
@@ -44,7 +62,7 @@ classdef BaseSolver < KerMorObject
     methods
         function this = BaseSolver
             this = this@KerMorObject;
-            this.registerProps('MaxStep','InitialStep','Name');
+            this.registerProps('MaxStep','InitialStep','Name','RealTimeMode');
         end
     end
     
@@ -96,7 +114,7 @@ classdef BaseSolver < KerMorObject
     events
         % Gets fired when an ODE solver performs an intermediate step
         %
-        % @see models.BaseModel.RealTimePlotting
+        % See also: RealTimeMode models.BaseModel.RealTimePlotting
         StepPerformed;
     end
     
@@ -120,7 +138,7 @@ classdef BaseSolver < KerMorObject
                 t = toc;
                 fprintf('Using solver %s\n',m.ODESolver.Name);
                 fprintf('Offline generations time: %f\n',t);
-                [ti,x,xr,t,tr,tr_noerr] = r.getTrajectories;
+                [~,~,~,t,tr,tr_noerr] = r.getTrajectories;
                 fprintf('Online simulations time\nFull detail: %fs\nReduced with error estimator: %fs\nReduced without error estimation:%fs\n\n',t,tr,tr_noerr);
             end
         end

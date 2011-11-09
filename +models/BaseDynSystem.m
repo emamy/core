@@ -109,10 +109,12 @@ classdef BaseDynSystem < KerMorObject
         % This might be necessary if the Core function encapsulates a
         % spatial discretization and thus CFL conditions apply, for example.
         %
-        % @note If any time scaling is used within the model, this value
-        % must correspond to the ''scaled'' maximum timestep.
+        % @attention ''IMPORTANT!'' If any time scaling is used within the
+        % model, this value must correspond to the ''scaled'' maximum
+        % timestep.
         %
-        % @propclass{critical}
+        % @propclass{critical} Too large time-steps might violate e.g. CFL
+        % conditions and render the solution false and useless.
         %
         % See also: BaseModel BaseModel.tau BaseModel.dtscaled
         MaxTimestep = [];

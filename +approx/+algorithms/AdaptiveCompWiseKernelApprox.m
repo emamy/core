@@ -1,15 +1,23 @@
-classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
+classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseAdaptiveCWKA
 % Adaptive component-wise kernel approximation algorithm
 %
 % @author Daniel Wirtz @date 2011-03-31
 %
 % See also: BaseApprox KernelApprox
 %
+% @change{0,5,dw,2011-11-02}
+% - New interface for approximation computation: Passing an data.ApproxTrainData instance now
+% instead of 'xi,ti,mui' parameters.
+% - Moved common properties for adaptive algorithms to new base class BaseAdaptiveCWKA and
+% using it's provided methods in order to have a more compact algorithm representation.
+% - Inserted a global optimum search over all configurations, so that if the best error was
+% achieved somewhere in progress this expansion is taken.
+%
 % @change{0,5,dw,2011-09-09} 
-% - Fixed setters for MaxRelErr and
-% MaxAbsErrFactor, now setting values to 'this' instead of 'kexp'.
+% - Fixed setters for MaxRelErr and MaxAbsErrFactor, now setting values to 'this' instead of
+% 'kexp'.
 % - Added initial coefficient support
-% - Using AKernelMatrix now
+% - Using IKernelMatrix now
 %
 % @change{0,5,dw,2011-07-28} Changed the algorithm part so that it can also work with
 % kernels.KernelExpansion instead of only on kernels.ParamTimeKernelExpansion.
@@ -41,305 +49,93 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
 %
 % @todo Think about suitable stopping condition (relative error change?)
     
-    properties(SetObservable)
-        % The maximum size of the expansion to produce.
-        %
-        % Equals the maximum number of iterations to perform during
-        % adaptive approximation computation as each iteration yields a new
-        % center.
-        %
-        % @propclass{alglimit} 
-        % Some text describing the importance of this property.
-        %
-        % @type integer
-        %
-        % @default 200
-        MaxExpansionSize = 200;
-        
-        % The number of different Gamma values to try.
-        %
-        % @propclass{important} 
-        %
-        % @default 10 @type integer
-        NumGammas = 10;
-        
-        % Percentage `p` of the training data to use as validation data
-        %
-        % Admissible values are `p\in]0,\frac{1}{2}]`.
-        %
-        % @propclass{optional} 
-        %
-        % @default .2
-        % @type double
-        ValidationPercent = .2;
-        
-        % Value for initial Gamma choice.
-        %
-        % @propclass{experimental} 
-        %
-        % @type double
-        % @default .6
-        gameps = .6;
-        
-        % Stopping condition property. Maximum relative error that may occur
-        %
-        % @propclass{critical}
-        %
-        % @default 1e-5
-        MaxRelErr = 1e-5;
-        
-        % Stopping condition property. 
-        %
-        % Factor for maximum absolute error that may occur. Factor means that this value will be
-        % multiplied by the maximum value of the approximation training data f-Values used to train
-        % this approximation. This way, one defines the fraction of the maximum error that is
-        % maximally allowed.
-        %
-        % @propclass{critical}
-        %
-        % @default 1e-5
-        MaxAbsErrFactor = 1e-5;
-        
-        % The error functional to use
-        % 1 = `L^\infty`-Error (max diff over all vecs & dimensions)
-        % 2 = `L^2`-Error (vector-wise L^2, then max)
-        %
-        % @propclass{experimental} 
-        ErrFun = 1;
-        
-        % 'dfun(this.MinGFactor*bxdia, kexp.MaxGFactor*bxdia);'
-        % @propclass{experimental}
-        MaxGFactor = 1;
-        
-        % 'dfun(this.MinGFactor*bxdia, kexp.MaxGFactor*bxdia);'
-        % @propclass{experimental}
-        MinGFactor = .05;
-    end
-    
-    properties(Transient, SetAccess=private)
-        % Contains the maximum errors for each iteration/center extension step performed by the last
-        % run of this algorithm.
-        MaxErrors = [];
-    end
-    
-    properties(Transient, Access=private)
-        effabs;
-    end
-    
     methods    
-        function this = AdaptiveCompWiseKernelApprox
-            this = this@approx.algorithms.BaseKernelApproxAlgorithm;
-            
-            % Register default property changed listeners
-            this.registerProps('MaxExpansionSize','NumGammas','ValidationPercent',...
-                'gameps','MaxRelErr','MaxAbsErrFactor','ErrFun','MaxGFactor','MinGFactor');
-        end
-                        
-%         function target = clone(this)
-%             % Clones the instance.
-%             
-%             % Create instance as this is the final class so far. If
-%             % subclassed, this clone method has to be given an additional
-%             % target argument.
-%             target = approx.algorithms.AdaptiveCompWiseKernelApprox;
-%             
-%             target = clone@approx.KernelApprox(this, target);
-%             
-%             %this.cloneLocalProps(target,mfilename('class'));
-%             % copy local props
-%             copy.MaxExpansionSize = kexp.MaxExpansionSize;
-%             copy.NumGammas = this.NumGammas;
-%             copy.gameps = this.gameps;
-%             copy.MaxRelErr = kexp.MaxRelErr;
-%             copy.MaxAbsErrFactor = kexp.MaxAbsErrFactor;
-%             copy.MaxErrors = kexp.MaxErrors;
-%             copy.ValidationPercent = this.ValidationPercent;
-%             copy.ErrFun = this.ErrFun;
-%             copy.effabs = this.effabs;
+%         function this = AdaptiveCompWiseKernelApprox
+%             this = this@approx.algorithms.BaseAdaptiveCWKA;
 %         end
+                        
+        function copy = clone(this)
+            % Clones the instance.
+            
+            % Create instance as this is the final class so far. If
+            % subclassed, this clone method has to be given an additional
+            % target argument.
+            copy = approx.algorithms.AdaptiveCompWiseKernelApprox;
+            
+            copy = clone@approx.algorithms.BaseAdaptiveCWKA(this, copy);
+        end
     end
     
     methods(Access=protected, Sealed)
-        function detailedComputeApproximation(this, kexp, xi, ti, mui, fxi)
+        function detailedAdaptiveApproximation(this, kexp, atd)
             % Performs adaptive approximation generation.
             %
             % Parameters:
             % kexp: The kernel expansion. @type kernels.KernelExpansion
-            % xi: The state data training vectors `x(t_i)`. @type double
-            % ti: The time data training points. 
-            % @type double
-            % mui: The parameter training points `\mu_i`. @type double
-            % fxi: The target function values at training points
-            % `f(x_i,t_i,\mu_i)`. @type double
+            % atd: The approximation training data instance @type data.ApproxTrainData
             
-            dfun = @logsp; % gamma distances comp fun (linsp / logsp)
-            if this.ErrFun == 1
-                errfun = @getLInftyErr; % L^inf error function
-            else
-                errfun = @getL2Err; % L^2 error function
-            end
-            
-            %% Checks
-            % This algorithm so far works only with Gaussian kernels
-            if ~isa(kexp, 'kernels.KernelExpansion')
-                error('Approximation method works only for kernel expansions.');
-            elseif ~isa(kexp.Kernel,'kernels.GaussKernel')
-                error('The state kernel has to be a Gaussian for this approximation algorithm so far');
-            end
-            pte = isa(kexp,'kernels.ParamTimeKernelExpansion');
-            if pte && ((~isa(kexp.TimeKernel,'kernels.GaussKernel') && ~isa(kexp.TimeKernel,'kernels.NoKernel')) || ...
-                    (~isa(kexp.ParamKernel,'kernels.GaussKernel') && ~isa(kexp.ParamKernel,'kernels.NoKernel')))
-                error('Any kernels used have to be Gaussian kernels for this approximation algorithm so far');
-            end
-            
-            %% Initializations
-            
-            % Extract validation data
-            vnum = round(size(xi,2)*this.ValidationPercent);
-            sel = round(linspace(1,size(xi,2),vnum));
-            vdxi = xi(:,sel);
-            xi(:,sel) = [];
-            vdfxi = fxi(:,sel);
-            fxi(:,sel) = [];
-            
-            if pte
-                vdti = ti(sel);
-                ti(sel) = [];
-            end
-            
-            % check if training data contains parameters
+            %% Select initial data
+            [c, idx] = this.getInitialCenter(atd);
+            kexp.Centers.xi = c(1:size(atd.xi,1));
+            % Add points to nearest neighbor trackers (for gamma comp)
             nx = general.NNTracker;
-            if pte
-                nt = general.NNTracker;
-            end
-            
-            %% Compute bounding boxes & center
-            [BXmin, BXmax] = general.Utils.getBoundingBox(xi);
-            thecenter = (BXmin+BXmax)/2;
-            B = xi;
-            % Get bounding box diameters
-            bxdia = norm(BXmax - BXmin);
-            if pte
-                Btmin = min(ti); Btmax = max(ti);
-                btdia = Btmax-Btmin;
-                thecenter = [thecenter; (Btmin+Btmax)/2];
-                B = [B; ti];
-                
-                %% Check if params are used
-                if ~isempty(mui)
-                    hasparams = true;
-                    vdmui = mui(:,sel);
-                    mui(:,sel) = [];
-
+            nx.addPoint(kexp.Centers.xi);
+            if this.pte
+                kexp.Centers.ti = [];
+                kexp.Centers.mui = [];
+                if atd.hasTime
+                    kexp.Centers.ti = c(atd.tOff);
+                    nt = general.NNTracker;
+                    nt.addPoint(c(atd.tOff));
+                end
+                if atd.hasParams
+                    kexp.Centers.mui = c(atd.muOff:end);
                     np = general.NNTracker;
-
-                    [BPmin, BPmax] = general.Utils.getBoundingBox(mui);
-                    bpdia = norm(BPmax - BPmin);
-
-                    thecenter = [thecenter; (BPmin + BPmax)/2];
-                    B = [B; mui];
-                else
-                    hasparams = false;
-                    vdmui = [];
+                    np.addPoint(c(atd.muOff:end));
                 end
             end
+            used = idx;
+            kexp.Ma = atd.fxi(:,idx);
+            bestMa = kexp.Ma;
             
-            %% Select initial center x0
-            % Strategy: Take the point that is closest to the bounding
-            % box center!
-            A = repmat(thecenter, 1, size(xi,2));
-            [dummy, inIdx] = min(sum((A-B).^2,1));
-            clear A B;
-            
-            kexp.Centers.xi = xi(:,inIdx);
-            nx.addPoint(xi(:,inIdx)); % Add points to nearest neighbor trackers (for gamma comp)
-            if pte
-                kexp.Centers.ti = ti(inIdx);
-                nt.addPoint(ti(inIdx));
-                if hasparams
-                    kexp.Centers.mui = mui(:,inIdx);
-                    np.addPoint(kexp.Centers.mui);
-                else
-                    kexp.Centers.mui = [];
-                end
-            end
-            
-            %% Set up initial expansion
-            used = inIdx;
-            kexp.Ma = fxi(:,inIdx);
-            
-            %% Choose initial gammas
-            xdists = dfun(this.MinGFactor*bxdia, this.MaxGFactor*bxdia);
-            dists = xdists;
-            if pte
-                tdists = dfun(this.MinGFactor*btdia, this.MaxGFactor*btdia);
-                dists = [dists; tdists];
-                if hasparams
-                    pdists = dfun(this.MinGFactor*bpdia, this.MaxGFactor*bpdia);
-                    dists = [dists; pdists];
-                end
-            end
-            
-            % Init for the loop
+            %% Choose initial gammas and select best one
+            dists = this.getDists(atd);
             minerr = Inf;             
-            gt = []; gp = [];
             for idx = 1:size(dists,2)
-                gx = kexp.Kernel.setGammaForDistance(dists(1,idx),this.gameps);
-                if pte
-                    if ~isa(kexp.TimeKernel,'kernels.NoKernel')
-                        gt = kexp.TimeKernel.setGammaForDistance(dists(2,idx),this.gameps);
-                    end
-                    if hasparams && ~isa(kexp.ParamKernel,'kernels.NoKernel')
-                        gp = kexp.ParamKernel.setGammaForDistance(dists(3,idx),this.gameps);
-                    end
-                end
-                
-                if pte
-                    val = errfun(fxi,kexp.evaluate(xi,ti,mui));
-                else
-                    val = errfun(fxi,kexp.evaluate(xi));
-                end
+                g = this.setDistKernelConfig(kexp, dists(:,idx));
+                val = this.getError(kexp, atd);
                 if val < minerr
                     minerr = val;
-                    bestgx = gx;
-                    bestgt = gt;
-                    bestgp = gp;
-                    bestdistidx = idx;
+                    bestg = g;
                 end
             end
-            %% Assign best values
-            kexp.Kernel.Gamma = bestgx;
-            if pte
-                if ~isa(kexp.TimeKernel,'kernels.NoKernel')
-                    kexp.TimeKernel.Gamma = bestgt;
-                end
-                if hasparams && ~isa(kexp.ParamKernel,'kernels.NoKernel')
-                    kexp.ParamKernel.Gamma = bestgp;
-                end
-            end
+            % Assign best values
+            this.setKernelConfig(kexp, bestg);
             if KerMor.App.Verbose > 1
-                fprintf('Initial gammas: SK:%e, TK:%e, PK:%e\n',bestgx,bestgt,bestgp);
+                fprintf('Initial gammas: SK:%e, TK:%e, PK:%e\n',bestg);
+                if KerMor.App.Verbose > 2
+                    figure(1);
+                end
             end
             
             %% Outer control loop
             cnt = 1;
-            % Stopping condition preps
-            this.effabs = this.MaxAbsErrFactor * max(abs(fxi(:)));
             
             % Keep track of maximum errors
             this.MaxErrors = zeros(1,this.MaxExpansionSize);
-            exception = false;
-            while ~exception
+            globminerr = Inf;
+            while true
                 
                 %% Determine maximum error over training data
-                if pte
-                    fhat = kexp.evaluate(xi,ti,mui);
-                else
-                    fhat = kexp.evaluate(xi);
-                end
-                [val, maxidx, errs] = errfun(fxi,fhat);
-                rel = val / (norm(fxi(maxidx))+eps);
+                [val, maxidx, errs] = this.getError(kexp, atd);
+                rel = val / (norm(atd.fxi(maxidx))+eps);
                 this.MaxErrors(cnt) = val;
+                if val < globminerr
+                    globbestg = bestg;
+                    globbestMa = bestMa;
+                    globbestcnt = cnt;
+                    globminerr = val;
+                end
                 
                 %% Verbose stuff
                 if KerMor.App.Verbose > 2
@@ -355,107 +151,49 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
                 used(end+1) = maxidx;%#ok
                 
                 %% Extend centers
-                kexp.Centers.xi(:,end+1) = xi(:,maxidx);
-                if pte
-                    kexp.Centers.ti(end+1) = ti(maxidx);
-                    if hasparams
-                        kexp.Centers.mui(:,end+1) = mui(:,maxidx);
-                        np.addPoint(mui(:,maxidx));
-                    end
-                    nt.addPoint(ti(maxidx));
+                this.extendExpansion(kexp, atd, maxidx);
+                % Keep track of new centers
+                nx.addPoint(atd.xi(:,maxidx));
+                if atd.hasTime
+                    nt.addPoint(atd.ti(maxidx));
                 end
-                % Add points to nearest neighbor trackers (for gamma comp)
-                nx.addPoint(xi(:,maxidx));
+                if atd.hasParams
+                    np.addPoint(atd.mui(:,maxidx));
+                end
                 
                 %% Compute new approximation
-                olddists = dists;
-                xdists = sort([dfun(nx.getMinNN, this.MaxGFactor*bxdia) olddists(1,bestdistidx)]);
-                dists = xdists;
-                if pte
-                    tdists = sort([dfun(nt.getMinNN, this.MaxGFactor*btdia) olddists(2,bestdistidx)]);
-                    dists = [dists; tdists];%#ok
-                    if hasparams
-                        minnn = bpdia/this.NumGammas;
-                        if ~isinf(np.getMinNN)
-                            minnn = np.getMinNN;
-                        end
-                        pdists = sort([dfun(minnn, this.MaxGFactor*bpdia) olddists(3,bestdistidx)]);
-                        dists = [dists; pdists];%#ok
+                dt = []; dmu = [];
+                if atd.hasTime
+                    dt = nt.getMinNN;
+                end
+                if atd.hasParams
+                    dmu = atd.muiDia/this.NumGammas;
+                    if ~isinf(np.getMinNN)
+                        dmu = np.getMinNN;
                     end
                 end
+                dists = this.getDists(atd, nx.getMinNN, dt, dmu);
                 
-                if KerMor.App.Verbose > 2
-                    %dists%#ok
-                end
-                
-                minerr = Inf; gt = []; gp = [];
+                minerr = Inf;
                 for gidx = 1:size(dists,2)
-                    d = dists(:,gidx);
-                    % Update Kernels Gamma values
-                    gx = kexp.Kernel.setGammaForDistance(d(1),this.gameps);
-                    if KerMor.App.Verbose > 2
-                        %fprintf('Kernels - Sys:%10f => gamma=%f',d(1),gx);
-                        fprintf('xg:%.5e',gx);
-                    end
-                    if pte
-                        if ~isa(kexp.TimeKernel,'kernels.NoKernel')
-                            gt = kexp.TimeKernel.setGammaForDistance(d(2),this.gameps);
-                            if KerMor.App.Verbose > 2
-                                %fprintf(', Time:%10f => gamma=%10f',d(2),gt);
-                                fprintf(', tg:%.5e',gx);
-                            end
-                        end
-                        if hasparams && ~isa(kexp.ParamKernel,'kernels.NoKernel')
-                            gp = kexp.ParamKernel.setGammaForDistance(d(3),this.gameps);
-                            if KerMor.App.Verbose > 2
-                                fprintf(', pg=%.5e',gp);
-                            end
-                        end
-                    end
+                    g = this.setDistKernelConfig(kexp, dists(:,gidx));
                     
                     %% Compute coefficients
-                    %warning('off','MATLAB:nearlySingularMatrix');
                     % Call coeffcomp preparation method and pass kernel matrix
                     K = data.MemoryKernelMatrix(kexp.getKernelMatrix);
                     this.CoeffComp.init(K);
                     
                     % Call protected method
-                    try
-                        this.computeCoeffs(kexp, fxi(:,used), [kexp.Ma zeros(size(fxi,1),1)]);
-                    catch ME
-                        if strcmp(ME.identifier,'KerMor:coeffcomp:failed')                            
-                            exception = true;
-                            ex = ME;
-                            break;
-                        else
-                            rethrow(ME);
-                        end
-                    end
-                    %warning('on','MATLAB:nearlySingularMatrix');
+                    this.computeCoeffs(kexp, atd.fxi(:,used), [kexp.Ma zeros(size(atd.fxi,1),1)]);
                     
                     % get error on training data
-                    if pte
-                        fhat = kexp.evaluate(xi,ti,mui);
-                    else
-                        fhat = kexp.evaluate(xi);
-                    end
-                    val = errfun(fxi, fhat);
+                    val = this.getError(kexp, atd);
                     impro = (val / minerr) * 100;
                     
-                    % get error on validation set
-                    if pte
-                        fvali = kexp.evaluate(vdxi,vdti,vdmui);
-                    else
-                        fvali = kexp.evaluate(vdxi);
-                    end
-                    vdval = errfun(vdfxi, fvali);
                     if val < minerr
                         minerr = val;
-                        bestgx = gx;
-                        bestgt = gt;
-                        bestgp = gp;
+                        bestg = g;
                         bestMa = kexp.Ma;
-                        bestdistidx = idx;
                         if KerMor.App.Verbose > 2
                             fprintf(' b: %.5e, %3.2f%%',val,impro);
                         end
@@ -466,7 +204,8 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
                     end
                     
                     if KerMor.App.Verbose > 2
-                        fprintf(' ||Ma||:%.5e, vd-err:%.5e, prod:%.5e\n',sum(sqrt(sum(kexp.Ma.^2,1))),vdval,val*vdval);
+                        %fprintf(' ||Ma||:%.5e, vd-err:%.5e, prod:%.5e\n',sum(sqrt(sum(kexp.Ma.^2,1))),vdval,val*vdval);
+                        %fprintf(' ||Ma||:%.5e\n',sum(sqrt(sum(kexp.Ma.^2,1))));
                     end
                 end
                 if KerMor.App.Verbose > 2
@@ -474,15 +213,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
                 end
                 
                 %% Assign best values
-                kexp.Kernel.Gamma = bestgx;
-                if pte
-                    if ~isa(kexp.TimeKernel,'kernels.NoKernel')
-                        kexp.TimeKernel.Gamma = bestgt;
-                    end
-                    if hasparams && ~isa(kexp.ParamKernel,'kernels.NoKernel')
-                        kexp.ParamKernel.Gamma = bestgp;
-                    end
-                end
+                this.setKernelConfig(kexp, bestg);
                 kexp.Ma = bestMa;
                 
                 if KerMor.App.Verbose > 1
@@ -492,9 +223,17 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
                 cnt = cnt+1;
             end
             
-            if exception
-                fprintf('Adaptive approximation generation stopped due to exception.\n')
-                cprintf('red',ex.getReport);
+            if KerMor.App.Verbose > 0
+                fprintf('Expansion data from iteration %d.\n',globbestcnt);
+            end
+            this.setKernelConfig(kexp, globbestg);
+            kexp.Ma = globbestMa;
+            kexp.Centers.xi = kexp.Centers.xi(:,1:globbestcnt);
+            if ~isempty(kexp.Centers.ti)
+                kexp.Centers.ti = kexp.Centers.ti(:,1:globbestcnt);
+            end
+            if ~isempty(kexp.Centers.mui)
+                kexp.Centers.mui = kexp.Centers.mui(:,1:globbestcnt);
             end
             
             if KerMor.App.Verbose > 1
@@ -502,32 +241,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
                 plot(this.MaxErrors,'r');
             end
         
-            function [val,idx,errs] = getLInftyErr(a,b)
-                % computes the 'L^\infty'-approximation error over the
-                % training set for the current approximation
-                
-                %errs = max(abs((a-b) ./ (a+eps)));
-                errs = max(abs(a-b),[],1);
-                [val, idx] = max(errs);
-            end
-            
-            function [val,idx,errs] = getL2Err(a,b)
-                % computes the 'L^\infty'-approximation error over the
-                % training set for the current approximation
-                errs = sqrt(sum((a-b).^2,1));
-                [val, idx] = max(errs);
-            end
-            
-            function linsp(from, to)%#ok
-                d = linspace(from,to,this.NumGammas);
-            end
-            
-            function d = logsp(from, to)
-                d = logspace(log10(from),log10(to),this.NumGammas);
-            end
-            
             function doPlots
-                figure(1);
                 fprintf('Max error over training data: %5.20f (relative: %10.20f)\n',val,rel);
                 pos = [1 3];
                 if KerMor.App.Verbose > 3
@@ -565,77 +279,9 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgori
                     end                  
                     pause;
                 end
+                drawnow;
             end
         end 
-    end
-    
-    %% Getter & Setter
-    methods
-        function set.ValidationPercent(this, value)
-            if ~isposrealscalar(value) || value > .5
-                error('The value must be a positive scalar inside the interval ]0,.5[');
-            end
-            this.ValidationPercent = value;
-        end
-        
-        function set.NumGammas(this,value)
-            if ~isposintscalar(value)
-                error('Value must be a positive integer.');
-            end
-            this.NumGammas = value;
-        end
-        
-        function set.MaxExpansionSize(this, value)
-            if ~isposintscalar(value)
-                error('Value must be a positive integer.');
-            end
-            this.MaxExpansionSize = value;
-        end
-                              
-        function set.gameps(this, value)
-            if ~isposrealscalar(value)
-                error('The value must be a positive scalar');
-            end
-            this.gameps = value;
-        end
-        
-        function set.MaxRelErr(this, value)
-            if ~isposrealscalar(value)
-                error('The value must be a positive scalar');
-            end
-            this.MaxRelErr = value;
-        end
-        
-        function set.MaxAbsErrFactor(this, value)
-            if ~isposrealscalar(value)
-                error('The value must be a positive scalar');
-            end
-            this.MaxAbsErrFactor = value;
-        end
-        
-        function set.ErrFun(this, value)
-            if ~(value == 1 || value == 2)
-                error('Value must be either integer 1 or 2.');
-            end
-            this.ErrFun = value;
-        end
-    end
-    
-    methods(Access=private)
-        function bool = checkStop(this, cnt, rel, val)
-            % Checks the stopping conditions 
-            bool = false;
-            if cnt == this.MaxExpansionSize
-                fprintf('AdaptiveCompWiseKernelApprox finished. Max expansion size %d reached.\n',this.MaxExpansionSize);
-                bool = true;
-            elseif rel < this.MaxRelErr
-                fprintf('AdaptiveCompWiseKernelApprox finished. Relative error %.7e < %.7e\n',rel,this.MaxRelErr);
-                bool = true;
-            elseif val < this.effabs
-                fprintf('AdaptiveCompWiseKernelApprox finished. Absolute error %.7e < %.7e\n',val,this.effabs);
-                bool = true;
-            end
-        end
     end
 end
 

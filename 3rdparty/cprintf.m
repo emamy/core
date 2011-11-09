@@ -93,8 +93,8 @@ function count = cprintf(style,format,varargin)
 % Programmed and Copyright by Yair M. Altman: altmany(at)gmail.com
 % $Revision: 1.05 $  $Date: 2011/03/04 17:07:38 $
 
-%fprintf(2,format,varargin{:});
-%return;
+fprintf(2,format,varargin{:});
+return;
 
   persistent majorVersion minorVersion
 

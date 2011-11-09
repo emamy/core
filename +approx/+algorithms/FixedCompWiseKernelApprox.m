@@ -3,6 +3,12 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
 %
 % @author Daniel Wirtz @date 2011-06-01
 %
+% @change{0,5,dw,2011-11-02} 
+% - New interface for approximation computation: Passing an data.ApproxTrainData instance now
+% instead of 'xi,ti,mui' parameters.
+% - Re-enabled the clone method
+% - Using the new data.ApproxTrainData for guessGammas
+%
 % @new{0,5,dw,2011-10-14}
 % - Added the method
 % FixedCompWiseKernelApprox.guessGammas as a helper
@@ -19,6 +25,9 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
+%
+% @todo think of new structure on how to combine this with the getDists in BaseAdaptiveCWKA (or
+% extract convenience methods further, general concept of "KernelConfig")
     
     properties(SetObservable)    
         % @propclass{experimental} 
@@ -39,24 +48,35 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
             this.registerProps('Gammas');
         end
                         
-%         function target = clone(this)
-%             % Clones the instance.
-%             
-%             % Create instance as this is the final class so far. If
-%             % subclassed, this clone method has to be given an additional
-%             % target argument.
-%             target = approx.algorithms.AdaptiveCompWiseKernelApprox;
-%             
-%             target = clone@approx.KernelApprox(this, target);
-%             
-%             %this.cloneLocalProps(target,mfilename('class'));
-%             % copy local props
-%             copy.Gammas = this.Gammas;
-%             
-%             copy.MaxErrors = this.MaxErrors;
-%         end
+        function copy = clone(this)
+            % Clones the instance.
+            
+            % Create instance as this is the final class so far. If
+            % subclassed, this clone method has to be given an additional
+            % target argument.
+            copy = approx.algorithms.FixedCompWiseKernelApprox;
+            
+            copy = clone@approx.algorithms.BaseKernelApproxAlgorithm(this, copy);
 
-        function guessGammas(this, data, ng, mf, Mf)
+            % copy local props
+            copy.Gammas = this.Gammas;
+        end
+
+        function guessGammas(this, atd, ng, mf, Mf)
+            % Guesses 'ng' `\gamma` values to use during approximation.
+            %
+            % The computation is using the same method as in BaseAdaptiveCWKA.getDists
+            %
+            % Parameters:
+            % atd: The approximation training data @type data.ApproxTrainData
+            % ng: The number of `\gamma` values to guess @type integer
+            % mf: The factor for minimum sample data distance @type double @default .5
+            % Mf: The factor for the bounding box diameter @type double @default 2
+            %
+            
+            if ~isa(atd,'data.ApproxTrainData')
+                error('First argument has to be a data.ApproxTrainData instance');
+            end
             gameps = .1;
             if nargin < 5
                 Mf = 2;
@@ -65,29 +85,20 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
                 end
             end
             dfun = @logsp;
-            %% Compute bounding boxes & center
-            [BXmin, BXmax] = general.Utils.getBoundingBox(data.ApproxTrainData.xi);
-            % Get bounding box diameters
-            bxdia = norm(BXmax - BXmin);
-            xdists = dfun(mf*bxdia, Mf*bxdia);
-            ti = data.ApproxTrainData.ti;
-            if ~isempty(ti)
-                Btmin = min(ti);
-                Btmax = max(ti);
-                btdia = Btmax-Btmin;
-                tdists = dfun(mf*btdia, Mf*btdia);
-                mui = data.ApproxTrainData.mui;
-                if ~isempty(mui)        
-                    [BPmin, BPmax] = general.Utils.getBoundingBox(mui);
-                    bpdia = norm(BPmax - BPmin);
-                    pdists = dfun(mf*bpdia, Mf*bpdia);
-                end
+            
+            dists = zeros(3,ng);
+            dists(1,:) = dfun(mf*atd.xiDia, Mf*atd.xiDia);
+            if atd.hasTime
+                dists(2,:) = dfun(mf*atd.tiDia, Mf*atd.tiDia);
+            end
+            if atd.hasParams
+                dists(2,:) = dfun(mf*atd.muiDia, Mf*atd.muiDia);
             end
             k = kernels.GaussKernel;
-            for i=1:length(xdists)
-               this.Gammas(1,i) = k.setGammaForDistance(xdists(i),gameps);
-               this.Gammas(2,i) = k.setGammaForDistance(tdists(i),gameps);
-               this.Gammas(3,i) = k.setGammaForDistance(pdists(i),gameps);
+            for i=1:ng
+               this.Gammas(1,i) = k.setGammaForDistance(dists(1,i),gameps);
+               this.Gammas(2,i) = k.setGammaForDistance(dists(2,i),gameps);
+               this.Gammas(3,i) = k.setGammaForDistance(dists(3,i),gameps);
             end
             
             function linsp(from, to)%#ok
@@ -101,7 +112,7 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
     end
     
     methods(Access=protected, Sealed)
-        function detailedComputeApproximation(this, kexp, xi, ti, mui, fxi)
+        function detailedComputeApproximation(this, kexp, atd)
             % Performs adaptive approximation generation.
             %
             % @docupdate
@@ -119,9 +130,9 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
             end
             
             % Set AKernelCoreFun centers
-            kexp.Centers.xi = xi;
-            kexp.Centers.ti = ti;
-            kexp.Centers.mui = mui;
+            kexp.Centers.xi = atd.xi;
+            kexp.Centers.ti = atd.ti;
+            kexp.Centers.mui = atd.mui;
             
             errfun = @getLInftyErr;
                         
@@ -158,7 +169,7 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
                 % Call protected method
                 ex = [];
                 try
-                    this.computeCoeffs(kexp, fxi, []);
+                    this.computeCoeffs(kexp, atd.fxi, []);
                 catch ME
                     if gidx > 1 && strcmp(ME.identifier,'KerMor:coeffcomp:failed')    
                         ex = ME;
@@ -169,8 +180,8 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
                 end
                 
                 %% Determine maximum error over training data
-                fhat = kexp.evaluate(xi, ti, mui);
-                [val, maxidx, errs] = errfun(fxi,fhat);
+                fhat = kexp.evaluate(atd.xi, atd.ti, atd.mui);
+                [val, maxidx, errs] = errfun(atd.fxi,fhat);
                 rel = val / (norm(fxi(maxidx))+eps);
                 this.MaxErrors(gidx) = val;
                 

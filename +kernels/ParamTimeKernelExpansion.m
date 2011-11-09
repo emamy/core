@@ -236,8 +236,8 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
             % Updates the RotationInvariant property of this KernelExpansion
             updateRotInv@kernels.KernelExpansion(this);
             this.RotationInvariant = this.RotationInvariant && ...
-                isa(this.fTK,'kernels.IRotationInvariant') && ...
-                isa(this.fPK,'kernels.IRotationInvariant');
+                isa(this.fTK,'kernels.ARotationInvariant') && ...
+                isa(this.fPK,'kernels.ARotationInvariant');
         end
     end
     

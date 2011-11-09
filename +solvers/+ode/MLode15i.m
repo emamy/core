@@ -3,6 +3,8 @@ classdef MLode15i < solvers.ode.BaseImplSolver
 %
 % @author Daniel Wirtz @date 2011-04-14
 %
+% @change{0,5,dw,2011-10-16} Adopted to the new BaseSolver.RealTimeMode flag.
+%
 % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
 % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
 % extended constructor registering any user-relevant properties using
@@ -57,7 +59,7 @@ classdef MLode15i < solvers.ode.BaseImplSolver
             this.registerProps('RelTol','AbsTol');
         end
         
-        function [t,x] = implicit_solve(this, implfun, t, x0, x0p, opts)
+        function [t, x] = implicit_solve(this, implfun, t, x0, x0p, opts)
             % Solves the ode implicitly.
             %
             % Parameters:
@@ -71,11 +73,23 @@ classdef MLode15i < solvers.ode.BaseImplSolver
                 opts = odeset;
             end
             opts = odeset(opts, 'RelTol', this.RelTol, 'AbsTol', this.AbsTol);
-            opts = odeset(opts, 'OutputFcn',@this.ODEOutputFcn);
-            this.fED = solvers.ode.SolverEventData;
-            [t,x] = ode15i(implfun, t, x0, x0p, opts);
-            x = x';
-            t = t';
+            
+            if this.RealTimeMode
+                opts = odeset(opts, 'OutputFcn',@this.ODEOutputFcn);
+                
+                % Bug in Matlab 2009a: direct assignment crashes Matlab!
+                % Seems also not to work if created within the constructor.
+                ed = solvers.ode.SolverEventData;
+                this.fED = ed;
+                
+                % Run without return values
+                ode15i(implfun, t, x0, x0p, opts);
+                t = []; x = [];
+            else
+                [t, x] = ode15i(implfun, t, x0, x0p, opts);
+                x = x';
+                t = t';
+            end
         end
     end
     

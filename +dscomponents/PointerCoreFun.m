@@ -24,11 +24,8 @@ classdef PointerCoreFun < dscomponents.ACoreFun
                 error('funPtr nargin must equal three (= x,t,mu).');
             end
             this.CustomProjection = false;
+            this.MultiArgumentEvaluations = false;
             this.target = funPtr;
-        end
-        
-        function prepareConstants(this)%#ok
-            % Nothing to do here.
         end
         
         function fx = evaluateCoreFun(this, x, t, mu)

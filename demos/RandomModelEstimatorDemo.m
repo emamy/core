@@ -55,8 +55,11 @@ classdef RandomModelEstimatorDemo < EstimatorDemo
             cf.Centers.mui = [];
             
             %% System settings
-            fm.System = models.BaseDynSystem(fm);
-            fm.System.f = cf;
+            sys = models.BaseDynSystem(fm);
+            sys.MaxTimestep = [];
+            sys.f = cf;
+            
+            fm.System = sys;
             this.Model = fm;
             
             if nargin == 1
@@ -67,7 +70,9 @@ classdef RandomModelEstimatorDemo < EstimatorDemo
         end
         
         function setup(this)
-            this.Model.System.f.Kernel = kernels.GaussKernel(15);
+            k = kernels.GaussKernel(15);
+            k.G = 1;
+            this.Model.System.f.Kernel = k;
             x0 = rand(this.Dims,1);
             if this.PositiveExpansion
                 base = linspace(0, 40, this.NumCenters);
@@ -85,6 +90,7 @@ classdef RandomModelEstimatorDemo < EstimatorDemo
                 s = spacereduction.PODReducer;
                 s.Mode = 'abs';
                 s.Value = 1;
+                s.UseSVDS = false;
             end
             this.Model.SpaceReducer = s;
             
@@ -110,25 +116,25 @@ classdef RandomModelEstimatorDemo < EstimatorDemo
         
         function set.Dims(this, value)
             this.Dims = value;
-            this.newCoeffs; %#ok
+            this.newCoeffs;
             %this.setup; %#ok
         end
         
         function set.NumCenters(this, value)
             this.NumCenters = value;
-            this.newCoeffs; %#ok
+            this.newCoeffs;
             %this.setup; %#ok
         end
         
         function set.PositiveExpansion(this, value)
             this.PositiveExpansion = value;
             %this.setup; %#ok
-            this.newCoeffs; %#ok
+            this.newCoeffs;
         end
         
         function set.UniformExpansion(this, value)
             this.UniformExpansion = value;
-            this.newCoeffs; %#ok
+            this.newCoeffs;
             %this.setup; %#ok
         end
         

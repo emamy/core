@@ -139,6 +139,10 @@ classdef MemoryModelData < data.AModelData
             this.InputIndices = [];
             this.hm.clear;
         end
+        
+        function [x,X] = getBoundingBox(this)
+            [x, X] = general.Utils.getBoundingBox(this.TrajectoryData(:,:));
+        end
     end
     
     methods(Static)

@@ -151,7 +151,7 @@ classdef ReducedModel < models.BaseModel
                 x = xtmp;
             end
         end
-        
+             
 %         function exo = getExo(this, mu)
 %             % Computes the norm of the initial error 
 %             % `E_{x_0}(\mu) = ||C(0,\mu)(I-VW^t)x_0(\mu)||`

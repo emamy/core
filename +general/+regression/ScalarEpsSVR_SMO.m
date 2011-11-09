@@ -639,7 +639,7 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             %kernel = kernels.PolyKernel(7);
             %kernel = kernels.LinearKernel;
             kernel = kernels.GaussKernel(.8);
-            svr.K = data.MemoryKernelMatrix(kernel.evaluate(x,x));
+            svr.K = kernel.evaluate(x,x);
 
             [ai, svidx] = svr.computeKernelCoefficients(fx,[]);
             sv = x(:,svidx);

@@ -64,8 +64,14 @@ classdef MUnit
                 curPackage = [strrep(strrep(curPackage,'+','.'),'/','') '.'];
             end
             
+            a = KerMor.App;
+            old = a.UseDPCS;
+            a.UseDPCS = false;
+            
             % Start recursive run
             [s,f] = testing.MUnit.recursiveRun(dir,curPackage);
+            
+            a.UseDPCS = old;
             
             % Summary
             fprintf('\n\n All Class Tests finished.\n');

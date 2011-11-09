@@ -1,25 +1,29 @@
 classdef ReducedSystem < models.BaseDynSystem
-    %ReducedSystem: A KerMor reduced dynamical system.
-    %
-    % Any state space scaling is included into the reduced model upon creation, as scaling is
-    % possibly of the large systems' dimension. See @ref scaling for more information.
-    % 
-    % @author Daniel Wirtz @date 17.03.2010
-    %
-    % @change{0,5,dw,2011-08-05} Fixed the use of state space scaling in reduced simulations. Now
-    % the scaling and reduction is performed as described in @ref state_scaling.
-    %
-    % @change{0,4,dw,2011-05-13} Removed the old 'getODEFun' function and replaced it by a direct
-    % implementation 'ODEFun'. This enables to avoid nested function handles with in turn allow for
-    % a speedup of reduced simulations by almost a factor of 2.
-    %
-    % See also: models.BaseDynSystem
-    %
-    % This class is part of the framework
-    % KerMor - Model Order Reduction using Kernels:
-    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
-    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
-    % - \c License @ref licensing    
+%ReducedSystem: A KerMor reduced dynamical system.
+%
+% Any state space scaling is included into the reduced model upon creation, as scaling is
+% possibly of the large systems' dimension. See @ref scaling for more information.
+% 
+% @author Daniel Wirtz @date 17.03.2010
+%
+% @change{0,5,dw,2011-10-15} Fixed the computation of reduced systems. Previously, the scaling
+% was not included in the reduced model if no subspace projection was used. Now, scaling is
+% included if set and independently from any subspace projection.
+%
+% @change{0,5,dw,2011-08-05} Fixed the use of state space scaling in reduced simulations. Now
+% the scaling and reduction is performed as described in @ref state_scaling.
+%
+% @change{0,4,dw,2011-05-13} Removed the old 'getODEFun' function and replaced it by a direct
+% implementation 'ODEFun'. This enables to avoid nested function handles with in turn allow for
+% a speedup of reduced simulations by almost a factor of 2.
+%
+% See also: models.BaseDynSystem
+%
+% This class is part of the framework
+% KerMor - Model Order Reduction using Kernels:
+% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+% - \c License @ref licensing    
     
     properties(Access=private)
         plotPtr;
@@ -61,23 +65,39 @@ classdef ReducedSystem < models.BaseDynSystem
             
             fullsys = fullmodel.System;
             
+            
+            
             % Create local workspace copy (if pointers are used, dont store model.V in it..)
             V = this.Model.V;
             W = this.Model.W;
+            
+            if ~isempty(fullmodel.SpaceReducer) && (isempty(V) || isempty(W))
+                error(['Model has a SpaceReducer but no projection'...
+                        'data V,W is given. Forgot to call offlineGenerations?']);
+            end
             
             % The state scaling for the reduced system is one, as the scaling matrices have been
             % incorporated into the V,W matrices via V := SV and W = S^-1W inside the ReducedModel
             % setModel method.
             this.StateScaling = 1;
+            SV = 1; SW = 1; % Default: no scaling
             s = fullmodel.System.StateScaling;
-            d = size(fullmodel.Data.V,1);
-            if isscalar(s)
-                s(1:d,1) = s;
+            if s ~= 1
+                if isscalar(s)
+                    dim = fullsys.x0.evaluate(fullsys.getRandomParam);
+                    s(1:dim,1) = s;
+                else
+                    dim = length(s);
+                end
+                SV = spdiags(s,0,dim,dim);
+                SW = spdiags(1./s,0,dim,dim);
             end
             % Incorporate the state scaling into the projection matrices.
             % They are used to project the x0 initial values and output C.
-            SV = spdiags(s,0,d,d) * V;
-            SW = spdiags(1./s,0,d,d) * W;
+            if ~isempty(V)
+                SV = SV * V;
+                SW = SW * W;
+            end
             
             % Clones the full system's basic (all but functions)
             % properties
@@ -91,38 +111,27 @@ classdef ReducedSystem < models.BaseDynSystem
             % will be the result.
             this.f = fullsys.f;
             this.B = fullsys.B;
-            this.C = fullsys.C;
             
-            % Forwards the x0 evaluation to the original model's x0 function.
-            if ~isempty(W)
+            % SV ~= 1 means that projection or nontrivial scaling is used.
+            if SV ~= 1 
                 this.x0 = fullsys.x0.project(SV,SW);
+                this.C = fullsys.C.project(SV,SW);
             else
                 this.x0 = fullsys.x0.clone;
+                this.C = fullsys.C.clone;
             end
             
-            % Set the plot-wrapper (uses the plot method from the full
-            % system)
-            this.plotPtr = @fullsys.plot;
-            
-            % Figure whether preojection was setup for this system
-            if ~isempty(fullmodel.SpaceReducer)
-                if isempty(V) || isempty(W)
-                    error(['Model has a SpaceReducer but no projection'...
-                        'data is given. Forgot to call offlineGenerations?']);
-                end
-                % Project input/output
+            % Check whether projection was setup for this system
+            if ~isempty(V)
+                % Project input
                 if ~isempty(fullsys.B)
                     this.B = fullsys.B.project(V,W);
                 end
-                % We have a C in each case, mostly StdOutputConv.
-                this.C = fullsys.C.project(SV,SW);
-                
                 % Project the approximated CoreFun of the full model if exists
                 if ~isempty(fullmodel.Approx)
                     this.f = fullmodel.Approx.project(V,W);
                 else
-                    % Otherwise at least try to project the models' full
-                    % function.
+                    % Otherwise project the models' full function.
                     this.f = fullsys.f.project(V,W);
                 end
             else
@@ -131,6 +140,10 @@ classdef ReducedSystem < models.BaseDynSystem
                     this.f = fullmodel.Approx;
                 end
             end
+            
+            % Set the plot-wrapper (uses the plot method from the full
+            % system)
+            this.plotPtr = @fullsys.plot;
         end
                 
         function y = ODEFun(this, t, x)

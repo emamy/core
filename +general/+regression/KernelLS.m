@@ -57,10 +57,10 @@ classdef KernelLS < KerMorObject & approx.algorithms.IKernelCoeffComp
         function a = regress(this, fx, ainit)%#ok
             
             % Ensure fxi is a column vector
-            fx = reshape(fx,size(this.K,1),[]);
+            fx = reshape(fx,this.K.Dim,[]);
             
             y = this.K'*fx;
-            M = this.K'*this.K + this.lambda*eye(size(this.K));
+            M = this.K'*this.K + this.lambda*eye(this.K.Dim, this.K.Dim);
             
             if length(y) <= this.MaxStraightInvDim
                 a = M\y;
@@ -75,19 +75,17 @@ classdef KernelLS < KerMorObject & approx.algorithms.IKernelCoeffComp
             this.K = K;
         end
         
-        function [ai, svidx] = computeKernelCoefficients(this, yi)
+        function [ai, svidx] = computeKernelCoefficients(this, yi, initialai)%#ok
             ai = this.regress(yi);
             svidx = 1:size(yi,2);
         end
         
-        %% setters
-        
+        %% Getter & setter
         function set.K(this, value)
-            if ~isa(value, 'double')
-                error('value must be a double matrix');
+            if ~isa(value, 'data.IKernelMatrix')
+                error('value must be a data.IKernelMatrix instance');
             end
-            % Make matrix symmetric (can be false due to rounding errors)
-            this.K = .5*(value + value');
+            this.K = value;
         end
         
         function set.lambda(this, value)

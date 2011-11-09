@@ -1,5 +1,5 @@
-classdef MemoryKernelMatrix < data.AKernelMatrix
-% MemoryKernelMatrix: A simple implementation of a AKernelMatrix wrapping
+classdef MemoryKernelMatrix < data.IKernelMatrix
+% MemoryKernelMatrix: A simple implementation of a IKernelMatrix wrapping
 % around a memory-based kernel matrix and forwarding calls.
 %
 % @todo Extra layer seems expensive in terms of computational cost,
@@ -64,7 +64,17 @@ classdef MemoryKernelMatrix < data.AKernelMatrix
         function this = MemoryKernelMatrix(K)
             if nargin == 1
                 this.K = K;
+                this.Dim = size(K,1);
             end
+        end
+        
+        function copy = clone(this)
+            copy = data.MemoryKernelMatrix(this.K);
+            copy.Kinv = this.Kinv;
+            copy.L = this.L;
+            copy.U = this.U;
+            copy.fBInv = this.fBInv;
+            copy.fUseLU = this.fUseLU;
         end
         
         function this = augment(this, vec)
@@ -125,6 +135,28 @@ classdef MemoryKernelMatrix < data.AKernelMatrix
                     prod = data.MemoryKernelMatrix(A * B.K);
                 else
                     prod = A * B.K;
+                end
+            end
+        end
+        
+        function sum = plus(A, B)
+            % Implements the addtion for two MemoryKernelMatrices
+            %
+            % You may add two MemoryKernelMatrix instances or double matrices of same size from
+            % either side.
+            if isa(A,'data.MemoryKernelMatrix') && isa(B,'data.MemoryKernelMatrix')
+                sum = data.MemoryKernelMatrix(A.K + B.K);
+            elseif isa(A,'data.MemoryKernelMatrix') 
+                if isscalar(B) || all(size(B) == A.Dim)
+                    sum = data.MemoryKernelMatrix(A.K + B);
+                else
+                    error('Cannot add an object of class %s and size %s to a data.MemoryKernelMatrix',class(A),num2str(size(A)));
+                end
+            elseif isa(B,'data.MemoryKernelMatrix')
+                if isscalar(A) || all(size(A) == B.Dim)
+                    sum = data.MemoryKernelMatrix(A + B.K);
+                else
+                    error('Cannot add an object of class %s and size %s to a data.MemoryKernelMatrix',class(B),num2str(size(B)));
                 end
             end
         end

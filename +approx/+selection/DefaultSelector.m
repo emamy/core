@@ -17,7 +17,7 @@ classdef DefaultSelector < approx.selection.ASelector
     methods
         function copy = clone(this)
             copy = approx.selection.DefaultSelector;
-            copy = clone@approx.selection.ASelector(this, copy);
+            %copy = clone@approx.selection.ASelector(this, copy);
         end
     end
 

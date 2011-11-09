@@ -65,7 +65,7 @@ classdef InvMultiquadrics < kernels.BaseKernel & kernels.ARotationInvariant
 %         end
         
         function Ks = evaluateScalar(this, x)
-            Ks = (this.c^2 + x^2).^this.beta;
+            Ks = (this.c^2 + x.^2).^this.beta;
         end
     end
     

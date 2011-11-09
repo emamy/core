@@ -65,6 +65,10 @@ function varargout = FunVis2D(varargin)
 %
 % @author Daniel Wirtz @date 2011-07-26
 %
+% @change{0,5,dw,2011-10-24} New interface for simplified calls and some
+% improvements and additions (error plots, centers and approx train data
+% plots)
+%
 % @change{0,5,dw,2011-09-15} Fixed display of less dimensions if not the
 % full space in the slider-panel is needed
 %

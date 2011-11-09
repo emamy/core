@@ -50,6 +50,11 @@ classdef BaseImplSolver < solvers.ode.BaseSolver
             
             this.Name = 'Base implicit solver';
             
+            % Implicit solvers do not have a maximum time-step per default;
+            % so overwrite the value here AFTER registration in BaseSolver
+            % constructor.
+            this.MaxStep = [];
+            
             this.registerProps('JacFun');
         end
         

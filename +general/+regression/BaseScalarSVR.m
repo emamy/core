@@ -3,7 +3,10 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
     %
     % Base class for any scalar SVR algorithm.
     %
-    % @author Daniel Wirtz @date 11.03.2010
+    % @author Daniel Wirtz @date 2010-03-11
+    %
+    % @change{0,5,dw,2011-11-09} Also allowing to pass a double matrix to the setter for the K
+    % property. Automatically wraps the matrix into a data.MemoryKernelMatrix.
     %
     % @change{0,5,dw,2011-08-22} Added the regularization parameter Lambda and made the C constraint
     % dependent on that, as also done in literature. Moved the QPSolver to
@@ -38,9 +41,12 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
         % once a matrix is set multiple regressions for the same base
         % vector set can be performed easily.
         %
+        % This property may also be assigned a double matrix directly, and the wrapping into a
+        % data.MemoryKernelMatrix is done automatically.
+        %
         % @propclass{data} Needed for the SVR to run in the first place.
         %
-        % @type data.AKernelMatrix
+        % @type data.IKernelMatrix
         K;        
     end
     
@@ -84,8 +90,12 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
         end
         
         function set.K(this, value)
-            if ~isa(value, 'data.AKernelMatrix')
-                error('Value must be a data.AKernelMatrix');
+            if ~isa(value, 'data.IKernelMatrix')
+                if ~ismatrix(value) || ~isa(value,'double')
+                    error('Value must be a data.IKernelMatrix or a double matrix.');
+                else
+                    this.K = data.MemoryKernelMatrix(value);
+                end
             end
             % Make matrix symmetric (can be false due to rounding errors)
             this.K = value;

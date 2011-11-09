@@ -1,20 +1,28 @@
 classdef MLWrapper < solvers.ode.BaseSolver
-    % Allows to wrap a MatLab ODE solver into the KerMor framework.
-    %
-    % @author Daniel Wirtz @date 2010-08-09
-    %
-    % @change{0,5,dw,2011-10-15} Moved the creation of the SolverEventData
-    % into the solve function as creation in the constructor seems to crash
-    % Matlab versions prior to the 2011a which was used to program this
-    % functionality in the first place.
-    %
-    % @change{0,5,dw,2011-09-29} Added callback for StepPerformed to enable
-    % "real time" plotting.
-    %
-    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
-    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
-    % extended constructor registering any user-relevant properties using
-    % KerMorObject.registerProps.
+% Allows to wrap a MatLab ODE solver into the KerMor framework.
+%
+% @author Daniel Wirtz @date 2010-08-09
+%
+% @change{0,5,dw,2011-10-16} Adopted to the new BaseSolver.RealTimeMode flag.
+%
+% @change{0,5,dw,2011-10-15} Moved the creation of the SolverEventData
+% into the solve function as creation in the constructor seems to crash
+% Matlab versions prior to the 2011a which was used to program this
+% functionality in the first place.
+%
+% @change{0,5,dw,2011-09-29} Added callback for StepPerformed to enable
+% "real time" plotting.
+%
+% @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+% supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+% extended constructor registering any user-relevant properties using
+% KerMorObject.registerProps.
+%
+% This class is part of the framework
+% KerMor - Model Order Reduction using Kernels:
+% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+% - \c License @ref licensing
     
     properties(SetObservable)
         % The wrapped Matlab-Solver
@@ -46,17 +54,27 @@ classdef MLWrapper < solvers.ode.BaseSolver
         end
         
         function [t,y] = solve(this, odefun, t, x0)
-            opts = odeset('OutputFcn',@this.ODEOutputFcn);
+            opts = odeset;
             if ~isempty(this.MaxStep)
                 opts = odeset(opts, 'MaxStep', this.MaxStep);
             end
             if ~isempty(this.InitialStep)
                 opts = odeset(opts, 'InitialStep', this.InitialStep);
             end
-            this.fED = solvers.ode.SolverEventData;
-            [t,y] = this.MLSolver(odefun, t, x0, opts);
-            y = y';
-            t = t';
+            
+            if this.RealTimeMode
+                opts = odeset(opts,'OutputFcn',@this.ODEOutputFcn);
+                % Bug in Matlab 2009a: direct assignment crashes Matlab!
+                % Seems also not to work if created within the constructor.
+                ed = solvers.ode.SolverEventData;
+                this.fED = ed;
+                this.MLSolver(odefun, t, x0, opts);
+                t = []; y = [];
+            else
+                [t,y] = this.MLSolver(odefun, t, x0, opts);
+                y = y';
+                t = t';    
+            end
         end
         
         function set.MLSolver(this, value)

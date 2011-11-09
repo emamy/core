@@ -13,7 +13,7 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
     % @author Daniel Wirtz @date 01.04.2010
     %
     % @change{0,5,dw,2011-09-12} Set the UseLU flag to true per default.
-    % Using AKernelMatrix instances now, along with flags of whether to
+    % Using IKernelMatrix instances now, along with flags of whether to
     % successively build the inverse, too. Moved the UseLU property to
     % MemoryKernelMatrix.
     %
@@ -36,7 +36,7 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
         %
         % @propclass{data} Required for any interpolation computation.
         %
-        % @type data.AKernelMatrix
+        % @type data.IKernelMatrix
         K;
     end
     
@@ -83,8 +83,12 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
         function set.K(this, value)
             % Sets the kernel matrix property and computes the LU
             % decomposition if the UseLU flag is set to true.
-            if ~isa(value, 'data.AKernelMatrix')
-                error('K must be a data.AKernelMatrix');
+            if ~isa(value, 'data.IKernelMatrix')
+                if ~ismatrix(value) || ~isa(value,'double')
+                    error('K must be a data.IKernelMatrix or a double matrix.');
+                else
+                    this.fK = data.MemoryKernelMatrix(value);
+                end
             end
             this.fK = value;
         end

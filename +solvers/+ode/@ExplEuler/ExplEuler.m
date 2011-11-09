@@ -1,31 +1,39 @@
 classdef ExplEuler < solvers.ode.BaseCustomSolver
-    % Explicit forward euler ODE solver
-    %
-    % This solver uses the MaxStep property as timestep to be most
-    % efficient. Set small enough for precision.
-    %
-    % Method description:
-    % `` x_{i+1} = x_i + \Delta t f(t_i,x_i)``
-    %
-    % @author Daniel Wirtz @date 12.03.2011
-    %
-    % See also: solvers BaseSolver BaseCustomSolver Heun
-    %
-    % @change{0,5,dw,2011-09-29} Added step-wise event implementation for real time
-    % plotting.
-    %
-    % @change{0,4,dw,2011-05-31} Added a new middle class solvers.ode.BaseCustomSolver which
-    % extracts the getCompTimes into a new abstraction layer.
-    %
-    % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
-    % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
-    % extended constructor registering any user-relevant properties using
-    % KerMorObject.registerProps.
-    %
-    % @new{0,2,dw,2011-03-11} Added a c/mex implementation of the
-    % algorithm. Turns out it is double the times slower than the matlab
-    % native code version, so leaving it only in there for speed test
-    % purposes (solvers.ode.ExplEuler.test_solveMex).
+% Explicit forward euler ODE solver
+%
+% This solver uses the MaxStep property as timestep to be most
+% efficient. Set small enough for precision.
+%
+% Method description:
+% `` x_{i+1} = x_i + \Delta t f(t_i,x_i)``
+%
+% @author Daniel Wirtz @date 12.03.2011
+%
+% @change{0,5,dw,2011-10-16} Adopted to the new BaseSolver.RealTimeMode flag.
+%
+% @change{0,5,dw,2011-09-29} Added step-wise event implementation for real time
+% plotting.
+%
+% @change{0,4,dw,2011-05-31} Added a new middle class solvers.ode.BaseCustomSolver which
+% extracts the getCompTimes into a new abstraction layer.
+%
+% @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
+% supervision system @ref propclasses. This class now inherits from KerMorObject and has an
+% extended constructor registering any user-relevant properties using
+% KerMorObject.registerProps.
+%
+% @new{0,2,dw,2011-03-11} Added a c/mex implementation of the
+% algorithm. Turns out it is double the times slower than the matlab
+% native code version, so leaving it only in there for speed test
+% purposes (solvers.ode.ExplEuler.test_solveMex).
+%
+% See also: solvers BaseSolver BaseCustomSolver Heun
+%
+% This class is part of the framework
+% KerMor - Model Order Reduction using Kernels:
+% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+% - \c License @ref licensing
     
     methods
         
@@ -67,21 +75,31 @@ classdef ExplEuler < solvers.ode.BaseCustomSolver
             % x: The solution of the ode at the time steps `t_0,\ldots,t_N`
             % as matrix. @type matrix
             
-            % Initialize vector
+            % Initialize result
             steps = length(t);
-            x = [x0 zeros(length(x0),steps-1)];
             dt = t(2:end)-t(1:end-1);
             
-            % Solve for each time step
-            ed = solvers.ode.SolverEventData;
-            for idx = 2:steps;
-                x(:,idx) = x(:,idx-1) + dt(idx-1)*odefun(t(idx-1),x(:,idx-1));
-                ed.Times = t(idx);
-                ed.States = x(:,idx);
-                this.notify('StepPerformed',ed);
+            rtm = this.RealTimeMode;
+            if rtm
+                ed = solvers.ode.SolverEventData;
+                x = [];
+            else
+                x = [x0 zeros(size(x0,1),steps-1)];
             end
-
-            %y = this.solveMex(odefun, times, x0);
+            
+            % Solve for each time step
+            oldx = x0;
+            for idx = 2:steps;
+                newx = oldx + dt(idx-1)*odefun(t(idx-1),oldx);
+                if rtm
+                    ed.Times = t(idx);
+                    ed.States = newx;
+                    this.notify('StepPerformed',ed);
+                else
+                    x(:,idx) = newx;%#ok
+                end
+                oldx = newx;
+            end
         end
     end
     
