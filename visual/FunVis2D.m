@@ -200,7 +200,7 @@ else
         if length(varargin) > 2 && isa(varargin{3},'data.AModelData')
             conf.td = varargin{3}.ApproxTrainData;
         end
-    elseif isfield(sec,'xi') && isfield(sec,'fxi')
+    elseif isa(sec,'data.ApproxTrainData')
         % Use the bounds of the training data as ranges
         ranges = rangesFromATD(sec);
         conf.td = sec;

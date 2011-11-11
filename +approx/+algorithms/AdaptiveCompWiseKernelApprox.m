@@ -177,7 +177,6 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseAdaptiveCWKA
                 minerr = Inf;
                 for gidx = 1:size(dists,2)
                     g = this.setDistKernelConfig(kexp, dists(:,gidx));
-                    
                     %% Compute coefficients
                     % Call coeffcomp preparation method and pass kernel matrix
                     K = data.MemoryKernelMatrix(kexp.getKernelMatrix);
@@ -217,7 +216,11 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseAdaptiveCWKA
                 kexp.Ma = bestMa;
                 
                 if KerMor.App.Verbose > 1
-                    fprintf('-- It: %d ---- Minerr: %f ----- Best values: System:%f, Time:%f, Param:%f ----------\n',cnt,minerr,bestgx,bestgt,bestgp);
+                    if this.pte
+                        fprintf('-- It: %d ---- Minerr: %f ----- Best values: System:%f, Time:%f, Param:%f ----------\n',cnt,minerr,bestg(1),bestg(2),bestg(3));
+                    else
+                        fprintf('-- It: %d ---- Minerr: %f ----- Best value: System:%f ----------\n',cnt,minerr,bestg(1));
+                    end 
                 end
                 
                 cnt = cnt+1;
@@ -229,10 +232,10 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseAdaptiveCWKA
             this.setKernelConfig(kexp, globbestg);
             kexp.Ma = globbestMa;
             kexp.Centers.xi = kexp.Centers.xi(:,1:globbestcnt);
-            if ~isempty(kexp.Centers.ti)
+            if this.pte && ~isempty(kexp.Centers.ti)
                 kexp.Centers.ti = kexp.Centers.ti(:,1:globbestcnt);
             end
-            if ~isempty(kexp.Centers.mui)
+            if this.pte && ~isempty(kexp.Centers.mui)
                 kexp.Centers.mui = kexp.Centers.mui(:,1:globbestcnt);
             end
             
@@ -251,7 +254,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseAdaptiveCWKA
                 plot(1:length(errs),errs,'r',used,val,'r*',maxidx,val,'b*');
                 subplot(2,2,pos+1);
                 hold off;
-                plot([BXmin, BXmax],'black');
+                plot([atd.Box.xmin, atd.Box.xmax],'black');
                 axis tight;
                 hold on;
                 %plot((BXmin+BXmax)/2,'g');
@@ -263,7 +266,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseAdaptiveCWKA
                 % Plot params & time also
                 if KerMor.App.Verbose > 3
                     subplot(2,2,3); hold off;
-                    plot([Btmin, Btmax],'black');
+                    plot([atd.Box.tmin, atd.Box.tmin],'black');
                     axis tight;
                     hold on;
                     if size(kexp.Centers.ti,2) > 1
@@ -271,7 +274,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseAdaptiveCWKA
                     end
                     plot(kexp.Centers.ti(:,end),'r*','MarkerSize',3);
                     subplot(2,2,4); hold off;
-                    plot([BPmin, BPmax],'black');
+                    plot([atd.Box.mumin, atd.Box.mumax],'black');
                     axis tight;
                     hold on;
                     if size(kexp.Centers.mui,2) > 1
@@ -284,5 +287,3 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseAdaptiveCWKA
         end 
     end
 end
-
-
