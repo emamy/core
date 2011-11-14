@@ -122,11 +122,13 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
             %% Checks
             % This algorithm so far works only with Gaussian kernels
             pte = isa(kexp,'kernels.ParamTimeKernelExpansion');
-            tkg = isa(kexp.TimeKernel,'kernels.GaussKernel');
-            if ~isa(kexp.Kernel,'kernels.GaussKernel') || ...
-                    (pte && ((~tkg && ~isa(kexp.TimeKernel,'kernels.NoKernel')) || ...
-                    ~isa(kexp.ParamKernel,'kernels.GaussKernel')))
-                error('Any kernels used have to be Gaussian kernels for this approximation algorithm so far');
+            if pte
+                tkg = isa(kexp.TimeKernel,'kernels.GaussKernel');
+                if ~isa(kexp.Kernel,'kernels.GaussKernel') || ...
+                        (pte && ((~tkg && ~isa(kexp.TimeKernel,'kernels.NoKernel')) || ...
+                        ~isa(kexp.ParamKernel,'kernels.GaussKernel')))
+                    error('Any kernels used have to be Gaussian kernels for this approximation algorithm so far');
+                end
             end
             
             % Set AKernelCoreFun centers
@@ -182,7 +184,7 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
                 %% Determine maximum error over training data
                 fhat = kexp.evaluate(atd.xi, atd.ti, atd.mui);
                 [val, maxidx, errs] = errfun(atd.fxi,fhat);
-                rel = val / (norm(fxi(maxidx))+eps);
+                rel = val / (norm(atd.fxi(maxidx))+eps);
                 this.MaxErrors(gidx) = val;
                 
                 if val < minerr
