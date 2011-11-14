@@ -9,6 +9,11 @@ classdef KerMor < handle
     %
     % @author Daniel Wirtz @date 2011-03-04
     %
+    % @new{0,6,dw,2011-11-14} Included 'dbstop if error' in the KerMor start script. No more
+    % lost data! :-)
+    %
+    % @new{0,6,dw,2011-11-09} Started KerMor Version 0.6
+    %
     % @change{0,5,dw,2011-11-08}
     % - Renamed "install" to "setup".
     % - Removed the initDirectories method and moved them to the setup.
@@ -227,7 +232,7 @@ classdef KerMor < handle
         % Used in Devel to fill the new class templates etc.
         %
         % See also: MainVersion
-        SubVersion = '5';
+        SubVersion = '6';
     end
     
     properties
@@ -597,6 +602,9 @@ classdef KerMor < handle
                 desktop = com.mathworks.mde.desk.MLDesktop.getInstance;
                 desktop.restoreLayout(this.DesktopLayout);
             end
+            
+            disp('Calling ''dbstop if error''..\n');
+            dbstop if error;
             
             disp('<<<<<<<<< Ready to go. >>>>>>>>>>');
             

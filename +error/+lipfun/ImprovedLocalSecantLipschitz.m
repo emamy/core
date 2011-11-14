@@ -27,7 +27,7 @@ classdef ImprovedLocalSecantLipschitz < error.lipfun.Base
         oldrs = [];
     end
 
-    properties(Access=private)
+    properties(SetAccess=private)
         precomp = [];
     end
     

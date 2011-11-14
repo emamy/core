@@ -20,6 +20,8 @@ classdef AffParamMatrix < ICloneable
     % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
     % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
     % - \c License @ref licensing    
+    %
+    % @todo implement/override other arithmetic operations
         
     properties(SetAccess=private)
         % The number of affine matrices / size of the linear combination
@@ -27,12 +29,13 @@ classdef AffParamMatrix < ICloneable
         
         % The matrices for the affine function
         % @propclass{critical}
-        Matrices = {};
+        Matrices = [];
     end
     
     properties(Access=private)
         funStr = {};
         cfun = [];
+        dims;
     end
     
     methods 
@@ -51,11 +54,7 @@ classdef AffParamMatrix < ICloneable
                 M = [];
                 return;
             end
-            c = this.cfun(t,mu);
-            M = c(1) * this.Matrices{1};
-            for i=2:this.N
-                M = M + c(i) * this.Matrices{i};
-            end
+            M = reshape(sum(this.Matrices * this.cfun(t,mu),2),this.dims);
         end
         
 %         function varargout = subsref(this, S)
@@ -74,6 +73,7 @@ classdef AffParamMatrix < ICloneable
             copy.Matrices = this.Matrices;
             copy.N = this.N;
             copy.funStr = this.funStr;
+            copy.dims = this.dims;
             copy.buildCoeffFun;
         end
         
@@ -93,46 +93,52 @@ classdef AffParamMatrix < ICloneable
             elseif ~isreal(mat)
                 error('Parameter "mat" must be a real matrix.');
             end
+            if isempty(this.dims)
+                this.dims = size(mat);
+            end
             this.N = this.N + 1;
             
             this.funStr{end+1} = coeff_fun;
             %this.Coefficients{end+1} = coeff_fun;
             
-            this.Matrices{end+1} = mat;
+            this.Matrices(:,end+1) = mat(:);
             
             % Create the coefficient function
             this.buildCoeffFun;
         end
         
-        function prod = mtimes(A, B)
+        function pr = mtimes(A, B)
             % Implements the default multiplication method.
-            if isa(A,'general.AffParamMatrix') && isa(B,'general.AffParamMatrix')
-                prod = general.AffParamMatrix;
-                prod.N = A.N * B.N;
-                prod.Matrices = cell(1,prod.N);
+            if isa(A,'general.AffParamMatrix2') && isa(B,'general.AffParamMatrix2')
+                pr = general.AffParamMatrix2;
+                pr.N = A.N * B.N;
+                pr.dims = [A.dims(1) B.dims(2)];
+                pr.Matrices = zeros(prod(pr.dims),pr.N);
                 for i = 1:A.N
-                    % Add self-mixed terms
+                    M = reshape(A.Matrices(:,i),A.dims);
                     for j = 1:B.N
-                        prod.Matrices{(i-1)*B.N + j} = A.Matrices{i} * B.Matrices{j};
-                        prod.funStr{end+1} = ['(' A.funStr{i} ')*(' B.funStr{j} ')'];
+                        pr.Matrices(:,(i-1)*B.N + j) = ...
+                            reshape(M * reshape(B.Matrices(:,j),B.dims),1,[]);
+                        pr.funStr{end+1} = ['(' A.funStr{i} ')*(' B.funStr{j} ')'];
                     end
                 end
-                
-                prod.buildCoeffFun;
-            elseif isa(A,'general.AffParamMatrix')
-                prod = A.clone;
+                pr.buildCoeffFun;
+            elseif isa(A,'general.AffParamMatrix2')
+                pr = A.clone;
                 for i=1:A.N
-                    prod.Matrices{i} = A.Matrices{i} * B;
+                    pr.Matrices(:,i) = reshape(...
+                        reshape(A.Matrices(:,i),A.dims) * B,1,[]);
                 end 
-            elseif isa(B,'general.AffParamMatrix')
-                prod = B.clone;
+            elseif isa(B,'general.AffParamMatrix2')
+                pr = B.clone;
                 for i=1:B.N
-                    prod.Matrices{i} = A * B.Matrices{i};
+                    pr.Matrices(:,i) = reshape(...
+                        A * reshape(B.Matrices(:,i),B.dims),1,[]);
                 end 
             end
         end
         
-        function diff = minus(A,B)
+        function diff = minus(A, B)
             % Implements the default substraction method.
             %
             % So far only works for the case of identical coefficient functions, as more
@@ -141,22 +147,17 @@ classdef AffParamMatrix < ICloneable
             if isa(A,'general.AffParamMatrix') && isa(B,'general.AffParamMatrix')
                 if A.N == B.N && all(strcmp(A.funStr,B.funStr))
                     diff = A.clone;
-                    for i = 1:A.N
-                        diff.Matrices{i} = A.Matrices{i} - B.Matrices{i};
-                    end
+                    diff.Matrices = A.Matrices - B.Matrices;
                 else
                     error('If two AffParamMatrices are subtracted, the number of elements must be the same and the coefficient functions must match.');
                 end
             elseif isa(A,'general.AffParamMatrix')
-                prod = A.clone;
-                for i=1:A.N
-                    prod.Matrices{i} = A.Matrices{i} - B;
-                end 
+                diff = A.clone;
+                diff.addMatrix('-1',B)
             elseif isa(B,'general.AffParamMatrix')
-                prod = B.clone;
-                for i=1:B.N
-                    prod.Matrices{i} = A - B.Matrices{i};
-                end 
+                diff = B.clone;
+                diff.Matrices = -diff.Matrices;
+                diff.addMatrix('1',A);
             end
         end
         
@@ -164,7 +165,7 @@ classdef AffParamMatrix < ICloneable
             % Implements the transposition for affine parametric matrices.
             transp = this.clone;
             for i=1:this.N
-                transp.Matrices{i} = this.Matrices{i}';
+                transp.Matrices(:,i) = reshape(reshape(this.Matrices(i),this.dims)',1,[]);
             end
         end
         
