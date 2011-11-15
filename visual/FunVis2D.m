@@ -65,6 +65,12 @@ function varargout = FunVis2D(varargin)
 %
 % @author Daniel Wirtz @date 2011-07-26
 %
+% @new{0,6,dw,2011-11-15} 
+% - Centers and approximation training data are now plotted completely if the only non-constant
+% dimensions are the ones who are currently plotted (and the corresponding slider is `>0`).
+% - Extended the center plotting with lines to the values of the full function on the training
+% data if an data.ApproxTrainData class is passed.
+%
 % @change{0,5,dw,2011-10-24} New interface for simplified calls and some
 % improvements and additions (error plots, centers and approx train data
 % plots)
@@ -263,8 +269,10 @@ if isempty(lbl)
     for i=setdiff(1:conf.xdim,conf.const)
         lbl.x{end+1} = ['x_{' num2str(i) '}'];
     end
+    args{1} = zeros(conf.xdim,1);
     if conf.hastime && all(conf.const ~= conf.timeoff)
         lbl.x{end+1} = 't';
+        args{2} = 0;
     end
     if conf.hasparams
         munum = 1:size(conf.ranges.murange,1);
@@ -272,9 +280,16 @@ if isempty(lbl)
         for i=1:length(diff)
             lbl.x{end+1} = ['mu_{' num2str(munum(idx(i))) '}'];
         end
+        args{3} = zeros(munum,1);
     end
     lbl.fx = {};
-    for i=1:conf.xdim
+    if ~isempty(conf.td)
+        fdim = size(conf.td.fxi,1);
+    else
+        % Autodetect output size by evaluating with all zero arguments
+        fdim = size(conf.fun.evaluate(args{:}),1);
+    end
+    for i=1:fdim
         lbl.fx{end+1} = ['f(x_{' num2str(i) '})'];
     end
 end
@@ -302,7 +317,7 @@ if ~isempty(conf.fun2)
 end
 
 %% Setup default values
-[dummy, conf.idxmap] = setdiff(1:conf.dims,conf.const);
+[~, conf.idxmap] = setdiff(1:conf.dims,conf.const);
 % Selected dimensions
 conf.d1 = 1; conf.d2 = 2;
 conf.dout = 1;
@@ -374,7 +389,11 @@ if c.iske
     d(xsel,:) = [];
     d = sqrt(sum(d.^2,1));
     md = min(d); Md = max(d);
-    sel = d < md + (Md-md)*(c.cperc/100)*1.001;
+    if md == Md && c.cperc > 0
+        sel = true(size(d));
+    else
+        sel = d < md + (Md-md)*(c.cperc/100)*1.001;
+    end
     set(h.lblNumCenters,'String',sprintf('%d/%d',sum(sel),size(C,2)));
     C = C(:,sel);
     setappdata(h.main,'curCenters',C);
@@ -455,9 +474,12 @@ if ~isempty(c.td)
     d(xsel,:) = [];
     d = sqrt(sum(d.^2,1));
     md = min(d); Md = max(d);
-    sel = d < md + (Md-md)*(c.tperc/100)*1.001;
+    if md == Md && c.tperc > 0
+        sel = true(size(d));
+    else
+        sel = d < md + (Md-md)*(c.tperc/100)*1.001;
+    end
     set(h.lblPerc,'String',sprintf('%d/%d',sum(sel),size(C,2)));
-
     setappdata(h.main,'selATDPoints',sel);
 end
 plotCurrent(h,c);
@@ -534,6 +556,14 @@ if c.iske
         Ma = max(hlpfx);
     end
     plot3(h.ax,C(xsel(1),:),C(xsel(2),:),hlpfx,'black.','MarkerSize',15);
+    % Also plot the centers at their original value
+    if ~isempty(c.td)
+        Cidx = general.Utils.findVecInMatrix(c.td.xi,C);
+        hlpfx2 = c.td.fxi(c.dout,Cidx);
+        plot3(h.ax,C(xsel(1),:),C(xsel(2),:),hlpfx2,'blackx','MarkerSize',15);
+        plot3(h.ax,[C(xsel(1),:); C(xsel(1),:)],[C(xsel(2),:); C(xsel(2),:)],[hlpfx; hlpfx2],'black');
+        %plot3(h.ax,C(xsel(1),:),C(xsel(2),:),c.td.fxi(c.dout,Cidx),'green.','MarkerSize',15);
+    end
 end
 
 %% Add training data points to plot
