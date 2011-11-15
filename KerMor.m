@@ -223,6 +223,8 @@ classdef KerMor < handle
         % Change only AFTER committing the final last version's state.
         % Used in Devel to fill the new class templates etc.
         %
+        % @type char
+        %
         % See also: SubVersion
         MainVersion = '0';
         
@@ -230,6 +232,8 @@ classdef KerMor < handle
         %
         % Change only AFTER committing the final last version's state.
         % Used in Devel to fill the new class templates etc.
+        %
+        % @type char
         %
         % See also: MainVersion
         SubVersion = '6';
@@ -242,11 +246,12 @@ classdef KerMor < handle
         % read by KerMor. Can be set anytime during runtime. If no value is
         % given the KerMor.start script will ask for it.
         %
-        % @default ./data
+        % @default ./data @type char
         DataStoreDirectory = '';
         
         % The directory to use for temporary simulation data
-        % @default ./temp
+        %
+        % @default ./temp @type char
         TempDirectory = '';
         
         % The preferred desktop layout to work with.
@@ -255,38 +260,51 @@ classdef KerMor < handle
         % NOT GET IT you can save your custom desktop layout and set this
         % property to its name. Upon start, KerMor will restore the layout
         % for you automatically. Set to '' to disable.
-        % @default empty
+        %
+        % @default '' @type char
         DesktopLayout = '';
         
         % The source directory for a copy of rbmatlab
         %
-        % @default []
+        % @default [] @type char
         rbmatlabDirectory = '';
         
         % The source directory for JKerMor, if available
+        %
+        % @default '' @type char
         JKerMorSourceDirectory = '';
         
         % Verbose output level
         %
-        % @default 1
+        % @default 1 @type integer
         Verbose = 1;
         
         % Flag whether to enable use of the Matlab Parallel Computing
         % Toolbox.
         %
-        % @default false
+        % @default false @type logical
         UseMatlabParallelComputing = false;
         
         % The default figure position to use.
         %
         % If none is set, KerMor does not modify the root workspace property
         % 'DefaultFigurePosition' upon startup.
+        %
+        % @default [] @type rowvec
         DefaultFigurePosition = [];
         
         % Switch to determine if the Default Property Changed System shall be used or not.
         %
-        % @default true
+        % @default true @type logical
         UseDPCS = true;
+        
+        % Flag that determines if KerMor also enables the 'diary' function upon startup.
+        %
+        % For each day, a diary named '[Date]_KerMor[Version]Log.txt' is created inside the
+        % KerMor.TempDirectory.
+        %      
+        % @default true @type logical
+        UseDiary = true;
     end
     
     properties(SetAccess=private)
@@ -566,6 +584,24 @@ classdef KerMor < handle
             setpref('KERMOR','UseDPCS',value);
             this.UseDPCS = value;
         end
+        
+        function value = get.UseDiary(this)
+            value = this.UseDiary;
+            if isempty(value)
+                value = getpref('KERMOR','UseDiary',true);
+                if ~isempty(value)
+                    this.UseDiary = value;
+                end
+            end
+        end
+        
+        function set.UseDiary(this, value)
+            if ~islogical(value)
+                error('The UseDiary flag must be boolean.');
+            end
+            setpref('KERMOR','UseDiary',value);
+            this.UseDiary = value;
+        end
     end
     
     methods(Access=private)
@@ -603,8 +639,16 @@ classdef KerMor < handle
                 desktop.restoreLayout(this.DesktopLayout);
             end
             
-            disp('Calling ''dbstop if error''..\n');
+            disp('Calling ''dbstop if error''..');
             dbstop if error;
+            
+            if this.UseDiary
+                dfile = sprintf('%s_KerMor%s.%s_diary.txt',datestr(now,'yyyy-mm-dd'),...
+                    KerMor.MainVersion,KerMor.SubVersion);
+                dfile = fullfile(this.TempDirectory,dfile);
+                fprintf('Initializing diary in %s..\n',dfile);
+                diary(dfile);
+            end
             
             disp('<<<<<<<<< Ready to go. >>>>>>>>>>');
             
@@ -682,15 +726,21 @@ classdef KerMor < handle
             end
         end        
                   
-        function shutdown(this)%#ok
+        function shutdown(this)
+            % Ends the current KerMor session.
+            
             % only close if parallel computing is available and matlabpool is running!
-            t = which('matlabpool');
-            if ~isempty(t)
-                s = matlabpool('size');
-                if s > 0
+            if this.UseMatlabParallelComputing
+                disp('Closing the matlabpool..');
+                if matlabpool('size') > 0
                     matlabpool close;
                 end
-            end           
+            end
+            
+            if this.UseDiary
+                disp('Disabling diary..');
+                diary off;
+            end
         end
     end
     

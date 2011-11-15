@@ -25,7 +25,9 @@ classdef KerMorObject < handle
     % KerMor - Model Order Reduction using Kernels:
     % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
     % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
-    % - \c License @ref licensing    
+    % - \c License @ref licensing
+    %
+    % @todo Extract DPCS into single class and put onto matlab file exchange!
     
     properties(SetAccess=private)
         % An ID that allows to uniquely identify this KerMorObject

@@ -1,5 +1,5 @@
 classdef AInitialValue < dscomponents.IProjectable
-% AInitialValue: Abstrat base class for dynamical systems initial values.
+% AInitialValue: Abstract base class for dynamical systems initial values.
 %
 %
 %

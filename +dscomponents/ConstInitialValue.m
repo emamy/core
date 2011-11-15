@@ -27,7 +27,7 @@ classdef ConstInitialValue < dscomponents.AInitialValue
             x0 = this.x0;
         end
         
-        function projected = project(this, V, W)
+        function projected = project(this, V, W)%#ok
             projected = this.clone;
             projected.x0 = W'*this.x0;
         end
