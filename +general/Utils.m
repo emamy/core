@@ -3,6 +3,10 @@ classdef Utils
     %
     % @author Daniel Wirtz @date 11.10.2010
     %
+    % @change{0,6,dw,2011-11-16} Using mex CalcMD5 now to compute hash values for vectors.
+    % Source downloaded from http://www.mathworks.com/matlabcentral/fileexchange/25921. Also
+    % updated the KerMor.setup script to automatically compile the CalcMD5 mex file.
+    %
     % @change{0,5,dw,2011-09-15} 
     % - saveAxes and saveFigure now store the last save location in the
     % preferences and reuse them.
@@ -418,19 +422,14 @@ classdef Utils
         end
         
         function h = getHash(vec)
-            % Returns a hash code using java classes for the given vector.
+            % Returns a hash code for the given vector.
             %
-            % @todo Implement proper hash algorithm for vectors or find a quick one!
-            
-            % Must do for the moment.
-            h = sprintf('%f',vec);
-            % Does NOT work as of course java assigns new adresses to the vectors each time.
-%             jvec = java_array('java.lang.Double',length(vec));
-%             for i=1:length(vec)
-%                 jvec(i) = java.lang.Double(vec(i));
-%             end
-%             h = jvec.hashCode;
-%             clear jvec;
+            % Currently using the CalcMD5 routine from 3rdparty/calcmd5, which is included in
+            % KerMor as 3rd party code.
+            % Original source: http://www.mathworks.com/matlabcentral/fileexchange/25921
+            % 
+            h = CalcMD5(vec);
+            %h = sprintf('%d',typecast(vec,'uint8'));
         end
         
     end

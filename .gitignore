@@ -9,5 +9,6 @@
 *.jpg
 *.bin
 *.log
+*.zip
 /data
 /temp

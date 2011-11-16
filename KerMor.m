@@ -657,11 +657,25 @@ classdef KerMor < handle
                 %
                 % @todo include checks for pardiso once pardiso solver is
                 % implemented/wrapped
+                
+                warning off MATLAB:dispatcher:nameConflict
+                
                 disp('Checking for 3rd party software...')
                 addpath(fullfile(p,'3rdparty'));
                 
                 % md5
-                %addpath(fullfile(p,'3rdparty','md5'));
+                d = fullfile(p,'3rdparty','calcmd5');
+                addpath(d);
+                if ~exist(fullfile(d,['CalcMD5.' mexext]),'file')
+                    warning('KerMor:init','No compiled CalcMD5 mex file found. Did you run KerMor.setup completely?\nKerMor might not run properly.');
+                end
+                
+                % md5
+                d = fullfile(p,'3rdparty','typecastx');
+                addpath(d);
+                if ~exist(fullfile(d,['typecastx.' mexext]),'file')
+                    warning('KerMor:init','No compiled typecastx mex file found. Did you run KerMor.setup completely?\nKerMor might not run properly.');
+                end
                 
                 % ipopt
                 addpath(fullfile(p,'3rdparty','ipopt'));
@@ -697,7 +711,7 @@ classdef KerMor < handle
                     disp('<<<<<<<<< Done Starting rbmatlab >>>>>>>>>>');
                 end
                 
-                %addpath(fullfile(p,'3rdparty','pardiso'));
+                warning on MATLAB:dispatcher:nameConflict
             end   
             
             function initParallelization
@@ -783,8 +797,7 @@ classdef KerMor < handle
                 word = 'set';
             end
             str = sprintf('Do you want to %s %s as your KerMor data file directory? Choosing "No" opens a directory selection dialog.\n(Y)es/(N)o?: ',word,ds);
-            ds = lower(input(str,'s'));
-            if isequal(ds,'n')
+            if isequal(lower(input(str,'s')),'n')
                 d = uigetdir(ds,'Please specify the KerMor data file directory');
                 if d == 0
                     error('No KerMor data file directory specified. Aborting setup.');
@@ -801,8 +814,7 @@ classdef KerMor < handle
                 word = 'set';
             end
             str = sprintf('Do you want to %s %s as your KerMor temporary file directory? Choosing "No" opens a directory selection dialog.\n(Y)es/(N)o?: ',word,ds);
-            ds = lower(input(str,'s'));
-            if isequal(ds,'n')
+            if isequal(lower(input(str,'s')),'n')
                 d = uigetdir(ds,'Please specify the KerMor temporary file directory');
                 if d == 0
                     error('No KerMor temporary file directory specified. Aborting setup.');
@@ -830,7 +842,7 @@ classdef KerMor < handle
                 end
             end
             
-            %% SETPREF for Matlab Parallel processing
+            %% Matlab Parallel processing
             if ~isempty(which('matlabpool'));
                 str = sprintf('Do you want to Use Matlab Parallel Processing?\n(Y)es/(N)o: ');
                 value = lower(input(str,'s'));
@@ -841,46 +853,9 @@ classdef KerMor < handle
                 end
             end
             
-            %% Optional: rbmatlab
-            rbmat = a.rbmatlabDirectory;
-            if ~isempty(rbmat)
-                str = sprintf('Do you want to keep the local rbmatlab version at %s with KerMor?\n(Y)es/(N)o: ',rbmat);
-                resp = 'n';
-            else
-                str = sprintf('Do you want to register a local rbmatlab version with KerMor?\n(Y)es/(N)o: ');
-                resp = 'y';
-            end
-            ds = lower(input(str,'s'));
-            if isequal(ds,resp)
-                rbmat = uigetdir(pwd,'Please select the rbmatlab source root folder.');
-                if rbmat == 0
-                    warning('KerMor:setup',['No rbmatlab directory specified. Continuing witout using rbmatlab.\n'...
-                        'You can still register a local version of rbmatlab by setting the KerMor.App.rbmatlabDirectory manually.']);
-                else
-                    a.rbmatlabDirectory = rbmat;
-                end
-            end
+            %% 3rd party programs
+            KerMor.setup3rdParty;
             
-            
-            %% Optional: JKerMor
-            jk = a.JKerMorSourceDirectory;
-            if ~isempty(jk)
-                str = sprintf('Do you want to keep the local JKerMor version at %s with KerMor?\n(Y)es/(N)o: ',jk);
-                resp = 'n';
-            else
-                str = sprintf('Do you want to register a local JKerMor version with KerMor?\n(Y)es/(N)o: ');
-                resp = 'y';
-            end
-            ds = lower(input(str,'s'));
-            if isequal(ds,resp)
-                jk = uigetdir(pwd,'Please select the JKerMor source root folder.');
-                if jk == 0
-                    warning('KerMor:setup',['No JKerMor directory specified. Continuing witout using JKerMor.\n'...
-                        'You can still register a local version of JKerMor by setting the KerMor.App.JKerMorSourceDirectory manually.']);
-                else
-                    a.JKerMorSourceDirectory = jk;
-                end
-            end
             disp('<<<<<<<<<< Setup complete. You can now start KerMor by running "KerMor.start;". >>>>>>>>>>');
         end
         
@@ -927,7 +902,69 @@ classdef KerMor < handle
         end
     end
     
-%     methods(Static, Access=private) 
+    methods(Static, Access=private)
+        
+        function setup3rdParty
+            a = KerMor.App;
+            
+            %% Optional: rbmatlab
+            rbmat = a.rbmatlabDirectory;
+            if ~isempty(rbmat)
+                str = sprintf('Do you want to keep the local rbmatlab version at %s with KerMor?\n(Y)es/(N)o: ',rbmat);
+                resp = 'n';
+            else
+                str = sprintf('Do you want to register a local rbmatlab version with KerMor?\n(Y)es/(N)o: ');
+                resp = 'y';
+            end
+            ds = lower(input(str,'s'));
+            if isequal(ds,resp)
+                rbmat = uigetdir(pwd,'Please select the rbmatlab source root folder.');
+                if rbmat == 0
+                    warning('KerMor:setup',['No rbmatlab directory specified. Continuing witout using rbmatlab.\n'...
+                        'You can still register a local version of rbmatlab by setting the KerMor.App.rbmatlabDirectory manually.']);
+                else
+                    a.rbmatlabDirectory = rbmat;
+                end
+            end
+            
+            %% Optional: JKerMor
+            jk = a.JKerMorSourceDirectory;
+            if ~isempty(jk)
+                str = sprintf('Do you want to keep the local JKerMor version at %s with KerMor?\n(Y)es/(N)o: ',jk);
+                resp = 'n';
+            else
+                str = sprintf('Do you want to register a local JKerMor version with KerMor?\n(Y)es/(N)o: ');
+                resp = 'y';
+            end
+            ds = lower(input(str,'s'));
+            if isequal(ds,resp)
+                jk = uigetdir(pwd,'Please select the JKerMor source root folder.');
+                if jk == 0
+                    warning('KerMor:setup',['No JKerMor directory specified. Continuing witout using JKerMor.\n'...
+                        'You can still register a local version of JKerMor by setting the KerMor.App.JKerMorSourceDirectory manually.']);
+                else
+                    a.JKerMorSourceDirectory = jk;
+                end
+            end
+            
+            %% Compile MEX files
+            warning off MATLAB:dispatcher:nameConflict
+            olddir = pwd;
+            % CalcMD5
+            disp('Compliling CalcMD5..');
+            cd(fullfile(a.HomeDirectory,'3rdparty','calcmd5'));
+            mex CFLAGS="\$CFLAGS -std=c99" CalcMD5.c
+            
+            % typecast/x
+            disp('Compliling typecast/x..');
+            cd(fullfile(a.HomeDirectory,'3rdparty','typecastx'));
+            mex typecast.c
+            mex typecastx.c
+            
+            warning on MATLAB:dispatcher:nameConflict
+            cd(olddir);
+        end
+    end
 %         function installUnix
 %             % Install script for unix systems
 %             %
