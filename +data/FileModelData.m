@@ -60,7 +60,7 @@ classdef FileModelData < data.AModelData
             else
                 this.datadir = KerMor.App.DataStoreDirectory;
             end
-            this.datadir = fullfile(this.datadir,['rm_' num2str(model.ID)]);
+            this.datadir = fullfile(this.datadir,['fm_' num2str(model.ID)]);
             if exist(this.datadir,'dir') ~= 7
                 try
                     mkdir(this.datadir);

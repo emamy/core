@@ -152,18 +152,6 @@ classdef ReducedModel < models.BaseModel
             end
         end
              
-%         function exo = getExo(this, mu)
-%             % Computes the norm of the initial error 
-%             % `E_{x_0}(\mu) = ||C(0,\mu)(I-VW^t)x_0(\mu)||`
-%             if ~isempty(this.V) && ~isempty(this.W)
-%                 x0 = this.FullModel.System.x0.evaluate(mu);
-%                 x0 = x0 - this.V*(this.W'*x0);
-%                 exo = sqrt(x0'*this.GScaled*x0);
-%             else
-%                 exo = 0;
-%             end
-%         end
-        
         function saveFinal(this, filename)
             % Saves this reduced model for final use.
             %
@@ -180,6 +168,81 @@ classdef ReducedModel < models.BaseModel
             
             this.FullModel.Approx = a;
             this.FullModel.Data = d;
+        end
+        
+        function compareRedFull(this, mu, inputidx)
+            % Compares the solutions of the reduced model and the associated full model by
+            % calling the BaseModel.plot method for both solutions and again for the
+            % difference. Also some information of `l^2` and `l^\infty` errors are printed.
+            %
+            % Parameters:
+            % mu: The concrete mu parameter sample to simulate for.
+            % inputidx: The index of the input function to use.
+            if nargin < 3
+                inputidx = [];
+                if nargin < 2
+                    mu = [];
+                end
+            end
+            fm = this.FullModel;
+            [~,y] = fm.simulate(mu,inputidx);
+            [ti,yr] = this.simulate(mu,inputidx);
+            %% Text output
+            str = sprintf('%s, mu=[%s], u_%d',fm.Name,...
+                general.Utils.implode(mu,', ','%2.3f'),inputidx);
+            fprintf('Error comparison for %s:\n',str);
+            % L^2 errors
+            l2 = sqrt(sum((yr-y).^2));
+            lil2 = max(l2);
+            l2l2 = sqrt(sum(l2.^2));
+            meanl2 = mean(l2);
+            l2relyl2 = l2 ./ sqrt(sum(y.^2));
+            l2l2relyl2 = sqrt(sum(l2relyl2.^2));
+            lil2relyl2 = max(l2relyl2);
+            meanrell2 = mean(l2relyl2);
+            %fprintf('||y(t_i)||_2: %s',general.Utils.implode(l2,', ','%2.3f'));
+            t = PrintTable;
+            t.addRow('L2 time and space error','L^2(||y(t) - yr(t)||_2,[0,T])',l2l2);
+            t.addRow('Linf time and L2 space error','L^inf(||y(t) - yr(t)||_2,[0,T])',lil2);
+            t.addRow('Relative L2 time and space error','L^2(||(y(t) - yr(t)) / y(t)||_2,[0,T])',l2l2relyl2);
+            t.addRow('Relative Linf time and L2 space error', 'L^inf(||(y(t) - yr(t)) / y(t)||_2,[0,T])',lil2relyl2);
+            t.addRow('Mean L2 error','Mean(||y(t) - yr(t)||_2,[0,T])',meanl2);
+            t.addRow('Mean relative L2 error','Mean(||(y(t) - yr(t)) / y(t)||_2,[0,T])',meanrell2);
+            
+            % L^inf errors
+            li = max(abs(yr-y),[],1);
+            lili = max(li);
+            l2li = sqrt(sum(li.^2));
+            meanli = mean(li);
+            lirelyli = li ./ max(abs(y),[],1);
+            l2lirelyli = sqrt(sum(lirelyli.^2));
+            lilirelyli = max(lirelyli);
+            meanrelli = mean(lirelyli);
+            %fprintf('||y(t_i)||_2: %s',general.Utils.implode(li,', ','%2.3f'));
+            t.addRow('Linf time and space error','L^inf(||y(t) - yr(t)||_inf,[0,T])',lili);
+            t.addRow('L2 time and Linf space error','L^2(||y(t) - yr(t)||_inf,[0,T])',l2li);
+            t.addRow('Relative Linf time and space error','L^inf(||(y(t) - yr(t)) / y(t)||_inf,[0,T])',lilirelyli);
+            t.addRow('Relative L2 time and Linf space error','L^2(||(y(t) - yr(t)) / y(t)||_inf,[0,T])',l2lirelyli);
+            t.addRow('Mean Linf error','Mean(||y(t) - yr(t)||_inf,[0,T])',meanli);
+            t.addRow('Mean relative Linf error','Mean(||(y(t) - yr(t)) / y(t)||_inf,[0,T])',meanrelli);
+            t.display;
+            
+            %% Plotting
+            fm.plot(ti,y);
+            set(gcf,'Name',['Full simulation - ' str]);
+            fm.plot(ti,yr);
+            set(gcf,'Name',['Reduced simulation - ' str]);
+            fm.plot(ti,abs(y-yr));
+            set(gcf,'Name',['Absolute error - ' str]);
+            hlp = abs(y);
+            if any(hlp(:) == 0)
+                hlp2 = hlp;
+                hlp2(hlp==0) = [];
+                ep = min(hlp2(:))^2;
+                hlp(hlp==0) = ep;
+            end
+            fm.plot(ti,abs(y-yr)./hlp);
+            set(gcf,'Name',['Relative error - ' str]);
         end
     end
     

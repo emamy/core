@@ -464,7 +464,9 @@ classdef BaseModel < KerMorObject
         end
         
         function set.System(this, value)
-            if ~isa(value,'models.BaseDynSystem')
+            % @note Usually an empty system is not allowed. But as this is a superclass for
+            % both full and reduced models, one
+            if ~isempty(value) && ~isa(value,'models.BaseDynSystem')
                 error('The System property must be a subclass of models.BaseDynSystem.');
             end
             if (isequal(this,value))

@@ -11,7 +11,13 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
 %
 % See also: BaseApprox KernelApprox approx.algorithms
 % BaseKernelApproxAlgorithm AdaptiveCompWiseKernelApprox
-%   
+%
+% This class is part of the framework
+% KerMor - Model Order Reduction using Kernels:
+% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+% - \c License @ref licensing
+
     properties(SetObservable)
         % The maximum size of the expansion to produce.
         %
@@ -219,7 +225,7 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
                             c = [c; atd.mui(:,idx)];
                         end
                         if numel(idx) > 1
-                            [m,i] = min(sum((c-repmat(atd.Center,1,numel(idx))).^2,1));
+                            [~,i] = min(sum((c-repmat(atd.Center,1,numel(idx))).^2,1));
                             c = c(:,i);
                             idx = idx(i);
                         end

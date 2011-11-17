@@ -152,7 +152,7 @@ classdef KerMorObject < handle
     end
     
     methods(Access=private)
-        function PropPostSetCallback(this, src, evd)
+        function PropPostSetCallback(this, dummy, evd)
             p = evd.Source;
             key = [p.DefiningClass.Name '.' p.Name];
             ps = this.PropertiesChanged(key);

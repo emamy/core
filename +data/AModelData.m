@@ -100,7 +100,7 @@ classdef AModelData < handle
         end
              
         function set.ApproxTrainData(this, value)
-            if ~isa(value, 'data.ApproxTrainData')
+            if ~isempty(value) && ~isa(value, 'data.ApproxTrainData')
                 error('The property must be a data.ApproxTrainData subclass.');
             end
             this.ApproxTrainData = value;

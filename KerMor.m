@@ -643,8 +643,8 @@ classdef KerMor < handle
             dbstop if error;
             
             if this.UseDiary
-                dfile = sprintf('%s_KerMor%s.%s_diary.txt',datestr(now,'yyyy-mm-dd'),...
-                    KerMor.MainVersion,KerMor.SubVersion);
+                dfile = sprintf('%s_KerMor%s.%s_pid%d_diary.txt',datestr(now,'yyyy-mm-dd'),...
+                    KerMor.MainVersion,KerMor.SubVersion,ppid);
                 dfile = fullfile(this.TempDirectory,dfile);
                 fprintf('Initializing diary in %s..\n',dfile);
                 diary(dfile);
@@ -755,6 +755,8 @@ classdef KerMor < handle
                 disp('Disabling diary..');
                 diary off;
             end
+            
+            dbclear if error;
         end
     end
     
@@ -960,6 +962,10 @@ classdef KerMor < handle
             cd(fullfile(a.HomeDirectory,'3rdparty','typecastx'));
             mex typecast.c
             mex typecastx.c
+            
+            disp('Compliling ppid..');
+            cd(fullfile(a.HomeDirectory,'3rdparty'));
+            mex ppid.c
             
             warning on MATLAB:dispatcher:nameConflict
             cd(olddir);

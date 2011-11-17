@@ -1,7 +1,7 @@
 classdef Utils
     % Collection of generally useful functions
     %
-    % @author Daniel Wirtz @date 11.10.2010
+    % @author Daniel Wirtz @date 11.10.2010    
     %
     % @change{0,6,dw,2011-11-16} Using mex CalcMD5 now to compute hash values for vectors.
     % Source downloaded from http://www.mathworks.com/matlabcentral/fileexchange/25921. Also
@@ -238,21 +238,39 @@ classdef Utils
             str = sprintf(str);
         end
         
-        function str = implode(strcell, glue)
-            % Implodes the elements of a cell array of strings into one string.
+        function str = implode(data, glue, format)
+            % Implodes the elements of data using glue.
+            %
+            % Either transforms a cell array of strings into one string or implodes a numeric
+            % vector using the specified format.
             %
             % Parameters:
-            % strcell: A cell array of strings/chars
-            % glue: A string that is inserted between any elements of 'strcell'
+            % data: A cell array of strings/chars or a numeric vector @type char|rowvec
+            % glue: A string that is inserted between any element string representation @type char
+            % format: The sprintf format string if data is a vector @type char
             %
             % Return values:
-            % str: The concatented string of all 'strcell' strings glued together with the string
-            % 'glue'
+            % str: The concatented string of all 'data' strings glued together with the string
+            % 'glue' @type char
+            %
+            % @new{0,6,dw,2011-11-17} Added the possibility to pass a numeric vector plus a
+            % format string.
             str = '';
-            if ~isempty(strcell)
-                str = strcell{1};
-                for idx = 2:length(strcell)
-                    str = [str glue strcell{idx}];%#ok
+            if ~isempty(data)
+                if isa(data,'cell')
+                    str = data{1};
+                    for idx = 2:length(data)
+                        str = [str glue data{idx}];%#ok
+                    end
+                elseif isnumeric(data) && nargin == 3
+                    % first n-1 entries
+                    if numel(data) > 1
+                        str = sprintf([format glue],data(1:end-1));
+                    end
+                    % append last, no glue afterwards needed
+                    str = [str sprintf(format,data(end))];
+                else
+                    error('Can only pass cell arrays of strings or a vector with sprintf format pattern');
                 end
             end
         end

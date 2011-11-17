@@ -104,7 +104,7 @@ classdef BaseSolver < KerMorObject
         end
         
         function set.InitialStep(this, value)
-            if ~isposrealscalar(value)
+            if ~isempty(value) && ~isposrealscalar(value)
                 error('Positive real scalar expected.');
             end
             this.InitialStep = value;

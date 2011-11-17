@@ -128,8 +128,22 @@ classdef ApproxTrainData
             % idx: The index in xi,ti,mui samples @type integer
             A = repmat(this.Center, 1, size(this.xi,2));
             B = [this.xi; this.ti; this.mui];
-            [dummy, idx] = min(sum((A-B).^2,1));
+            [~, idx] = min(sum((A-B).^2,1));
             c = B(:,idx);
+        end
+        
+        function comb = getCombinedData(this)
+            % Returns the training data as matrix, composed as '[xi; ti; mui]'.
+            %
+            % Return values:
+            % comb: The training data matrix. @type matrix
+            comb = this.xi;
+            if this.hasTime
+                comb = [comb; this.ti];
+            end
+            if this.hasParams
+                comb = [comb; this.mui];
+            end
         end
     end
     

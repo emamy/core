@@ -5,8 +5,11 @@ classdef MinMaxAdaptiveCWKA < approx.algorithms.BaseAdaptiveCWKA
 %
 % See also: BaseApprox KernelApprox BaseAdaptiveCWKA
 %
+% @change{0,6,dw,2011-11-16} Fixed a bug that caused the best `M_\alpha` value to be overridden
+% and thus messing up the kernel expansion. Now the best expansion for both gamma
+% configurations and extensions is returned.
 %
-% @new{0,3,dw,2011-11-03} Added this class.
+% @new{0,5,dw,2011-11-03} Added this class.
 
     properties(SetObservable)
         % Determines how many percent of the samples are checked as
@@ -85,7 +88,6 @@ classdef MinMaxAdaptiveCWKA < approx.algorithms.BaseAdaptiveCWKA
                     end
                 end
                 kexp.Ma = atd.fxi(:,inidx);
-                bestMa = kexp.Ma;
                 used = inidx;
                 
                 %% Set kernel config - gammas
@@ -109,14 +111,14 @@ classdef MinMaxAdaptiveCWKA < approx.algorithms.BaseAdaptiveCWKA
                 
                 cnt = 2;
                 % Start with minimum errror at one-center-expansion
-                [sminerr, dummy, minerrs] = this.getError(kexp, atd);
+                [sminerr, ~, minerrs] = this.getError(kexp, atd);
                 this.MaxErrors(distidx,1) = sminerr;
                 % Kernel expansion augmentation loop
                 while true
                     % Compile the number of centers to try for extension
                     minerrs(used) = []; % Remove errors on used centers (centers are unique)
                     hlp = setdiff(1:numSamples,used);
-                    [dummy, sortidx] = sort(minerrs,'descend');
+                    [verb_out_only, sortidx] = sort(minerrs,'descend');
                     sortidx = hlp(sortidx);
                     l = length(sortidx);
                     if this.CheckMaxErrorPercent == 0
@@ -126,7 +128,7 @@ classdef MinMaxAdaptiveCWKA < approx.algorithms.BaseAdaptiveCWKA
                     end
                     
                     if KerMor.App.Verbose > 1
-                        fprintf('Checking %d expansion extensions to size %d with minimum max error of %e\n',length(sortidx),cnt,dummy(1))
+                        fprintf('Checking %d expansion extensions to size %d with minimum max error of %e\n',length(sortidx),cnt,verb_out_only(1))
                     end
                     
                     % Loop over all possible centers to add
@@ -154,7 +156,7 @@ classdef MinMaxAdaptiveCWKA < approx.algorithms.BaseAdaptiveCWKA
                         this.computeCoeffs(kexp, atd.fxi(:,[used sidx]), [kexp.Ma zeros(size(atd.xi,1),1)]);
                         
                         % Get error
-                        [val, dummy, errs] = this.getError(kexp, atd);
+                        [val, ~, errs] = this.getError(kexp, atd);
                         if val < localminerr
                             minerr_sidx = sidx;
                             minerr_cidx = cidx;
@@ -162,8 +164,8 @@ classdef MinMaxAdaptiveCWKA < approx.algorithms.BaseAdaptiveCWKA
                             localminerr = val;
                             minerrs = errs;
                             
-                            bestK = Ktmp.clone;
-                            bestMa = kexp.Ma;
+                            bestK = Ktmp;
+                            innerbestMa = kexp.Ma;
                         end
                     end
                     if sminerr < localminerr && KerMor.App.Verbose > 1
@@ -182,7 +184,9 @@ classdef MinMaxAdaptiveCWKA < approx.algorithms.BaseAdaptiveCWKA
                             kexp.Centers.mui(:,cnt) = atd.mui(:,minerr_sidx);
                         end
                     end
-                    kexp.Ma = bestMa; % Set best coefficients
+                    % Set best coefficients from inner loop (needed to be set here as calls to
+                    % compute coeffs could involve using current coefficients (SVR etc)
+                    kexp.Ma = innerbestMa; 
                     
                     rel = sminerr / (norm(atd.fxi(minerr_sidx))+eps);
                     this.MaxErrors(distidx,cnt) = sminerr;
@@ -202,7 +206,7 @@ classdef MinMaxAdaptiveCWKA < approx.algorithms.BaseAdaptiveCWKA
                     if this.checkStop(cnt, rel, sminerr)
                         break;
                     end
-                    cnt = cnt+1;                    
+                    cnt = cnt+1;
                 end
                 
                 % Store approx if this gamma config gave a better solution

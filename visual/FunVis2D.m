@@ -357,10 +357,10 @@ function ranges = rangesFromATD(atd)
     ranges = struct('xrange',[],'trange',[],'murange',[]);
     [x, X] = general.Utils.getBoundingBox(atd.xi);
     ranges.xrange = [x X];
-    if isfield(atd,'ti')
+    if isprop(atd,'ti') || isfield(atd,'ti')
         ranges.trange = [min(atd.ti) max(atd.ti)];
     end
-    if isfield(atd,'mui')
+    if isprop(atd,'mui') || isfield(atd,'mui')
         [mu, MU] = general.Utils.getBoundingBox(atd.mui);
         ranges.murange = [mu MU];
     end
@@ -558,7 +558,7 @@ if c.iske
     plot3(h.ax,C(xsel(1),:),C(xsel(2),:),hlpfx,'black.','MarkerSize',15);
     % Also plot the centers at their original value
     if ~isempty(c.td)
-        Cidx = general.Utils.findVecInMatrix(c.td.xi,C);
+        Cidx = general.Utils.findVecInMatrix(c.td.getCombinedData,C);
         hlpfx2 = c.td.fxi(c.dout,Cidx);
         plot3(h.ax,C(xsel(1),:),C(xsel(2),:),hlpfx2,'blackx','MarkerSize',15);
         plot3(h.ax,[C(xsel(1),:); C(xsel(1),:)],[C(xsel(2),:); C(xsel(2),:)],[hlpfx; hlpfx2],'black');

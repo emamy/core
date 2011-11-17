@@ -591,6 +591,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 else
                     [t,x] = this.computeTrajectory(mu, inputidx);
                 end
+                if ~isempty(this.Data.V)
+                    x = this.Data.V*(this.Data.W'*x);
+                end
                 mu = repmat(mu,1,numel(t));
                 fx = this.Approx.evaluate(x,t,mu);
                 afx = this.System.f.evaluate(x,t,mu);
