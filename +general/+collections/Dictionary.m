@@ -1,30 +1,45 @@
 classdef Dictionary < handle
-    % A basic dictionary of key/value pairs.
-    %
-    % Usage notes: Despite the standard set/get methods one can also use
-    % the matlab-like subscripted notation to set and get values.
-    %
-    % Example:
-    % @code
-    % d = general.collections.Dictionary;
-    % d('somekey') = 'somevalue';
-    % d('nr') = 2346;
-    % d('myclass') = KerMorObject;
-    % disp(d('nr'));
-    % disp(d('myclass'));
-    % disp(d('nonexistent'));
-    % @endcode
-    % 
-    % @author Daniel Wirtz @date 2011-04-06
-    %
-    % @change{0,3,dw,2011-04-20} - Improved the subsref and subsasgn methods to forward eventual
-    % further sub-assignments to the respective underlying values. Now i.e. assignments of the type
-    % @code d('t').Somefield @endcode natively creates a struct at @code d('t') @endcode.
-    % - Added a method general.collections.Dictionary.containsKey
-    % - Added two properties general.collections.Dictionary.Keys and
-    % general.collections.Dictionary.Values
-    %
-    % @new{0,3,dw,2011-04-06} Added this class.
+% A basic dictionary of key/value pairs for small to medium amounts of data
+%
+% This simple dictionary basically wraps a nice interface around a matlab cell with the
+% corresponding values. Due to the linear search for keys it is only suited for small to medium
+% sized amounts of data.
+%
+% @note Despite the standard set/get methods one can also use the matlab-like subscripted
+% notation to set and get values.
+%
+% Example:
+% @code
+% d = general.collections.Dictionary;
+% d('somekey') = 'somevalue';
+% d('nr') = 2346;
+% d('myclass') = 'some object instance';
+% disp(d('nr'));
+% disp(d('myclass'));
+% disp(d('nonexistent'));
+% @endcode
+% 
+% @author Daniel Wirtz @date 2011-04-06
+%
+% See also: The dict class at http://www.mathworks.com/matlabcentral/fileexchange/19647
+%
+% @change{0,3,dw,2011-04-20} - Improved the subsref and subsasgn methods to forward eventual
+% further sub-assignments to the respective underlying values. Now i.e. assignments of the type
+% @code d('t').Somefield @endcode natively creates a struct at @code d('t') @endcode.
+% - Added a method general.collections.Dictionary.containsKey
+% - Added two properties general.collections.Dictionary.Keys and
+% general.collections.Dictionary.Values
+%
+% @new{0,3,dw,2011-04-06} Added this class.
+%
+% @todo connect to/backup with tree structure for speedup.
+%
+% Copyright (c) 2011, Daniel Wirtz
+% All rights reserved.
+%
+% Redistribution and use in source and binary forms, with or without modification, are
+% permitted only in compliance with the BSD license, see
+% http://www.opensource.org/licenses/bsd-license.php
     
     properties(Access=private)
         % The internal List structure
@@ -32,23 +47,44 @@ classdef Dictionary < handle
     end
     
     properties(Dependent)
+        % The keys used in the dictionary. Readonly.
+        %
+        % @type cell
         Keys;
         
+        % The values used in the dictionary. Readonly.
+        %
+        % @type cell
         Values;
         
+        % The size of the dictionary. Readonly.
+        %
+        % @type integer
         Count;
     end
     
     methods
         function this = Dictionary
+            % Creates a new empty dictionary
             this.List = struct('Key',{},'Value',{});
         end
         
         function set(this, key, value)
+            % Sets the dictionary entry for key 'key' to value 'value'
+            % The keys are unique, so if a key already exists the value is overwritten.
+            %
+            % Parameters:
+            % key: The key for the value. @type char
+            % value: The value for the key. :-) @type any MatLab variable
             this.set_(key, value);
         end
         
         function value = get(this, key)
+            % Returns the value for a given key, [] is the key does not exists inside the
+            % dictionary.
+            %
+            % Parameters:
+            % key: The key whose value is to be returned @type char
             value = this.get_(key);
         end
         
@@ -58,6 +94,10 @@ classdef Dictionary < handle
         end
         
         function bool = containsKey(this, key)
+            % Checks if the dictionary contains the key 'key'.
+            %
+            % Parameters:
+            % key: The key whose existence is to check @type char
             if ~isa(key,'char')
                 error('Key must be a string.');
             end
@@ -70,17 +110,17 @@ classdef Dictionary < handle
             end
         end
         
-        function value = subsref(this, key)
+        function varargout = subsref(this, key)
             % Implements subscripted value retrieval.
             %
             % See also: subsref
             if (isequal(key(1).type,'()'))
-                value = this.get_(key(1).subs{1});
+                varargout{1} = this.get_(key(1).subs{1});
                 if length(key) > 1
-                    value = builtin('subsref', value, key(2:end));
+                    [varargout{1:nargout}] = builtin('subsref', varargout, key(2:end));
                 end
             else
-                value = builtin('subsref', this, key);
+                [varargout{1:nargout}] = builtin('subsref', this, key);
             end
         end
         
@@ -111,6 +151,8 @@ classdef Dictionary < handle
         end
         
         function display(this)
+            % Overrides the default display method in MatLab and prints a list of keys and
+            % values inside the dictionary.
             fprintf('general.collections.Dictionary with %d elements.\n',this.Count);
             arrayfun(@(kv)(disp({'Key:' kv.Key 'Value:' kv.Value})),this.List);
         end

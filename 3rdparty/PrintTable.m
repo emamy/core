@@ -56,14 +56,12 @@ classdef PrintTable < handle
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 %
-% This software is available under the GNU GPL license.
+% Copyright (c) 2011, Daniel Wirtz
+% All rights reserved.
 %
-% This program is free software: you can redistribute it and/or modify it under the terms of
-% the GNU General Public License as published by the Free Software Foundation, either version 3
-% of the License, or (at your option) any later version.
-% This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-% without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-% See the GNU General Public License <http://www.gnu.org/licenses/> for more details.
+% Redistribution and use in source and binary forms, with or without modification, are
+% permitted only in compliance with the BSD license, see
+% http://www.opensource.org/licenses/bsd-license.php
     
     properties(Constant)
         % Equivalent length of a tab character in single-space characters

@@ -182,8 +182,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
     end
     
     properties(Access=private)
-        msg;
-        pstats;
         fTrainingInputs = [];
     end
            
@@ -282,7 +280,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     end
                     
                     % Get trajectory
-                    [t, x] = remote.computeTrajectory(mu, inputidx);
+                    [~, x] = remote.computeTrajectory(mu, inputidx);
                     
                     % Assign snapshot values
                     remote.Data.addTrajectory(x, mu, inputidx);
@@ -330,7 +328,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         end
                         
                         % Get trajectory
-                        [t, x] = this.computeTrajectory(mu, inputidx);
+                        [~, x] = this.computeTrajectory(mu, inputidx);
                         
                         % Assign snapshot values
                         this.Data.addTrajectory(x, mu, inputidx);
@@ -506,124 +504,32 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % x: The state variables at the corresponding times t.
             
             if KerMor.App.UseDPCS
-                this.checkProperties;
+                DPCS.criticalsCheck(this);
             end
             
             [t,x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
-        end
-        
-        function printPropertyChangedSummary(this, levels)
-            % Prints a summary about the properties of different levels which have not been changed
-            % from their default setting.
-            %
-            % Call this method after any calls to models.BaseModel.simulate or
-            % models.BaseModel.getTrajectory
-            %
-            % Parameters:
-            % levels: [Optional] The property levels to print reports for. A list of admissible
-            % values can be obtained by KerMorObject.getPropClasses. Default is to print ''all''
-            % data.
-            if nargin < 2
-                levels = KerMorObject.getPropClasses;
-            elseif ischar(levels)
-                levels = {levels};
-            end
-            if ~isempty(this.pstats)
-                c = this.pstats;
-                total = sum(c,2);
-                total(3) = total(3)/size(c,2);
-                
-                col = [total(3)/100 1-total(3)/100 0];
-                cprintf(col,'Total unchanged properties: %d of %d (%2.2f%%%%)\n',total);
-                for lidx = 1:length(levels)
-                    col = [c(3,lidx)/100 1-c(3,lidx)/100 0];
-                    lvidx = find(strcmp(levels{lidx},KerMorObject.getPropClasses),1);
-                    cprintf(col, 'Unchanged ''%s'': %d of %d (%2.2f%%%%)\n',levels{lidx},c(:,lvidx));
-                end
-            end
-        end
-        
-        function printPropertyChangedReport(this,levels)
-            % Prints a detailed report about the properties at each level which have not been
-            % changed from their default setting.
-            %
-            % Call this method after any calls to models.BaseModel.simulate or
-            % models.BaseModel.getTrajectory
-            %
-            % Parameters:
-            % levels: [Optional] The property levels to print reports for. A list of admissible
-            % values can be obtained by KerMorObject.getPropClasses. Default is to print ''all''
-            % data.
-            
-            if nargin < 2
-                levels = KerMorObject.getPropClasses;
-            elseif ischar(levels)
-                levels = {levels};
-            end
-            this.printPropertyChangedSummary(levels);
-            if ~isempty(this.msg)
-                for idx = 1:length(levels)
-                    m = this.msg.(levels{idx});
-                    if ~isempty(m)
-                        cprintf([.5 .5 0],'Messages for property class %s:\n',levels{idx});
-                        fprintf('%s\n',m{:});
-                        fprintf('\n');
-                    end
-                end
-            end
-        end
-        
-        function e = getTrajApproxError(this, mu, inputidx)
-            % Computes the approximation training error on the trajectory
-            % for given mu and inputidx.
-            %
-            % @todo include check for FullModel.Data if full traj is
-            % already there
-            if ~isempty(this.Approx)
-                
-                if nargin == 2
-                    inputidx = [];
-                end
-                x = this.Data.getTrajectory(mu,inputidx);
-                if ~isempty(x)
-                    this.System.setConfig(mu, inputidx);
-                    t = this.scaledTimes;
-                else
-                    [t,x] = this.computeTrajectory(mu, inputidx);
-                end
-                if ~isempty(this.Data.V)
-                    x = this.Data.V*(this.Data.W'*x);
-                end
-                mu = repmat(mu,1,numel(t));
-                fx = this.Approx.evaluate(x,t,mu);
-                afx = this.System.f.evaluate(x,t,mu);
-                %e = sqrt(sum((fx-afx).^2,1));
-                e = max(abs(fx-afx),[],1);
-            else
-                error('The approximation error can only be computed for models with an approx.BaseApprox instance present.');
-            end
         end
     end
         
     %% Getter & Setter
     methods
         function set.Sampler(this, value)
-            this.checkType(value, 'sampling.BaseSampler');%#ok
+            this.checkType(value, 'sampling.BaseSampler');
             this.Sampler = value;
         end
 
         function set.Data(this, value)
-            this.checkType(value, 'data.AModelData');%#ok
+            this.checkType(value, 'data.AModelData');
             this.Data = value;
         end
 
         function set.SpaceReducer(this, value)
-            this.checkType(value, 'spacereduction.BaseSpaceReducer');%#ok
+            this.checkType(value, 'spacereduction.BaseSpaceReducer');
             this.SpaceReducer = value;
         end
 
         function set.Approx(this, value)
-            this.checkType(value, 'approx.BaseApprox');%#ok
+            this.checkType(value, 'approx.BaseApprox');
             this.Approx = value;
         end
 
@@ -663,103 +569,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 
         function c = get.TrainingInputCount(this)
             c = length(this.TrainingInputs);
-        end
-    end
-    
-    methods(Access=private)
-        function checkProperties(this)
-            % Checks all the model's properties recursively for unchanged default settings
-            counts = struct;
-            notchanged = struct;
-            messages = struct;
-            levels = KerMorObject.getPropClasses;
-            for lidx=1:length(levels)
-                counts.(levels{lidx}) = 0;
-                messages.(levels{lidx}) = {};
-            end
-            notchanged = counts;
-            
-            %% Run recursive check
-            recurCheck(this, general.collections.Dictionary, this.Name);
-            
-            % Store collected messages
-            this.msg = messages;
-            
-            % Some total stats now
-            %c = [struct2array(notchanged); struct2array(counts)];
-            c = cell2mat([struct2cell(notchanged) struct2cell(counts)])';
-            c(3,:) = round(10000 * c(1,:) ./ c(2,:))/100;
-            c(3,isnan(c(3,:))) = 100;
-            this.pstats = c;
-            
-            if KerMor.App.Verbose > 1
-                total = sum(c,2);
-                total(3) = total(3)/size(c,2);
-                
-                col = [total(3)/100 1-total(3)/100 0];
-                cprintf(col,'Total unchanged properties: %d of %d (%2.2f%%%%)\n',total);
-            end
-            
-            % Issue warning if some critical properties are still unchanged
-            if notchanged.critical > 0
-                if ~isempty(this.WorkspaceVariableName)
-                    link = sprintf('<a href="matlab:%s.printPropertyChangedReport(''critical'')">critical properties</a>',this.WorkspaceVariableName);
-                else
-                    link = 'critical properties';
-                    this.printPropertyChangedReport('critical');
-                end
-                fprintf(['SIMULATION RESULTS QUESTIONABLE: %d of %d ' link ' are still at their default value.\n'],...
-                    notchanged.critical,counts.critical);
-            end
-            
-            function recurCheck(obj, done, lvl)
-                mc = metaclass(obj);
-                done(obj.ID) = true;
-                
-                %% Link name preparations
-                objlink = editLink(mc.Name);
-                
-                %% Check the local properties
-                pc = obj.PropertiesChanged;
-                for pidx = 1:length(mc.Properties)
-                    p = mc.Properties{pidx};
-                    if strcmp(p.GetAccess,'public') && ~p.Constant && ~p.Transient && strcmp(p.SetAccess,'public') %~strcmp(p.SetAccess,'private')
-                        key = [p.DefiningClass.Name '.' p.Name];
-                        if pc.containsKey(key)
-                            p = pc(key);
-                            counts.(p.Level) = counts.(p.Level) + 1;
-                            if ~p.Changed
-                                notchanged.(p.Level) = notchanged.(p.Level) + 1;
-                                if ~any(strcmp(p.Level,'data'))
-                                    hlp = messages.(p.Level);
-                                    %if strcmp(mc.Name,p.)
-                                    hlp{end+1} = sprintf('%s is still unchanged!\nProperty brief: %s\nPropclass tag description:\n%s\n',...
-                                        [lvl '[' objlink '] -> ' p.Name],p.Short,p.Text);%#ok
-                                    messages.(p.Level) = hlp;
-                                end
-                            end
-                        elseif ~p.SetObservable && ~pc.containsKey([p.DefiningClass.Name '.' p.Name])
-                            link2 = editLink(p.DefiningClass.Name);
-                            fprintf('WARNING: Property %s of class %s is not <a href="matlab:docsearch SetObservable">SetObservable</a> but a candidate for a user-definable public property!\nFor more details see <a href="%s/propclasses.html">Property classes and levels</a>\n\n',p.Name,link2,KerMor.DocumentationLocation);
-                        end
-                        pobj = obj.(p.Name);
-                        % Recursively register subobject's properties
-                        if isa(pobj, 'KerMorObject') && isempty(done(pobj.ID))
-                            recurCheck(pobj, done, [lvl '[' objlink '] -> ' p.Name]);
-                        end
-                    end
-                end
-            end
-            
-            function l = editLink(classname)
-                dotpos = strfind(classname,'.');
-                if ~isempty(dotpos)
-                    lname = classname(dotpos(end)+1:end);
-                else
-                    lname = classname;
-                end
-                l = sprintf('<a href="matlab:edit %s">%s</a>',classname,lname);
-            end
         end
     end
            

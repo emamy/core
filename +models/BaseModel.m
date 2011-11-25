@@ -184,19 +184,6 @@ classdef BaseModel < KerMorObject
         RealTimePlotting;
     end
     
-    properties(SetAccess=private, GetAccess=protected)
-        % The variable name of the variable denoting the current model instance.
-        %
-        % Will be set upon calling 'simulate' and will equal '' outside the scope of a simulation.
-        %
-        % Can be used in subclasses to create useful links regarding functions of the model, i.e. is
-        % used in BaseFullModels checkProperties member to create a link for the critical properties
-        % summary.
-        %
-        % @default ''
-        WorkspaceVariableName = '';
-    end
-    
     properties(SetAccess=private)
         % The scaled timestep `\tilde{\Delta t} = \frac{\Delta t}{\tau}`
         %

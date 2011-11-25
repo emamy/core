@@ -1,6 +1,7 @@
 *.?~
 *.??~
 *.mexa64
+*.mexglx
 *.fig
 *.tex
 *.mat

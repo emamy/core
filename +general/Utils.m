@@ -1,7 +1,9 @@
 classdef Utils
     % Collection of generally useful functions
     %
-    % @author Daniel Wirtz @date 11.10.2010    
+    % @author Daniel Wirtz @date 11.10.2010
+    %
+    % @change{0,6,dw,2011-11-17} Moved the getObjectConfig to a separate file.
     %
     % @change{0,6,dw,2011-11-16} Using mex CalcMD5 now to compute hash values for vectors.
     % Source downloaded from http://www.mathworks.com/matlabcentral/fileexchange/25921. Also
@@ -145,98 +147,30 @@ classdef Utils
             end
         end
         
-        function str = getObjectConfig(obj, depth, numtabs)
-            % Gets a complete string representation of an object's
-            % configuration, sorted alphabetically.
-            %
-            % Parameters:
-            % obj: The object to get the configuration of
-            % depth: The maximum depth to go for
-            % sub-objects in properties. @type integer
-            % numtabs: [Optional, default 0] The number of tabs to insert
-            % before each output.
-            % Not necessary to set for normal calls as this is used upon
-            % recursive calls.
-            %
-            % Return values:
-            % str: The string representation of the object's state.
-            %
-            % @author Daniel Wirtz @date 2011-04-04
-            %
-            % @change{0,3,dw,2011-04-05} The order of the properties listed
-            % is now alphabetically, fixed no-tabs-bug.
-            str = '';
-            if nargin < 3
-                numtabs = 0;
-                if nargin < 2
-                    depth = 5;
-                elseif depth == 0
-                    warning('Un:important','Exceeded the maximal recursion depth. Ignoring deeper objects.');
-                    return;
-                end
-            end
-            mc = metaclass(obj);
-            if isfield(obj,'Name')
-                name = obj.Name;
-            else
-                name = mc.Name;
-            end
-            if ~isempty(str)
-                str = [str ': ' name '\n'];
-            else
-                str = [name ':\n'];
-            end
-            % get string cell of names and sort alphabetically
-            names = cellfun(@(mp)mp.Name,mc.Properties,'UniformOutput',false);
-            [val, sortedidx] = sort(names);
-            for n = 1:length(sortedidx)
-                idx = sortedidx(n);
-                p = mc.Properties{idx};
-                if strcmp(p.GetAccess,'public')
-                    str = [str repmat('\t',1,numtabs)];%#ok
-                    pobj = obj.(p.Name);
-                    if ~isempty(pobj) && ~isequal(obj,pobj)
-                        if isobject(pobj)
-                            str = [str p.Name general.Utils.getObjectConfig(pobj, depth-1, numtabs+1)];%#ok
-                        elseif isnumeric(pobj)
-                            if numel(pobj) > 20
-                                str = [str p.Name ': [' num2str(size(pobj)) '] ' class(pobj)];%#ok
-                            else
-                                pobj = reshape(pobj,1,[]);
-                                str = [str p.Name ': ' num2str(pobj)];%#ok
-                            end
-                        elseif isstruct(pobj)
-                            if any(size(pobj) > 1)
-                                str = [str p.Name ' (struct, [' num2str(size(pobj)) ']), fields: '];%#ok
-                            else
-                                str = [str p.Name ' (struct), fields: '];%#ok
-                            end
-                            fn = fieldnames(pobj);
-                            for fnidx = 1:length(fn)
-                                %str = [str fn{fnidx} this.getObjectConfig(pobj, numtabs+1, depth-1)];%#ok
-                                str = [str fn{fnidx} ','];%#ok
-                            end
-                            str = str(1:end-1);
-                        elseif isa(pobj,'function_handle')
-                            str = [str p.Name ' (f-handle): ' func2str(pobj)];%#ok
-                        end
-                    else
-                        if isequal(obj,pobj)
-                            str = [str p.Name ': [self-reference]'];%#ok
-                        else
-                            str = [str p.Name ': empty'];%#ok
-                        end
-                    end
-                    str = [str '\n'];%#ok
-                    %str = strcat(str,'\n');
-                end
-            end
-            % Take away the last \n
-            str = str(1:end-2);
-            
-            % Format!
-            str = sprintf(str);
-        end
+%         function str = getObjectConfig(obj, depth, numtabs)
+%             % Gets a complete string representation of an object's
+%             % configuration, sorted alphabetically.
+%             %
+%             % Parameters:
+%             % obj: The object to get the configuration of
+%             % depth: The maximum depth to go for
+%             % sub-objects in properties. @type integer
+%             % numtabs: [Optional, default 0] The number of tabs to insert
+%             % before each output.
+%             % Not necessary to set for normal calls as this is used upon
+%             % recursive calls.
+%             %
+%             % Return values:
+%             % str: The string representation of the object's state.
+%             %
+%             % @author Daniel Wirtz @date 2011-04-04
+%             %
+%             % @change{0,3,dw,2011-04-05} The order of the properties listed
+%             % is now alphabetically, fixed no-tabs-bug.
+%             %
+%             % @todo remove from this class (currently sims are running who might call this)
+%             str = object2str(obj);
+%         end
         
         function str = implode(data, glue, format)
             % Implodes the elements of data using glue.
@@ -371,37 +305,51 @@ classdef Utils
             end
             
             if ~isempty(file)
-                a = gca(fig);
-                
-                % Store old position and remove margin for export
-                oldap = get(a,'ActivePosition');
-                oldpos = get(a,'Position');
-                %oldmode = get(f,'PaperPositionMode');
-                set(fig,'PaperPositionMode','auto');%,'InvertHardcopy','off');
-                
-                if (extidx == 1)
-                    %print(fig,file,'-depsc2',['-r' ExportDPI],'-tiff');
-                    general.Utils.removeMargin(fig);
-                    saveas(fig,file,'eps2c');
-                    %system(['xdg-open ' file]);
-                elseif extidx == 2
-                    general.Utils.removeMargin(fig);
-                    print(fig,file,['-djpeg' JPEGQuality],['-r' ExportDPI]);
-                    %system(['xdg-open ' file]);
-                elseif extidx == 3
-                    saveas(fig, file, 'fig');
-                    %openfig(file,'new','visible');
-                elseif extidx == 4
-                    general.Utils.removeMargin(fig);
-                    print(fig,file,'-dpdf',['-r' ExportDPI]);
-                elseif extidx == 5
-                    general.Utils.removeMargin(fig);
-                    saveas(fig,file,'png');
+                if length(get(gcf,'Children')) > 1
+                    if (extidx == 1)
+                        saveas(fig,file,'eps2c');
+                    elseif extidx == 2
+                        print(fig,file,['-djpeg' JPEGQuality],['-r' ExportDPI]);
+                    elseif extidx == 3
+                        saveas(fig, file, 'fig');
+                    elseif extidx == 4
+                        print(fig,file,'-dpdf',['-r' ExportDPI]);
+                    elseif extidx == 5
+                        saveas(fig,file,'png');
+                    end
+                else
+                    a = gca(fig);
+
+                    % Store old position and remove margin for export
+                    oldap = get(a,'ActivePosition');
+                    oldpos = get(a,'Position');
+                    %oldmode = get(f,'PaperPositionMode');
+                    set(fig,'PaperPositionMode','auto');%,'InvertHardcopy','off');
+
+                    if (extidx == 1)
+                        %print(fig,file,'-depsc2',['-r' ExportDPI],'-tiff');
+                        general.Utils.removeMargin(fig);
+                        saveas(fig,file,'eps2c');
+                        %system(['xdg-open ' file]);
+                    elseif extidx == 2
+                        general.Utils.removeMargin(fig);
+                        print(fig,file,['-djpeg' JPEGQuality],['-r' ExportDPI]);
+                        %system(['xdg-open ' file]);
+                    elseif extidx == 3
+                        saveas(fig, file, 'fig');
+                        %openfig(file,'new','visible');
+                    elseif extidx == 4
+                        general.Utils.removeMargin(fig);
+                        print(fig,file,'-dpdf',['-r' ExportDPI]);
+                    elseif extidx == 5
+                        general.Utils.removeMargin(fig);
+                        saveas(fig,file,'png');
+                    end
+
+                    % Restore old position
+                    set(a,'ActivePosition',oldap);
+                    set(a,'Position',oldpos);
                 end
-                
-                % Restore old position
-                set(a,'ActivePosition',oldap);
-                set(a,'Position',oldpos);
             end
         end
         
@@ -427,6 +375,9 @@ classdef Utils
         
         function removeMargin(f)
             % Requires the axes and figure units to be the same.
+            %
+            % @todo tailor this method so that subplots are also supported (so far only one
+            % axis!) and change saveFigure again.
             a = gca(f);
             set(f,'Units','pixels');
             set(a,'Units','pixels');

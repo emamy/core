@@ -109,8 +109,8 @@ classdef AffParamMatrix < ICloneable
         
         function pr = mtimes(A, B)
             % Implements the default multiplication method.
-            if isa(A,'general.AffParamMatrix2') && isa(B,'general.AffParamMatrix2')
-                pr = general.AffParamMatrix2;
+            if isa(A,'general.AffParamMatrix') && isa(B,'general.AffParamMatrix')
+                pr = general.AffParamMatrix;
                 pr.N = A.N * B.N;
                 pr.dims = [A.dims(1) B.dims(2)];
                 pr.Matrices = zeros(prod(pr.dims),pr.N);
@@ -123,13 +123,13 @@ classdef AffParamMatrix < ICloneable
                     end
                 end
                 pr.buildCoeffFun;
-            elseif isa(A,'general.AffParamMatrix2')
+            elseif isa(A,'general.AffParamMatrix')
                 pr = A.clone;
                 for i=1:A.N
                     pr.Matrices(:,i) = reshape(...
                         reshape(A.Matrices(:,i),A.dims) * B,1,[]);
                 end 
-            elseif isa(B,'general.AffParamMatrix2')
+            elseif isa(B,'general.AffParamMatrix')
                 pr = B.clone;
                 for i=1:B.N
                     pr.Matrices(:,i) = reshape(...

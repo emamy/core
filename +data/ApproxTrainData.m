@@ -2,9 +2,10 @@ classdef ApproxTrainData
 % ApproxTrainData: Data class for approximation training data, containing
 % several useful bounding box properties etc.
 %
-%
-%
 % @author Daniel Wirtz @date 2011-11-02
+%
+% @new{0,6,dw,2011-11-16} Added a new method data.ApproxTrainData.getCombinedData which returns
+% the triples `x_i,t_i,\mu_i` as one column matrix.
 %
 % @new{0,5,dw,2011-11-02} Added this class.
 %

@@ -9,6 +9,10 @@ classdef KerMor < handle
     %
     % @author Daniel Wirtz @date 2011-03-04
     %
+    % @change{0,6,dw,2011-11-21} Implemented fake loadobj and saveobj methods so that
+    % accidential storing of KerMor instances inside save files does not corrupt the KerMor app
+    % singleton.
+    %
     % @new{0,6,dw,2011-11-14} Included 'dbstop if error' in the KerMor start script. No more
     % lost data! :-)
     %
@@ -28,7 +32,7 @@ classdef KerMor < handle
     % @change{0,5,dw,2011-10-13} Moved all documentation related stuff to
     % an own class @ref MatlabDocMaker.
     %
-    % @new{0,5,dw,2011-08-04} Added flag UseDPCS to switch the default property changed system
+    % @new{0,5,dw,2011-08-04} Added flag UseDPCM to switch the default property changed system
     % on/off.
     %
     % @change{0,5,dw,2011-07-28} Setting the DefaultFigurePosition at runtime now directly changes
@@ -296,7 +300,7 @@ classdef KerMor < handle
         % Switch to determine if the Default Property Changed System shall be used or not.
         %
         % @default true @type logical
-        UseDPCS = true;
+        UseDPCM = true;
         
         % Flag that determines if KerMor also enables the 'diary' function upon startup.
         %
@@ -567,22 +571,22 @@ classdef KerMor < handle
             end
         end
         
-        function value = get.UseDPCS(this)
-            value = this.UseDPCS;
+        function value = get.UseDPCM(this)
+            value = this.UseDPCM;
             if isempty(value)
-                value = getpref('KERMOR','UseDPCS',true);
+                value = getpref('KERMOR','UseDPCM',true);
                 if ~isempty(value)
-                    this.UseDPCS = value;
+                    this.UseDPCM = value;
                 end
             end
         end
         
-        function set.UseDPCS(this, value)
+        function set.UseDPCM(this, value)
             if ~islogical(value)
-                error('The UseDPCS flag must be boolean.');
+                error('The UseDPCM flag must be boolean.');
             end
-            setpref('KERMOR','UseDPCS',value);
-            this.UseDPCS = value;
+            setpref('KERMOR','UseDPCM',value);
+            this.UseDPCM = value;
         end
         
         function value = get.UseDiary(this)
@@ -662,6 +666,7 @@ classdef KerMor < handle
                 
                 disp('Checking for 3rd party software...')
                 addpath(fullfile(p,'3rdparty'));
+                addpath(fullfile(p,'3rdparty','dpcm'));
                 
                 % md5
                 d = fullfile(p,'3rdparty','calcmd5');
@@ -970,23 +975,21 @@ classdef KerMor < handle
             warning on MATLAB:dispatcher:nameConflict
             cd(olddir);
         end
-    end
-%         function installUnix
-%             % Install script for unix systems
-%             %
-%             % @todo compile any mex files!
-%         end
         
-%         function installWindows
-%             % Installation script for Microsoft Windows based systems.
-%             %
-%             error('Installation routine not yet implemented.\nPlease refer to the KerMor documentation at http://www.agh.ians.uni-stuttgart.de/documentation/kermor for help.');
-%         end
-%     end
+        function app = loadobj(~)
+            % Fake load method. Simply returns the singleton.
+            app = KerMor.App;
+        end
+    end
     
     methods(Access=private)
         function this = KerMor
             % Private constructor: This class is a Singleton.
+        end
+        
+        function obj = saveobj(~)
+            % This instance cannot be saved.
+            obj = [];
         end
     end
     

@@ -178,7 +178,8 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
                 error('Any kernels used have to be Gaussian kernels for this approximation algorithm so far');
             end
             if size(atd.xi,2) < this.MaxExpansionSize
-                error('Only %d training samples but having MaxExpansionSize=%d. Increase sample count or decrease MaxExpansionSize.',size(atd.xi,2),this.MaxExpansionSize);
+                warning('BaseAdaptiveCWKA:expansionsize','Only %d training samples but having MaxExpansionSize=%d, changing to %d.',size(atd.xi,2),this.MaxExpansionSize,size(atd.xi,2));
+                this.MaxExpansionSize = size(atd.xi,2);
             end
             
             % Stopping condition preps
