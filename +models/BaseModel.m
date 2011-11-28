@@ -11,6 +11,9 @@ classdef BaseModel < KerMorObject
 %
 % @author Daniel Wirtz @date 19.03.2010
 %
+% @change{0,6,dw,2011-11-25} Made T a dependent property and added consistency checks for T and
+% dt
+%
 % @change{0,5,dw,2011-11-02} Modified the set.ODESolver method so that the MaxTimestep value is
 % set to empty if implicit solvers are used. If again an explicit solver is used, a warning is
 % issued if the models.BaseDynSystem.MaxTimestep value of the corresponding System is empty.
@@ -74,16 +77,7 @@ classdef BaseModel < KerMorObject
         %
         % @propclass{optional}
         Name = 'Base Model';
-                
-        % The final timestep `T` up to which to simulate.
-        %
-        % NOTE: When changing this property any offline computations have
-        % to be repeated in order to obtain a new reduced model.
-        %
-        % @propclass{important} Defines the end time `T` up to which the dynamical system has to be
-        % simulated.
-        T = 1;
-              
+                              
         % The custom scalar product matrix `G`
         %
         % In some settings the state variables have a special meaning (like
@@ -97,7 +91,7 @@ classdef BaseModel < KerMorObject
         %
         % @propclass{optional}
         %
-        % @default 1
+        % @default 1 @type matrix<double>
         G = 1;
         
         % Minimum pause between successive steps when RealTimePlotting is
@@ -118,11 +112,15 @@ classdef BaseModel < KerMorObject
         % The time steps Times in scaled time units `\tilde{t_i} = \frac{t_i}{\tau}`
         %
         % See also: tau
+        %
+        % @default Times @type rowvec<double>
         scaledTimes;
         
         % The scaled end time `\tilde{T} = \frac{T}{\tau}`
         %
         % See also: tau T
+        %
+        % @default T @type double
         Tscaled;
         
         % The scaled version of G.
@@ -132,6 +130,8 @@ classdef BaseModel < KerMorObject
         % Use this whenever having to take the real G-norm of some scaled state variables
         %
         % See also: G System.StateScaling
+        %
+        % @type matrix @default G
         GScaled;
     end
     
@@ -143,8 +143,19 @@ classdef BaseModel < KerMorObject
         %
         % @propclass{scaling}
         %
-        % @default 1
+        % @default 1 @type double
         tau;
+        
+        % The final timestep `T` up to which to simulate.
+        %
+        % NOTE: When changing this property any offline computations have
+        % to be repeated in order to obtain a new reduced model.
+        %
+        % @propclass{important} Defines the end time `T` up to which the dynamical system has to be
+        % simulated.
+        %
+        % @type double @default 1
+        T;
         
         % The desired time-stepsize `\Delta t` for simulations.
         %
@@ -156,7 +167,7 @@ classdef BaseModel < KerMorObject
         %
         % @propclass{critical}
         %
-        % @default 0.1
+        % @default 0.1 @type double
         %
         % See also: dtscaled
         dt;
@@ -164,12 +175,12 @@ classdef BaseModel < KerMorObject
         % The solver to use for the ODE.
         % Must be an instance of any solvers.ode.BaseSolver subclass.
         %
-        % Default: @code solvers.ode.MLWrapper(@ode23) @endcode
-        %
         % See also: solvers BaseSolver ode23 ode45 ode113
         %
         % @propclass{important} Choose an appropriate ODE solver for your
         % system.
+        %
+        % @type solvers.ode.BaseSolver @default solvers.ode.MLWrapper(@ode23)
         ODESolver;
         
         % Determines if the simulation should plot intermediate steps
@@ -200,6 +211,7 @@ classdef BaseModel < KerMorObject
     properties(Access=private)
         ftau = 1;
         fdt = .1;
+        fT = 1;
         frtp = false;
         fODEs;
         steplistener;
@@ -271,13 +283,14 @@ classdef BaseModel < KerMorObject
             this.WorkspaceVariableName = '';
         end
         
-        function plot(this, t, y)
+        function plot(this, t, y, varargin)
             % Plots the results of the simulation.
             % Override in subclasses for a more specific plot if desired.
             %
             % Parameters:
-            % t: The simulation times `t_i`
-            % y: The simulation output matrix `y`, i.e. `y(t_i)`
+            % t: The simulation times `t_i` @type rowvec
+            % y: The simulation output matrix `y`, i.e. `y(t_i)` @type matrix
+            % varargin: Any further arguments for customized plots @type cell
             y = general.Utils.preparePlainPlot(y);
             plot(ax,t,y);
             title(ax,sprintf('Plot for output of model "%s"', this.Name));
@@ -335,10 +348,17 @@ classdef BaseModel < KerMorObject
             end
             % Assign jacobian evaluation function if available
             if isa(slv,'solvers.ode.BaseImplSolver')
+                % Set jacobian if possible
                 if isa(this.System.f,'dscomponents.IJacobian')
                     slv.JacFun = @(t, x)this.System.f.getStateJacobian(x, t, mu);
                 else
                     slv.JacFun = [];
+                end
+                % Set jacobian pattern if possible
+                if ~isempty(this.System.f.JSparsityPattern)
+                    slv.JPattern = this.System.f.JSparsityPattern;
+                else
+                    slv.JPattern = [];
                 end
             end
             % Call solver
@@ -412,7 +432,13 @@ classdef BaseModel < KerMorObject
         end
         
         function gs = get.GScaled(this)
-            gs = diag(this.System.StateScaling) * this.G * diag(this.System.StateScaling);
+            ss = this.System.StateScaling;
+            if isscalar(ss)
+                gs = this.G * ss^2;
+            else
+                S = spdiags(ss,0,length(ss),length(ss));
+                gs = S * this.G * S;
+            end
         end
         
         function dt = get.dt(this)
@@ -426,13 +452,17 @@ classdef BaseModel < KerMorObject
         function set.T(this, value)
             if ~isscalar(value) || value < 0
                 error('T must be a positive real scalar.');
+            elseif value < this.fdt
+                error('Timestep dt must be smaller or equal to T.');
             end
-            this.T = value;
+            this.fT = value;
         end
         
         function set.dt(this, value)
             if ~isscalar(value) || value <= 0
                 error('dt must be a positive real scalar.');
+            elseif value > this.fT
+                error('Timestep dt must be smaller or equal to T.');
             end
             if this.fdt ~= value
                 this.dtscaled = value/this.ftau;
@@ -504,6 +534,10 @@ classdef BaseModel < KerMorObject
         
         function value = get.RealTimePlotting(this)
             value = this.frtp;
+        end
+        
+        function value = get.T(this)
+            value = this.fT;
         end
         
         function set.RealTimePlotting(this, value)

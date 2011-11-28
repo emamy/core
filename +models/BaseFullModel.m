@@ -503,8 +503,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % the property Times
             % x: The state variables at the corresponding times t.
             
-            if KerMor.App.UseDPCS
-                DPCS.criticalsCheck(this);
+            if KerMor.App.UseDPCM
+                DPCM.criticalsCheck(this);
             end
             
             [t,x] = computeTrajectory@models.BaseModel(this, mu, inputidx);

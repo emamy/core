@@ -10,6 +10,9 @@ classdef BaseImplSolver < solvers.ode.BaseSolver
 %
 % @author Daniel Wirtz @date 2011-04-19
 %
+% @new{0,6,dw,2011-11-27} New property BaseImplSolver.JPattern that allows to set a sparsity
+% pattern for the ode function.
+%
 % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
 % supervision system @ref propclasses. This class now inherits from KerMorObject and has an
 % extended constructor registering any user-relevant properties using
@@ -38,8 +41,25 @@ classdef BaseImplSolver < solvers.ode.BaseSolver
         % @propclass{important} If available, supply a jacobian function evaluation handle to
         % improve speed and reliability of implicit solvers.
         %
+        % @type function_handle @default []
+        %
         % See also: odeset
         JacFun = [];
+    end
+    
+    properties(SetObservable, Dependent)
+        % The sparsity pattern of the jacobian `\Nabla_x f(x,t,\mu)`
+        %
+        % @propclass{important} Providing a sparsity pattern to implicit solvers might be
+        % crucial for the performance of the solver due to memory restrictions.
+        %
+        % @type sparsematrix @default []
+        JPattern;
+    end
+    
+    properties(Access=private)
+        fJP = [];
+        fJPD = [];
     end
     
     methods
@@ -55,7 +75,7 @@ classdef BaseImplSolver < solvers.ode.BaseSolver
             % constructor.
             this.MaxStep = [];
             
-            this.registerProps('JacFun');
+            this.registerProps('JacFun','JPattern');
         end
         
         function [t, x] = solve(this, odefun, t, x0)
@@ -81,6 +101,9 @@ classdef BaseImplSolver < solvers.ode.BaseSolver
             if ~isempty(this.JacFun)
                 opts = odeset(opts, 'Jacobian', @this.FJAC);
             end
+            if ~isempty(this.fJP)
+                opts = odeset(opts, 'JPattern', {this.fJP, this.fJPD});
+            end
             
             [t,x] = this.implicit_solve(implfun, t, x0, odefun(0,x0), opts);
         end
@@ -97,10 +120,24 @@ classdef BaseImplSolver < solvers.ode.BaseSolver
             end
             this.JacFun = value;
         end
+        
+        function set.JPattern(this, value)
+            if ~isempty(value) && ~issparse(value)
+                error('JPattern must be a sparse matrix.');
+            end
+            this.fJP = value;
+            n = size(value,1);
+            % df/dy' pattern (diag with ones)
+            this.fJPD = sparse(1:n,1:n,ones(n,1),n,n);
+        end
+        
+        function value = get.JPattern(this)
+            value = this.fJP;
+        end
     end
     
     methods(Access=private)
-        function [dfdx,dfdxp] = FJAC(this, t, x, xp)%#ok
+        function [dfdx, dfdxp] = FJAC(this, t, x, xp)%#ok
             % Internal implementation of the FJAC function utilized by i.e. MatLab's builtin
             % solvers.
             %

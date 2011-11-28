@@ -168,12 +168,16 @@ classdef DPCMObject < handle
     methods(Static, Access=protected)
         function obj = loadobj(obj)
             % Re-register any registered change listeners!
-            keys = obj.PropertiesChanged.Keys;
-            for idx = 1:obj.PropertiesChanged.Count
-                ps = obj.PropertiesChanged(keys{idx});
-                if ~ps.Changed && ~any(strcmp(ps.Level,'data'))
-                    addlistener(obj,ps.Name,'PostSet',@(src,evd)obj.PropPostSetCallback(src,evd));
+            if isa(obj, 'DPCMObject')
+                keys = obj.PropertiesChanged.Keys;
+                for idx = 1:obj.PropertiesChanged.Count
+                    ps = obj.PropertiesChanged(keys{idx});
+                    if ~ps.Changed && ~any(strcmp(ps.Level,'data'))
+                        addlistener(obj,ps.Name,'PostSet',@(src,evd)obj.PropPostSetCallback(src,evd));
+                    end
                 end
+            else
+                warning('DPCM:incorrect_loadobj','Argument passed to loadobj is not a DPCMObject instance.\nNot registering event listeners for properties.');
             end
         end
     end

@@ -8,7 +8,11 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
 % must be recomputed or such. Otherwise, the project implementation in
 % this method is sufficient to wrap 
 %
-% @author Daniel Wirtz @date 17.03.2010
+% @author Daniel Wirtz @date 2010-03-17
+%
+% @new{0,6,dw,2011-11-27} New property ACoreFun.JSparsityPattern that allows to specify the
+% sparsity pattern of the functions jacobian matrix. Is used for any solver that supports those
+% patterns.
 %
 % @change{0,5,dw,2011-10-15} Improved the evaluate method and added a
 % generic test method to test the multiargumentevaluation-capability (calls
@@ -61,6 +65,17 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
         %
         % See also: evaluate bsxfun models.pcd.CoreFun1D
         MultiArgumentEvaluations = false;
+        
+        % Sparsity pattern for the jacobian matrix.
+        %
+        % KerMor automatically detects nonempty values and forwards them as appropriate to any
+        % ODE solver.
+        %
+        % @propclass{optional} Some ODE solvers can work more efficiently if a sparsity pattern
+        % for the jacobian matrix of the core function can be provided.
+        % 
+        % @type sparsematrix @default []
+        JSparsityPattern = [];
     end
     
     properties(SetAccess=private, GetAccess=public)
@@ -72,7 +87,7 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
         
         function this = ACoreFun
             this = this@KerMorObject;
-            this.registerProps('CustomProjection','MultiArgumentEvaluations');
+            this.registerProps('CustomProjection','MultiArgumentEvaluations','JSparsityPattern');
         end
         
         function target = project(this, V, W, target)
@@ -164,6 +179,13 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             this.MultiArgumentEvaluations = value;
         end
         
+        function set.JSparsityPattern(this, value)
+            if ~issparse(value)
+                error('JSparsityPattern must be a sparse matrix.');
+            end
+            this.JSparsityPattern = value;
+        end
+        
         function copy = clone(this, copy)
             if nargin == 1 || ~isa(copy,'dscomponents.ACoreFun')
                 error('Incorrect call to clone. As this class is abstract, a subclass of ACoreFun has to be passed as second argument.');
@@ -171,6 +193,7 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             % Copy local properties
             copy.CustomProjection = this.CustomProjection;
             copy.MultiArgumentEvaluations = this.MultiArgumentEvaluations;
+            copy.JSparsityPattern = this.JSparsityPattern;
             copy.V = this.V;
             copy.W = this.W;
         end

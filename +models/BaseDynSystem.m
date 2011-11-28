@@ -116,6 +116,8 @@ classdef BaseDynSystem < KerMorObject
         % @propclass{critical} Too large time-steps might violate e.g. CFL
         % conditions and render the solution false and useless.
         %
+        % @type double
+        %
         % See also: BaseModel BaseModel.tau BaseModel.dtscaled
         MaxTimestep = [];
         
@@ -128,7 +130,7 @@ classdef BaseDynSystem < KerMorObject
         %
         % @propclass{scaling}
         %
-        % @type column vector
+        % @type colvec
         StateScaling = 1;
     end
     
@@ -377,7 +379,7 @@ classdef BaseDynSystem < KerMorObject
         end
         
         function set.x0(this, value)
-            this.checkType(value,'dscomponents.AInitialValue');%#ok
+            this.checkType(value,'dscomponents.AInitialValue');
 %             if ~isa(value,'function_handle')
 %                 error('x0 must be a function handle.');
 %             elseif nargin(value) ~= 1
