@@ -625,6 +625,7 @@ classdef KerMor < handle
             addpath(fullfile(p,'external'));
             addpath(fullfile(p,'external','WH10'));
             addpath(fullfile(p,'external','ICIAM2011'));
+            addpath(fullfile(p,'external','MATHMOD2012'));
             % Figure position settings
             if ~isempty(this.DefaultFigurePosition)
                 set(0,'DefaultFigurePosition',this.DefaultFigurePosition);

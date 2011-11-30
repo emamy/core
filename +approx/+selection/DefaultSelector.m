@@ -15,7 +15,7 @@ classdef DefaultSelector < approx.selection.ASelector
 % - \c License @ref licensing
 
     methods
-        function copy = clone(this)
+        function copy = clone(this)%#ok
             copy = approx.selection.DefaultSelector;
             %copy = clone@approx.selection.ASelector(this, copy);
         end

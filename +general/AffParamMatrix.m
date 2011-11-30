@@ -9,6 +9,15 @@ classdef AffParamMatrix < ICloneable
     %
     % @ingroup general
     %
+    % @change{0,6,dw,2011-11-30} 
+    % - Fixed a bug that has been introduced when introducing the faster implementation.
+    % Multiplication from left or right with a matrix caused an error as the resulting size was
+    % not computed correctly.
+    % - Also included a check for correct types as e.g. the return type for multiplication of
+    % two real different subclasses of AffParamMatrix is not well defined.
+    % - Added checks for the correct dimensions for standard operations. Scalar values are
+    % treated seperately.
+    %
     % @change{0,5,dw,2011-07-05} Renamed this class to AffParamMatrix and removed the IProjectable
     % interfaces. Renamed the 'evaluate' function to 'compose'.
     %
@@ -110,10 +119,18 @@ classdef AffParamMatrix < ICloneable
         function pr = mtimes(A, B)
             % Implements the default multiplication method.
             if isa(A,'general.AffParamMatrix') && isa(B,'general.AffParamMatrix')
-                pr = general.AffParamMatrix;
+                if ~all(strcmp({class(A),class(B)},'general.AffParamMatrix')) && ~strcmp(class(A),class(B))
+                    error('Cannot consistently multiply two real different subclasses of general.AffParamMatrix as the return type is not well defined. Please multiply manually.');
+                end
+                if A.dims(2) ~= B.dims(1)
+                    error('Matrix dimensions must agree.');
+                end
+                % Clone the instance of A as the check above ensures that both 
+                pr = A.clone; %general.AffParamMatrix;
                 pr.N = A.N * B.N;
                 pr.dims = [A.dims(1) B.dims(2)];
                 pr.Matrices = zeros(prod(pr.dims),pr.N);
+                pr.funStr = {};
                 for i = 1:A.N
                     M = reshape(A.Matrices(:,i),A.dims);
                     for j = 1:B.N
@@ -125,16 +142,34 @@ classdef AffParamMatrix < ICloneable
                 pr.buildCoeffFun;
             elseif isa(A,'general.AffParamMatrix')
                 pr = A.clone;
-                for i=1:A.N
-                    pr.Matrices(:,i) = reshape(...
-                        reshape(A.Matrices(:,i),A.dims) * B,1,[]);
-                end 
+                if isscalar(B)
+                    pr.Matrices = B*pr.Matrices;
+                else
+                    if A.dims(2) ~= size(B,1)
+                        error('Matrix dimensions must agree.');
+                    end
+                    pr.dims = [B.dims(1) size(A,2)];
+                    pr.Matrices = zeros(prod(pr.dims),pr.N);
+                    for i=1:A.N
+                        pr.Matrices(:,i) = reshape(...
+                            reshape(A.Matrices(:,i),A.dims) * B,[],1);
+                    end 
+                end
             elseif isa(B,'general.AffParamMatrix')
                 pr = B.clone;
-                for i=1:B.N
-                    pr.Matrices(:,i) = reshape(...
-                        A * reshape(B.Matrices(:,i),B.dims),1,[]);
-                end 
+                if isscalar(A)
+                    pr.Matrices = A*pr.Matrices;
+                else
+                    if size(A,2) ~= B.dims(1)
+                        error('Matrix dimensions must agree.');
+                    end
+                    pr.dims = [size(A,1) B.dims(2)];
+                    pr.Matrices = zeros(prod(pr.dims),pr.N);
+                    for i=1:B.N
+                        pr.Matrices(:,i) = reshape(...
+                            A * reshape(B.Matrices(:,i),B.dims),[],1);
+                    end 
+                end
             end
         end
         
@@ -145,6 +180,12 @@ classdef AffParamMatrix < ICloneable
             % sophisticated differences for different coefficient functions and combination sizes
             % are not used yet.
             if isa(A,'general.AffParamMatrix') && isa(B,'general.AffParamMatrix')
+                if ~all(strcmp({class(A),class(B)},'general.AffParamMatrix')) && ~strcmp(class(A),class(B))
+                    error('Cannot consistently subtract two real different subclasses of general.AffParamMatrix as the return type is not well defined. Please perform subtraction manually.');
+                end
+                if any(A.dims ~= B.dims)
+                    error('Matrix dimensions must agree.');
+                end
                 if A.N == B.N && all(strcmp(A.funStr,B.funStr))
                     diff = A.clone;
                     diff.Matrices = A.Matrices - B.Matrices;
@@ -153,10 +194,16 @@ classdef AffParamMatrix < ICloneable
                 end
             elseif isa(A,'general.AffParamMatrix')
                 diff = A.clone;
+                if isscalar(B)
+                    B = ones(size(A.Matrices,1),1)*B;
+                end
                 diff.addMatrix('-1',B)
             elseif isa(B,'general.AffParamMatrix')
                 diff = B.clone;
                 diff.Matrices = -diff.Matrices;
+                if isscalar(A)
+                    A = ones(size(B.Matrices,1),1)*A;
+                end
                 diff.addMatrix('1',A);
             end
         end
@@ -164,8 +211,9 @@ classdef AffParamMatrix < ICloneable
         function transp = ctranspose(this)
             % Implements the transposition for affine parametric matrices.
             transp = this.clone;
+            transp.dims = fliplr(transp.dims);
             for i=1:this.N
-                transp.Matrices(:,i) = reshape(reshape(this.Matrices(i),this.dims)',1,[]);
+                transp.Matrices(:,i) = reshape(reshape(this.Matrices(:,i),this.dims)',1,[]);
             end
         end
         

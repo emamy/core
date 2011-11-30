@@ -368,7 +368,7 @@ classdef BellFunction < kernels.BaseKernel & kernels.ARotationInvariant
                 dn(3,isinf(dn(3,:))) = b.evaluateD2(rm)/2;
                 
                 % Get optimization function
-                [opt,dummy,inner,l0,gxr] = b.optFun(r,repmat(s,1,size(r,2)),n,dn);
+                [opt,~,inner,l0,gxr] = b.optFun(r,repmat(s,1,size(r,2)),n,dn);
                 std = ~inner & ~l0 & ~gxr;
                                 
                 % f and df

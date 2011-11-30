@@ -10,6 +10,9 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
 %
 % @author Daniel Wirtz @date 2010-03-17
 %
+% @change{0,6,dw,2011-11-30} Fixed a bug regarding the setter for JSparsityPattern, as
+% previously passing an empty value was not allowed.
+%
 % @new{0,6,dw,2011-11-27} New property ACoreFun.JSparsityPattern that allows to specify the
 % sparsity pattern of the functions jacobian matrix. Is used for any solver that supports those
 % patterns.
@@ -180,7 +183,7 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
         end
         
         function set.JSparsityPattern(this, value)
-            if ~issparse(value)
+            if ~isempty(value) && ~issparse(value)
                 error('JSparsityPattern must be a sparse matrix.');
             end
             this.JSparsityPattern = value;
