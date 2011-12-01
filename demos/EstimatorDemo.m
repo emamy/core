@@ -150,7 +150,7 @@ classdef EstimatorDemo < handle
                 this.ReducedModel.ErrorEstimator = this.Est(idx).Estimator;
                 
                 fprintf('Performing estimation %d of %d: %s...\n',idx,num,this.Est(idx).Name);
-                [t, y, ctimes(idx)] = this.ReducedModel.simulate(mu,inidx);
+                [~, ~, ctimes(idx)] = this.ReducedModel.simulate(mu,inidx);
                 if this.UseOutputError
                     errs(idx,:) = this.ReducedModel.ErrorEstimator.OutputError;
                 else
@@ -158,7 +158,7 @@ classdef EstimatorDemo < handle
                 end
                 % Plotting preparations
                 if ~isa(this.Est(idx).Estimator,'error.ExpensiveBetaEstimator')
-                    str = [str sprintf('errs(%d,end),ctimes(%d),''%s'',',idx,idx,this.Est(idx).MarkerStyle)];
+                    str = [str sprintf('errs(%d,end),ctimes(%d),''%s'',',idx,idx,this.Est(idx).MarkerStyle)]; %#ok<*AGROW>
                     compplot(end+1) = idx;
                 end
             end
@@ -217,7 +217,7 @@ classdef EstimatorDemo < handle
             %keyboard;
             xlabel('Time');
             ylabel('Error estimates');
-            [lh,oh] = legend(a,'Location','NorthEast');
+            [~,oh] = legend(a,'Location','NorthEast');
             % Assign markers to legend
             oh = findobj(oh,'Type','line');
             for idx=1:length(this.Est)
@@ -259,7 +259,7 @@ classdef EstimatorDemo < handle
             xlabel('Time');
             ylabel('Relative error estimates');
             legend(a,'Location','NorthWest');
-            [lh,oh] = legend(a,'Location','NorthEast');
+            [~,oh] = legend(a,'Location','NorthEast');
             % Assign markers to legend
             oh = findobj(oh,'Type','line');
             for idx=1:length(this.Est)
@@ -315,16 +315,16 @@ classdef EstimatorDemo < handle
             %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Table overview
             if this.SortResultTable
                 disp('Estimator hierarchy (error*time product):');
-                [v,idx] = sort(errs(:,end).*ctimes');
+                [~,idx] = sort(errs(:,end).*ctimes');
             else
                 disp('Estimator list:');
                 idx = 1:size(errs,2);
             end
             if ~isempty(this.SaveTexTables)
-                fid = fopen(this.SaveTexTables,'a+');
-                fprintf(fid,'\n%% %s: Table for model %s\n',datestr(clock),this.Model.Name);
-                fprintf(fid,'\\begin{table}[htbp]\n\t\\centering\\scriptsize\n\t\\begin{tabular}{l|r|r|l}\n');
-                fprintf(fid,'\tName & $\\Delta(%d)$ & Time & Overestimation\\\\\\hline\n',t(end));
+                pt = PrintTable;
+                pt.Caption = sprintf('Estimator hierarchy for model "%s"',this.Model.Name);
+                pt.Format = 'tex';
+                pt.addRow('Name',sprintf('$\\Delta(%d)$',t(end)),'Time','Overestimation');
             end
             for id = 1:length(this.Est)
                 fprintf('Delta(%2.2f)=%1.4e\t%2.4fsec\tOE:%1.4e\t%s\n',t(end),...
@@ -332,20 +332,17 @@ classdef EstimatorDemo < handle
                     end)/errs(1,end),...
                     this.Est(idx(id)).Name);
                 if ~isempty(this.SaveTexTables)
-                    str = sprintf('\t\t%s & $%1.3e}$ & %2.2fs & $%1.3e}$',...
-                        this.Est(idx(id)).Name,...
-                        errs(idx(id),end),ctimes(idx(id)),...
-                        errs(idx(id),end)/errs(1,end));
-                    fprintf(fid,[strrep(strrep(strrep(str,'e+','\\cdot10^{'),'e-',...
-                        '\\cdot10^{-'),'{0','{') '\\\\\n']);
+                    pt.addRow(this.Est(idx(id)).Name,errs(idx(id),end),ctimes(idx(id)),...
+                        errs(idx(id),end)/errs(1,end),{'%s','$%1.3e}$','%2.2fs','$%1.3e}$'});
                 end
             end
             if ~isempty(this.SaveTexTables)
-                fprintf(fid, '\t\\end{tabular}\n');
-                fprintf(fid,'\t\\caption{Estimator hierarchy for model "%s"}\n',this.Model.Name);
-                fprintf(fid, '\\end{table}\n');
-                fprintf(fid,'%% End of output for model %s\n',this.Model.Name);
-                fclose(fid);
+                pt.saveToFile(this.SaveTexTables);
+%                 fid = fopen(this.SaveTexTables,'a+');
+%                 str = [strrep(strrep(strrep(pt.print,'e+','\\cdot10^{'),'e-',...
+%                         '\\cdot10^{-'),'{0','{') '\\\\\n'];
+%                 fprintf(fid,str);
+%                 fclose(fid);
             end
         end
         
@@ -363,52 +360,38 @@ classdef EstimatorDemo < handle
             end
             fields = {'ErrT','RelErrT','OverestT','CTimes'};
             fieldnames = {'Errors','Relative errors','Overestimations','Computation times'};
-            
+            t = PrintTable;
+            t.Format = 'tex';
+            t.HasHeader = true;
             fid = fopen('statsTables.txt','a+');
             for fi = 1:length(fields)
-                fprintf(fid,'\n%% %s: Table for "%s"\n',datestr(clock),fieldnames{fi});
-                fprintf(fid,'\\begin{table}[htbp]\n\t\\centering\\scriptsize\n\t');
-                str = 'l|';
-                nstr = '';
-                for idx=1:length(this.Est)-1
-                    str = [str 'l|'];%#ok<*AGROW>
-                    nstr = [nstr this.Est(idx).Name ' & '];
-                end
-                fprintf(fid,'\\begin{tabular}{%sl}\n',str);
-                fprintf(fid,'\tModel / Est & %s %s\\\\\\hline\n',nstr,this.Est(end).Name);
                 
+                t.clear;
+                t.Caption = sprintf('%s of estimation runs',fieldnames{fi});
+                t.addRow('Model / Est', this.Est(:).Name);
+                
+                fmt = '$%1.1e$';
+                if strcmp(fields{fi},'CTimes')
+                    fmt = '$%2.2fs$';
+                end
+                fmt = [{'$%s$'} repmat({fmt},1,length(this.Est))];
                 for it=1:m
                     md = this.ModelData(sort(it));
+                    
                     %% Compile name and add
                     nstr = '';
                     if ~isempty(md.mu)
-                        nstr = [', \mu=[' sprintf('%2.2e ',md.mu) ']'];
+                        nstr = [', \\mu=[' sprintf('%2.2e ',md.mu) ']'];
                     end
                     if ~isempty(md.inputidx)
-%                         if ~isempty(nstr)
-%                             nstr = [nstr ', '];
-%                         end
                         nstr = [nstr sprintf(', u_%d',md.inputidx)];
                     end
-%                     if ~isempty(nstr)
-%                         %nstr = [' (' nstr ')'];
-%                         nstr = [', ' nstr];
-%                     end
-                    fprintf(fid,'\t\t$%s$',[md.Name nstr]);
-                    %% Add data row
-                    if strcmp(fields{fi},'CTimes')
-                        str = sprintf(' & $%2.2fs$',md.(fields{fi}));
-                    else
-                        str = sprintf(' & $%1.1e}$',md.(fields{fi}));
-                        %str = [strrep(strrep(strrep(strrep(str,'e+','\\cdot10^{'),'e-','\\cdot10^{-'),'{0','{'),'{-0','{-') ' \\\\\n'];
-                        str = strrep(strrep(strrep(strrep(str,'e+','e^{'),'e-','e^{-'),'{0','{'),'{-0','{-');
-                    end
-                    fprintf(fid,[str ' \\\\\n']);
+                    hlp = num2cell(md.(fields{fi}));
+                    t.addRow(nstr,hlp{:},fmt);
                 end
-                fprintf(fid, '\t\\end{tabular}\n');
-                fprintf(fid,'\t\\caption{%s of estimation runs}\n',fieldnames{fi});
-                fprintf(fid, '\\end{table}\n');
-                fprintf(fid,'%% End of output for "%s"\n',fieldnames{fi});
+                %str = strrep(strrep(strrep(strrep(t.print,'e+','e^{'),'e-','e^{-'),'{0','{'),'{-0','{-');
+                %fprintf(fid,'%s',str);
+                t.print(fid);
             end
             fclose(fid);
         end

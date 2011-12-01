@@ -305,6 +305,12 @@ classdef Utils
             end
             
             if ~isempty(file)
+                
+                d = fileparts(file);
+                if ~isempty(d) && exist(d,'file') ~= 7
+                    mkdir(d);
+                end
+                
                 if length(get(gcf,'Children')) > 1
                     if (extidx == 1)
                         saveas(fig,file,'eps2c');

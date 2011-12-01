@@ -160,7 +160,7 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
             % Overrides the implementation in KernelExpansion.
             % @todo validate computation
             k = this.TimeKernel.evaluate(this.Centers.ti,t).*this.ParamKernel.evaluate(this.Centers.mui,mu);
-            c = sum(this.Ma_norms .* k) * this.Kernel.getGlobalLipschitz;
+            c = sum(this.Ma_norms .* k') * this.Kernel.getGlobalLipschitz;
             %warning('KerMor:globallipschitz','not yet implemented/validated correctly!');
         end
                         
