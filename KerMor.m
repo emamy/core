@@ -648,8 +648,14 @@ classdef KerMor < handle
             dbstop if error;
             
             if this.UseDiary
+                % Fix for non-unix log files
+                if isunix || ~isempty(which('ppid'))
+                    pid = ppid;
+                else
+                    pid = 0;
+                end
                 dfile = sprintf('%s_KerMor%s.%s_pid%d_diary.txt',datestr(now,'yyyy-mm-dd'),...
-                    KerMor.MainVersion,KerMor.SubVersion,ppid);
+                    KerMor.MainVersion,KerMor.SubVersion,pid);
                 dfile = fullfile(this.TempDirectory,dfile);
                 fprintf('Initializing diary in %s..\n',dfile);
                 diary(dfile);
@@ -972,9 +978,13 @@ classdef KerMor < handle
             mex typecast.c
             mex typecastx.c
             
-            disp('Compliling ppid..');
-            cd(fullfile(a.HomeDirectory,'3rdparty'));
-            mex ppid.c
+            if isunix
+                disp('Compliling ppid..');
+                cd(fullfile(a.HomeDirectory,'3rdparty'));
+                mex ppid.c
+            else
+                warning('KerMor:setup','No ppid function available (win32 platform)');
+            end
             
             warning on MATLAB:dispatcher:nameConflict
             cd(olddir);
