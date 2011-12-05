@@ -794,8 +794,10 @@ classdef KerMor < handle
             %
             % See also: installUnix installWindows
             disp('<<<<<<<<<< Welcome to the KerMor install script. >>>>>>>>>>');
-            
+                        
             a = KerMor.App;
+            addpath(a.HomeDirectory);
+            
             %% KerMor directories
             % Setup the data storage directory
             ds = a.DataStoreDirectory;
@@ -804,7 +806,7 @@ classdef KerMor < handle
                 ds = fullfile(a.HomeDirectory,'data');
                 word = 'set';
             end
-            str = sprintf('Do you want to %s %s as your KerMor data file directory? Choosing "No" opens a directory selection dialog.\n(Y)es/(N)o?: ',word,ds);
+            str = sprintf('Do you want to %s %s as your KerMor data file directory? Choosing "No" opens a directory selection dialog.\n(Y)es/(N)o?: ',word,strrep(ds,'\','\\'));
             if isequal(lower(input(str,'s')),'n')
                 d = uigetdir(ds,'Please specify the KerMor data file directory');
                 if d == 0
@@ -821,7 +823,7 @@ classdef KerMor < handle
                 ds = fullfile(a.HomeDirectory,'data');
                 word = 'set';
             end
-            str = sprintf('Do you want to %s %s as your KerMor temporary file directory? Choosing "No" opens a directory selection dialog.\n(Y)es/(N)o?: ',word,ds);
+            str = sprintf('Do you want to %s %s as your KerMor temporary file directory? Choosing "No" opens a directory selection dialog.\n(Y)es/(N)o?: ',word,strrep(ds,'\','\\'));
             if isequal(lower(input(str,'s')),'n')
                 d = uigetdir(ds,'Please specify the KerMor temporary file directory');
                 if d == 0
@@ -830,9 +832,6 @@ classdef KerMor < handle
                 ds = d;
             end
             a.TempDirectory = ds;
-            
-            %% Call setup for documentation creation
-            MatlabDocMaker.setup;
             
 %             %% Operation-system dependent actions
 %             if isunix
@@ -915,10 +914,14 @@ classdef KerMor < handle
         function setup3rdParty
             a = KerMor.App;
             
+            %% Call setup for documentation creation
+            addpath(fullfile(a.HomeDirectory,'3rdparty'));
+            MatlabDocMaker.setup;
+            
             %% Optional: rbmatlab
             rbmat = a.rbmatlabDirectory;
             if ~isempty(rbmat)
-                str = sprintf('Do you want to keep the local rbmatlab version at %s with KerMor?\n(Y)es/(N)o: ',rbmat);
+                str = sprintf('Do you want to keep the local rbmatlab version at %s with KerMor?\n(Y)es/(N)o: ',strrep(rbmat,'\','\\'));
                 resp = 'n';
             else
                 str = sprintf('Do you want to register a local rbmatlab version with KerMor?\n(Y)es/(N)o: ');
@@ -938,7 +941,7 @@ classdef KerMor < handle
             %% Optional: JKerMor
             jk = a.JKerMorSourceDirectory;
             if ~isempty(jk)
-                str = sprintf('Do you want to keep the local JKerMor version at %s with KerMor?\n(Y)es/(N)o: ',jk);
+                str = sprintf('Do you want to keep the local JKerMor version at %s with KerMor?\n(Y)es/(N)o: ',strrep(jk,'\','\\'));
                 resp = 'n';
             else
                 str = sprintf('Do you want to register a local JKerMor version with KerMor?\n(Y)es/(N)o: ');

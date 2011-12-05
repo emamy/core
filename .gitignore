@@ -11,5 +11,8 @@
 *.bin
 *.log
 *.zip
+*.exe
+*.bat
+*.dll
 /data
 /temp
