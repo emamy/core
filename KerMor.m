@@ -9,6 +9,8 @@ classdef KerMor < handle
     %
     % @author Daniel Wirtz @date 2011-03-04
     %
+    % @change{0,6,CS,2011-12-05} Removed external folders from PATH (supervised by dw)
+    %
     % @change{0,6,dw,2011-11-21} Implemented fake loadobj and saveobj methods so that
     % accidential storing of KerMor instances inside save files does not corrupt the KerMor app
     % singleton.
@@ -622,10 +624,6 @@ classdef KerMor < handle
             addpath(p);
             addpath(fullfile(p,'demos'));
             addpath(fullfile(p,'visual'));
-            addpath(fullfile(p,'external'));
-            addpath(fullfile(p,'external','WH10'));
-            addpath(fullfile(p,'external','ICIAM2011'));
-            addpath(fullfile(p,'external','MATHMOD2012'));
             % Figure position settings
             if ~isempty(this.DefaultFigurePosition)
                 set(0,'DefaultFigurePosition',this.DefaultFigurePosition);
