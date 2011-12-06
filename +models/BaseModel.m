@@ -291,6 +291,7 @@ classdef BaseModel < KerMorObject
             % t: The simulation times `t_i` @type rowvec
             % y: The simulation output matrix `y`, i.e. `y(t_i)` @type matrix
             % varargin: Any further arguments for customized plots @type cell
+            ax = gca;
             y = general.Utils.preparePlainPlot(y);
             plot(ax,t,y);
             title(ax,sprintf('Plot for output of model "%s"', this.Name));
@@ -501,7 +502,7 @@ classdef BaseModel < KerMorObject
             this.checkType(value,'solvers.ode.BaseSolver');
             % Add listener if new ODE solver is passed and real time
             % plotting is turned on.
-            if this.frtp && this.fODES ~= value
+            if this.frtp && this.fODEs ~= value
                 if ~isempty(this.steplistener)
                     delete(this.steplistener);
                 end
