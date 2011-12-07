@@ -16,6 +16,24 @@ classdef AMassMatrix < KerMorObject & dscomponents.IProjectable
 %
 % @todo return P,Q if M is sparse and include a flag for sparsity of M
 % (advantage? is done in matlabs ODE23 solvers)
+
+    properties(SetAccess=protected)
+        % Flag that indicates time-dependency of the Mass Matrix.
+        %
+        % Set in subclasses to mirror correct behaviour.
+        %
+        % @type logical @default false
+        TimeDependent = false;
+        
+        % The sparsity pattern for the mass matrix
+        %
+        % Set this value in subclasses if the mass matrix has a specific
+        % sparsity pattern. This can speed up computations for large
+        % systems with mass matrix considerably.
+        %
+        % @type sparsematrix @default []
+        SparsityPattern = [];
+    end
     
     methods(Abstract)
         M = evaluate(this, t);
