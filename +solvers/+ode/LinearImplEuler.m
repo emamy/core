@@ -54,8 +54,8 @@ classdef LinearImplEuler < solvers.ode.BaseCustomSolver
             else
                 M = eye(size(s.f.A));
             end
-            %[l,u] = lu(M + dt * s.f.A);
-            Ai = inv(M + dt * s.f.A);
+            %[l,u] = lu(M - dt * s.f.A);
+            Ai = inv(M - dt * s.f.A);
             
             % Solve for each time step
             oldx = x0;
@@ -66,7 +66,7 @@ classdef LinearImplEuler < solvers.ode.BaseCustomSolver
                 end
                 %newx = u\(l\RHS);
                 newx = Ai * RHS;
-                %newx = (M + dt * s.f.A)\RHS;
+                %newx = (M - dt * s.f.A)\RHS;
                 
                 if rtm
                     ed.Times = t(idx);

@@ -1,6 +1,7 @@
 *.?~
 *.??~
 *.mexw32
+*.mexw64
 *.mexa64
 *.mexglx
 *.fig
