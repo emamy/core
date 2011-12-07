@@ -23,6 +23,10 @@ classdef LinearImplEuler < solvers.ode.BaseCustomSolver
             this.model = model;
         end
         
+    end
+    
+    methods(Access=protected)
+        
         function x = customSolve(this, ~, t, x0)
             s = this.model.System;
 %             if ~isa(s,'dscomponents.LinearCoreFun')
@@ -30,7 +34,10 @@ classdef LinearImplEuler < solvers.ode.BaseCustomSolver
 %             end
             % Initialize result
             steps = length(t);
-            dt = t(2:end)-t(1:end-1);
+            dt = t(2)-t(1);
+            if any(t(2:end)-t(1:end-1) - dt > 100*eps)
+                error('non-equidistant dt timesteps.');
+            end
             
             rtm = this.RealTimeMode;
             if rtm
@@ -40,23 +47,30 @@ classdef LinearImplEuler < solvers.ode.BaseCustomSolver
                 x = [x0 zeros(size(x0,1),steps-1)];
             end
             
-            A = s.f.evaluate(0,x0);
+            null = zeros(size(x0));
+            A = s.f.getStateJacobian(null,0,s.mu);
+            b = s.f.evaluate(null,0,s.mu);
             I = eye(size(A));
+            
+            % Check if a mass matrix is present
+            if ~isempty(s.M)
+                M = s.M.evaluate(0); 
+            else
+                M = I;
+            end
+            %[l,u] = lu(M + dt * A);
+            Ai = inv(M + dt * A);
+            
             % Solve for each time step
+            oldx = x0;
             for idx = 2:steps;
-                
-                LHS = M + dt(idx-1) * A;
-                % Check if a mass matrix is present
-                if ~isempty(s.M)
-                    M = s.M.evaluate(t); 
-                else
-                    M = I;
-                end
-                RHS = M*x(:,idx-1);
+                RHS = M*oldx + dt*b;
                 if ~isempty(s.u)
-                    RHS = RHS + s.B.evaluate(t, s.mu)*s.u(t);
+                    RHS = RHS + dt*s.B.evaluate(t, s.mu)*s.u(t);
                 end
-                newx = LHS\RHS;
+                %newx = u\(l\RHS);
+                newx = Ai * RHS;
+                %newx = (M + dt * A)\RHS;
                 
                 if rtm
                     ed.Times = t(idx);
