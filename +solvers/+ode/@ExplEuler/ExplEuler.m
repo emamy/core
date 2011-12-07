@@ -90,7 +90,17 @@ classdef ExplEuler < solvers.ode.BaseCustomSolver
             % Solve for each time step
             oldx = x0;
             for idx = 2:steps;
-                newx = oldx + dt(idx-1)*odefun(t(idx-1),oldx);
+                
+                hlp = dt(idx-1)*odefun(t(idx-1),oldx);
+                % Check if a mass matrix is present
+                if ~isempty(this.M)
+                    [L,U,Q,P] = this.M.getLU(t(idx-1)); 
+                    %newx = Q*(U\(L\(P*(this.M.evaluate(t(idx-1))*oldx + hlp))));
+                    newx = U\(L\(this.M.evaluate(t(idx-1))*oldx + hlp));
+                else
+                    newx = oldx + hlp;
+                end
+                
                 if rtm
                     ed.Times = t(idx);
                     ed.States = newx;

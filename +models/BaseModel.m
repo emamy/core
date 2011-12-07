@@ -362,6 +362,11 @@ classdef BaseModel < KerMorObject
                     slv.JPattern = [];
                 end
             end
+            % Assign mass matrix to solver if present
+            slv.M = [];
+            if ~isempty(this.System.M)
+                slv.M = this.System.M;
+            end
             % Call solver
             [t, x] = slv.solve(@(t,x)this.System.ODEFun(t,x), this.scaledTimes, this.getX0(mu));
         end

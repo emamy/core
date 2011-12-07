@@ -65,8 +65,6 @@ classdef ReducedSystem < models.BaseDynSystem
             
             fullsys = fullmodel.System;
             
-            
-            
             % Create local workspace copy (if pointers are used, dont store model.V in it..)
             V = this.Model.V;
             W = this.Model.W;
@@ -133,6 +131,10 @@ classdef ReducedSystem < models.BaseDynSystem
                 else
                     % Otherwise project the models' full function.
                     this.f = fullsys.f.project(V,W);
+                end
+                % Project mass matrix
+                if ~isempty(fullsys.M)
+                    this.M = fullsys.M.project(V,W);
                 end
             else
                 % Only use approximated version if set

@@ -15,6 +15,9 @@ classdef BaseDynSystem < KerMorObject
     %
     % @author Daniel Wirtz @date 17.03.2010
     %
+    % @new{0,6,dw,2011-12-06} Added a new component M, an optional system's
+    % mass matrix `M(t,\mu)x'(t) = f\ldots`.
+    %
     % @change{0,5,dw,2011-10-17}
     % - Removed the ISimConstants interface as the
     % concept is too confusing when reducing models (core function
@@ -87,6 +90,11 @@ classdef BaseDynSystem < KerMorObject
         % @type dscomponents.AInitialValue
         % @default ConstInitialValue instance with scalard zero
         x0;
+        
+        % The system's mass matrix.
+        %
+        % @default [] @type dscomponents.AMassMatrix
+        M;
         
         % The system's possible input functions.
         % A cell array of function handles, each taking a time argument t.

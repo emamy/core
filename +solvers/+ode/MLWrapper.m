@@ -61,6 +61,16 @@ classdef MLWrapper < solvers.ode.BaseSolver
             if ~isempty(this.InitialStep)
                 opts = odeset(opts, 'InitialStep', this.InitialStep);
             end
+            % Pass Mass Matrix to solver
+            if ~isempty(this.M)
+                if isa(this.M,'dscomponents.ConstMassMatrix')
+                    M = this.M.evaluate(0);
+                    opts = odeset(opts,'MassConstant','true');
+                else
+                    M = @(t)this.M.evaluate(t);
+                end
+                opts = odeset(opts,'Mass',M,'MStateDependence','none');
+            end
             
             if this.RealTimeMode
                 opts = odeset(opts,'OutputFcn',@this.ODEOutputFcn);
@@ -80,7 +90,7 @@ classdef MLWrapper < solvers.ode.BaseSolver
         function set.MLSolver(this, value)
             if isa(value,'function_handle')
                 this.MLSolver = value;
-                this.Name = sprintf('Matlab Solver wrapper using %s',func2str(value));%#ok
+                this.Name = sprintf('Matlab Solver wrapper using %s',func2str(value));
             else
                 error('Invalid function handle!');
             end

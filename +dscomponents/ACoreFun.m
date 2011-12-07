@@ -78,6 +78,10 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
         % for the jacobian matrix of the core function can be provided.
         % 
         % @type sparsematrix @default []
+        %
+        % @todo maybe move this property to the IJacobian interface? (but:
+        % might have sparsity pattern but not actually a analytic
+        % jacobian..)
         JSparsityPattern = [];
     end
     

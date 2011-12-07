@@ -144,8 +144,7 @@ classdef BaseCustomSolver < solvers.ode.BaseSolver
         % x0: The initial value
         %
         % See also: getCompTimes
-        customSolve(this, odefun, t, x0);
-        %x = customSolve(this, odefun, t, x0);
+        x = customSolve(this, odefun, t, x0);
     end
     
     events
