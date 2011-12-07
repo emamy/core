@@ -21,6 +21,7 @@ classdef LinearImplEuler < solvers.ode.BaseCustomSolver
         
         function this = LinearImplEuler(model)
             this.model = model;
+            this.MaxStep = [];
         end
         
     end
@@ -29,9 +30,9 @@ classdef LinearImplEuler < solvers.ode.BaseCustomSolver
         
         function x = customSolve(this, ~, t, x0)
             s = this.model.System;
-%             if ~isa(s,'dscomponents.LinearCoreFun')
-%                 error('boo.');
-%             end
+            if ~isa(s.f,'dscomponents.LinearCoreFun')
+                error('LinearImplEuler only works for dscomponents.LinearCoreFun (subclasses).');
+            end
             % Initialize result
             steps = length(t);
             dt = t(2)-t(1);
@@ -47,30 +48,25 @@ classdef LinearImplEuler < solvers.ode.BaseCustomSolver
                 x = [x0 zeros(size(x0,1),steps-1)];
             end
             
-            null = zeros(size(x0));
-            A = s.f.getStateJacobian(null,0,s.mu);
-            b = s.f.evaluate(null,0,s.mu);
-            I = eye(size(A));
-            
             % Check if a mass matrix is present
             if ~isempty(s.M)
                 M = s.M.evaluate(0); 
             else
-                M = I;
+                M = eye(size(s.f.A));
             end
-            %[l,u] = lu(M + dt * A);
-            Ai = inv(M + dt * A);
+            %[l,u] = lu(M + dt * s.f.A);
+            Ai = inv(M + dt * s.f.A);
             
             % Solve for each time step
             oldx = x0;
             for idx = 2:steps;
-                RHS = M*oldx + dt*b;
+                RHS = M*oldx + dt*s.f.b;
                 if ~isempty(s.u)
                     RHS = RHS + dt*s.B.evaluate(t, s.mu)*s.u(t);
                 end
                 %newx = u\(l\RHS);
                 newx = Ai * RHS;
-                %newx = (M + dt * A)\RHS;
+                %newx = (M + dt * s.f.A)\RHS;
                 
                 if rtm
                     ed.Times = t(idx);

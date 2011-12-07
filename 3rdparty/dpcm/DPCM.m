@@ -156,7 +156,7 @@ classdef DPCM
             [msg, stats] = DPCM.runDPCM(DPCMobj, levels);
             if stats(1,1) > 0
                 if ~isempty(DPCMobj.WorkspaceVariableName)
-                    link = sprintf('<a href="matlab:%s.printPropertyChangedReport(''critical'')">critical properties</a>',DPCMobj.WorkspaceVariableName);
+                    link = sprintf('<a href="matlab:DPCM.getDPCMReport(%s,''critical'')">critical properties</a>',DPCMobj.WorkspaceVariableName);
                 else
                     link = 'critical properties';
                     DPCM.printReport(msg, levels);
