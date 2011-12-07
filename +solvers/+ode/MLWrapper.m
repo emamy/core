@@ -3,6 +3,10 @@ classdef MLWrapper < solvers.ode.BaseSolver
 %
 % @author Daniel Wirtz @date 2010-08-09
 %
+% @new{0,6,dw,2011-12-07} Added a new field odeopts which corresponds to
+% the odeset options struct of MatLab. Any values set will be passed to the
+% internal ode23 etc solver.
+%
 % @change{0,5,dw,2011-10-16} Adopted to the new BaseSolver.RealTimeMode flag.
 %
 % @change{0,5,dw,2011-10-15} Moved the creation of the SolverEventData
@@ -36,6 +40,16 @@ classdef MLWrapper < solvers.ode.BaseSolver
         %
         % See also: ode23 ode45
         MLSolver = @ode23;
+        
+        % Additional ODE options.
+        %
+        % Change this value via the odeset function. This struct will be
+        % passed as a whole to the wrapped MatLab solver.
+        %
+        % @type struct @default odeset
+        %
+        % See also: odeset
+        odeopts;
     end
     
     properties(Access=private)
@@ -51,10 +65,11 @@ classdef MLWrapper < solvers.ode.BaseSolver
             if nargin > 0
                 this.MLSolver = solver;
             end
+            this.odeopts = odeset;
         end
         
         function [t,y] = solve(this, odefun, t, x0)
-            opts = odeset;
+            opts = this.odeopts;
             if ~isempty(this.MaxStep)
                 opts = odeset(opts, 'MaxStep', this.MaxStep);
             end
