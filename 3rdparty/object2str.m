@@ -28,6 +28,8 @@ function str = object2str(obj, maxdepth)
 % Redistribution and use in source and binary forms, with or without modification, are
 % permitted only in compliance with the BSD license, see
 % http://www.opensource.org/licenses/bsd-license.php
+%
+% @todo enable argument that omits any properties of a given name
 
 if ~isobject(obj)
     error('The obj argument has to be a matlab object.');

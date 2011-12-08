@@ -1,39 +1,39 @@
 classdef Utils
-    % Collection of generally useful functions
-    %
-    % @author Daniel Wirtz @date 11.10.2010
-    %
-    % @change{0,6,dw,2011-11-17} Moved the getObjectConfig to a separate file.
-    %
-    % @change{0,6,dw,2011-11-16} Using mex CalcMD5 now to compute hash values for vectors.
-    % Source downloaded from http://www.mathworks.com/matlabcentral/fileexchange/25921. Also
-    % updated the KerMor.setup script to automatically compile the CalcMD5 mex file.
-    %
-    % @change{0,5,dw,2011-09-15} 
-    % - saveAxes and saveFigure now store the last save location in the
-    % preferences and reuse them.
-    % - removeMargin now properly works, together with saveFigure or
-    % saveAxes.
-    %
-    % @new{0,5,dw,2011-07-05} Added the general.Utils.implode function.
-    %
-    % @new{0,3,dw,2011-04-20} Added a new function general.Utils.getHelpShort to extract the first
-    % line(s) of a help text in matlab style (text until first emtpy line = short)
-    %
-    % @new{0,3,dw,2011-04-18} Added the 'saveFigure' and 'saveAxes' methods from SegMedix.
-    %
-    % @change{0,3,dw,2011-04-04} Moved the general.Utils.getObjectConfig
-    % method here from models.BaseModel
-    %
-    % @new{0,3,dw,2011-04-01}
-    % - Added the general.Utils.getBoundingBox function.
-    % - Added the general.Utils.findVecInMatrix function.
-    %
-    % This class is part of the framework
-    % KerMor - Model Order Reduction using Kernels:
-    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
-    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
-    % - \c License @ref licensing
+% Collection of generally useful functions
+%
+% @author Daniel Wirtz @date 11.10.2010
+%
+% @change{0,6,dw,2011-11-17} Moved the getObjectConfig to a separate file.
+%
+% @change{0,6,dw,2011-11-16} Using mex CalcMD5 now to compute hash values for vectors.
+% Source downloaded from http://www.mathworks.com/matlabcentral/fileexchange/25921. Also
+% updated the KerMor.setup script to automatically compile the CalcMD5 mex file.
+%
+% @change{0,5,dw,2011-09-15} 
+% - saveAxes and saveFigure now store the last save location in the
+% preferences and reuse them.
+% - removeMargin now properly works, together with saveFigure or
+% saveAxes.
+%
+% @new{0,5,dw,2011-07-05} Added the general.Utils.implode function.
+%
+% @new{0,3,dw,2011-04-20} Added a new function general.Utils.getHelpShort to extract the first
+% line(s) of a help text in matlab style (text until first emtpy line = short)
+%
+% @new{0,3,dw,2011-04-18} Added the 'saveFigure' and 'saveAxes' methods from SegMedix.
+%
+% @change{0,3,dw,2011-04-04} Moved the general.Utils.getObjectConfig
+% method here from models.BaseModel
+%
+% @new{0,3,dw,2011-04-01}
+% - Added the general.Utils.getBoundingBox function.
+% - Added the general.Utils.findVecInMatrix function.
+%
+% This class is part of the framework
+% KerMor - Model Order Reduction using Kernels:
+% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+% - \c License @ref licensing
     
     methods(Static)
         

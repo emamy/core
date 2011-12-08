@@ -1,12 +1,22 @@
-classdef EstimatorDemo < handle
-    % Demo class for the error estimators.
-    %
-    % The constructor either takes an existing model and uses this for the
-    % error estimator demo or the input argument is a dimension number for
-    % the standard model used.
-    %
-    % @change{0,4,dw,2011-05-20} Adopted to the new strategy pattern implemented for the
-    % LocalLipschitzFcn inside the LocalLipschitzErrorEstimator (now having a class instead of a function handle).
+classdef EstimatorAnalyzer < handle
+% Analysis class for the error estimators.
+%
+% The constructor either takes an existing model and uses this for the
+% error estimator analysis or the input argument is a dimension number for
+% the standard model used.
+%
+% @author Daniel Wirtz @date 2010-08-01
+%
+% @change{0,6,dw,2011-12-05} Moved this class from the \c demos/EstimatorDemo to tools.EstimatorAnalyzer 
+%
+% @change{0,4,dw,2011-05-20} Adopted to the new strategy pattern implemented for the
+% LocalLipschitzFcn inside the LocalLipschitzErrorEstimator (now having a class instead of a function handle).
+%
+% This class is part of the framework
+% KerMor - Model Order Reduction using Kernels:
+% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+% - \c License @ref licensing
     
     properties
         % The used model
@@ -102,8 +112,11 @@ classdef EstimatorDemo < handle
     
     methods
         
-        function this = EstimatorDemo
+        function this = EstimatorAnalyzer(model)
             this.ModelData = struct('Name',{},'ErrsT',{},'RelErrsT',{});
+            if nargin == 1
+                this.setModel(model);
+            end
         end
         
         function setModel(this, model)
@@ -120,28 +133,16 @@ classdef EstimatorDemo < handle
             this.buildEstimatorStruct(this.ReducedModel);
         end
         
-        function [ctimes, errs] = start(this, mu, inidx)
-            % Runs the demo with the current settings.
-            %
-            % Parameters:
-            % mu: The parameter `\mu` to use @type colvec
-            % inidx: The input index `i` of the input function `u_i` to use
-            % @type integer
-            
-            if nargin < 3
-                inidx = [];
-                if nargin < 2
-                    mu = [];
-                end
+        function [errs, ctimes, varargout] = getErrorEstimates(this, mu, inidx, withrel)
+            if nargin == 3
+                withrel = false;
             end
-            
             num = length(this.Est);
             ctimes = zeros(1,num);
-            nt = length(this.Model.Times);
-            errs = zeros(num,nt);
+            errs = zeros(num,length(this.Model.Times));
             
             %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Simulations
-            fprintf('Starting estimator demo for model %s!\n',this.Model.Name);
+            %fprintf('Starting estimator demo for model %s!\n',this.Model.Name);
             % Save old estimator
             oldest = this.ReducedModel.ErrorEstimator;
             str = ''; compplot = [];
@@ -165,39 +166,30 @@ classdef EstimatorDemo < handle
             % Restore old estimator
             this.ReducedModel.ErrorEstimator = oldest;
             
-            % Compute full solution & remember full system's trajectory
-            % (for rel. errors)
-            %xrfullnorm = sqrt(sum(xr.^2,1));
-            fprintf('Computing full solution for relative error norms...\n');
-            if this.UseOutputError
-                [t,yf] = this.Model.simulate(mu, inidx);
-            else
-                [t,yf] = this.Model.computeTrajectory(mu, inidx);
-                yf = bsxfun(@times, yf, this.ReducedModel.System.StateScaling);
-                t = t*this.ReducedModel.tau;
+            if withrel
+                varargout{1} = this.getRelativeErrorEstimates(errs, mu, inidx);
             end
-            yfullnorm = sqrt(sum(yf.^2,1));
-            %deferrest = errs(1,:);
-            %trueerr = sqrt(sum((x-this.ReducedModel.V*xr).^2,1));
-            
-            %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Plot preps %%%%%%%%%%%%%%%%%%%
-            fprintf('Preparing plots...\n');
-            this.Figures = {};
+        end
+        
+        function relerrs = getRelativeErrorEstimates(this, errs, mu, inidx)
+            if this.UseOutputError
+                [~,yf] = this.Model.simulate(mu, inidx);
+            else
+                [~,yf] = this.Model.computeTrajectory(mu, inidx);
+                yf = bsxfun(@times, yf, this.ReducedModel.System.StateScaling);
+            end
+            yfullnorm = sqrt(sum(yf.*(this.Model.G*yf),1));
+            relerrs = errs ./ repmat(yfullnorm,size(errs,1),1);
+        end
+        
+        function plotErrors(this, errs)
             this.Figures{1} = figure;
             this.Axes{1} = gca;
-            a = cell(1,num);
-            [a{:}] = this.Est(:).Name;
             if ~this.SingleFigures
                 pos = get(0,'MonitorPosition');
                 set(this.Figures{1},'OuterPosition',pos(1,:));
                 subplot(1,3,1);
             end
-            % Select extra marker places
-            sel = round(1:nt/this.NumMarkers:nt);
-            %sel = sel(2:end);
-            
-            %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Absolute error plots
-%             this.Errs = errs;
             if this.LogarithmicPlot
                 ph = semilogy(this.Model.Times,errs);
             else
@@ -205,7 +197,10 @@ classdef EstimatorDemo < handle
             end
             set(ph(1),'LineWidth',2);
             hold on;
-            % Add some markers
+            % Select extra marker places
+            nt = length(this.Model.Times);
+            sel = round(1:nt/this.NumMarkers:nt);
+            % Add some markers 
             for idx=1:length(this.Est)
                 set(ph(idx),'LineStyle',this.Est(idx).LineStyle);
                 % Shift marker positions for better visual
@@ -217,6 +212,8 @@ classdef EstimatorDemo < handle
             %keyboard;
             xlabel('Time');
             ylabel('Error estimates');
+            a = cell(1,length(this.Est));
+            [a{:}] = this.Est(:).Name;
             [~,oh] = legend(a,'Location','NorthEast');
             % Assign markers to legend
             oh = findobj(oh,'Type','line');
@@ -230,16 +227,20 @@ classdef EstimatorDemo < handle
             title(['Error estimations for model: ' this.Model.Name]);
             emin = min(errs(:));
             axis([0 this.Model.T emin*.9 max(emin,1e4)]);
-            
-            %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Relative error plots
+        end
+        
+        function plotRelativeErrors(this, relerrs)
             if ~this.SingleFigures
+                if isempty(this.Figures)
+                    this.Figures{1} = figure;
+                    pos = get(0,'MonitorPosition');
+                    set(this.Figures{1},'OuterPosition',pos(1,:));
+                end
                 subplot(1,3,2);
             else
                 this.Figures{2} = figure;
                 this.Axes{2} = gca;
             end
-            relerrs = errs ./ repmat(yfullnorm,num,1);
-%             this.RelErrs = relerrs;
             if this.LogarithmicPlot
                 ph = semilogy(this.Model.Times,relerrs);
             else
@@ -247,6 +248,9 @@ classdef EstimatorDemo < handle
             end
             set(ph(1),'LineWidth',2);
             hold on;
+            % Select extra marker places
+            nt = length(this.Model.Times);
+            sel = round(1:nt/this.NumMarkers:nt);
             for idx=1:length(this.Est)
                 set(ph(idx),'LineStyle',this.Est(idx).LineStyle);
                 % Shift marker positions for better visual
@@ -258,6 +262,8 @@ classdef EstimatorDemo < handle
             end
             xlabel('Time');
             ylabel('Relative error estimates');
+            a = cell(1,length(this.Est));
+            [a{:}] = this.Est(:).Name;
             legend(a,'Location','NorthWest');
             [~,oh] = legend(a,'Location','NorthEast');
             % Assign markers to legend
@@ -272,13 +278,27 @@ classdef EstimatorDemo < handle
             title(['Relative error estimations e(t)/||y||, \Delta x(t)/||y|| for model: ' this.Model.Name]);
             emin = min(relerrs(:));
             axis([0 this.Model.T emin*.9 max(emin,1)]);
-            
-            %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Computation ctimes plot
+        end
+        
+        function plotCTimes(this, errs, ctimes)
             if ~this.SingleFigures
+                if isempty(this.Figures)
+                    this.Figures{1} = figure;
+                    pos = get(0,'MonitorPosition');
+                    set(this.Figures{1},'OuterPosition',pos(1,:));
+                end
                 subplot(1,3,3);
             else
                 this.Figures{3} = figure;
                 this.Axes{3} = gca;
+            end
+            str = ''; compplot = [];
+            for idx = 1:length(this.Est)
+                % Plotting preparations
+                if ~isa(this.Est(idx).Estimator,'error.ExpensiveBetaEstimator')
+                    str = [str sprintf('errs(%d,end),ctimes(%d),''%s'',',idx,idx,this.Est(idx).MarkerStyle)]; %#ok<*AGROW>
+                    compplot(end+1) = idx;
+                end
             end
             if this.LogarithmicPlot
                 eval(['ph = semilogx(' str '''MarkerSize'',10);']);
@@ -297,11 +317,63 @@ classdef EstimatorDemo < handle
             
             xlabel('\Delta(T)');
             ylabel('Comp. time [s]');
+            a = cell(1,length(this.Est));
+            [a{:}] = this.Est(:).Name;
             legend(a(compplot));
             title(['Error estimator computation times: ' this.Model.Name]);
             axis tight;
+        end
+        
+        function pt = getResultTable(this, errs, ctimes)
+            if this.SortResultTable
+                str = 'Estimator hierarchy (error*time product)';
+                [~,idx] = sort(errs(:,end).*ctimes');
+            else
+                str = 'Estimator list';
+                idx = 1:size(errs,2);
+            end
+            pt = PrintTable;
+            pt.Caption = sprintf('%s for model "%s"',str,this.Model.Name);
+            pt.addRow('Name',sprintf('$\\Delta(%d)$',this.Model.T),'Time','Overestimation');
+            pt.HasHeader = true;
+            for id = 1:length(this.Est)
+                pt.addRow(this.Est(idx(id)).Name,errs(idx(id),end),ctimes(idx(id)),...
+                    errs(idx(id),end)/errs(1,end),{'%s','$%1.3e}$','%2.2fs','$%1.3e}$'});
+            end
+        end
+        
+        function [ctimes, errs, relerrs] = start(this, mu, inidx)
+            % Runs the demo with the current settings.
+            %
+            % Parameters:
+            % mu: The parameter `\mu` to use @type colvec
+            % inidx: The input index `i` of the input function `u_i` to use
+            % @type integer
             
-            %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% MaxErr data
+            if nargin < 3
+                inidx = [];
+                if nargin < 2
+                    mu = [];
+                end
+            end
+            
+            [errs, ctimes] = this.getErrorEstimates(mu, inidx);
+            relerrs = this.getRelativeErrorEstimates(errs, mu, inidx);
+            
+            % Plot preps
+            fprintf('Preparing plots...\n');
+            this.Figures = {};
+            
+            % Absolute error plots
+            this.plotErrors(this, errs)
+            
+            % Relative error plots
+            this.plotRelativeErrors(this, relerrs);
+            
+            % Computation ctimes plot
+            this.plotCTimes(this, errs, ctimes);
+            
+            % MaxErr data
             this.ModelData(end+1).Name = this.Model.Name;
             this.ModelData(end).ErrT = errs(:,end)';
             this.ModelData(end).MinErr = min(errs(:));
@@ -312,31 +384,12 @@ classdef EstimatorDemo < handle
             this.ModelData(end).mu = mu;
             this.ModelData(end).inputidx = inidx;
             
-            %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Table overview
-            if this.SortResultTable
-                disp('Estimator hierarchy (error*time product):');
-                [~,idx] = sort(errs(:,end).*ctimes');
-            else
-                disp('Estimator list:');
-                idx = 1:size(errs,2);
-            end
+            % Table overview
+            t = this.getResultTable(errs, ctimes);
+            t.display;
+            
             if ~isempty(this.SaveTexTables)
-                pt = PrintTable;
-                pt.Caption = sprintf('Estimator hierarchy for model "%s"',this.Model.Name);
                 pt.Format = 'tex';
-                pt.addRow('Name',sprintf('$\\Delta(%d)$',t(end)),'Time','Overestimation');
-            end
-            for id = 1:length(this.Est)
-                fprintf('Delta(%2.2f)=%1.4e\t%2.4fsec\tOE:%1.4e\t%s\n',t(end),...
-                    errs(idx(id),end),ctimes(idx(id)),errs(idx(id),...
-                    end)/errs(1,end),...
-                    this.Est(idx(id)).Name);
-                if ~isempty(this.SaveTexTables)
-                    pt.addRow(this.Est(idx(id)).Name,errs(idx(id),end),ctimes(idx(id)),...
-                        errs(idx(id),end)/errs(1,end),{'%s','$%1.3e}$','%2.2fs','$%1.3e}$'});
-                end
-            end
-            if ~isempty(this.SaveTexTables)
                 pt.saveToFile(this.SaveTexTables);
 %                 fid = fopen(this.SaveTexTables,'a+');
 %                 str = [strrep(strrep(strrep(pt.print,'e+','\\cdot10^{'),'e-',...
@@ -346,9 +399,9 @@ classdef EstimatorDemo < handle
             end
         end
         
-        function createStatsTables(this, sort)
+        function t = createStatsTables(this, sort)
             % Creates LaTeX tables with each the 'Errors','Relative errors','Overestimations' and
-            % 'Computation times' for the demos started since creation of the EstimatorDemo.
+            % 'Computation times' for the demos started since creation of the tools.EstimatorAnalyzer.
             %
             % Uses the current model's name and param/input values as identification.
             %
@@ -363,9 +416,7 @@ classdef EstimatorDemo < handle
             t = PrintTable;
             t.Format = 'tex';
             t.HasHeader = true;
-            fid = fopen('statsTables.txt','a+');
             for fi = 1:length(fields)
-                
                 t.clear;
                 t.Caption = sprintf('%s of estimation runs',fieldnames{fi});
                 t.addRow('Model / Est', this.Est(:).Name);
@@ -391,9 +442,9 @@ classdef EstimatorDemo < handle
                 end
                 %str = strrep(strrep(strrep(strrep(t.print,'e+','e^{'),'e-','e^{-'),'{0','{'),'{-0','{-');
                 %fprintf(fid,'%s',str);
-                t.print(fid);
+                %t.print(fid);
             end
-            fclose(fid);
+            %fclose(fid);
         end
         
         function set.EstimatorIterations(this, value)

@@ -91,6 +91,9 @@ classdef PrintTable < handle
 % Redistribution and use in source and binary forms, with or without modification, are
 % permitted only in compliance with the BSD license, see
 % http://www.opensource.org/licenses/bsd-license.php
+%
+% @todo replace fprintf by sprintf and build string that can be returned by this.print and if
+% no output argument is collected directly print it.
     
     properties(Constant)
         % Equivalent length of a tab character in single-space characters
