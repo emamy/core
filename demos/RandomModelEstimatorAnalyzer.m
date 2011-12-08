@@ -1,4 +1,4 @@
-classdef RandomModelEstimatorDemo < EstimatorDemo
+classdef RandomModelEstimatorAnalyzer < tools.EstimatorAnalyzer
     % Demo class for the error estimators.
     % Creates a random model using a kernel expansion that can be
     % configured with the provided properties.
@@ -24,7 +24,7 @@ classdef RandomModelEstimatorDemo < EstimatorDemo
     
     methods
         
-        function this = RandomModelEstimatorDemo(dims)
+        function this = RandomModelEstimatorAnalyzer(dims)
             % Creates a new estimator demo.
             %
             % Parameters:

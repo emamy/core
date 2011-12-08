@@ -44,6 +44,11 @@ classdef KerMorObject < DPCMObject
             
             this = this@DPCMObject;
         end
+        
+        function display(this)
+            disp(object2str(this));
+            disp(this);
+        end
     end
         
     methods(Sealed, Access=protected)

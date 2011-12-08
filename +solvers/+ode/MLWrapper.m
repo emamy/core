@@ -76,15 +76,20 @@ classdef MLWrapper < solvers.ode.BaseSolver
             if ~isempty(this.InitialStep)
                 opts = odeset(opts, 'InitialStep', this.InitialStep);
             end
-            % Pass Mass Matrix to solver
-            if ~isempty(this.M)
-                if isa(this.M,'dscomponents.ConstMassMatrix')
+            % Pass Mass Matrix to solver (only for non-ode15i solvers, the
+            % latter one makes use of M in a different way, see the class
+            % MLode15i)
+            if ~isempty(this.M) && ~isa(this, 'solvers.ode.MLode15i')
+                if ~this.M.TimeDependent
                     M = this.M.evaluate(0);
                     opts = odeset(opts,'MassConstant','true');
                 else
                     M = @(t)this.M.evaluate(t);
                 end
-                opts = odeset(opts,'Mass',M,'MStateDependence','none');
+                % Compute initial slope
+                yp0 = this.M.evaluate(0)\odefun(0,x0);
+                opts = odeset(opts,'Mass',M,'MStateDependence','none',...
+                    'InitialSlope',yp0);
             end
             
             if this.RealTimeMode
@@ -93,10 +98,10 @@ classdef MLWrapper < solvers.ode.BaseSolver
                 % Seems also not to work if created within the constructor.
                 ed = solvers.ode.SolverEventData;
                 this.fED = ed;
-                this.MLSolver(odefun, t, x0, opts);
+                this.solverCall(odefun, t, x0, opts);
                 t = []; y = [];
             else
-                [t,y] = this.MLSolver(odefun, t, x0, opts);
+                [t,y] = this.solverCall(odefun, t, x0, opts);
                 y = y';
                 t = t';    
             end
@@ -109,6 +114,14 @@ classdef MLWrapper < solvers.ode.BaseSolver
             else
                 error('Invalid function handle!');
             end
+        end
+    end
+    
+    methods(Access=protected)
+        function varargout = solverCall(this, odefun, t, x0, opts)
+            % Default solver call for all builtin ode solvers except
+            % ode15i. This method gets overridden in MLode15i.
+            [varargout{1:nargout}] = this.MLSolver(odefun, t, x0, opts);
         end
     end
     

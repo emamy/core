@@ -94,9 +94,10 @@ classdef ExplEuler < solvers.ode.BaseCustomSolver
                 hlp = dt(idx-1)*odefun(t(idx-1),oldx);
                 % Check if a mass matrix is present
                 if ~isempty(this.M)
-                    [L,U,Q,P] = this.M.getLU(t(idx-1)); 
-                    %newx = Q*(U\(L\(P*(this.M.evaluate(t(idx-1))*oldx + hlp))));
-                    newx = U\(L\(this.M.evaluate(t(idx-1))*oldx + hlp));
+                    newx = oldx + this.M.evaluate(t(idx-1))\hlp;
+%                     [L,U,Q,P] = this.M.getLU(t(idx-1)); 
+%                     newx = oldx + Q*(U\(L\(P*hlp)));
+%                     newx = oldx + U\(L\hlp);
                 else
                     newx = oldx + hlp;
                 end

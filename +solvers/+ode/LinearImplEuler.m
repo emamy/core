@@ -1,7 +1,11 @@
-classdef LinearImplEuler < solvers.ode.BaseCustomSolver
-% LinearImplEuler: 
+classdef LinearImplEuler < solvers.ode.BaseCustomSolver & solvers.ode.AImplSolver
+% LinearImplEuler: Implicit euler solver for linear core functions
 %
-%
+% This class is a "hack" since it explicitly accesses the model class and
+% uses the system's components `f`, `B` and `u(t)` directly instead of
+% using the provided odefun handle. Due to this, it is not possible to use
+% this solver in conjunction with any error estimators as long as they
+% extend the reduced system by any dimension.
 %
 % @author Daniel Wirtz @date 2011-12-06
 %
@@ -21,17 +25,20 @@ classdef LinearImplEuler < solvers.ode.BaseCustomSolver
         
         function this = LinearImplEuler(model)
             this.model = model;
+            % "Disable" MaxStep DPCM warning as implicit solvers are stable
             this.MaxStep = [];
         end
-        
     end
     
     methods(Access=protected)
-        
         function x = customSolve(this, ~, t, x0)
             s = this.model.System;
             if ~isa(s.f,'dscomponents.LinearCoreFun')
                 error('LinearImplEuler only works for dscomponents.LinearCoreFun (subclasses).');
+            end
+            if isa(s.Model,'models.ReducedModel') && ~isempty(s.Model.ErrorEstimator)...
+                && s.Model.ErrorEstimator.Enabled && s.Model.ErrorEstimator.ExtraODEDims > 0
+                error('Cannot use this solver with reduced models that have an error estimator enabled with ExtraODEDims > 0 (this solver overrides the odefun handle)');
             end
             % Initialize result
             steps = length(t);

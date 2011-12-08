@@ -21,6 +21,8 @@ classdef BaseEstimator < KerMorObject & ICloneable
     %
     % @change{0,3,sa,2011-04-23} Implemented Setters for the properties
     %
+    % @todo include scaling effects into the error estimator!
+    %
     
     properties(Dependent)
         % Flag that indicates whether error estimation is used or not.
@@ -251,7 +253,7 @@ classdef BaseEstimator < KerMorObject & ICloneable
         
         function res = test_ErrorEstimators
             % Quick test for estimators.
-            demo = RandomModelEstimatorDemo;
+            demo = RandomModeltools.EstimatorAnalyzer;
             demo.Dims = 3;
             demo.start;
             res = true;

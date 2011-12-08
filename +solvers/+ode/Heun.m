@@ -79,8 +79,9 @@ classdef Heun < solvers.ode.BaseCustomSolver
                 
                 % Check if a mass matrix is present
                 if ~isempty(this.M)
-                    [L,U] = this.M.getLU(t(idx-1)); 
-                    newx = U\(L\(this.M.evaluate(t(idx-1))*oldx + hlp));
+                    newx = oldx + this.M.evaluate(t(idx-1))\hlp;
+%                     [L,U] = this.M.getLU(t(idx-1)); 
+%                     newx = U\(L\(this.M.evaluate(t(idx-1))*oldx + hlp));
                 else
                     newx = oldx + hlp;
                 end

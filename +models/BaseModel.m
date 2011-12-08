@@ -347,8 +347,9 @@ classdef BaseModel < KerMorObject
                 slv.MaxStep = this.System.MaxTimestep;
                 slv.InitialStep = .5*this.System.MaxTimestep;
             end
-            % Assign jacobian evaluation function if available
-            if isa(slv,'solvers.ode.BaseImplSolver')
+            % Assign jacobian information if available and solver is
+            % implicit
+            if isa(slv,'solvers.ode.AImplSolver')
                 % Set jacobian if possible
                 if isa(this.System.f,'dscomponents.IJacobian')
                     slv.JacFun = @(t, x)this.System.f.getStateJacobian(x, t, mu);
@@ -515,7 +516,7 @@ classdef BaseModel < KerMorObject
             end
             % Disable the MaxTimestep value if an implicit solver is used.
             if ~isempty(this.System) 
-                if isa(value,'solvers.ode.BaseImplSolver')
+                if isa(value,'solvers.ode.AImplSolver')
                     if ~isempty(this.System.MaxTimestep)
                         fprintf('BaseModel: Disabling system''s MaxTimestep due to use of an implicit solver.\n');
                     end

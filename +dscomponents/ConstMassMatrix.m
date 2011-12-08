@@ -13,7 +13,7 @@ classdef ConstMassMatrix < dscomponents.AMassMatrix
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
     
-    properties
+    properties(SetAccess=private)
         M;
     end
     
@@ -28,7 +28,11 @@ classdef ConstMassMatrix < dscomponents.AMassMatrix
         
         function this = ConstMassMatrix(M)
             this.M = M;
+            this.TimeDependent = false;
             [this.l, this.u, this.q, this.p] = lu(M);
+            % Compute sparsity pattern straight away
+            [i, j] = find(M);
+            this.SparsityPattern = sparse(i,j,ones(size(i)));
         end
         
         function M = evaluate(this, ~)
