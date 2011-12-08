@@ -1,5 +1,7 @@
 *.?~
 *.??~
+*.mexw32
+*.mexw64
 *.mexa64
 *.mexglx
 *.fig
@@ -10,6 +12,10 @@
 *.jpg
 *.bin
 *.log
+*.asv
 *.zip
+*.exe
+*.bat
+*.dll
 /data
 /temp

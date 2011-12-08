@@ -3,6 +3,10 @@ classdef MLWrapper < solvers.ode.BaseSolver
 %
 % @author Daniel Wirtz @date 2010-08-09
 %
+% @new{0,6,dw,2011-12-07} Added a new field odeopts which corresponds to
+% the odeset options struct of MatLab. Any values set will be passed to the
+% internal ode23 etc solver.
+%
 % @change{0,5,dw,2011-10-16} Adopted to the new BaseSolver.RealTimeMode flag.
 %
 % @change{0,5,dw,2011-10-15} Moved the creation of the SolverEventData
@@ -36,6 +40,16 @@ classdef MLWrapper < solvers.ode.BaseSolver
         %
         % See also: ode23 ode45
         MLSolver = @ode23;
+        
+        % Additional ODE options.
+        %
+        % Change this value via the odeset function. This struct will be
+        % passed as a whole to the wrapped MatLab solver.
+        %
+        % @type struct @default odeset
+        %
+        % See also: odeset
+        odeopts;
     end
     
     properties(Access=private)
@@ -51,15 +65,31 @@ classdef MLWrapper < solvers.ode.BaseSolver
             if nargin > 0
                 this.MLSolver = solver;
             end
+            this.odeopts = odeset;
         end
         
         function [t,y] = solve(this, odefun, t, x0)
-            opts = odeset;
+            opts = this.odeopts;
             if ~isempty(this.MaxStep)
                 opts = odeset(opts, 'MaxStep', this.MaxStep);
             end
             if ~isempty(this.InitialStep)
                 opts = odeset(opts, 'InitialStep', this.InitialStep);
+            end
+            % Pass Mass Matrix to solver (only for non-ode15i solvers, the
+            % latter one makes use of M in a different way, see the class
+            % MLode15i)
+            if ~isempty(this.M) && ~isa(this, 'solvers.ode.MLode15i')
+                if ~this.M.TimeDependent
+                    M = this.M.evaluate(0);
+                    opts = odeset(opts,'MassConstant','true');
+                else
+                    M = @(t)this.M.evaluate(t);
+                end
+                % Compute initial slope
+                yp0 = this.M.evaluate(0)\odefun(0,x0);
+                opts = odeset(opts,'Mass',M,'MStateDependence','none',...
+                    'InitialSlope',yp0);
             end
             
             if this.RealTimeMode
@@ -68,10 +98,10 @@ classdef MLWrapper < solvers.ode.BaseSolver
                 % Seems also not to work if created within the constructor.
                 ed = solvers.ode.SolverEventData;
                 this.fED = ed;
-                this.MLSolver(odefun, t, x0, opts);
+                this.solverCall(odefun, t, x0, opts);
                 t = []; y = [];
             else
-                [t,y] = this.MLSolver(odefun, t, x0, opts);
+                [t,y] = this.solverCall(odefun, t, x0, opts);
                 y = y';
                 t = t';    
             end
@@ -80,10 +110,18 @@ classdef MLWrapper < solvers.ode.BaseSolver
         function set.MLSolver(this, value)
             if isa(value,'function_handle')
                 this.MLSolver = value;
-                this.Name = sprintf('Matlab Solver wrapper using %s',func2str(value));%#ok
+                this.Name = sprintf('Matlab Solver wrapper using %s',func2str(value));
             else
                 error('Invalid function handle!');
             end
+        end
+    end
+    
+    methods(Access=protected)
+        function varargout = solverCall(this, odefun, t, x0, opts)
+            % Default solver call for all builtin ode solvers except
+            % ode15i. This method gets overridden in MLode15i.
+            [varargout{1:nargout}] = this.MLSolver(odefun, t, x0, opts);
         end
     end
     

@@ -75,8 +75,16 @@ classdef Heun < solvers.ode.BaseCustomSolver
             oldx = x0;
             for idx = 2:steps;
                 f = odefun(t(idx-1),oldx);
-                hlp = oldx + dt(idx-1)*f;
-                newx = oldx + (dt(idx-1)/2)*(f + odefun(t(idx),hlp));
+                hlp = (dt(idx-1)/2)*(f + odefun(t(idx),oldx + dt(idx-1)*f));
+                
+                % Check if a mass matrix is present
+                if ~isempty(this.M)
+                    [L,U] = this.M.getLU(t(idx-1)); 
+                    newx = U\(L\(this.M.evaluate(t(idx-1))*oldx + hlp));
+                else
+                    newx = oldx + hlp;
+                end
+                
                 if rtm
                     ed.Times = t(idx);
                     ed.States = newx;

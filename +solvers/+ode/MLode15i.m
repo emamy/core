@@ -1,7 +1,11 @@
-classdef MLode15i < solvers.ode.BaseImplSolver
+classdef MLode15i < solvers.ode.MLWrapper & solvers.ode.AImplSolver
 % MLode15i: Wrapper for MatLab's ode15i builtin implicit solver
 %
 % @author Daniel Wirtz @date 2011-04-14
+%
+% @change{0,6,dw,2011-12-07} Changed the inheritance order, now inheriting
+% from MLWrapper solver class and overriding the actual solver call
+% (different arguments for ode15i)
 %
 % @change{0,5,dw,2011-10-16} Adopted to the new BaseSolver.RealTimeMode flag.
 %
@@ -54,67 +58,87 @@ classdef MLode15i < solvers.ode.BaseImplSolver
         
     methods
         function this = MLode15i
-            this = this@solvers.ode.BaseImplSolver;
+            this = this@solvers.ode.MLWrapper(@ode15i);
+            this = this@solvers.ode.AImplSolver;
             this.Name = 'MatLab ode15i implicit solver wrapper';
             this.registerProps('RelTol','AbsTol');
-        end
-        
-        function [t, x] = implicit_solve(this, implfun, t, x0, x0p, opts)
-            % Solves the ode implicitly.
-            %
-            % Parameters:
-            % implfun: A handle to the implicit function `f` which describes
-            % the ODE via `f(t,x,x') = 0` @type function_handle
-            % t: The times `t_i` at which the ODE is to be computed @type rowvec
-            % x0: Initial condition `x_0 = x(0)` @type colvec
-            % x0p: Initial condition `x'_0 = x'(0)` @type colvec
-            % opts: An odeset struct for additional options. @type struct
-            if nargin < 6
-                opts = odeset;
-            end
-            opts = odeset(opts, 'RelTol', this.RelTol, 'AbsTol', this.AbsTol);
-            
-            if this.RealTimeMode
-                opts = odeset(opts, 'OutputFcn',@this.ODEOutputFcn);
-                
-                % Bug in Matlab 2009a: direct assignment crashes Matlab!
-                % Seems also not to work if created within the constructor.
-                ed = solvers.ode.SolverEventData;
-                this.fED = ed;
-                
-                % Run without return values
-                ode15i(implfun, t, x0, x0p, opts);
-                t = []; x = [];
-            else
-                [t, x] = ode15i(implfun, t, x0, x0p, opts);
-                x = x';
-                t = t';
-            end
+            % "Disable" MaxStep DPCM warning as implicit solvers are stable
+            this.MaxStep = [];
         end
     end
     
-    methods(Access=protected, Sealed)
-        function status = ODEOutputFcn(this, t, y, flag)
-            % Wraps the OutputFcn of the Matlab ODE solver into
-            % the StepPerformed event
+    methods(Access=protected)
+        function varargout = solverCall(this, odefun, t, x0, opts)
+            % Solves the ode specified by odefun implicitly.
             %
             % Parameters:
-            % t: The current time `t`
-            % y: The system's output `y(t)`
-            % flag: The flag passed from the ODE solver as argument of the
-            % 'OutputFcn' setting in odeset.
+            % odefun: A function handle for the ODE's dynamic function `f(t,x)`
+            % t: The times `t_i` on which to solve the ODE
+            % x0: Initial condition vector `x_0(\mu)`
             %
-            % See also: odeset
-            if ~strcmp(flag,'init')
-                % For some reason the t and y args have more than one
-                % entry, so loop over all of them.
-                for idx=1:length(t)
-                    this.fED.Times = t(idx); % when flag==init the t var is larger than one
-                    this.fED.States = y(:,idx);
-                    this.notify('StepPerformed',this.fED);
-                end
+            % Return values:
+            % t: The desired computation times `t_0,\ldots,t_N` as row vector
+            % x: The system's state `x_i` at time `t_i` as collection of column vectors
+            opts = odeset(opts, 'RelTol', this.RelTol, 'AbsTol', this.AbsTol);
+            
+            %% Use properties from AImplSolver
+            % Set Jacobian or Mass matrix
+            if ~isempty(this.JacFun) || ~isempty(this.M)
+                opts = odeset(opts, 'Jacobian', @this.FJAC);
             end
-            status = 0;
+            
+            % Process any sparsity patterns
+            JP = {[],[]};
+            if ~isempty(this.JPattern)
+                JP{1} = this.JPattern;
+            end
+            % Set df/dyp sparsity pattern, derived from mass matrix. Works
+            % only (at least can be guaranteed) for constant mass matrices.
+            if ~isempty(this.M)
+                JP{2} = this.M.SparsityPattern;
+            end
+            opts = odeset(opts, 'JPattern', JP);
+            
+            %% Call implicit solver
+            % implfun: A handle to the implicit function `f` which describes
+            % the ODE via `f(t,x,x') = 0`
+            xp0 = odefun(0,x0);
+            if ~isempty(this.M)
+                implfun = @(t,x,xp)this.M.evaluate(t)*xp - odefun(t,x);
+                xp0 = this.M.evaluate(0)\xp0;
+            else
+                implfun = @(t,x,xp)xp - odefun(t,x);
+            end
+            % Call ode15i solver
+            [varargout{1:nargout}] = this.MLSolver(implfun, t, x0, xp0, opts);
+        end
+    end
+    
+    methods(Access=private)
+        function [dfdx, dfdxp] = FJAC(this, t, x, xp)%#ok
+            % Internal implementation of the FJAC function utilized by i.e. MatLab's builtin
+            % solvers.
+            %
+            % Parameters:
+            % t: The time `t`
+            % x: The current solution vector `x(t)`
+            % xp: The current derivative solution vector `x'(t)`
+            %
+            % Return values:
+            % dfdx: The jacobian of the implicit function `f(t,x,x')` with respect to `x`
+            % dfdxp: The jacobian of the implicit function `f(t,x,x')` with respect to `x'`
+            % This value corresponds to mass matrices `M` for systems of the
+            % type `Mx'(t) = f(x(t),t) \ldots`
+            
+            % Implicit funcion is M*xp - odefun(t,x), so derivatives:
+            dfdx = [];
+            if ~isempty(this.JacFun)
+                dfdx = -this.JacFun(t, x);
+            end
+            dfdxp = [];
+            if ~isempty(this.M)
+                dfdxp = this.M.evaluate(t);
+            end
         end
     end
     

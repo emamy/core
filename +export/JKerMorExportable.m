@@ -1,4 +1,4 @@
-classdef JKerMorExportable
+classdef JKerMorExportable < handle
 % JKerMorExportable: 
 %
 %

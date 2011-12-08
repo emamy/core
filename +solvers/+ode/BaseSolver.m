@@ -50,6 +50,11 @@ classdef BaseSolver < KerMorObject
         %
         % @default false @type logical
         RealTimeMode = false;
+        
+        % The mass matrix `M` of the ODE `M(t)x'(t) = \ldots`
+        %
+        % @default [] @type dscomponents.AMassMatrix
+        M = [];
     end
     
     properties(SetAccess=protected)
@@ -108,6 +113,13 @@ classdef BaseSolver < KerMorObject
                 error('Positive real scalar expected.');
             end
             this.InitialStep = value;
+        end
+        
+        function set.M(this, value)
+            if ~isempty(value) && ~isa(value,'dscomponents.AMassMatrix')
+                error('Mass matrix must be a dscomponents.AMassMatrix subclass');
+            end
+            this.M = value;
         end
     end
     
