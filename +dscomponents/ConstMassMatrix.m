@@ -32,7 +32,8 @@ classdef ConstMassMatrix < dscomponents.AMassMatrix
             [this.l, this.u, this.q, this.p] = lu(M);
             % Compute sparsity pattern straight away
             [i, j] = find(M);
-            this.SparsityPattern = sparse(i,j,ones(size(i)));
+            s = size(M,1);
+            this.SparsityPattern = sparse(i,j,ones(size(i)),s,s);
         end
         
         function M = evaluate(this, ~)

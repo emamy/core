@@ -33,8 +33,8 @@ classdef LinearImplEuler < solvers.ode.BaseCustomSolver & solvers.ode.AImplSolve
     methods(Access=protected)
         function x = customSolve(this, ~, t, x0)
             s = this.model.System;
-            if ~isa(s.f,'dscomponents.LinearCoreFun')
-                error('LinearImplEuler only works for dscomponents.LinearCoreFun (subclasses).');
+            if ~isa(s.f,'dscomponents.LinearCoreFun') && ~isa(s.f,'dscomponents.AffLinCoreFun')
+                error('LinearImplEuler only works for dscomponents.{LinearCoreFun|AffLinCoreFun} (subclasses).');
             end
             if isa(s.Model,'models.ReducedModel') && ~isempty(s.Model.ErrorEstimator)...
                 && s.Model.ErrorEstimator.Enabled && s.Model.ErrorEstimator.ExtraODEDims > 0
@@ -61,8 +61,14 @@ classdef LinearImplEuler < solvers.ode.BaseCustomSolver & solvers.ode.AImplSolve
             else
                 M = eye(size(s.f.A));
             end
-            %[l,u] = lu(M - dt * s.f.A);
-            Ai = inv(M - dt * s.f.A);
+            if isa(s.f,'dscomponents.AffLinCoreFun')
+                % Warning: no time-dependence implemented here
+                A = s.f.AffParamMatrix.compose(0, s.mu);
+            else
+                A = s.f.A;
+            end
+            %[l,u] = lu(M + dt * A);
+            Ai = inv(M + dt * A);
             
             % Solve for each time step
             oldx = x0;
@@ -73,7 +79,7 @@ classdef LinearImplEuler < solvers.ode.BaseCustomSolver & solvers.ode.AImplSolve
                 end
                 %newx = u\(l\RHS);
                 newx = Ai * RHS;
-                %newx = (M - dt * s.f.A)\RHS;
+                %newx = (M + dt * A)\RHS;
                 
                 if rtm
                     ed.Times = t(idx);

@@ -9,6 +9,9 @@ classdef AffParamMatrix < ICloneable
     %
     % @ingroup general
     %
+    % @new{0,6,dw,2011-12-09} Added a new method
+    % AffParamMatrix.getMatrix (mainly for debug reasons)
+    %
     % @change{0,6,dw,2011-11-30} 
     % - Fixed a bug that has been introduced when introducing the faster implementation.
     % Multiplication from left or right with a matrix caused an error as the resulting size was
@@ -30,7 +33,10 @@ classdef AffParamMatrix < ICloneable
     % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
     % - \c License @ref licensing    
     %
-    % @todo implement/override other arithmetic operations
+    % @todo
+    % - implement/override other arithmetic operations
+    % - add flags for time/parameter dependence
+    % - add string for coeff method header '@(t,mu)'
         
     properties(SetAccess=private)
         % The number of affine matrices / size of the linear combination
@@ -132,10 +138,10 @@ classdef AffParamMatrix < ICloneable
                 pr.Matrices = zeros(prod(pr.dims),pr.N);
                 pr.funStr = {};
                 for i = 1:A.N
-                    M = reshape(A.Matrices(:,i),A.dims);
+                    M = A.getMatrix(i);
                     for j = 1:B.N
                         pr.Matrices(:,(i-1)*B.N + j) = ...
-                            reshape(M * reshape(B.Matrices(:,j),B.dims),1,[]);
+                            reshape(M * B.getMatrix(j),1,[]);
                         pr.funStr{end+1} = ['(' A.funStr{i} ')*(' B.funStr{j} ')'];
                     end
                 end
@@ -152,7 +158,7 @@ classdef AffParamMatrix < ICloneable
                     pr.Matrices = zeros(prod(pr.dims),pr.N);
                     for i=1:A.N
                         pr.Matrices(:,i) = reshape(...
-                            reshape(A.Matrices(:,i),A.dims) * B,[],1);
+                            A.getMatrix(i) * B,[],1);
                     end 
                 end
             elseif isa(B,'general.AffParamMatrix')
@@ -167,7 +173,7 @@ classdef AffParamMatrix < ICloneable
                     pr.Matrices = zeros(prod(pr.dims),pr.N);
                     for i=1:B.N
                         pr.Matrices(:,i) = reshape(...
-                            A * reshape(B.Matrices(:,i),B.dims),[],1);
+                            A * B.getMatrix(i),[],1);
                     end 
                 end
             end
@@ -213,8 +219,19 @@ classdef AffParamMatrix < ICloneable
             transp = this.clone;
             transp.dims = fliplr(transp.dims);
             for i=1:this.N
-                transp.Matrices(:,i) = reshape(reshape(this.Matrices(:,i),this.dims)',1,[]);
+                transp.Matrices(:,i) = reshape(this.getMatrix(i)',1,[]);
             end
+        end
+        
+        function M = getMatrix(this, idx)
+            % Returns the `i`-th matrix of the AffParamMatrix.
+            %
+            % Parameters:
+            % idx: The index `i`
+            %
+            % Return values:
+            % M: The `i`-th matrix of the AffParamMatrix
+            M = reshape(this.Matrices(:,idx),this.dims);
         end
         
     end

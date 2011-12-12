@@ -1,4 +1,5 @@
-classdef AffLinCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLipschitz
+classdef AffLinCoreFun < dscomponents.ACoreFun ...
+        & dscomponents.IGlobalLipschitz & dscomponents.IJacobian
 %Simple affine-linear core function "f" for a dynamical system.
 % 
 % Simply wraps an affine-linear function into the ACoreFun interface to
@@ -8,6 +9,9 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLipschitz
 %
 % @author Daniel Wirtz @date 15.03.2010
 %
+% @new{0,6,dw,2011} Added an optional offset term `b` to the AffLinCoreFun
+% to enable affine-linear affine-parametric core functions.
+%
 % @change{0,5,dw,2011-07-07} Updated this class to use the new general.AffParamMatrix class inside.
 %
 % This class is part of the framework
@@ -16,8 +20,13 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLipschitz
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
     
-    properties(Access=private)
-        afflinmat;
+    properties(SetAccess=protected)
+        AffParamMatrix;
+    end
+    
+    properties
+        % The offset term
+        b = [];
     end
     
     properties(Dependent, SetAccess=private)
@@ -27,16 +36,23 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLipschitz
     methods
         function this = AffLinCoreFun
             % Creates a new instance of the AffLinCoreFun.
-            this.afflinmat = general.AffParamMatrix;
+            this.AffParamMatrix = general.AffParamMatrix;
         end
         
         function fx = evaluateCoreFun(this, x, t, mu)
-            fx = this.afflinmat.compose(t,mu)*x;
+            fx = this.AffParamMatrix.compose(t, mu)*x;
+            if ~isempty(this.b)
+                fx = fx + this.b;
+            end
+        end
+        
+        function J = getStateJacobian(this, ~, t, mu)
+            J = this.AffParamMatrix.compose(t, mu);
         end
         
         function c = getGlobalLipschitz(this, t, mu)
             % Implementation of the interface method from IGlobalLipschitz.
-            a = this.afflinmat;
+            a = this.AffParamMatrix;
             c = 0;
             for idx=1:length(a.Coefficients)
                 cfun = a.Coefficients{idx};
@@ -47,29 +63,27 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLipschitz
         function projected = project(this, V, W)
             projected = this.clone;
             % RHS multiplication of the matrices for correct conversion.
-            af = this.afflinmat;
-            paf = projected.afflinmat;
+            af = this.AffParamMatrix;
+            paf = projected.AffParamMatrix;
             for idx=1:af.N
                 paf.Matrices(:,:,idx) = W'*(af.Matrices(:,:,idx)*V);
             end
         end
         
         function addMatrix(this, coeff_fcn, mat)
-            this.afflinmat.addMatrix(coeff_fcn, mat);
+            this.AffParamMatrix.addMatrix(coeff_fcn, mat);
         end
         
         function N = get.N(this)
-            N = this.afflinmat.N;
+            N = this.AffParamMatrix.N;
         end
     end
     
     methods(Sealed)
         function copy = clone(this)
             copy = dscomponents.AffLinCoreFun;
-            af = general.AffParamMatrix;
-            af.Coefficients = this.afflinmat.Coefficients;
-            af.Matrices = this.afflinmat.Matrices;
-            copy.afflinmat = af;
+            copy.AffParamMatrix = this.AffParamMatrix.clone;
+            copy.b = this.b;
         end
     end
     
