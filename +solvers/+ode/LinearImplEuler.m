@@ -75,7 +75,7 @@ classdef LinearImplEuler < solvers.ode.BaseCustomSolver & solvers.ode.AImplSolve
             for idx = 2:steps;
                 RHS = M*oldx + dt*s.f.b;
                 if ~isempty(s.u)
-                    RHS = RHS + dt*s.B.evaluate(t, s.mu)*s.u(t);
+                    RHS = RHS + dt*s.B.evaluate(t(idx), s.mu)*s.u(t(idx));
                 end
                 %newx = u\(l\RHS);
                 newx = Ai * RHS;

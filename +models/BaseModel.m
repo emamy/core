@@ -298,7 +298,7 @@ classdef BaseModel < KerMorObject
             xlabel(ax,'Time'); ylabel(ax,'Output functions');
         end
         
-        function plotSingle(this, t, y, ax)
+        function varargout = plotSingle(this, t, y, ax)
             % Plots a single solution.
             % Override in subclasses for specific plot behaviour.
             %
