@@ -8,9 +8,30 @@ classdef BaseKernel < KerMorObject
     % @change{0,3,dw,2011-04-21} Removed the RotationInvariant property as it is now replaced by the
     % IRotationInvariant interface.
     %
-    % @todo Implement cloning for kernels too
+    % @todo 
+    % - Implement cloning for kernels
+    % - write universal tests for kernels that check the interface functions (IJacobian etc)
+    
+    properties(SetObservable)
+        % Projection/selection matrix for argument components
+        %
+        % Set this value to the indices of the components of any argument passed to the kernel
+        % that should be effectively used. This property is mainly used with parameter kernels
+        % in order to extract relevant entries. Leave to [] if all values should be used.
+        %
+        % Subclasses must take care to use this property if set.
+        %
+        % @propclass{data} Depends on the kernel setting and problem setup.
+        %
+        % @default [] @type matrix
+        P = [];
+    end
     
     methods
+        function this = BaseKernel
+            this = this@KerMorObject;
+            this.registerProps('P');
+        end
         
         function fcn = getLipschitzFunction(this)
             % Method that allows error estimators to obtain a lipschitz

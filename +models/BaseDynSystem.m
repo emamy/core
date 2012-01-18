@@ -112,6 +112,26 @@ classdef BaseDynSystem < KerMorObject
         % @propclass{optional}
         Params = data.ModelParam.empty;
         
+        % Indices of the parameter vector that are effectively used in the system's core
+        % function.
+        %
+        % Set this property to the list of indices whose values are actually used at the
+        % evaluation of the `f` function. Leaving it empty means none are used, and -1 means
+        % all values are used (default).
+        %
+        % When building kernel expansion approximations this setting will be used to configure
+        % the parameter kernel of the kernels.ParamTimeKernelExpansion.
+        %
+        % @propclass{critical} Using more `\mu` parameter vector elements in the kernel
+        % approximations than actually required in the core function `f` introduces an
+        % additional dependency of the nonlinearity on extra parameters which is not given in
+        % the full model's core function.
+        %
+        % @type integer @default -1
+        %
+        % See also: kernels.ParamTimeKernelExpansion
+        DependentParamIndices = -1;
+        
         % The maximum timestep allowed for any ODE solvers.
         %
         % This might be necessary if the Core function encapsulates a

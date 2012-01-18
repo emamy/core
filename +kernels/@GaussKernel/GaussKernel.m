@@ -55,6 +55,9 @@ classdef GaussKernel < kernels.BellFunction
             % Evaluates the gaussian. Overrides the ARotationInvariant
             % implementation as it would take the root and then re-square
             % it upon evaluateScalar.
+            if ~isempty(this.P)
+                x = x(this.P,:);
+            end
             sx = this.G*x;
             n1sq = sum(x.*sx,1);
             n1 = size(x,2);
@@ -63,6 +66,9 @@ classdef GaussKernel < kernels.BellFunction
                 n2 = n1;
                 y = x;
             else
+                if ~isempty(this.P)
+                    y = y(this.P,:);
+                end
                 n2sq = sum(y.*(this.G*y),1);
                 n2 = size(y,2);
             end;
@@ -73,6 +79,13 @@ classdef GaussKernel < kernels.BellFunction
             % Method for first derivative evaluation
             if size(x,2) > 1 && size(y,2) > 1
                 error('One argument must be a vector.');
+            end
+            if ~isempty(this.P)
+                error('Not yet implemented correctly.');
+%                 xl = x(this.P,:);
+%                 yl = y(this.P,:);
+%             else
+%                 xl = x; yl = y;
             end
             hlp = bsxfun(@minus,x,y);
             hlp = -2*hlp/this.Gamma^2;
@@ -108,20 +121,20 @@ classdef GaussKernel < kernels.BellFunction
 %             K = exp(-K/this.Gamma^2);
 %         end
                 
-        function dx = evaluateD1(this, x)
+        function dx = evaluateD1(this, r)
             % Method for first derivative evaluation
-            dx = -2*x/this.Gamma^2 .* exp(-x.^2/this.Gamma^2);
+            dx = -2*r/this.Gamma^2 .* exp(-r.^2/this.Gamma^2);
         end
         
-        function ddx = evaluateD2(this, x)
+        function ddx = evaluateD2(this, r)
             % Method for second derivative evaluation
-            ddx = (2/this.Gamma^2) * (2*x.^2/this.Gamma^2-1) .* exp(-x.^2/this.Gamma^2);
+            ddx = (2/this.Gamma^2) * (2*r.^2/this.Gamma^2-1) .* exp(-r.^2/this.Gamma^2);
         end
         
-        function phi = evaluateScalar(this, x)
+        function phi = evaluateScalar(this, r)
             % Implements the required method from the IRotationInvariant
             % interface
-            phi = exp(-x.^2/this.Gamma^2);
+            phi = exp(-r.^2/this.Gamma^2);
         end
         
         function set.Gamma(this, value)
@@ -132,7 +145,7 @@ classdef GaussKernel < kernels.BellFunction
             this.Gamma = value;
             
             % Adjust the BellFunctions' x0 value
-            this.r0 = value/sqrt(2); %#ok
+            this.r0 = value/sqrt(2);
         end
         
         function g = setGammaForDistance(this, dist, ep)
