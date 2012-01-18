@@ -357,21 +357,20 @@ classdef EstimatorAnalyzer < handle
                 end
             end
             
-            [errs, ctimes] = this.getErrorEstimates(mu, inidx);
-            relerrs = this.getRelativeErrorEstimates(errs, mu, inidx);
+            [errs, ctimes, relerrs] = this.getErrorEstimates(mu, inidx, true);
             
             % Plot preps
             fprintf('Preparing plots...\n');
             this.Figures = {};
             
             % Absolute error plots
-            this.plotErrors(this, errs)
+            this.plotErrors(errs)
             
             % Relative error plots
-            this.plotRelativeErrors(this, relerrs);
+            this.plotRelativeErrors(relerrs);
             
             % Computation ctimes plot
-            this.plotCTimes(this, errs, ctimes);
+            this.plotCTimes(errs, ctimes);
             
             % MaxErr data
             this.ModelData(end+1).Name = this.Model.Name;
@@ -389,8 +388,8 @@ classdef EstimatorAnalyzer < handle
             t.display;
             
             if ~isempty(this.SaveTexTables)
-                pt.Format = 'tex';
-                pt.saveToFile(this.SaveTexTables);
+                t.Format = 'tex';
+                t.saveToFile(this.SaveTexTables);
 %                 fid = fopen(this.SaveTexTables,'a+');
 %                 str = [strrep(strrep(strrep(pt.print,'e+','\\cdot10^{'),'e-',...
 %                         '\\cdot10^{-'),'{0','{') '\\\\\n'];
@@ -399,7 +398,7 @@ classdef EstimatorAnalyzer < handle
             end
         end
         
-        function t = createStatsTables(this, sort)
+        function ts = createStatsTables(this, sort)
             % Creates LaTeX tables with each the 'Errors','Relative errors','Overestimations' and
             % 'Computation times' for the demos started since creation of the tools.EstimatorAnalyzer.
             %
@@ -413,11 +412,11 @@ classdef EstimatorAnalyzer < handle
             end
             fields = {'ErrT','RelErrT','OverestT','CTimes'};
             fieldnames = {'Errors','Relative errors','Overestimations','Computation times'};
-            t = PrintTable;
-            t.Format = 'tex';
-            t.HasHeader = true;
+            
             for fi = 1:length(fields)
-                t.clear;
+                t = PrintTable;
+                t.Format = 'tex';
+                t.HasHeader = true;
                 t.Caption = sprintf('%s of estimation runs',fieldnames{fi});
                 t.addRow('Model / Est', this.Est(:).Name);
                 
@@ -443,6 +442,7 @@ classdef EstimatorAnalyzer < handle
                 %str = strrep(strrep(strrep(strrep(t.print,'e+','e^{'),'e-','e^{-'),'{0','{'),'{-0','{-');
                 %fprintf(fid,'%s',str);
                 %t.print(fid);
+                ts(fi) = t;
             end
             %fclose(fid);
         end

@@ -1,4 +1,4 @@
-function [h, Y, E] = ParamSweep(rmodel, mu, inputidx, param, paramvals)
+function [h, Y, E] = ParamSweep2D(rmodel, mu, inputidx, params, range1, range2)
 % ParamSweep: Plots the output with error bounds for a range of one specified parameter.
 %
 % This function may only be used if the output of the reduced models is one-dimensional.
@@ -14,9 +14,8 @@ function [h, Y, E] = ParamSweep(rmodel, mu, inputidx, param, paramvals)
 %
 % Return values:
 % h: The handle of the created figure
-% Y: The simulation matrix for every parameter, each simulation in a row.
-% E: The estimated output errors for the respective setting in each row, if the reduced model's
-% error estimator is enabled.
+% Y: The simulation value at end time T over the parameter mesh.
+% E: The estimated output errors for end time T over the parameter mesh.
 %
 % @author Daniel Wirtz @date 2011-07-13
 %
@@ -31,48 +30,46 @@ function [h, Y, E] = ParamSweep(rmodel, mu, inputidx, param, paramvals)
 % - \c License @ref licensing
 
 % Validity checks 
-if ischar(param)
-    pidx = rmodel.getParamIndexFromName(param);
-    pname = param;
-elseif isposintscalar(param)
-    pidx = param;
-    pname = rmodel.System.Params(pidx).Name;
-else
-    error('param must be either a char array (parameter name) or positive parameter index');
+if ~isposintmat(params)
+    error('params must be positive parameter indices');
 end
-npar = length(paramvals);
-if npar == 0
-    error('Parameter values to sweep must be given.');
+[pname{1:2}] = rmodel.System.Params(params).Name;
+if size(range1,2) == 0 || size(range2,2) == 0
+    error('Parameter ranges to sweep must be given.');
 end
 
 p = 0;
-fprintf('Starting parameter sweep for %s... ',pname);
+[MU1, MU2] = meshgrid(range1,range2);
+fprintf('Starting parameter sweep for "%s" and "%s" (%d runs)... ',pname{1},pname{2},numel(MU1));
 
-mu(pidx) = paramvals(1);
-[t, y] = rmodel.simulate(mu, inputidx);
+mu(params(1)) = range1(1);
+mu(params(2)) = range2(1);
+[~, y] = rmodel.simulate(mu, inputidx);
 if size(y,1) > 1
     error('PlotParamSweep only applicable for onedimensional system output.');
 end
 
-Y = zeros(npar,length(t));
-Y(1,:) = y;
+Y = zeros(size(MU1));
+Y(1,1) = y(end);
 if rmodel.ErrorEstimator.Enabled
-    E = zeros(npar,length(t));
-    E(1,:) = rmodel.ErrorEstimator.OutputError;
+    E = zeros(size(MU1));
+    E(1,1) = rmodel.ErrorEstimator.OutputError(end);
 else
     E = [];
 end
 
 % Iterate over parameter values
-for idx = 2:npar
-    mu(pidx) = paramvals(idx);
-    [t, Y(idx,:)] = rmodel.simulate(mu, inputidx);
+for idx = 2:numel(MU1)
+    mu(params(1)) = MU1(idx);
+    mu(params(2)) = MU2(idx);
+    [~, y] = rmodel.simulate(mu, inputidx);
+    Y(idx) = y(end);
     
     if rmodel.ErrorEstimator.Enabled
-        E(idx,:) = rmodel.ErrorEstimator.OutputError;
+        E(idx) = rmodel.ErrorEstimator.OutputError(end);
     end
     
-    perc = idx/npar;
+    perc = idx/numel(MU1);
     if perc > p
         fprintf('%2.0f%% ',round(perc*100));
         p = ceil(perc*10)/10;
@@ -83,31 +80,27 @@ fprintf('\n');
 %% Prepare plot
 h = figure;
 ax = gca(h);
-[T,MU] = meshgrid(t,paramvals);
-ustr = '';
-if ~isempty(inputidx)
-    ustr = sprintf(', u_%d',inputidx);
-end
-tit = sprintf('Outputs for parameter sweep of "%s" (idx:%d) from %1.3f to %1.3f, base \\mu = [%s]%s',pname,param,paramvals(1),paramvals(end),num2str(mu'),ustr);
+tit = sprintf('Outputs at T=%1.2f for 2D parameter sweep, base \\mu = [%s]\n"%s" (idx:%d) from %1.3f to %1.3f\n"%s" (idx:%d) from %1.3f to %1.3f',...
+    rmodel.T,num2str(mu'),pname{1},params(1),range1(1),range1(end),pname{2},params(2),range2(1),range2(end));
 
 %% Upper bound
 if rmodel.ErrorEstimator.Enabled
-    obj = surf(ax,T,MU,Y+E,'EdgeColor','none','FaceColor','red');
+    obj = surf(ax,MU1,MU2,Y+E,'EdgeColor','none','FaceColor','red');
     alpha(obj,.3);
 %     mesh(T,MU,Y+E,'EdgeColor','none','FaceColor','red');
     hold on;
 end
 
 %% y plot
-surf(ax,T,MU,Y,'EdgeColor','none');
+surf(ax,MU1,MU2,Y,'EdgeColor','none');
 colormap jet;
-title(tit); axis tight; xlabel('t'); ylabel(sprintf('Parameter %d: %s',param,pname));
+title(tit); xlabel(sprintf('Parameter %d: %s',params(1),pname{1})); ylabel(sprintf('Parameter %d: %s',params(2),pname{2}));
 
 %% Lower bound
 if rmodel.ErrorEstimator.Enabled    
-    obj = surf(ax,T,MU,Y-E,'EdgeColor','none','FaceColor','red');
+    obj = surf(ax,MU1,MU2,Y-E,'EdgeColor','none','FaceColor','red');
     alpha(obj,.3);
 %     mesh(T,MU,Y-E,'EdgeColor','none','FaceColor','red');
     hold off;
 end
-
+axis tight;
