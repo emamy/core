@@ -91,7 +91,10 @@ function varargout = FunVis2D(varargin)
 % @change{0,5,dw,2011-08-02} Extracted the comparison polynomials from PN7_Nils cooperation to more
 % general external callbacks and created a small help description.
 %
-% @todo fix slider display for parameters (not all shown correctly)
+% @todo 
+% - fix slider display for parameters (not all shown correctly)
+% - enable to use delaunay for mesh on large expansions (either centers or training data parts)
+%
 %
 % @ingroup g_visual
 
@@ -117,7 +120,7 @@ function varargout = FunVis2D(varargin)
 
 % Edit the above text to modify the response to help FunVis2D
 
-% Last Modified by GUIDE v2.5 24-Oct-2011 10:30:54
+% Last Modified by GUIDE v2.5 17-Jan-2012 11:03:34
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -247,7 +250,7 @@ if length(varargin) > 3
     fun2 = varargin{4};
     if isa(fun2,'function_handle')
         fun2 = dscomponents.PointerCoreFun(fun2);
-    elseif ~ismethod(fun2,'evaluate')
+    elseif ~isempty(fun2) && ~ismethod(fun2,'evaluate')
         stop(h,'Any second function-class must have an ''evaluate''-method');
     end
     if length(varargin) > 4
@@ -808,7 +811,8 @@ end
 function slPerc_Callback(hObject, eventdata, handles)
 conf = getappdata(handles.main,'conf');
 conf.tperc = get(hObject,'Value');
-set(handles.lblPerc,'String',[num2str(conf.tperc) '%']);
+set(handles.lblTP,'String',sprintf('Select %2.2f%% nearest training points',conf.tperc));
+
 setappdata(handles.main,'conf',conf);
 updateATDPoints(handles, conf);
 
@@ -857,6 +861,7 @@ function slCenters_Callback(hObject, eventdata, handles)
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 c = getappdata(handles.main,'conf');
 c.cperc = get(hObject,'Value');
+set(handles.lblCenters,'String',sprintf('Include %2.2f%% nearest centers',c.cperc));
 setappdata(handles.main,'conf',c);
 newMesh(handles, c);
 
