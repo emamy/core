@@ -72,6 +72,9 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
                     a = this.fK.U\(this.fK.L\fxi');
                     return;
                 elseif this.fK.BuildInverse
+%                     P = this.fK.Kinv * this.fK.K;
+%                     pfxi = this.fK.Kinv*fxi';
+%                     a = P\pfxi;
                     a = this.fK.Kinv * fxi';
                     return;
                 end

@@ -27,6 +27,10 @@ classdef KernelExpansion < KerMorObject & ICloneable & ...
 %
 % @change{0,3,sa,2011-04-16} Implemented Setter for the property 'off'
 %
+% @todo implement getKernelMatrix so that a AKernelMatrix instance is passed back (either file
+% system or memory) and add an event "configChanged" to kernels in order to set a dirty flag
+% for the expansion, so that the next time getKernelMatrix is called it is recomputed!
+%
 % This class is part of the framework
 % KerMor - Model Order Reduction using Kernels:
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html

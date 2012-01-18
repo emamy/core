@@ -23,6 +23,9 @@ classdef Dictionary < handle
 %
 % See also: The dict class at http://www.mathworks.com/matlabcentral/fileexchange/19647
 %
+% @change{0,6,dw,2012-01-17} Changed the clear method so that optionally a specific key can be
+% passed in order to only remove one entry.
+%
 % @change{0,3,dw,2011-04-20} - Improved the subsref and subsasgn methods to forward eventual
 % further sub-assignments to the respective underlying values. Now i.e. assignments of the type
 % @code d('t').Somefield @endcode natively creates a struct at @code d('t') @endcode.
@@ -88,9 +91,26 @@ classdef Dictionary < handle
             value = this.get_(key);
         end
         
-        function clear(this)
-            % Clears the dictionary
-            this.List = struct('Key',{},'Value',{});
+        function clear(this, key)
+            % Clears the dictionary or the contents for a specific key, if given.
+            %
+            % Pass no argument in order to clear the whole dictionary.
+            %
+            % Parameters:
+            % key: A key whose key/value pair is to be removed from the dictionary. @optional
+            if nargin ==  2
+                cidx = [];
+                for i=1:length(this.List)
+                    if strcmp(this.List(i).Key,key)
+                        cidx = i;
+                    end
+                end
+                if ~isempty(cidx)
+                    this.List(cidx) = [];
+                end
+            else
+                this.List = struct('Key',{},'Value',{});
+            end
         end
         
         function bool = containsKey(this, key)

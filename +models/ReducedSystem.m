@@ -153,10 +153,6 @@ classdef ReducedSystem < models.BaseDynSystem
             % the ODE function if any error estimators are enabled.
             est = this.Model.ErrorEstimator;
             if ~isempty(est) && est.Enabled
-%                 V = 1;
-%                 if ~isempty(this.Model.V)
-%                     V = this.Model.V;
-%                 end
                 % Eval f part
                 y = this.f.evaluate(x(1:end-est.ExtraODEDims,:),t,this.mu);
                 % See if Bu is used

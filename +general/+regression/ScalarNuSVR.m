@@ -68,7 +68,7 @@ classdef ScalarNuSVR < general.regression.BaseScalarSVR
             %% Compile quadratic program
             
             % Total number of samples
-            m = size(this.K,1);
+            m = size(this.K.K,1);
             % Ensure fxi is a column vector
             fxi = reshape(fxi,m,[]);
             

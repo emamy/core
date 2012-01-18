@@ -467,7 +467,11 @@ classdef BellFunction < kernels.BaseKernel & kernels.ARotationInvariant
             %
             % Any subclasser MUST call this superclasses loadobj function explicitly!
             s = loadobj@KerMorObject(s);
-            s.setConstants;
+            if isa(s, 'kernels.BellFunction')
+                s.setConstants;
+            else
+                warning('KerMor:load','Error loading BellFunction: Object passed is not a kernels.BellFunction instance.');
+            end
         end
     end
     

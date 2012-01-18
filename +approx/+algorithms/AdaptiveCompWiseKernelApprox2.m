@@ -62,7 +62,7 @@ classdef AdaptiveCompWiseKernelApprox2 < approx.algorithms.BaseAdaptiveCWKA
                         kexp.Centers.mui = c(atd.muOff:end);
                     end
                 end
-                kexp.Ma = atd.fxi(:,inIdx);
+                kexp.Ma = atd.fxi(:,inidx);
                 bestMa = kexp.Ma;
                 used = inidx;
                 
@@ -84,7 +84,7 @@ classdef AdaptiveCompWiseKernelApprox2 < approx.algorithms.BaseAdaptiveCWKA
                 %% Adaptive extension loop
                 % prepare new kernel matrix of size one
                 K = data.MemoryKernelMatrix(1);
-                K.BuildInverse = true;
+                %K.BuildInverse = true;
                 %K.UseLU = true;
                 this.CoeffComp.init(K);
                 
@@ -117,7 +117,7 @@ classdef AdaptiveCompWiseKernelApprox2 < approx.algorithms.BaseAdaptiveCWKA
                     cnt = cnt+1;
                                         
                     %% Compute coefficients
-                    this.computeCoeffs(kexp, atd.fxi(:,used), [kexp.Ma zeros(d,1)]);
+                    this.computeCoeffs(kexp, atd.fxi(:,used), [kexp.Ma zeros(size(atd.fxi,1),1)]);
                 end
                 
                 %% Store indices if better approx is found

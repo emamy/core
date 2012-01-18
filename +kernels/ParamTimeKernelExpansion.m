@@ -105,9 +105,6 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
             % overridden
             this = this@kernels.KernelExpansion;
             
-
-            
-%             this.fSK = kernels.GaussKernel;
             % The default kernels for time and parameters are neutral (=1)
             % kernels as not all models have time or parameter dependent
             % system functions.
