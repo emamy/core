@@ -73,7 +73,7 @@ classdef FileModelData < data.AModelData
             this.clearTrajectories;
         end
         
-        function x = getTrajectory(this, mu, inputidx)
+        function [x, ctime] = getTrajectory(this, mu, inputidx)
             % Gets a system's trajectory for the given `\mu` and
             % inputindex.
             % Returns [] if no trajectory is found in the Data's Snapshots.
@@ -87,11 +87,17 @@ classdef FileModelData < data.AModelData
                 end
             end
             
-            x = [];
+            x = []; ctime = Inf;
             key = general.Utils.getHash([mu; inputidx]);
             if this.hm.containsKey(key)
                 file = this.hm.get(key);
-                s = load(this.getfile(file),'x');
+                try
+                    s = load(this.getfile(file),'x','ctime');
+                    ctime = s.ctime;
+                catch
+                    s = load(this.getfile(file),'x');
+                    ctime = Inf;
+                end
                 x = s.x;
             end
         end
@@ -100,17 +106,24 @@ classdef FileModelData < data.AModelData
            n = this.hm.size;
         end
         
-        function [x, mu, inputidx] = getTrajectoryNr(this, nr)
+        function [x, mu, inputidx, ctime] = getTrajectoryNr(this, nr)
             % Gets the trajectory with the number nr.
             if nr > this.hm.size || nr < 1
                 error('Invalid trajectory number: %d',nr);
             end
             keys = this.hm.keySet.toArray(java_array('java.lang.String',1));
-            s = load(this.getfile(this.hm.get(keys(nr))),'x','mu','inputidx');
+            try
+                s = load(this.getfile(this.hm.get(keys(nr))),'x','mu','inputidx','ctime');
+                ctime = s.ctime;
+                % Workaround for backwards compatibility
+            catch
+                s = load(this.getfile(this.hm.get(keys(nr))),'x','mu','inputidx');
+                ctime = Inf;
+            end
             x = s.x; mu = s.mu; inputidx = s.inputidx;
         end
         
-        function addTrajectory(this, x, mu, inputidx)
+        function addTrajectory(this, x, mu, inputidx, ctime)%#ok
             % Adds a trajectory to the ModelData instance.
             
             if nargin < 4
@@ -129,7 +142,7 @@ classdef FileModelData < data.AModelData
             
             file = fullfile(this.datadir,file);
             try
-                save(file,'x','mu','inputidx');
+                save(file,'x','mu','inputidx','ctime');
             catch ME
                 this.hm.remove(key);
                 rethrow(ME);
@@ -247,7 +260,7 @@ classdef FileModelData < data.AModelData
 
             % Params only
             for i=1:T;
-                m.addTrajectory(tr(:,:,i),p(:,i),[]);
+                m.addTrajectory(tr(:,:,i),p(:,i),[],1);
             end
             res = res && m.getNumTrajectories == T;
 
@@ -266,14 +279,14 @@ classdef FileModelData < data.AModelData
 
             % Inputs only
             for i=1:T;
-                m.addTrajectory(tr(:,:,i),[],in(i));
+                m.addTrajectory(tr(:,:,i),[],in(i),1);
             end
             res = res && m.getNumTrajectories == T;
 
             pos = false(1,1,T);
             ipos = false(1,T);
             for i=1:T
-                [x, pi, ini] = m.getTrajectoryNr(i);
+                [x, ~, ini] = m.getTrajectoryNr(i);
                 pos = pos | sum(sum(repmat(x,[1 1 T]) - tr,1),2) == 0;
                 ipos = ipos | repmat(ini,1,T)-in == 0;
                 
@@ -285,7 +298,7 @@ classdef FileModelData < data.AModelData
             
             % Both
             for i=1:T;
-                m.addTrajectory(tr(:,:,i),p(:,i),in(i));
+                m.addTrajectory(tr(:,:,i),p(:,i),in(i),1);
             end
             res = res && m.getNumTrajectories == T;
             

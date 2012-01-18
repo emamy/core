@@ -129,27 +129,39 @@ classdef ReducedModel < models.BaseModel
             this.ErrorEstimator = error.BaseEstimator.getEstimator(this);
         end
         
-        function [t,x] = computeTrajectory(this, mu, inputidx)
-            % Call parent method for actual work
-            % @docupdate
+        function [t, x, ctime] = computeTrajectory(this, mu, inputidx)
+            % Computes an approximated solution/trajectory for the given mu and inputidx in the
+            % coefficient space.
+            %
+            % Parameters:
+            % mu: The parameter `\mu` for the simulation @type colvec
+            % inputidx: The integer index of the input function to use. If
+            % more than one inputs are specified this is a necessary argument. @type integer
+            %
+            % Return values:
+            % t: The times at which the model was evaluated. Will equal the property Times
+            % @type rowvec
+            % x: The state variables at the corresponding times t. @type matrix<double>
+            % ctime: The time needed for computation. @type double
             
             % Clear possibly old data in error estimators
             this.ErrorEstimator.clear;
             
             % Call constat pre-computations
-            this.ErrorEstimator.prepareConstants(mu, inputidx);
+            cpre = this.ErrorEstimator.prepareConstants(mu, inputidx);
             
             % Call inherited method (actual work)
-            [t,xtmp] = computeTrajectory@models.BaseModel(this, mu, inputidx);
+            [t, xext, ctime] = computeTrajectory@models.BaseModel(this, mu, inputidx);
             
-            % Split up results; the last row of the ode solution contains
+            % Split up results; the last rows of the ode solution contain
             % any online-computable errors
             if this.ErrorEstimator.Enabled
-                x = xtmp(1:end-this.ErrorEstimator.ExtraODEDims,:);
-                this.ErrorEstimator.postProcess(t, xtmp, mu, inputidx);
+                x = xext(1:end-this.ErrorEstimator.ExtraODEDims,:);
+                cpost = this.ErrorEstimator.postProcess(xext, t, mu, inputidx);
             else
-                x = xtmp;
+                x = xext;
             end
+            ctime = ctime + cpre + cpost;
         end
              
         function saveFinal(this, filename)

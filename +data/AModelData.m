@@ -4,6 +4,11 @@ classdef AModelData < handle
 %
 % @author Daniel Wirtz @date 2011-08-03
 %
+% @change{0,6,dw,2011-12-14} Now also storing the computation time \c ctime for a trajectory.
+% This comes from the fact that for error estimator comparisons we need the \c ctime for each
+% trajectory for every different error estimator. See the changes in models.BaseModel for more
+% information.
+%
 % @new{0,5,dw,2011-10-20} Added the AModelData.getBoundingBox method and
 % implementations in MemoryModelData and FileModelData.
 %
@@ -75,16 +80,16 @@ classdef AModelData < handle
     
     methods(Abstract)
         % Gets the traejctory for the given parameter `\mu` and input index.
-        x = getTrajectory(this, mu, inputidx);
+        [x, ctime] = getTrajectory(this, mu, inputidx);
         
         % Gets the total number of trajectories
         n = getNumTrajectories(this);
         
         % Gets the trajectory with the number nr.
-        [x, mu, inputidx] = getTrajectoryNr(this, nr);
+        [x, mu, inputidx, ctime] = getTrajectoryNr(this, nr);
         
         % Adds a trajectory to the ModelData instance.
-        addTrajectory(this, x, mu, inputidx);
+        addTrajectory(this, x, mu, inputidx, ctime);
         
         % Clears all stored trajectory data.
         clearTrajectories(this);

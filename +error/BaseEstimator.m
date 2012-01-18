@@ -10,6 +10,10 @@ classdef BaseEstimator < KerMorObject & ICloneable
     %
     % @author Daniel Wirtz @date 24.11.2010
     %
+    % @change{0,6,dw,2011-12-14} Changed the interface of the BaseEstimator.postProcess and
+    % BaseEstimator.prepareConstants methods so that the effective time needed for computation
+    % is returned. This is a consequence of the models.BaseFullModel's simulation cache.
+    %
     % @change{0,5,dw,2011-07-07} Added a new property e0Comp that computes the initial error for the
     % given reduced model, depending on its initial value class. In consequence, the getE0 method is
     % now found at this base error estimator class.
@@ -94,25 +98,29 @@ classdef BaseEstimator < KerMorObject & ICloneable
             end
         end
         
-        function postProcess(this, x, t, mu, inputidx)
+        function ct = postProcess(this, x, t, mu, inputidx)
             % Post-processes the error estimator ODE part after reduced simulation computation
             %
             % Here the OutputError fields
             %
             % Parameters:
-            % t: The times at which the reduced simulation was computed
+            % t: The times at which the reduced simulation was computed @type rowvec
             % x: The reduced simulation's system state PLUS the error
-            % estimation values in the last this.ExtraODEDims rows.
-            % mu: The current parameter `\mu`
-            % inputidx: The current input index
+            % estimation values in the last this.ExtraODEDims rows. @type matrix<double>
+            % mu: The current parameter `\mu` @type rowvec
+            % inputidx: The current input index @type integer
+            %
+            % Return values:
+            % ct: The time needed for postprocessing @type double
             
             % Call template method to compute the state error in subclasses
-            this.postprocess(x, t, mu, inputidx);
+            ct = this.postprocess(x, t, mu, inputidx);
             
             if all(this.StateError == 0)
                 warning('BaseEstimator:postProcess','State error is all zero. Attention!');
             end
             
+            st = tic;
             % Tranform to output error estimation (if used)
             C = this.ReducedModel.FullModel.System.C;
             if ~isempty(C)
@@ -128,6 +136,7 @@ classdef BaseEstimator < KerMorObject & ICloneable
             else
                 this.OutputError = this.StateError;
             end
+            ct = ct + toc(st);
         end
         
         function clear(this)
@@ -221,7 +230,7 @@ classdef BaseEstimator < KerMorObject & ICloneable
         % t: The times at which the reduced simulation was computed
         % x: The reduced simulation's system state PLUS the error
         % estimation values in the last this.ExtraODEDims rows.
-        postprocess(this, t, x, mu, inputidx);
+        postprocess(this, x, t, mu, inputidx);
     end
     
     methods(Static)

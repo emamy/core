@@ -83,16 +83,21 @@ classdef DefaultEstimator < error.BaseEstimator
             e0 = [];
         end
         
-        function prepareConstants(this, mu, inputidx)%#ok
+        function ct = prepareConstants(this, mu, inputidx)%#ok
+            % Return values:
+            % ct: The time needed for postprocessing @type double
+            
             % Nothing to do here
+            ct = 0;
         end
     end
     
     methods(Access=protected)
-        function postprocess(this, t, x, mu, inputidx)
+        function ct = postprocess(this, x, t, mu, inputidx)
             m = this.ReducedModel.FullModel;
             % Compute full solution
-            [tf,yf,time,xf] = m.simulate(mu,inputidx);
+            [~, yf, ct, xf] = m.simulate(mu, inputidx);
+            st = tic;
             xr = x(1:end-this.ExtraODEDims,:);
             if ~isempty(this.ReducedModel.V)
                 diff = xf-this.ReducedModel.V*xr;
@@ -105,6 +110,7 @@ classdef DefaultEstimator < error.BaseEstimator
             
             yr = this.ReducedModel.System.C.computeOutput(t, xr, mu);
             this.RealOutputError = sqrt(sum((yf-yr).^2,1));
+            ct = ct + toc(st);
         end
     end
     

@@ -192,16 +192,20 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             this.d_iValues = [];
         end
         
-        function prepareConstants(this, mu, inputidx)
-            % Call superclass method
-            prepareConstants@error.BaseCompLemmaEstimator(this, mu, inputidx);
+        function ct = prepareConstants(this, mu, inputidx)
+            % Return values:
+            % ct: The time needed for preprocessing @type double
             
+            % Call superclass method
+            ct = prepareConstants@error.BaseCompLemmaEstimator(this, mu, inputidx);
+            st = tic;
             % Returns the initial error at `t=0` of the integral part.
             this.lstPreSolve.Enabled = true;
             this.lstPostSolve.Enabled = true;
             % Call ISimConstants update function to compute values that are constant during a
             % simulation.
             this.LocalLipschitzFcn.prepareConstants;
+            ct = ct + toc(st);
         end
         
     end
@@ -287,10 +291,12 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             b = hlp * this.LocalLipschitzFcn.evaluate(di, Ct)';
         end
         
-        function postprocess(this, t, x, mu, inputidx)
+        function ct = postprocess(this, x, t, mu, inputidx)
+            % Return values:
+            % ct: The time needed for postprocessing @type double
             
-            postprocess@error.BaseCompLemmaEstimator(this, t, x, mu, inputidx);
-            
+            ct = postprocess@error.BaseCompLemmaEstimator(this, t, x, mu, inputidx);
+            st = tic;
             this.StateError = x(end,:);
             
             % PreSolve not needed during iterations
@@ -307,13 +313,15 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
                     % Set time-step counter to one
                     this.tstep = 1;
                     % Solve
-                    [ti, e] = solver.solve(@this.iterationODEPart, t, e0);
+                    [~, e] = solver.solve(@this.iterationODEPart, t, e0);
                 end
                 this.StateError = e;
             end
             
             % PostSolve still needed during iterations
             this.lstPostSolve.Enabled = false;
+            
+            ct = ct + toc(st);
         end
     end
         

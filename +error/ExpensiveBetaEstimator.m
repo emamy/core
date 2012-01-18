@@ -46,11 +46,15 @@ classdef ExpensiveBetaEstimator < error.BaseCompLemmaEstimator
             this.cnt = 1;
         end
         
-        function prepareConstants(this, mu, inputidx)
-            prepareConstants@error.BaseCompLemmaEstimator(this, mu, inputidx);
+        function ct = prepareConstants(this, mu, inputidx)
+            % Return values:
+            % ct: The time needed for preprocessing @type double
+            
+            ct = prepareConstants@error.BaseCompLemmaEstimator(this, mu, inputidx);
             
             rm = this.ReducedModel;
-            [t, x] = rm.FullModel.computeTrajectory(mu, inputidx);
+            [t, x, ctime] = rm.FullModel.computeTrajectory(mu, inputidx);
+            st = tic;
             this.xfull = [t; x];
             mu = repmat(mu,1,length(t));
             if ~isempty(rm.FullModel.Approx)
@@ -58,6 +62,7 @@ classdef ExpensiveBetaEstimator < error.BaseCompLemmaEstimator
             else
                 this.fax = rm.FullModel.System.f.evaluate(x,t,mu);
             end
+            ct = ct + toc(st) + ctime;
         end
     end
     
@@ -98,8 +103,9 @@ classdef ExpensiveBetaEstimator < error.BaseCompLemmaEstimator
             this.cnt = this.cnt + 1;
         end
         
-        function postprocess(this, t, x, mu, inputidx)%#ok
+        function ct = postprocess(this, x, t, mu, inputidx)%#ok
             this.StateError = x(end,:);
+            ct = 0;
         end
         
     end

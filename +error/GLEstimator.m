@@ -43,11 +43,15 @@ classdef GLEstimator < error.BaseCompLemmaEstimator
             copy.cf = this.cf;
         end
         
-        function prepareConstants(this, mu, inputidx)%#ok
-            prepareConstants@error.BaseCompLemmaEstimator(this);
+        function ct = prepareConstants(this, mu, inputidx)%#ok
+            % Return values:
+            % ct: The time needed for preprocessing @type double
+            
+            ct = prepareConstants@error.BaseCompLemmaEstimator(this);
             % Standard case: the approx function is a kernel expansion. it
             % can also be that the system's core function is already a
             % kernel expansion
+            st = tic;
             fm = this.ReducedModel.FullModel;
             if ~isempty(fm.Approx)
                 % Get full d x N coeff matrix of approx function
@@ -63,6 +67,7 @@ classdef GLEstimator < error.BaseCompLemmaEstimator
             else
                 this.cf = [];
             end
+            ct = ct + toc(st);
         end
     end
     
@@ -75,9 +80,13 @@ classdef GLEstimator < error.BaseCompLemmaEstimator
             end
         end
         
-        function postprocess(this, t, x, mu, inputidx)
+        function ct = postprocess(this, x, t, mu, inputidx)
+            % Return values:
+            % ct: The time needed for postprocessing @type double
+            
+            st = tic;
             this.StateError(1,:) = x(end,:);
-            postprocess@error.BaseCompLemmaEstimator(this, t, x, mu, inputidx);
+            ct = postprocess@error.BaseCompLemmaEstimator(this, t, x, mu, inputidx) + toc(st);
         end
     end
     

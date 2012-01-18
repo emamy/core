@@ -21,6 +21,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 %
 % @author Daniel Wirtz @date 16.03.2010
 %
+% @change{0,6,dw,2011-12-14} Now listening for changes to T and dt of the model and clearing
+% the model training data if either value changes
+%
 % @new{0,5,dw,2011-10-15} Added a new method getTrajApproxError that computes the approximation
 % error of the Approx class against the full trajectory. This method provides generic means to
 % assess the approximation quality of approx.BaseApprox classes for full trajectories.
@@ -68,6 +71,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing    
+%
+% @todo put addlistener methods for T,dt change into loadobj!
     
     properties
         % The full model's data container.
@@ -183,6 +188,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
     
     properties(Access=private)
         fTrainingInputs = [];
+        ftcold = struct;
+        simCache;
     end
            
     methods
@@ -209,6 +216,19 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.registerProps('Sampler','SpaceReducer','Approx',...
                 'preApproximationTrainingCallback','postApproximationTrainingCallback',...
                 'Data','TrainingInputs');
+            
+            % Create a listener for the 
+            this.addlistener('T','PreSet', @this.intTimeChanging);
+            this.addlistener('dt','PreSet', @this.intTimeChanging);
+            this.addlistener('T','PostSet', @this.intTimeChanged);
+            this.addlistener('dt','PostSet', @this.intTimeChanged);
+            this.simCache = data.FileModelData(this, KerMor.App.TempDirectory);
+        end
+        
+        function delete(this)
+            % @todo in AModelData: delete datadir if empty on destruction
+            % Clean up the simulation cache
+            this.simCache.clearTrajectories;
         end
         
         function time = off1_createParamSamples(this)
@@ -328,10 +348,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         end
                         
                         % Get trajectory
-                        [~, x] = this.computeTrajectory(mu, inputidx);
+                        [~, x, ctime] = this.computeTrajectory(mu, inputidx);
                         
                         % Assign snapshot values
-                        this.Data.addTrajectory(x, mu, inputidx);
+                        this.Data.addTrajectory(x, mu, inputidx, ctime);
                     end
                 end
                 if KerMor.App.Verbose > 0
@@ -488,7 +508,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             time = toc;
         end
         
-        function [t,x] = computeTrajectory(this, mu, inputidx)
+        function [t, x, time] = computeTrajectory(this, mu, inputidx)
             % Computes a solution/trajectory for the given mu and inputidx in the SCALED state
             % space.
             %
@@ -506,8 +526,32 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             if KerMor.App.UseDPCM
                 DPCM.criticalsCheck(this);
             end
-            
-            [t,x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
+
+            [x, time] = this.simCache.getTrajectory([this.T; this.dt; mu], inputidx);
+            if ~isempty(x)
+                t = this.Times;
+            else
+                st = tic;
+                [t, x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
+                time = toc(st);
+                this.simCache.addTrajectory(x, [this.T; this.dt; mu], inputidx, time);
+            end
+        end
+    end
+    
+    methods(Access=private)
+        function intTimeChanging(this, src, ~)
+            this.ftcold.(src.Name) = this.(src.Name);
+        end
+        
+        function intTimeChanged(this, src, ~)
+            if ~isempty(this.Data) && this.ftcold.(src.Name) ~= this.(src.Name)
+                md = this.Data;
+                if md.getNumTrajectories > 0
+                    md.clearTrajectories;
+                    fprintf(2,'Deleted all old trajectories for %s=%f',src.Name,this.ftcold.(src.Name));
+                end
+            end
         end
     end
         

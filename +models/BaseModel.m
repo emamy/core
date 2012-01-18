@@ -11,6 +11,12 @@ classdef BaseModel < KerMorObject
 %
 % @author Daniel Wirtz @date 19.03.2010
 %
+% @change{0,6,dw,2011-12-14} Introduced a \c ctime argument to the simulate and
+% computeTrajectory methods. This motivates from several caching strategies that may be applied
+% which lead to less computation time due to simple trajectory lookup. however, when comparing
+% error estimators this effect irritates the results since subsequent calls to trajectory
+% computations in the context of different estimators lead to different computation times.
+%
 % @change{0,6,dw,2011-11-25} Made T a dependent property and added consistency checks for T and
 % dt
 %
@@ -263,13 +269,15 @@ classdef BaseModel < KerMorObject
             end
             this.WorkspaceVariableName = inputname(1);
             
-            starttime = tic;
-            
             if this.RealTimePlotting
                 this.ctime = tic;
             end
             % Get scaled state trajectory
-            [t,x] = this.computeTrajectory(mu, inputidx);
+            [t, x, time] = this.computeTrajectory(mu, inputidx);
+            
+            % Measure rest of time
+            starttime = tic;
+            
             % Re-scale state variable
             x = bsxfun(@times,x,this.System.StateScaling);
             % Convert to output
@@ -278,7 +286,7 @@ classdef BaseModel < KerMorObject
             % Scale times back to real units
             t = t*this.tau;
             
-            sec = toc(starttime);
+            sec = toc(starttime) + time;
             
             this.WorkspaceVariableName = '';
         end
@@ -316,7 +324,7 @@ classdef BaseModel < KerMorObject
             end
         end
         
-        function [t, x] = computeTrajectory(this, mu, inputidx)
+        function [t, x, ctime] = computeTrajectory(this, mu, inputidx)
             % Computes a solution/trajectory for the given mu and inputidx in the SCALED state
             % space.
             %
@@ -327,15 +335,19 @@ classdef BaseModel < KerMorObject
             % argument.
             %
             % Return values:
-            % t: The times at which the model was evaluated. Will equal
-            % the property Times
-            % x: The state variables at the corresponding times t.
+            % t: The times at which the model was evaluated. Will equal the property Times
+            % @type rowvec
+            % x: The state variables at the corresponding times t. @type matrix<double>
+            % ctime: The time needed for computation. @type double
             if nargin < 3
                 inputidx = [];
                 if nargin < 2
                     mu = [];
                 end
             end
+            
+            % Stop the time
+            st = tic;
             
             % Prepare the system by setting mu and inputindex.
             this.System.setConfig(mu, inputidx);
@@ -347,6 +359,7 @@ classdef BaseModel < KerMorObject
                 slv.MaxStep = this.System.MaxTimestep;
                 slv.InitialStep = .5*this.System.MaxTimestep;
             end
+            
             % Assign jacobian information if available and solver is
             % implicit
             if isa(slv,'solvers.ode.AImplSolver')
@@ -363,13 +376,18 @@ classdef BaseModel < KerMorObject
                     slv.JPattern = [];
                 end
             end
+            
             % Assign mass matrix to solver if present
             slv.M = [];
             if ~isempty(this.System.M)
                 slv.M = this.System.M;
             end
+            
             % Call solver
             [t, x] = slv.solve(@(t,x)this.System.ODEFun(t,x), this.scaledTimes, this.getX0(mu));
+            
+            % Get used time
+            ctime = toc(st);
         end
         
 %         function target = clone(this, target)            
@@ -462,7 +480,9 @@ classdef BaseModel < KerMorObject
             elseif value < this.fdt
                 error('Timestep dt must be smaller or equal to T.');
             end
-            this.fT = value;
+            if value ~= this.fT
+                this.fT = value;
+            end
         end
         
         function set.dt(this, value)

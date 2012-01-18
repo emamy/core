@@ -43,6 +43,8 @@ classdef MemoryModelData < data.AModelData
     properties(Access=private)
         % The HashMap used to store the indices for each trajectory.
         hm;
+        
+        ctimes;
     end
     
     methods
@@ -55,7 +57,7 @@ classdef MemoryModelData < data.AModelData
             this.clearTrajectories;
         end
         
-        function x = getTrajectory(this, mu, inputidx)
+        function [x, ctime] = getTrajectory(this, mu, inputidx)
             % Gets a system's trajectory for the given `\mu` and
             % inputindex.
             % Returns [] if no trajectory is found in the Data's Snapshots.
@@ -69,11 +71,12 @@ classdef MemoryModelData < data.AModelData
                 end
             end
             
-            x = [];
+            x = []; ctime = Inf;
             key = general.Utils.getHash([mu; inputidx]);
             if this.hm.containsKey(key)
                 idx = this.hm.get(key);
                 x = this.TrajectoryData(:,:,idx);
+                ctime = this.ctimes(idx);
             end
         end
         
@@ -81,7 +84,7 @@ classdef MemoryModelData < data.AModelData
            n = size(this.TrajectoryData,3);
         end
         
-        function [x, mu, inputidx] = getTrajectoryNr(this, nr)
+        function [x, mu, inputidx, ctime] = getTrajectoryNr(this, nr)
             % Gets the trajectory with the number nr.
             if nr > size(this.TrajectoryData,3) || nr < 1
                 error('Invalid trajectory number: %d',nr);
@@ -95,9 +98,10 @@ classdef MemoryModelData < data.AModelData
             if ~isempty(this.InputIndices)
                 inputidx = this.InputIndices(nr);
             end
+            ctime = this.ctimes(nr);
         end
         
-        function addTrajectory(this, x, mu, inputidx)
+        function addTrajectory(this, x, mu, inputidx, ctime)
             % Adds a trajectory to the ModelData instance.
             
             if nargin < 4
@@ -129,7 +133,9 @@ classdef MemoryModelData < data.AModelData
                 if ~isempty(inputidx)
                     this.InputIndices(end+1) = inputidx;
                 end
-                this.hm.put(key,size(this.TrajectoryData,3));
+                idx = size(this.TrajectoryData,3);
+                this.hm.put(key,idx);
+                this.ctimes(idx) = ctime;
             end
         end
         
@@ -138,6 +144,7 @@ classdef MemoryModelData < data.AModelData
             this.Parameters = double.empty(0,0);
             this.InputIndices = [];
             this.hm.clear;
+            this.ctimes = [];
         end
         
         function [x,X] = getBoundingBox(this)
@@ -160,7 +167,7 @@ classdef MemoryModelData < data.AModelData
 
             % Params only
             for i=1:T;
-                m.addTrajectory(tr(:,:,i),p(:,i),[]);
+                m.addTrajectory(tr(:,:,i),p(:,i),[],1);
             end
             res = res && m.getNumTrajectories == T;
 
@@ -174,12 +181,12 @@ classdef MemoryModelData < data.AModelData
 
             % Inputs only
             for i=1:T;
-                m.addTrajectory(tr(:,:,i),[],in(i));
+                m.addTrajectory(tr(:,:,i),[],in(i),1);
             end
             res = res && m.getNumTrajectories == T;
 
             for i=1:T;
-                [x, pi, ini] = m.getTrajectoryNr(i);
+                [x, ~, ini] = m.getTrajectoryNr(i);
                 res = res && isequal(x,tr(:,:,i)) && isequal(ini,in(i));
                 x = m.getTrajectory([],in(i));
                 res = res && isequal(x,tr(:,:,i));
@@ -188,7 +195,7 @@ classdef MemoryModelData < data.AModelData
 
             % both
             for i=1:T;
-                m.addTrajectory(tr(:,:,i),p(:,i),in(i));
+                m.addTrajectory(tr(:,:,i),p(:,i),in(i),1);
             end
             res = res && m.getNumTrajectories == T;
 

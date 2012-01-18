@@ -89,9 +89,11 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
             this.StepNr = this.StepNr + 1;
         end
         
-        function prepareConstants(this, mu, inputidx)%#ok
+        function ct = prepareConstants(this, ~, ~)
+            st = tic;
             this.lstPreSolve.Enabled = true;
             this.StepNr = 1;
+            ct = toc(st);
         end
         
         function copy = clone(this, copy)
@@ -110,8 +112,11 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
     end
     
     methods(Access=protected)
-        function postprocess(this, t, x, mu, inputidx)%#ok
+        function ct = postprocess(this, x, t, mu, inputidx)%#ok
+            % Return values:
+            % ct: The time needed for postprocessing @type double
             this.lstPreSolve.Enabled = false;
+            ct = 0;
         end
     end
     
