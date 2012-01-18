@@ -243,8 +243,15 @@ classdef KerMor < handle
         %
         % See also: MainVersion
         SubVersion = '6';
+        
+        % The prefix for the host-dependent preference tags
+        %
+        % @type char
+        %
+        % See also: getPrefTag
+        PrefTagPrefix = 'KerMor_at_';
     end
-    
+      
     properties
         % The directory to use for simulation data storage
         %
@@ -341,6 +348,21 @@ classdef KerMor < handle
     end
     
     methods
+        function tag = getPrefTag(this)
+            % Returns the tag used to store the KerMor preferences and settings.
+            %
+            % Note that the tag is machine/host-dependent.
+            % The initialization routine checks for the existence, and if none is found
+            % possible configurations from other hosts are suggested if found.
+            %
+            % Return values:
+            % tag: The host-dependent tag used for KerMor preferences
+            tag = [KerMor.PrefTagPrefix this.getHost];
+        end
+    end
+    
+    % Getter & Setter
+    methods
         function set.UseMatlabParallelComputing(this, value)
             if ~islogical(value)
                 error('Value must be logical');
@@ -352,7 +374,7 @@ classdef KerMor < handle
             if value            
                 if haspc
                    this.UseMatlabParallelComputing = value;
-                   setpref('KERMOR','USEMATLABPARALLELCOMPUTING',value);
+                   setpref(this.getPrefTag,'USEMATLABPARALLELCOMPUTING',value);
                    if s == 0
                        matlabpool open;
                    end                
@@ -361,7 +383,7 @@ classdef KerMor < handle
                 end
             else
                 this.UseMatlabParallelComputing = value;
-                setpref('KERMOR','USEMATLABPARALLELCOMPUTING',value);
+                setpref(this.getPrefTag,'USEMATLABPARALLELCOMPUTING',value);
                 if s > 0
                    matlabpool close;
                 end
@@ -373,7 +395,7 @@ classdef KerMor < handle
                 fprintf('Creating directory %s\n',value);
                 mkdir(value);
             end
-            setpref('KERMOR','DATASTORE',value);
+            setpref(this.getPrefTag,'DATASTORE',value);
             this.DataStoreDirectory = value;
             fprintf('Simulation and model data: %s\n',value);
         end
@@ -383,13 +405,13 @@ classdef KerMor < handle
                 fprintf('Creating directory %s\n',value);
                 mkdir(value);
             end
-            setpref('KERMOR','TMPDIR',value);
+            setpref(this.getPrefTag,'TMPDIR',value);
             this.TempDirectory = value;
             fprintf('Temporary files: %s\n',value);
         end
         
         function set.DesktopLayout(this, value)
-            setpref('KERMOR','DESKLAYOUT',value);
+            setpref(this.getPrefTag,'DESKLAYOUT',value);
             this.DesktopLayout = value;
         end
         
@@ -410,7 +432,7 @@ classdef KerMor < handle
                     error('Invalid rbmatlab directory (no startup script found): %s',value);
                 end
             end
-            setpref('KERMOR','RBMATLABDIR',value);
+            setpref(this.getPrefTag,'RBMATLABDIR',value);
             this.rbmatlabDirectory = value;
             fprintf('rbmatlab root directory: %s\n',value);
         end
@@ -433,7 +455,7 @@ classdef KerMor < handle
                     error('Invalid JKerMor directory (no ReducedModel.java found): %s',value);
                 end
             end
-            setpref('KERMOR','JKERMORDIR',value);
+            setpref(this.getPrefTag,'JKERMORDIR',value);
             this.JKerMorSourceDirectory = value;
             fprintf('JKerMor root directory: %s\n',value);
         end
@@ -441,7 +463,7 @@ classdef KerMor < handle
         function value = get.UseMatlabParallelComputing(this)
             % recover values if clear classes has been issued or Matlab
             % Parallel processing toolbox deleted            
-            value = getpref('KERMOR','USEMATLABPARALLELCOMPUTING',[]);
+            value = getpref(this.getPrefTag,'USEMATLABPARALLELCOMPUTING',[]);
             t = which('matlabpool');
             if ~isempty(value)
                 if ~isempty(t)
@@ -466,7 +488,7 @@ classdef KerMor < handle
             
             % recover values if clear classes has been issued
             if isempty(this.DataStoreDirectory)
-                h = getpref('KERMOR','DATASTORE','');
+                h = getpref(this.getPrefTag,'DATASTORE','');
                 if ~isempty(h)
                     this.DataStoreDirectory = h;
                 end
@@ -479,7 +501,7 @@ classdef KerMor < handle
             
             % recover values if clear classes has been issued
             if isempty(this.TempDirectory)
-                h = getpref('KERMOR','TMPDIR','');
+                h = getpref(this.getPrefTag,'TMPDIR','');
                 if ~isempty(h)
                     this.TempDirectory = h;
                 end
@@ -491,7 +513,7 @@ classdef KerMor < handle
         function d = get.DesktopLayout(this)
             % recover values if clear classes has been issued
             if isempty(this.DesktopLayout)
-                d = getpref('KERMOR','DESKLAYOUT','');
+                d = getpref(this.getPrefTag,'DESKLAYOUT','');
                 this.DesktopLayout = d;
             else
                 d = this.DesktopLayout;
@@ -502,7 +524,7 @@ classdef KerMor < handle
             
             % recover values if clear classes has been issued
             if isempty(this.rbmatlabDirectory)
-                h = getpref('KERMOR','RBMATLABDIR','');
+                h = getpref(this.getPrefTag,'RBMATLABDIR','');
                 if ~isempty(h)
                     this.rbmatlabDirectory = h;
                 end
@@ -515,7 +537,7 @@ classdef KerMor < handle
             
             % recover values if clear classes has been issued
             if isempty(this.JKerMorSourceDirectory)
-                h = getpref('KERMOR','JKERMORDIR','');
+                h = getpref(this.getPrefTag,'JKERMORDIR','');
                 if ~isempty(h)
                     this.JKerMorSourceDirectory = h;
                 end
@@ -558,7 +580,7 @@ classdef KerMor < handle
         function value = get.DefaultFigurePosition(this)
             value = this.DefaultFigurePosition;
             if isempty(value)
-                value = getpref('KERMOR','DefFigPos',[]);
+                value = getpref(this.getPrefTag,'DefFigPos',[]);
                 if ~isempty(value)
                     this.DefaultFigurePosition = value;
                 end
@@ -566,7 +588,7 @@ classdef KerMor < handle
         end
         
         function set.DefaultFigurePosition(this, value)
-            setpref('KERMOR','DefFigPos',value);
+            setpref(this.getPrefTag,'DefFigPos',value);
             this.DefaultFigurePosition = value;
             if ~isempty(value)
                 set(0,'DefaultFigurePosition',value);
@@ -576,7 +598,7 @@ classdef KerMor < handle
         function value = get.UseDPCM(this)
             value = this.UseDPCM;
             if isempty(value)
-                value = getpref('KERMOR','UseDPCM',true);
+                value = getpref(this.getPrefTag,'UseDPCM',true);
                 if ~isempty(value)
                     this.UseDPCM = value;
                 end
@@ -587,14 +609,14 @@ classdef KerMor < handle
             if ~islogical(value)
                 error('The UseDPCM flag must be boolean.');
             end
-            setpref('KERMOR','UseDPCM',value);
+            setpref(this.getPrefTag,'UseDPCM',value);
             this.UseDPCM = value;
         end
         
         function value = get.UseDiary(this)
             value = this.UseDiary;
             if isempty(value)
-                value = getpref('KERMOR','UseDiary',true);
+                value = getpref(this.getPrefTag,'UseDiary',true);
                 if ~isempty(value)
                     this.UseDiary = value;
                 end
@@ -605,16 +627,61 @@ classdef KerMor < handle
             if ~islogical(value)
                 error('The UseDiary flag must be boolean.');
             end
-            setpref('KERMOR','UseDiary',value);
+            setpref(this.getPrefTag,'UseDiary',value);
             this.UseDiary = value;
         end
     end
     
     methods(Access=private)
+        function host = getHost(this)%#ok
+            % Returns the hostname of the current machine
+            host = char(getHostName(java.net.InetAddress.getLocalHost));
+        end
+        
         function initialize(this)
             % Internal main startup script.
             
             disp('<<<<<<<<< Welcome to KerMor! >>>>>>>>>>');
+
+            % Check if preferences are set (i.e. KerMor.setup has been run on this machine)
+            disp('Checking environment...')
+            p = getpref;
+            pset = isfield(p,this.getPrefTag);
+            if ~pset
+                fprintf(2,'No KerMor preferences on this host found. Searching for settings from other hosts...\n');
+                fn = fieldnames(p);
+                op = strfind(fn,KerMor.PrefTagPrefix);
+                for i=1:numel(op)
+                    if op{i} == 1
+                        fprintf('Do you want to copy the following preferences from host "%s"?\n',fn{i}(length(KerMor.PrefTagPrefix)+1:end));
+                        disp(p.(fn{i}));
+                        r = lower(input('(Y)es, (N)o or (C)ancel and start KerMor setup: ','s'));
+                        % Yes: copy prefs
+                        if r == 'y'
+                            % Select preferences substruct from host and copy
+                            localp = p.(fn{i});
+                            pfn = fieldnames(localp);
+                            for k = 1:numel(pfn)
+                                setpref(this.getPrefTag,pfn{k},localp.(pfn{k}));
+                            end
+                            pset = true;
+                            break;
+                            % cancel: start setup
+                        elseif r == 'c'
+                            break;
+                        end
+                    end
+                end
+                if ~pset
+                    if i == numel(op)
+                        fprintf(2,'No preferences copied from other hosts. Have to run setup.\n');
+                    end
+                    fprintf(2,'Entering KerMor setup...\n');
+                    KerMor.setup;
+                end
+            else
+                fprintf('KerMor preferences/settings found for tag "%s"...\n',this.getPrefTag);
+            end
             
             disp('Initializing environment...')
             % Preferences & Environment
@@ -797,7 +864,7 @@ classdef KerMor < handle
             % rbmatlab-installation should be registered with KerMor.
             %
             % See also: installUnix installWindows
-            disp('<<<<<<<<<< Welcome to the KerMor install script. >>>>>>>>>>');
+            disp('<<<<<<<<<< Welcome to the KerMor setup script. >>>>>>>>>>');
                         
             a = KerMor.App;
             addpath(a.HomeDirectory);
@@ -858,9 +925,9 @@ classdef KerMor < handle
                 str = sprintf('Do you want to Use Matlab Parallel Processing?\n(Y)es/(N)o: ');
                 value = lower(input(str,'s'));
                 if isequal(value,'y')
-                    setpref('KERMOR','USEMATLABPARALLELCOMPUTING',true);
+                    setpref(a.getPrefTag,'USEMATLABPARALLELCOMPUTING',true);
                 else
-                    setpref('KERMOR','USEMATLABPARALLELCOMPUTING',false);
+                    setpref(a.getPrefTag,'USEMATLABPARALLELCOMPUTING',false);
                 end
             end
             

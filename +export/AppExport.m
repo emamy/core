@@ -33,8 +33,9 @@ classdef AppExport
                 error('rm.FullModel property must be an export.JKerMorExportable');
             end
             if nargin == 1
-                folder = uigetdir(getpref('KERMOR','LASTDIR','.'));
-                setpref('KERMOR','LASTDIR',folder);
+                a = KerMor.App;
+                folder = uigetdir(getpref(a.getPrefTag,'LASTDIR','.'));
+                setpref(a.getPrefTag,'LASTDIR',folder);
             end
             %% Validations
             if exist(folder,'dir') ~= 7
