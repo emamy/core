@@ -276,22 +276,32 @@ classdef Utils
             % @change{0,4,dw,2011-05-31} Improved the export capabilites and automatic removement of
             % any figure margins is performed.
             
-            ExportDPI = '300';
-            JPEGQuality = '95';
-            exts = {'eps','jpg','fig','pdf','png'};
+            if any(~ishandle(fig))
+                error('Invalid figure handle.');
+            end
             
+            ExportDPI = '150';
+            JPEGQuality = '95';
+            exts = {'fig','pdf','eps','jpg','png','tif'};
+            extd = {'MatLab Figure', 'PDF Files', 'Extended PostScript', 'JPEG Image',...
+                'Portable Network Graphic', 'TIFF Image'};
+            
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            file = [];
             if nargin < 3
                 extidx = 1;
                 if nargin < 2
                     path = getpref('KERMOR','LASTPATH',pwd);
-                    [filename, pathname, extidx] = ...
-                        uiputfile({'*.eps','Extended PostScript (*.eps)';...
-                       '*.jpg','JPEG Image (*.jpg)';...
-                       '*.fig','Figures (*.fig)';...
-                       '*.pdf','PDF Files (*.pdf)';...
-                       '*.png','Portable Network Graphic (*.png)}'}, 'Save figure as',path);
-                    file = [pathname filename];
-                    setpref('KERMOR','LASTPATH',pathname);
+                    choices = cell(length(exts),2);
+                    for i = 1:size(choices,1)
+                        choices{i,1} = ['*.' exts{i}];
+                        choices{i,2} = [extd{i} ' (*.' exts{i} ')'];
+                    end
+                    [filename, pathname, extidx] = uiputfile(choices, 'Save figure as', path);
+                    if filename ~= 0 
+                        file = [pathname filename];
+                        setpref('KERMOR','LASTPATH',pathname);
+                    end
                 else
                     file = [filename '.' exts{extidx}];
                 end
@@ -305,57 +315,59 @@ classdef Utils
             end
             
             if ~isempty(file)
-                
+%                 [d,fname] = fileparts(file);
                 d = fileparts(file);
                 if ~isempty(d) && exist(d,'file') ~= 7
                     mkdir(d);
                 end
-                
-                if length(get(gcf,'Children')) > 1
-                    if (extidx == 1)
-                        saveas(fig,file,'eps2c');
-                    elseif extidx == 2
-                        print(fig,file,['-djpeg' JPEGQuality],['-r' ExportDPI]);
-                    elseif extidx == 3
+%                 allax = findobj(get(gcf,'Children'),'Type','axes');
+%                 if length(allax) > 1
+%                     if (extidx == 1)
+%                         saveas(fig,file,'eps2c');
+%                     elseif extidx == 2
+%                         print(fig,file,['-djpeg' JPEGQuality],['-r' ExportDPI]);
+%                     elseif extidx == 3
+%                         saveas(fig, file, 'fig');
+%                     elseif extidx == 4
+%                         print(fig,file,'-dpdf',['-r' ExportDPI]);
+%                     elseif extidx == 5
+%                         saveas(fig,file,'png');
+%                     end
+%                 else
+                    if extidx == 1 % fig
                         saveas(fig, file, 'fig');
-                    elseif extidx == 4
-                        print(fig,file,'-dpdf',['-r' ExportDPI]);
-                    elseif extidx == 5
-                        saveas(fig,file,'png');
+                    else
+                        args = {file, ['-' exts{extidx}],['-r' ExportDPI]};
+                        if any(extidx == [2 3]) %pdf, eps
+                            %args{end+1} = '-painters';
+                            args{end+1} = '-transparent';
+                        elseif extidx == 4 % jpg
+                            args{end+1} = ['-q' JPEGQuality];
+                            %args{end+1} = '-opengl';
+                        elseif extidx == 5 % png
+                            args{end+1} = '-transparent';
+                        end
+                        
+%                         allax = findobj(get(fig,'Children'),'Type','axes');
+%                         allax(strcmpi(get(allax,'Tag'),'legend')) = [];
+%                         if length(allax) > 1
+%                             args{end+1} = allax;
+%                         else
+                            args{end+1} = fig;
+%                         end
+                        
+                        % export_fig ignores -transparent somehow..
+                        c = get(fig,'Color');
+                        set(fig,'Color','white');
+                        
+                        export_fig(args{:});
+                        
+                        set(fig,'Color',c);
+                        %saveas(fig, fullfile(d,fname), 'fig');
                     end
-                else
-                    a = gca(fig);
-
-                    % Store old position and remove margin for export
-                    oldap = get(a,'ActivePosition');
-                    oldpos = get(a,'Position');
-                    %oldmode = get(f,'PaperPositionMode');
-                    set(fig,'PaperPositionMode','auto');%,'InvertHardcopy','off');
-
-                    if (extidx == 1)
-                        %print(fig,file,'-depsc2',['-r' ExportDPI],'-tiff');
-                        general.Utils.removeMargin(fig);
-                        saveas(fig,file,'eps2c');
-                        %system(['xdg-open ' file]);
-                    elseif extidx == 2
-                        general.Utils.removeMargin(fig);
-                        print(fig,file,['-djpeg' JPEGQuality],['-r' ExportDPI]);
-                        %system(['xdg-open ' file]);
-                    elseif extidx == 3
-                        saveas(fig, file, 'fig');
-                        %openfig(file,'new','visible');
-                    elseif extidx == 4
-                        general.Utils.removeMargin(fig);
-                        print(fig,file,'-dpdf',['-r' ExportDPI]);
-                    elseif extidx == 5
-                        general.Utils.removeMargin(fig);
-                        saveas(fig,file,'png');
-                    end
-
-                    % Restore old position
-                    set(a,'ActivePosition',oldap);
-                    set(a,'Position',oldpos);
-                end
+%                 end
+            else
+                fprintf(2,'No file specified. Aborting\n');
             end
         end
         
@@ -363,6 +375,8 @@ classdef Utils
             % Convenience function. Allows to save a custom axes instead of
             % a whole figure which allows to drop any unwanted uiobjects
             % contained on the source figure.
+            %
+            % @todo use export_fig here!
             
             fig = figure('Visible','off','MenuBar','none','ToolBar','none');
             %fig = figure;
@@ -385,6 +399,9 @@ classdef Utils
             % @todo tailor this method so that subplots are also supported (so far only one
             % axis!) and change saveFigure again.
             a = gca(f);
+            fu = get(f,'Units');
+            au = get(a,'Units');
+            
             set(f,'Units','pixels');
             set(a,'Units','pixels');
             fpos = get(f,'Position');
@@ -394,6 +411,9 @@ classdef Utils
             set(a,'ActivePositionProperty','Position');
             set(f,'Position',[fpos(1:2) apos(3:4)+ati(1:2)+ati(3:4)]);
             set(a,'Position',[ati(1:2) apos(3:4)]);
+            
+            set(f,'Units',fu);
+            set(a,'Units',au);
         end
         
         function h = getHash(vec)
