@@ -168,12 +168,21 @@ classdef DPCMObject < handle
     methods(Static, Access=protected)
         function obj = loadobj(obj)
             % Re-register any registered change listeners!
+            %
+            % @change{0,6,dw,2012-01-17} Checking if any properties registered in the
+            % PropertiesChanged dictionary are not present anymore (due to updates etc) and
+            % removing them from the dictionary if that is the case.
             if isa(obj, 'DPCMObject')
                 keys = obj.PropertiesChanged.Keys;
                 for idx = 1:obj.PropertiesChanged.Count
                     ps = obj.PropertiesChanged(keys{idx});
                     if ~ps.Changed && ~any(strcmp(ps.Level,'data'))
-                        addlistener(obj,ps.Name,'PostSet',@(src,evd)obj.PropPostSetCallback(src,evd));
+                        if isprop(obj,ps.Name)
+                            addlistener(obj,ps.Name,'PostSet',@(src,evd)obj.PropPostSetCallback(src,evd));
+                        else
+                            warning('DPCMObject:load','Property %s of DPCMObject #%s (class %s) does not exist anymore.\nRemoving it from ProperitesChanged dictionary.',ps.Name,obj.ID,class(obj));
+                            obj.PropertiesChanged.clear(keys{idx});
+                        end
                     end
                 end
             else

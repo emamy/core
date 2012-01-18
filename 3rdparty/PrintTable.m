@@ -70,6 +70,9 @@ classdef PrintTable < handle
 %
 % @author Daniel Wirtz @date 2011-11-17
 %
+% @change{0,6,dw,2011-12-14} Added support for arrays of PrintTable instances in display, print
+% and saveToFile methods.
+%
 % @new{0,6,dw,2011-12-01}
 % - Added support for LaTeX output
 % - New properties PrintTable.Format and PrintTable.Caption
@@ -150,7 +153,9 @@ classdef PrintTable < handle
             % Overload for the default builtin display method.
             %
             % Calls print with argument 1, i.e. standard output.
-            this.printPlain(1);
+            for i = 1:length(this)
+                this(i).printPlain(1);
+            end
         end
         
         function print(this, outfile)
@@ -164,12 +169,15 @@ classdef PrintTable < handle
             if nargin == 1
                 outfile = 1;
             end
-            if strcmp(this.Format,'plain')
-                this.printPlain(outfile);
-            elseif strcmp(this.Format,'tex')
-                this.printTex(outfile);
-            else
-                error('Unsupported format: %s',this.Format);
+            for i = 1:length(this)
+                t = this(i);
+                if strcmp(t.Format,'plain')
+                    t.printPlain(outfile);
+                elseif strcmp(t.Format,'tex')
+                    t.printTex(outfile);
+                else
+                    error('Unsupported format: %s',t.Format);
+                end
             end
         end
         
