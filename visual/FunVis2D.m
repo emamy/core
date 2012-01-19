@@ -249,7 +249,7 @@ fun2 = []; lbl = [];
 if length(varargin) > 3
     fun2 = varargin{4};
     if isa(fun2,'function_handle')
-        fun2 = dscomponents.PointerCoreFun(fun2);
+        fun2 = dscomponents.PointerCoreFun(fun2,true);
     elseif ~isempty(fun2) && ~ismethod(fun2,'evaluate')
         stop(h,'Any second function-class must have an ''evaluate''-method');
     end
@@ -308,8 +308,14 @@ if isa(fun,'kernels.KernelExpansion')
     set(h.slCenters,'Visible','on');
     conf.cperc = 3;
     set(h.slCenters,'Value',conf.cperc);
+    
+    % Evaluate function also on centers
+    cent = conf.fun.Centers;
     if isa(fun,'kernels.ParamTimeKernelExpansion')
         conf.isptke = true;
+        conf.centerfx = fun.evaluate(cent.xi,cent.ti,cent.mui);
+    else
+        conf.centerfx = fun.evaluate(cent.xi,[],[]);
     end
 end
 %% Visibilities for second function, if given
@@ -325,7 +331,7 @@ end
 conf.d1 = 1; conf.d2 = 2;
 conf.dout = 1;
 % Refinement factor
-conf.gridpts = 10;
+conf.gridpts = 60;
 % The base x to use, starting with the center of all values
 conf.basex = (box(:,1)+box(:,2))/2;
 
@@ -354,6 +360,8 @@ set(h.slRefine,'Value',conf.gridpts);
 
 setDimSliders(h);
 
+updateATDPoints(h,conf);
+conf = updateCenterPoints(h, conf);
 newMesh(h, conf);
 
 function ranges = rangesFromATD(atd)
@@ -379,30 +387,6 @@ function newMesh(h,c)
 xsel = c.idxmap([c.d1 c.d2]);
 x1 = linspace(c.box(xsel(1),1), c.box(xsel(1),2), c.gridpts);
 x2 = linspace(c.box(xsel(2),1), c.box(xsel(2),2), c.gridpts);
-
-% With kernel expansions: option to include centers into mesh
-if c.iske
-    cent = c.fun.Centers;
-    C = [cent.xi];
-    if c.isptke
-        C = [C; cent.ti; cent.mui];
-    end
-    % Determine the % closest centers
-    d = C - repmat(c.basex,1,size(C,2));
-    d(xsel,:) = [];
-    d = sqrt(sum(d.^2,1));
-    md = min(d); Md = max(d);
-    if md == Md && c.cperc > 0
-        sel = true(size(d));
-    else
-        sel = d < md + (Md-md)*(c.cperc/100)*1.001;
-    end
-    set(h.lblNumCenters,'String',sprintf('%d/%d',sum(sel),size(C,2)));
-    C = C(:,sel);
-    setappdata(h.main,'curCenters',C);
-    x1 = union(C(xsel(1),:),x1);
-    x2 = union(C(xsel(2),:),x2);
-end
 
 [X1,X2] = meshgrid(x1,x2);
 setappdata(h.main,'X1',X1);
@@ -462,7 +446,50 @@ end
 setappdata(h.main,'fx',fx);
 setappdata(h.main,'fx2',fx2);
 
-updateATDPoints(h,c);
+plotCurrent(h,c);
+
+function c = updateCenterPoints(h, c)
+%% Updates the currently displayed center points
+if c.iske
+    cent = c.fun.Centers;
+    C = [cent.xi];
+    if c.isptke
+        C = [C; cent.ti; cent.mui];
+    end
+    % Determine the % closest centers
+    d = C - repmat(c.basex,1,size(C,2));
+    xsel = c.idxmap([c.d1 c.d2]);
+    d(xsel,:) = [];
+    d = sqrt(sum(d.^2,1));
+    md = min(d); Md = max(d);
+    if md == Md && c.cperc > 0
+        sel = true(size(d));
+    else
+        sel = d < md + (Md-md)*(c.cperc/100)*1.001;
+    end
+    set(h.lblNumCenters,'String',sprintf('%d/%d',sum(sel),size(C,2)));
+    C = C(:,sel);
+    c.curCenters = C;
+    c.curCenterSel = sel;
+    xf = repmat(c.basex,1,size(C,2));
+    xsel = c.idxmap([c.d1 c.d2]);
+    xf(xsel,:) = C(xsel,:);
+    if c.isptke
+        c.curCenterFx = c.fun.evaluate(xf(1:c.timeoff-1,:),...
+        xf(c.timeoff,:),...
+        xf(c.paroff:end,:));
+    else
+        c.curCenterFx = c.fun.evaluate(xf,[],[]);
+    end
+    % compute error if second function is given
+    if ~isempty(c.fun2) && get(h.rbErr,'Value') == 1
+        c.curCenterFx = c.curCenterFx - c.fun2.evaluate(xf,[],[]);
+        if c.hastime || c.hasparams
+            warning('a:b','Evaluation is WRONG with params and time set. TODO.');
+        end
+    end
+    setappdata(h.main,'conf',c);
+end
 
 function updateATDPoints(h, c)
 %% Updates the currently displayed approxtraindata points
@@ -485,7 +512,6 @@ if ~isempty(c.td)
     set(h.lblPerc,'String',sprintf('%d/%d',sum(sel),size(C,2)));
     setappdata(h.main,'selATDPoints',sel);
 end
-plotCurrent(h,c);
 
 %% Plots the current settings
 
@@ -539,6 +565,11 @@ if ~isempty(fx2) && get(h.rbAdd,'Value') == 1
         s1 = [s1; s2];
     end
 end
+if get(h.rbErr,'Value') == 1
+    s3 = surf(h.ax,X1,X2,zeros(size(X1)));
+    alpha(s3,.7);
+    s1 = [s1; s3];
+end
 mode = 'none';
 if get(h.chkGrid,'Value') == 1
     mode = 'interp';
@@ -548,25 +579,13 @@ set(s1,'EdgeColor',mode);
 xsel = c.idxmap([c.d1 c.d2]);
 %% Plot center points if desired
 if c.iske
-    C = getappdata(h.main,'curCenters');
-    idx1 = general.Utils.findVecInMatrix(X1(1,:),C(xsel(1),:));
-    idx2 = general.Utils.findVecInMatrix(X2(:,1)',C(xsel(2),:));
-    hlpfx = fx(sub2ind(size(fx),idx2,idx1));
-    if min(hlpfx) < mi
-        mi = min(hlpfx);
-    end
-    if max(hlpfx) > Ma
-        Ma = max(hlpfx);
-    end
-    plot3(h.ax,C(xsel(1),:),C(xsel(2),:),hlpfx,'black.','MarkerSize',15);
+    C = c.curCenters;
+    plot3(h.ax,C(xsel(1),:),C(xsel(2),:),c.curCenterFx(c.dout,:),'black.','MarkerSize',15);
     % Also plot the centers at their original value
-    if ~isempty(c.td)
-        Cidx = general.Utils.findVecInMatrix(c.td.getCombinedData,C);
-        hlpfx2 = c.td.fxi(c.dout,Cidx);
-        plot3(h.ax,C(xsel(1),:),C(xsel(2),:),hlpfx2,'blackx','MarkerSize',15);
-        plot3(h.ax,[C(xsel(1),:); C(xsel(1),:)],[C(xsel(2),:); C(xsel(2),:)],[hlpfx; hlpfx2],'black');
-        %plot3(h.ax,C(xsel(1),:),C(xsel(2),:),c.td.fxi(c.dout,Cidx),'green.','MarkerSize',15);
-    end
+    orig = c.centerfx(c.dout,c.curCenterSel);
+    plot3(h.ax,C(xsel(1),:),C(xsel(2),:),orig,'blackx','MarkerSize',15);
+    % Plot a connecting line
+    plot3(h.ax,[C(xsel(1),:); C(xsel(1),:)],[C(xsel(2),:); C(xsel(2),:)],[c.curCenterFx(c.dout,:); orig],'black');
 end
 
 %% Add training data points to plot
@@ -588,26 +607,6 @@ if ~isempty(c.td) && get(h.rbErr,'Value') == 0
     plot3(h.ax,C(1,sel),C(2,sel),hlpfx,'red.','MarkerSize',15);
 end
 axis(h.ax,[X1(1,1) X1(1,end) X2(1,1) X2(end,1) mi Ma]);
-
-%% Evaluate any given callbacks for the given dimension
-% cb = getappdata(h.main,'cb');
-% for k=1:length(cb)
-%     cbk = cb(k);
-%     if all(cbk.sel([1 2]) == xsel) && c.dout == cbk.sel(3)
-%         fxp = cbk.fcn(x1,x2);
-%         col = 'r';
-%         if isfield(cbk,'col')
-%             col = cbk.col;
-%         end
-%         alph = .7;
-%         if isfield(cbk,'alpha')
-%             alph = cbk.alpha;
-%         end
-%         %hp = trisurf(tr,x1,x2,fxp,'FaceColor',col,'EdgeColor','none','Parent',h.ax);
-%         hp = surf(h.ax,tr,x1,x2,fxp,'FaceColor',col,'EdgeColor','none');
-%         
-%     end
-% end
 
 xlabel(h.ax,c.lbl.x{c.d1});
 ylabel(h.ax,c.lbl.x{c.d2});
@@ -705,6 +704,8 @@ conf.basex(dim) = get(hObj,'Value');
 set(label,'String',sprintf('%2.4e',conf.basex(dim)));
 setappdata(h.main,'conf',conf);
 
+updateATDPoints(h,conf);
+conf = updateCenterPoints(h,conf);
 updateFX(h, conf);
 
 function varargout = FunVis2D_OutputFcn(hObject, eventdata, handles) 
@@ -815,6 +816,7 @@ set(handles.lblTP,'String',sprintf('Select %2.2f%% nearest training points',conf
 
 setappdata(handles.main,'conf',conf);
 updateATDPoints(handles, conf);
+plotCurrent(handles,conf);
 
 % --- Executes during object creation, after setting all properties.
 function slPerc_CreateFcn(hObject, eventdata, handles)
@@ -863,7 +865,8 @@ c = getappdata(handles.main,'conf');
 c.cperc = get(hObject,'Value');
 set(handles.lblCenters,'String',sprintf('Include %2.2f%% nearest centers',c.cperc));
 setappdata(handles.main,'conf',c);
-newMesh(handles, c);
+c = updateCenterPoints(handles, c);
+plotCurrent(handles,c);
 
 function slCenters_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to slCenters (see GCBO)
@@ -877,11 +880,13 @@ end
 
 function rbAdd_Callback(hObject, eventdata, handles)
 set(handles.rbErr,'Value',0);
-plotCurrent(handles,getappdata(handles.main,'conf'));
+c = updateCenterPoints(handles, getappdata(handles.main,'conf'));
+plotCurrent(handles,c);
 
 function rbErr_Callback(hObject, eventdata, handles)
 set(handles.rbAdd,'Value',0);
-plotCurrent(handles,getappdata(handles.main,'conf'));
+c = updateCenterPoints(handles, getappdata(handles.main,'conf'));
+plotCurrent(handles,c);
 
 % --- Executes on button press in chkGrid.
 function chkGrid_Callback(hObject, eventdata, handles)

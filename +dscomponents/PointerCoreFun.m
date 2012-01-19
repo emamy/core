@@ -16,7 +16,20 @@ classdef PointerCoreFun < dscomponents.ACoreFun
     end
     
     methods
-        function this = PointerCoreFun(funPtr)
+        function this = PointerCoreFun(funPtr, multieval)
+            % Creates a new core function using the function pointer as inner function.
+            %
+            % Parameters:
+            % funPtr: The function handle to use. Must implement the interface `(x,t,\mu)` to
+            % be called with. @type function_handle
+            % multieval: If the function handle can take matrix valued `(x,t,mu)`, set this
+            % flag to true to speed up computations. @type logical @default false
+            %
+            % @change{0,6,dw,2012-01-19} Added a new optional \c multieval parameter to
+            % indicate that the function handle can take matrix valued arguments `x,t,\mu`.
+            if nargin == 1
+                multieval = false;
+            end
             % Creates a new wrapper for a core function handle.
             if ~isa(funPtr,'function_handle')
                 error('Argument funPtr must be a function handle.');
@@ -24,7 +37,7 @@ classdef PointerCoreFun < dscomponents.ACoreFun
                 error('funPtr nargin must equal three (= x,t,mu).');
             end
             this.CustomProjection = false;
-            this.MultiArgumentEvaluations = false;
+            this.MultiArgumentEvaluations = multieval;
             this.target = funPtr;
         end
         

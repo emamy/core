@@ -10,6 +10,10 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
 %
 % @author Daniel Wirtz @date 2010-03-17
 %
+% @change{0,6,dw,2012-01-18} Fixed a bug so that PointerCoreFuns with no `t` or `\mu` argument
+% can be evaluated and no index out of range errors occur. Also the output dimension is now
+% automatically determined in that case.
+%
 % @change{0,6,dw,2011-11-30} Fixed a bug regarding the setter for JSparsityPattern, as
 % previously passing an empty value was not allowed.
 %
@@ -159,13 +163,18 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
                 fx = this.evaluateCoreFun(x, t, mu);
             else
                 % evaluate each point extra
-                fx = zeros(size(x));
                 if isempty(mu)
                     mu = double.empty(0,size(x,2));
                 end
-                for idx = 1:size(x,2)
-                    fx(:,idx) = this.evaluateCoreFun(x(:,idx), t(idx), mu(:,idx));
+                if isempty(t)
+                    t = double.empty(0,size(x,2));
                 end
+                % Detect output size from first evaluation
+                fx = this.evaluateCoreFun(x(:,1), t(:,1), mu(:,1));
+                fx = [fx zeros(size(fx,1), size(x,2)-1)];
+                for idx = 2:size(x,2)
+                    fx(:,idx) = this.evaluateCoreFun(x(:,idx), t(:,idx), mu(:,idx));
+                end    
             end
             if proj
                 fx = this.W'*fx;
