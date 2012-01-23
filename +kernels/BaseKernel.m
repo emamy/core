@@ -51,10 +51,14 @@ classdef BaseKernel < KerMorObject
     methods(Abstract)
         % Evaluation method for the current kernel.
         %
-        % Convention:
-        % The second parameter is OPTIONAL, if not passed x=y is assumed.
-        % For reasons of possible efficiency increase we let the
-        % implementer handle the check.
+        % Parameters:
+        % x: First set `x_i \in \R^d` of `n` vectors @type matrix<double>
+        % y: Second set `y_j \in \R^d` of `m` vectors. If y is empty `y_i = x_i` and `n=m`
+        % is to be assumed. @type matrix<double>
+        %
+        % Return values:
+        % Phi: The evaluation matrix `\Phi(x,y) \in \R^{n\times m}` of the kernel `\Phi`, with
+        % entries `\Phi(x_i,y_j)` at `i,j`.
         K = evaluate(x,y);
         
         % Computes the partial derivatives with respect to each component of the first argument.

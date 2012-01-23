@@ -16,7 +16,7 @@ classdef KernelApprox < approx.BaseApprox & dscomponents.ParamTimeKernelCoreFun
 % - Also cloning the approximation algorithm instance at KernelApprox.clone
 %
 % @change{0,5,dw,2011-10-16} Included setting the projection-induced
-% norm `V^tGV` to any kernels.ARotationInvariant implementing classes
+% norm `V^tGV` to any kernels.ARBFKernel implementing classes
 % as required by the theory. (So far made no difference as we had
 % `V^tGV=I_r` all the time)
 %
@@ -85,7 +85,7 @@ classdef KernelApprox < approx.BaseApprox & dscomponents.ParamTimeKernelCoreFun
             % If V=W, we have W^tV = I_r by assumption, so if G=1 we have
             % V^tGV = I_r and we dont need to set a custom norm for the
             % kernels (would mean additional rounding error)
-            if isa(this.Kernel,'kernels.ARotationInvariant') && ...
+            if isa(this.Kernel,'kernels.ARBFKernel') && ...
                     ~isequal(model.Data.V,model.Data.W) || model.G ~= 1
                 % Set norm matrix to V^tGV as required by theory.
                 this.Kernel.G = model.Data.V'*(model.G*model.Data.V);

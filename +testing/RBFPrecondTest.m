@@ -1,7 +1,7 @@
 classdef RBFPrecondTest
-% RBFPrecondTest: 
-%
-%
+% RBFPrecondTest: Test for applicability of the preconditioning method described in [S08]:
+% R. Schaback, Limit problems for interpolation by analytic radial basis functions,
+% J. Comp. Appl. Math., 2008, 212, 127 - 149
 %
 % @author Daniel Wirtz @date 2012-01-18
 %

@@ -1,4 +1,4 @@
-classdef NoKernel < kernels.BaseKernel & kernels.ARotationInvariant
+classdef NoKernel < kernels.BaseKernel & kernels.ARBFKernel
     % Neutral Kernel which has no effect.
     %
     % A call to evaluate just returns 1.
@@ -7,7 +7,7 @@ classdef NoKernel < kernels.BaseKernel & kernels.ARotationInvariant
         
         function this = NoKernel
             this = this@kernels.BaseKernel;
-            this = this@kernels.ARotationInvariant;
+            this = this@kernels.ARBFKernel;
             this.G = [];
         end
         

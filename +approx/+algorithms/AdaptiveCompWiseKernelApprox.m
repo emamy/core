@@ -180,7 +180,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseAdaptiveCWKA
                     %% Compute coefficients
                     % Call coeffcomp preparation method and pass kernel matrix
                     K = data.MemoryKernelMatrix(kexp.getKernelMatrix);
-                    this.CoeffComp.init(K);
+                    this.CoeffComp.init(K, kexp);
                     
                     % Call protected method
                     this.computeCoeffs(kexp, atd.fxi(:,used), [kexp.Ma zeros(size(atd.fxi,1),1)]);

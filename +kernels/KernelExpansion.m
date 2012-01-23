@@ -177,7 +177,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & ...
             % one argument.
             %
             % See also: evaluateAtCenters
-            K = this.fSK.evaluate(this.Centers.xi);
+            K = this.fSK.evaluate(this.Centers.xi,[]);
         end
         
         function c = getGlobalLipschitz(this, t, mu)%#ok            
@@ -232,7 +232,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & ...
         function updateRotInv(this)
             % Updates the RotationInvariant property of this CoreFun by
             % checking all registered kernels.
-            this.RotationInvariant = isa(this.fSK,'kernels.ARotationInvariant');
+            this.RotationInvariant = isa(this.fSK,'kernels.ARBFKernel');
         end
     end
     

@@ -166,7 +166,7 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
                 %warning('off','MATLAB:nearlySingularMatrix');
                 % Call coeffcomp preparation method and pass kernel matrix
                 K = data.MemoryKernelMatrix(kexp.getKernelMatrix);
-                this.CoeffComp.init(K);
+                this.CoeffComp.init(K, kexp);
 
                 % Call protected method
                 ex = [];

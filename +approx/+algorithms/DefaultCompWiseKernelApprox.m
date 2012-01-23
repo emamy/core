@@ -42,7 +42,7 @@ classdef DefaultCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorit
             kexp.Centers.mui = atd.mui;
             
             % Call coeffcomp preparation method and pass kernel matrix
-            this.CoeffComp.init(data.MemoryKernelMatrix(kexp.getKernelMatrix));
+            this.CoeffComp.init(data.MemoryKernelMatrix(kexp.getKernelMatrix), kexp);
             
             % Call protected method
             this.computeCoeffs(kexp, atd.fxi, []);

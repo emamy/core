@@ -152,7 +152,7 @@ classdef MinMaxAdaptiveCWKA < approx.algorithms.BaseAdaptiveCWKA
                         Ktmp.augment(PhiN);
 
                         % Compute coefficients
-                        this.CoeffComp.init(Ktmp);
+                        this.CoeffComp.init(Ktmp, kexp);
                         this.computeCoeffs(kexp, atd.fxi(:,[used sidx]), [kexp.Ma zeros(size(atd.xi,1),1)]);
                         
                         % Get error

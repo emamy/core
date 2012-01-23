@@ -86,7 +86,7 @@ classdef AdaptiveCompWiseKernelApprox2 < approx.algorithms.BaseAdaptiveCWKA
                 K = data.MemoryKernelMatrix(1);
                 %K.BuildInverse = true;
                 %K.UseLU = true;
-                this.CoeffComp.init(K);
+                this.CoeffComp.init(K, kexp);
                 
                 cnt = 1;
                 while true

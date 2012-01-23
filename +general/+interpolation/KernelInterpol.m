@@ -42,6 +42,9 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
     
     properties(Access=private)
         fK;
+        
+        % Preconditioning matrix
+        P;
     end
     
     methods
@@ -61,26 +64,31 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
             % Return values:
             % a: The coefficient vector `\alpha`
 
-%             if all(abs(fxi) < 10*eps)
-%                 a = zeros(size(fxi))';
-%                 if KerMor.App.Verbose > 3
-%                     fprintf('KernelInterpol note: All fxi values < 10eps, assuming zero coefficients!\n');
-%                 end
-%             else
             if isa(this.fK, 'data.MemoryKernelMatrix')
                 if this.fK.UseLU
+                    if ~isempty(this.P)
+                        warning('KerMor:interpol','Preconditioning matrix available, not applying as UseLU is set!');
+                    end
                     a = this.fK.U\(this.fK.L\fxi');
                     return;
                 elseif this.fK.BuildInverse
 %                     P = this.fK.Kinv * this.fK.K;
 %                     pfxi = this.fK.Kinv*fxi';
 %                     a = P\pfxi;
+                    if ~isempty(this.P)
+                        warning('KerMor:interpol','Preconditioning matrix available, not applying as BuildInverse is set!');
+                    end
                     a = this.fK.Kinv * fxi';
                     return;
                 end
             end
-            a = this.fK\fxi';
-%             end
+            %warning('MATLAB:nearlySingularMatrix','off');
+            if ~isempty(this.P)
+                % fK is already preconditioned, see init(..)
+                a = this.fK\(this.P*fxi');
+            else
+                a = this.fK\fxi';
+            end
         end
         
         function set.K(this, value)
@@ -101,11 +109,32 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
         end
         
         %% approx.algorithms.IKernelCoeffComp interface members
-        function init(this, K)
+        function init(this, K, kexp)
             this.K = K;
+            if ~isa(this.fK,'data.MemoryKernelMatrix')
+                error('Preconditioning with other than MemoryKernelMatrices not yet implemented.');
+            end
+            if nargin > 2 && isa(kexp.Kernel,'kernels.ARBFKernel') && kexp.Kernel.epsilon < .1
+                [this.P, k2] = this.getPreconditioner(kexp.Kernel,kexp.Centers.xi);
+                % Overwrite current matrix with preconditioned one
+                oldK = this.fK.K;
+                this.fK = data.MemoryKernelMatrix(this.P*this.fK.K);
+                x = kexp.Centers.xi;
+                [m M] = general.Utils.getBoundingBox(x);
+                c1 = cond(oldK);
+                c2 = cond(this.fK.K);
+                pl = '-';
+                if c2<c1
+                    pl = '+';
+                end
+                fprintf('Cond(K)=%e, Cond(P*K)=%e, size(x)=[%d %d], %s! eps=%e, xdiag=%e, k2=%d\n',...
+                    c1,c2,size(x,1),size(x,2),pl,kexp.Kernel.epsilon,norm(M-m),k2);
+            else
+                this.P = [];
+            end
         end
         
-        function [ci, svidx] = computeKernelCoefficients(this, yi, dummy)%#ok
+        function [ci, svidx] = computeKernelCoefficients(this, fxi, dummy)%#ok
             % Implementation of the kernels.ICoeffComp interface
             %
             % Parameters:
@@ -119,8 +148,97 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
             % that regarded to be support vectors. @type integer
             
             % Transform to row vector
-            ci = this.interpolate(yi)';
+            ci = this.interpolate(fxi)';
             svidx = 1:size(ci,2);
+        end
+    end
+    
+    methods(Access=private)
+        function [P, k2] = getPreconditioner(this, k, x)
+            N = size(x,2);
+            M = [];
+            I_N = eye(N);
+            pivi = 1;
+            cols = 1;
+            L = I_N; P = I_N;
+            tk = zeros(1,N);
+            mi = general.MonomialIterator(size(x,1));
+            
+            while pivi <= N
+                % Compute next monomial
+                
+                % Stragegy 1: Random
+                %                     deg = ceil(randn(1)*N);
+                %                     alpha = mi.getRandMonomial(deg);
+                
+                % Stragegy 2: Ordered list
+                if pivi == 1
+                    alpha = mi.getNullMonomial;
+                    deg = 0;
+                else
+                    [alpha, deg] = mi.nextMonomial;
+                end
+                
+                % Compute new moment matrix column
+                newMcol = prod(x .^ repmat(alpha,1,N),1)';
+                M = [M newMcol];%#ok
+                
+                % apply previous changes to new column
+                newMcol = L*P*newMcol;
+                
+                % Select pivot element candidate indices in current column
+                sel = pivi:N;
+                
+                % Strategy one: Use maximum pivoting
+                %                     [v, maxidx] = max(abs(newMcol(sel)));
+                %                     permidx = sel(maxidx);
+                
+                % Strategy two: Only find first nonzero-row and use it
+                permidx = sel(find(abs(newMcol(sel)) > sqrt(eps),1));
+                if ~isempty(permidx)
+                    v = abs(newMcol(permidx));
+                else
+                    v = 0;
+                end
+                
+                % step one column ahead if current column is already annihilated
+                if v < sqrt(eps)
+                    %v
+                    cols = cols+1;
+                    continue;
+                end
+                
+                % get new permutation matrix according to pivot
+                Pn = getPermMat(pivi, permidx, N);
+                % swap columns
+                newMcol = Pn*newMcol;
+                % compose L_k
+                Ln = I_N;
+                l_k = -newMcol(pivi+1:N)/newMcol(pivi);
+                Ln(pivi+1:N,pivi) = l_k;
+                
+                % keep record of the column indices at which the next linear independent
+                % monomial was added
+                tk(pivi) = deg;
+                
+                L = Ln*Pn*L*Pn;
+                P = Pn*P;
+                
+                pivi = pivi+1;
+                cols = cols+1;
+            end
+            
+            %U = L*P*M;
+            D = diag(k.epsilon.^-tk);
+            %PM = P; % return accum. permutation matrix
+            P = D * L* P; % compute preconditioning matrixl
+            k2 = tk(end);
+            
+            function P = getPermMat(i,j,n)
+                P = eye(n);
+                P(i,i) = 0; P(j,j) = 0;
+                P(j,i) = 1; P(i,j) = 1;
+            end
         end
     end
     

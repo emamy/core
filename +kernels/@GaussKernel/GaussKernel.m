@@ -8,7 +8,7 @@ classdef GaussKernel < kernels.BellFunction
     % @author Daniel Wirtz @date 11.03.2011
     %
     % @change{0,5,dw,2011-10-16} Exported the evaluate function to
-    % kernels.ARotationInvariant, but re-implemented the customized
+    % kernels.ARBFKernel, but re-implemented the customized
     % evaluate function as the norm squared is already computed fast and
     % first taking the square root and then squaring again would introduce
     % unecessary overhead.
@@ -52,27 +52,19 @@ classdef GaussKernel < kernels.BellFunction
         end
         
         function K = evaluate(this, x, y)
-            % Evaluates the gaussian. Overrides the ARotationInvariant
-            % implementation as it would take the root and then re-square
-            % it upon evaluateScalar.
-            if ~isempty(this.P)
-                x = x(this.P,:);
-            end
-            sx = this.G*x;
-            n1sq = sum(x.*sx,1);
-            n1 = size(x,2);
-            if nargin == 2;
-                n2sq = n1sq;
-                n2 = n1;
-                y = x;
-            else
-                if ~isempty(this.P)
-                    y = y(this.P,:);
-                end
-                n2sq = sum(y.*(this.G*y),1);
-                n2 = size(y,2);
-            end;
-            K = exp(-((ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*sx'*y)/this.Gamma^2);
+            % Evaluates the gaussian.
+            %
+            % If `y_j` is set, the dimensions of `x_i` and `y_j` must be equal for all `i,j`.
+            %
+            % Parameters:
+            % x: First set `x_i \in \R^d` of `n` vectors @type matrix<double>
+            % y: Second set `y_j \in \R^d` of `m` vectors. If y is empty `y_i = x_i` and `n=m`
+            % is assumed. @type matrix<double>
+            %
+            % Return values:
+            % K: An evaluation matrix `K \in \R^{n\times m}` of the evaluated gaussians with
+            % entries `K_{i,j} = e^{-\norm{x_i-y_j}{G}^2/\gamma^2}`.
+            K = exp(-this.getSqDiffNorm(x, y)/this.Gamma^2);
         end
                 
         function Nablax = getNabla(this, x, y)
@@ -139,10 +131,13 @@ classdef GaussKernel < kernels.BellFunction
         
         function set.Gamma(this, value)
             % @todo check why penalty factor was set here to 1/value! ?!?
-            if ~isreal(value) ||~isscalar(value)
+            if ~isreal(value) || ~isscalar(value) || value <= 0
                 error('Only positive scalar values allowed for Gamma.');
             end
             this.Gamma = value;
+            
+            % Update the dilation parameter of ARBFKernel
+            this.epsilon = 1/value;
             
             % Adjust the BellFunctions' x0 value
             this.r0 = value/sqrt(2);
