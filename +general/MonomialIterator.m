@@ -67,8 +67,8 @@ classdef MonomialIterator < handle
             % `\alpha` @type rowvec<int32>
 
             % Collect exponents via histogram count for each dimension
-            alpha = fliplr(histc(this.expidx, 1:this.Dim))';
-            %alpha = histc(this.expidx, 1:this.Dim)';
+            %alpha = fliplr(histc(this.expidx, 1:this.Dim))';
+            alpha = histc(this.expidx, 1:this.Dim)';
             deg = this.deg;
             exps = this.expidx;
             
@@ -99,7 +99,7 @@ classdef MonomialIterator < handle
             end
         end
         
-        function alpha = getRandMonomial(deg)
+        function alpha = getRandMonomial(this, deg)
             % Returns a random monomial.
             %
             % Parameters:
@@ -108,7 +108,7 @@ classdef MonomialIterator < handle
             % Return values:
             % alpha: The multiindex `\alpha\in\Z^d` corresponding to the exponents of the
             % current monomial @type colvec<int32>
-            alpha = int32(zeros(this.Dim,1));
+            alpha = zeros(this.Dim,1);
             s = 0;
             while s < deg
                 idx = this.rnd.randi(this.Dim);

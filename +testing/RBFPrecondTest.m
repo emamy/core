@@ -13,102 +13,118 @@ classdef RBFPrecondTest
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
     
-    properties
-    end
-    
     methods(Static)
         function run
+%             seed = 2;
+            seed = cputime * 1000;
+            rnd = RandStream('mt19937ar','Seed',seed);
             
-            % Random centers
-%             c = 10;
-%             dim = 1;
-%             r = [-10 10];
-%             x = sort(r(1) + rnd.rand(dim,c)*(r(2)-r(1)),2);
+            
+            % Random centers  
+            c = 100;
+            dim = 300;
+            r = [-10 10];
+            x = sort(r(1) + rnd.rand(dim,c)*(r(2)-r(1)),2);
+            dist = 4e9;
+
             % Example 2.2 from S08
-            c = 6;
-            dim = 2;
-            x = [(0:5)/5; (0:5).^2/25];
+%             dist = 5e4;
+%             r = [0 1];
+%             dim = 2;
+%             x = [(0:5)/5; (0:5).^2/25];
+%             c = size(x,2);
             
-            k = kernels.GaussKernel(50000);
+            k = kernels.GaussKernel;
+            gam = k.setGammaForDistance(dist,eps);
             kexp = kernels.KernelExpansion;
             kexp.Kernel = k;
             kexp.Centers.xi = x;
             
             K = kexp.getKernelMatrix;
-%             gam = k.setGammaForDistance(20,eps);
-%             while true
-%                 K = kexp.getKernelMatrix;
-%                 if rank(K) < c
-%                     k.Gamma = gam*2/3;
-%                     K = kexp.getKernelMatrix;
-%                     break;
-%                 end
-%                 gam = gam * 1.5;
-%                 k.Gamma = gam;
-%             end
-%             imagesc(K);
-
             ki = general.interpolation.KernelInterpol;
             ki.init(data.MemoryKernelMatrix(K));
             kexp.Ma = ki.interpolate(f(x))';
             
             pre_kexp = kexp.clone;
-            %P = eye(c); P(5,3) = 0.0001;
             P = getPreconditioner(x, k);
             ki.init(data.MemoryKernelMatrix(P*K));
             pre_kexp.Ma = ki.interpolate(f(x)*P')';
             
-            if dim == 1
-                xv = repmat(linspace(r(1),r(2),200),dim,1);
-                plot(xv(1,:),f(xv),'r',xv(1,:),kexp.evaluate(xv)','b',...
-                    xv(1,:),pre_kexp.evaluate(xv)','g');
-            else
-                atd=data.ApproxTrainData(x,[],[]);
-                atd.fxi = f(x);
-                FunVis2D(kexp,atd,[],@f);
-                FunVis2D(pre_kexp,atd,[],@f);
-            end
+            t = PrintTable;
+            t.HasHeader = true;
+            t.Caption = sprintf('Comparison results for preconditioning test, dim=%d, #c=%d, gamma=%f, rnd-seed=%f',dim,c,gam,seed);
+            t.addRow('Results','no preconditioning','with preconditioning','difference');
+            cK = cond(K);
+            cPK = cond(P*K);
+            t.addRow('Condition numbers',cK,cPK,cK-cPK,{'%s','%e','%e','%e'});
+            t.addRow('Ma_norms',sum(kexp.Ma_norms),sum(pre_kexp.Ma_norms),...
+                sum(kexp.Ma_norms)-sum(pre_kexp.Ma_norms),{'%s','%e','%e','%e'});
+            
+            % Error on centers
+            valfx = f(x);
+            avalfx = kexp.evaluate(x);
+            pavalfx = pre_kexp.evaluate(x);
+            caerr = sum(abs(valfx-avalfx));
+            cpaerr = sum(abs(valfx-pavalfx));
+            
+            % Error on random set
+            valx = r(1) + rnd.rand(dim,10000)*(r(2)-r(1));
+            valfx = f(valx);
+            avalfx = kexp.evaluate(valx);
+            pavalfx = pre_kexp.evaluate(valx);
+            aerr = sum((valfx-avalfx).^2);
+            paerr = sum((valfx-pavalfx).^2);
+            
+            t.addRow('Error on centers',caerr,cpaerr,caerr-cpaerr,{'%s','%e','%e','%e'});
+            t.addRow('Error on random validation set',aerr,paerr,aerr-paerr,{'%s','%e','%e','%e'});
+            
+            t.print;
+            
+%             if dim == 1
+%                 xv = repmat(linspace(r(1),r(2),200),dim,1);
+%                 plot(xv(1,:),f(xv),'r',xv(1,:),kexp.evaluate(xv)','b',...
+%                     xv(1,:),pre_kexp.evaluate(xv)','g');
+%             else
+%                 atd=data.ApproxTrainData(x,[],[]);
+%                 atd.fxi = f(x);
+%                 FunVis2D(kexp,atd,[],@f);
+%                 FunVis2D(pre_kexp,atd,[],@f);
+%             end
             
             function fx = f(x,~,~)
                 fx = sum(sin(pi*x/5),1);
             end
             
-            function P = getPreconditioner(x, k)
-                N = size(x,2); % k_2 = N-1
+            function [P, PM] = getPreconditioner(x, k)
+                N = size(x,2);
                 M = [];
-%                 mon = [];
                 I_N = eye(N);
                 pivi = 1;
                 cols = 1;
                 L = I_N; P = I_N;
-%                 Li = I_N;
                 tk = zeros(1,N);
                 mi = general.MonomialIterator(dim);
                 
-%                 M = zeros(N,N);
-%                 M(:,1) = 1;
-%                 for i=2:300
-%                     % get new raw M column
-%                     alpha = repmat(mi.nextMonomial,1,N);
-%                     newMcol = prod(x .^ alpha)';
-%                     M(:,i) = newMcol;
-%                 end
-                
                 while pivi <= N
                     % Compute next monomial
-                    %alpha = mi.getRandMonomial(rnd.randi(N));
+                    
+                    % Stragegy 1: Random
+%                     deg = ceil(randn(1)*N);
+%                     alpha = mi.getRandMonomial(deg);
+                    
+                    % Stragegy 2: Ordered list
                     if pivi == 1
                         alpha = mi.getNullMonomial;
                         deg = 0;
                     else
                         [alpha, deg] = mi.nextMonomial;
-                    end                    
+                    end         
+                    
                     % Compute new moment matrix column
                     newMcol = prod(x .^ repmat(alpha,1,N),1)';
                     M = [M newMcol];%#ok
                     
                     % apply previous changes to new column
-%                     newMcol = L*P*M(:,cols);
                     newMcol = L*P*newMcol;
                     
                     % Select pivot element candidate indices in current column
@@ -153,18 +169,10 @@ classdef RBFPrecondTest
                     cols = cols+1;
                 end
                 
-%                 for i = 1:nd
-%                     alpha = repmat(getMonomial(degs(i), dim),1,N);
-%                     M(:,i) = sum(x .^ alpha)';
-%                 end
-%                 [l,u] = lu(M);
-%                 l = inv(L);
-%                 u = L*P*M;
-                U = L*P*M
-%                 Li = inv(L);
-%                 P*M
+                %U = L*P*M;
                 D = diag(k.Gamma.^tk);
-                P = D * L* P;
+                PM = P; % return accum. permutation matrix
+                P = D * L* P; % compute preconditioning matrix
                 
                 function P = getPermMat(i,j,n)
                     P = eye(n);

@@ -223,6 +223,9 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseAdaptiveCWKA
                     end 
                 end
                 
+%                 FunVis2D(kexp, atd);
+%                 pause;
+                
                 cnt = cnt+1;
             end
             

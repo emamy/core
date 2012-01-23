@@ -9,6 +9,9 @@ classdef ApproxTrainData
 %
 % @new{0,5,dw,2011-11-02} Added this class.
 %
+% @todo Make xi,ti,mui private fields and update dependents like Center upon re-setting one of
+% those values! (consistency issue)
+%
 % This class is part of the framework
 % KerMor - Model Order Reduction using Kernels:
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
