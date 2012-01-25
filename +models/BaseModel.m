@@ -291,7 +291,7 @@ classdef BaseModel < KerMorObject
             this.WorkspaceVariableName = '';
         end
         
-        function plot(this, t, y, varargin)
+        function [f, ax] = plot(this, t, y, varargin)
             % Plots the results of the simulation.
             % Override in subclasses for a more specific plot if desired.
             %
@@ -299,10 +299,20 @@ classdef BaseModel < KerMorObject
             % t: The simulation times `t_i` @type rowvec
             % y: The simulation output matrix `y`, i.e. `y(t_i)` @type matrix
             % varargin: Any further arguments for customized plots @type cell
-            ax = gca;
+            %
+            % Return values:
+            % f: The figure handle @type handle
+            % ax: The axes handle @type handle
+            if isempty(varargin)
+                f = figure;
+                ax = gca(f);
+            else
+                ax = varargin{1};
+                f = get(ax,'Parent');
+            end
             y = general.Utils.preparePlainPlot(y);
             plot(ax,t,y);
-            title(ax,sprintf('Plot for output of model "%s"', this.Name));
+            title(ax,sprintf('Plot for model "%s"', this.Name));
             xlabel(ax,'Time'); ylabel(ax,'Output functions');
         end
         

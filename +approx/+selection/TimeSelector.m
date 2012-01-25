@@ -125,7 +125,9 @@ classdef TimeSelector < approx.selection.ASelector
                 xi = [xi x(:,sel(idx))];
                 newt = times(sel(idx));
                 ti = [ti newt];
-                mui = [mui mu(:,ones(1,length(newt)))];
+                if ~isempty(mu)
+                    mui = [mui mu(:,ones(1,length(newt)))];
+                end
             end
         end
         
