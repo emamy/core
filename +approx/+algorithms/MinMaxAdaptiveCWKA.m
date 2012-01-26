@@ -94,20 +94,20 @@ classdef MinMaxAdaptiveCWKA < approx.algorithms.BaseAdaptiveCWKA
                 this.setDistKernelConfig(kexp, dists(:,distidx));
                 
                 if KerMor.App.Verbose > 2
-                    info = sprintf('Current \\beta_s: %f',kexp.Kernel.Gamma);
+                    info = sprintf('Current \\gamma_s: %f',kexp.Kernel.Gamma);
                     if this.pte
                         if ~isa(kexp.TimeKernel,'kernels.NoKernel')
-                            info = sprintf('%s, \\beta_t: %f',info,kexp.TimeKernel.Gamma);
+                            info = sprintf('%s, \\gamma_t: %f',info,kexp.TimeKernel.Gamma);
                         end
                         if ~isa(kexp.ParamKernel,'kernels.NoKernel')
-                            info = sprintf('%s, \\beta_\\mu: %f',info,kexp.ParamKernel.Gamma);
+                            info = sprintf('%s, \\gamma_\\mu: %f',info,kexp.ParamKernel.Gamma);
                         end
                     end
                 end
                 
                 % Prepare new kernel matrix of size one
                 K = data.MemoryKernelMatrix(1);
-                K.BuildInverse = true;
+                %K.BuildInverse = true;
                 
                 cnt = 2;
                 % Start with minimum errror at one-center-expansion
@@ -153,7 +153,7 @@ classdef MinMaxAdaptiveCWKA < approx.algorithms.BaseAdaptiveCWKA
 
                         % Compute coefficients
                         this.CoeffComp.init(Ktmp, kexp);
-                        this.computeCoeffs(kexp, atd.fxi(:,[used sidx]), [kexp.Ma zeros(size(atd.xi,1),1)]);
+                        this.computeCoeffs(kexp, atd.fxi(:,[used sidx]), [kexp.Ma zeros(size(kexp.Ma,1),1)]);
                         
                         % Get error
                         [val, ~, errs] = this.getError(kexp, atd);
