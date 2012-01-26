@@ -114,7 +114,7 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
             if ~isa(this.fK,'data.MemoryKernelMatrix')
                 error('Preconditioning with other than MemoryKernelMatrices not yet implemented.');
             end
-            if nargin > 2 && isa(kexp.Kernel,'kernels.ARBFKernel') && kexp.Kernel.epsilon < .1
+            if nargin > 2 && isa(kexp.Kernel,'kernels.ARBFKernel') && kexp.Kernel.epsilon < .01
                 [this.P, k2] = this.getPreconditioner(kexp.Kernel,kexp.Centers.xi);
                 % Overwrite current matrix with preconditioned one
                 oldK = this.fK.K;
@@ -127,8 +127,10 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
                 if c2<c1
                     pl = '+';
                 end
-                fprintf('Cond(K)=%e, Cond(P*K)=%e, size(x)=[%d %d], %s! eps=%e, xdiag=%e, k2=%d\n',...
-                    c1,c2,size(x,1),size(x,2),pl,kexp.Kernel.epsilon,norm(M-m),k2);
+                if KerMor.App.Verbose > 3
+                    fprintf('Cond(K)=%e, Cond(P*K)=%e, size(x)=[%d %d], %s! eps=%e, xdiag=%e, k2=%d\n',...
+                        c1,c2,size(x,1),size(x,2),pl,kexp.Kernel.epsilon,norm(M-m),k2);
+                end
             else
                 this.P = [];
             end

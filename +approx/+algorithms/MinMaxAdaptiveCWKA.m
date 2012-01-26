@@ -93,7 +93,7 @@ classdef MinMaxAdaptiveCWKA < approx.algorithms.BaseAdaptiveCWKA
                 %% Set kernel config - gammas
                 this.setDistKernelConfig(kexp, dists(:,distidx));
                 
-                if KerMor.App.Verbose > 2
+                if KerMor.App.Verbose > 1
                     info = sprintf('Current \\gamma_s: %f',kexp.Kernel.Gamma);
                     if this.pte
                         if ~isa(kexp.TimeKernel,'kernels.NoKernel')
@@ -103,6 +103,7 @@ classdef MinMaxAdaptiveCWKA < approx.algorithms.BaseAdaptiveCWKA
                             info = sprintf('%s, \\gamma_\\mu: %f',info,kexp.ParamKernel.Gamma);
                         end
                     end
+                    fprintf([strrep(info,'\','') '\n']);
                 end
                 
                 % Prepare new kernel matrix of size one

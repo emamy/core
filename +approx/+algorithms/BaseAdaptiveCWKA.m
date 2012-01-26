@@ -3,6 +3,10 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
 %
 % @author Daniel Wirtz @date 2011-11-02
 %
+% @new{0,6,dw,2012-01-26} Added a new approximation stallment detection. The properties
+% MinImprovePerc and ImproveRange control at which stage the approximation is to be stopped if
+% no sufficient progress in approximation error is made.
+%
 % @new{0,5,dw,2011-11-02} 
 % - Created this class. Collects common properties of the adaptive approx algorithms and
 % provides convenience methods for subclasses.
@@ -107,6 +111,32 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
         %
         % @default 'center' @type char
         InitialCenter = 'center';
+        
+        % The percentage over which the error has to improve compared to the mean error of
+        % the ImproveRange earlier steps.
+        %
+        % Set to empty to disable.
+        %
+        % @propclass{important} Higher improvement values may terminate the search too early
+        % and thus reduce the approximation quality. Too low values might not detect stallment
+        % of the approximation process early enough.
+        %
+        % @type double @default .05
+        %
+        % See also: ImproveRange
+        MinImprovePerc = .05;
+        
+        % The range over which the error improvement is to be monitored.
+        %
+        % Set to empty to disable.
+        %
+        % @propclass{important} A too short monitoring range might stop the algorithm too
+        % early, whereas a too long range will detect stallment too late.
+        %
+        % @type integer @default 15
+        %
+        % See also: MinImprovePerc
+        ImproveRange = 15;
     end
     
     properties(SetAccess=protected)
@@ -119,6 +149,7 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
     
     properties(Transient, Access=private)
         effabs;
+        lasterrs;
     end
     
     properties(Transient, SetAccess=private, GetAccess=protected)
@@ -184,6 +215,7 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
             
             % Stopping condition preps
             this.effabs = this.MaxAbsErrFactor * max(abs(atd.fxi(:)));
+            this.lasterrs = [];
             
             this.detailedAdaptiveApproximation(kexp, atd);
         end
@@ -398,6 +430,14 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
             % 'MaxAbsErrFactor'`\times \max |fxi(:)|`)
             %
             % See also: MaxExpansionSize MaxRelErr MaxAbsErrFactor
+            
+            % Update lasterrs error improvement record
+            this.lasterrs(end+1) = val;
+            if numel(this.lasterrs) > this.ImproveRange
+                this.lasterrs(1) = [];
+            end
+            reqimpr = mean(this.lasterrs(1:end-1))*(1-this.MinImprovePerc);
+            
             bool = false;
             if cnt == this.MaxExpansionSize
                 fprintf('AdaptiveCWKA stopping criteria holds: Max expansion size %d reached.\n',this.MaxExpansionSize);
@@ -408,6 +448,11 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
             elseif val < this.effabs
                 fprintf('AdaptiveCWKA stopping criteria holds: Absolute error %.7e < %.7e\n',val,this.effabs);
                 bool = true;
+            elseif numel(this.lasterrs) == this.ImproveRange && reqimpr < val
+                fprintf('AdaptiveCWKA stopping criteria holds: Error improvement over mean error of last %d iterations below %2.2f%% percent (required:%e, achieved:%e)\n',...
+                    this.ImproveRange, this.MinImprovePerc*100, reqimpr, val);
+                bool = true;
+                this.lasterrs = [];
             end
         end
     end
@@ -470,6 +515,20 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
                 error('Value must be either integer 1 or 2.');
             end
             this.ErrFun = value;
+        end
+        
+        function set.ImproveRange(this, value)
+            if ~isempty(value) && (round(value) ~= value || value <= 0)
+                error('ImproveRange must be a positive natural number.');
+            end
+            this.ImproveRange = value;
+        end
+        
+        function set.MinImprovePerc(this, value)
+            if ~isempty(value) && (value <= 0 || ~isscalar(value))
+                error('MinImprovePerc must be a positive double scalar.');
+            end
+            this.MinImprovePerc = value;
         end
     end
 end

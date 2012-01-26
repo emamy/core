@@ -93,7 +93,7 @@ function varargout = FunVis2D(varargin)
 %
 % @todo 
 % - fix slider display for parameters (not all shown correctly)
-% - enable to use delaunay for mesh on large expansions (either centers or training data parts)
+% - black dots for centers are not at value of f for center!
 %
 %
 % @ingroup g_visual
