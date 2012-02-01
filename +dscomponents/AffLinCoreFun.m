@@ -60,14 +60,10 @@ classdef AffLinCoreFun < dscomponents.ACoreFun ...
             end
         end
         
-        function projected = project(this, V, W)
-            projected = this.clone;
-            % RHS multiplication of the matrices for correct conversion.
-            af = this.AffParamMatrix;
-            paf = projected.AffParamMatrix;
-            for idx=1:af.N
-                paf.Matrices(:,:,idx) = W'*(af.Matrices(:,:,idx)*V);
-            end
+        function proj = project(this, V, W)
+            proj = this.clone;
+            proj.AffParamMatrix = this.AffParamMatrix.project(V, W);
+            proj.b = W'*this.b;
         end
         
         function addMatrix(this, coeff_fcn, mat)

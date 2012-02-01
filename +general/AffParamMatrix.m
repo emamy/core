@@ -1,4 +1,4 @@
-classdef AffParamMatrix < ICloneable
+classdef AffParamMatrix < dscomponents.IProjectable
     % General time/parameter-affine matrix
     %
     % Represents a linear combination of matrices `A_i` with scalar parameter and/or time dependent
@@ -8,6 +8,11 @@ classdef AffParamMatrix < ICloneable
     % of this type. This enables very easy notation and increases readability when used.
     %
     % @ingroup general
+    %
+    % @new{0,6,dw,2012-02-01} 
+    % - Implementing the project method here directly as doing so outside requires access to
+    % the interior of the AffParamMatrix (see dscomponents.AffLinCoreFun)
+    % - Bugfix for transposition: formerly casted to wrong size dimensions.
     %
     % @new{0,6,dw,2011-12-09} Added a new method
     % AffParamMatrix.getMatrix (mainly for debug reasons)
@@ -218,8 +223,12 @@ classdef AffParamMatrix < ICloneable
             % Implements the transposition for affine parametric matrices.
             transp = this.clone;
             transp.dims = fliplr(transp.dims);
-            for i=1:this.N
-                transp.Matrices(:,i) = reshape(this.getMatrix(i)',1,[]);
+            % Autodetects size & type of projected matrix!
+            if this.N > 0
+                transp.Matrices = reshape(this.getMatrix(1)',[],1);
+            end
+            for i=2:this.N
+                transp.Matrices(:,i) = reshape(this.getMatrix(i)',[],1);
             end
         end
         
@@ -234,6 +243,41 @@ classdef AffParamMatrix < ICloneable
             M = reshape(this.Matrices(:,idx),this.dims);
         end
         
+        function proj = project(this, V, W)
+            % Projects the affine parametric matrix using `V` and `W`.
+            %
+            % Set either `V` or `W` to one if single-sided projection is desired.
+            %
+            % Parameters:
+            % V: The first projection matrix for "reconstruction" @type matrix<double>
+            % W: The second projection matrix for "projection" @type matrix<double>
+            
+            if isempty(V) || isempty(W)
+                error('Both V and W must be given and nonempty (Set either to 1 for neutral as required).');
+            end
+            proj = this.clone;
+            if V ~= 1
+                proj.dims(2) = size(V,2);
+            end
+            if W ~= 1
+                proj.dims(1) = size(W,2);
+            end
+            % Autodetects size & type of projected matrix!
+            if this.N > 0
+                proj.Matrices = reshape(W'*(this.getMatrix(1)*V),[],1);
+            end
+            for idx=2:this.N
+                proj.Matrices(:,idx) = reshape(W'*(this.getMatrix(idx)*V),[],1);
+            end
+        end
+        
+        function clear(this)
+            this.N = 0;
+            this.Matrices = [];
+            this.cfun = [];
+            this.dims = [];
+            this.funStr = {};
+        end
     end
     
     methods(Access=private)
