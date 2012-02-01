@@ -316,7 +316,7 @@ classdef BaseModel < KerMorObject
             xlabel(ax,'Time'); ylabel(ax,'Output functions');
         end
         
-        function varargout = plotSingle(this, t, y, ax)
+        function plotSingle(this, t, y, varargin)
             % Plots a single solution.
             % Override in subclasses for specific plot behaviour.
             %
@@ -326,12 +326,7 @@ classdef BaseModel < KerMorObject
             % Parameters:
             % t: The current time `t`
             % y: The system's output `y(t)`
-            % ax: The target axes to plot into. @default []
-            if nargin < 4
-                this.plot(t, y);
-            else
-                this.plot(t, y, ax);
-            end
+            this.plot(t, y, varargin{:});
         end
         
         function [t, x, ctime] = computeTrajectory(this, mu, inputidx)

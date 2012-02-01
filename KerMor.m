@@ -222,6 +222,11 @@ classdef KerMor < handle
     % @todo 
     % - sort demos and +testing directories
     % - sort out "groups" in documentation, probably remove them?
+    %
+    % @todo 
+    % - im setup: typo in "compliling"
+    % - hinweis: KerMor kommt mit mtoc++, do you want to configure matlabdocmaker now?
+    % (idealerweise: nur nach output fragen?!?)
     
     properties(Constant)
         % The current KerMor main version number

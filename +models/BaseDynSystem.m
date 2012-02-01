@@ -216,13 +216,6 @@ classdef BaseDynSystem < KerMorObject
             % See also: Inputs Params setParam addParam
             if isempty(mu) && ~isempty(this.Params)
                 error('A model with parameters cannot be simulated without a parameter argument.');
-            elseif size(mu,2) > 1
-                if size(mu,1) > 1
-                    error('The mu parameter must be a single column vector.');
-                else
-                    warning('KerMor:BaseDynSystem','Please use column vectors for parameters. Reshaping.');
-                    mu = reshape(mu,[],1);
-                end
             end
             if size(mu,1) ~= this.ParamCount
                 error('The mu vector size mismatches the defined parameter number.');    

@@ -155,6 +155,7 @@ classdef ReducedModel < models.BaseModel
             
             % Split up results; the last rows of the ode solution contain
             % any online-computable errors
+            cpost = 0;
             if this.ErrorEstimator.Enabled
                 x = xext(1:end-this.ErrorEstimator.ExtraODEDims,:);
                 cpost = this.ErrorEstimator.postProcess(xext, t, mu, inputidx);
@@ -202,11 +203,11 @@ classdef ReducedModel < models.BaseModel
     
     methods(Sealed)
         function plot(this, t, y)
-            this.FullModel.plot(t,y);
+            this.FullModel.plot(t, y);
         end
         
-        function plotSingle(this, t, y)
-            this.FullModel.plotSingle(t,y);
+        function plotSingle(this, t, y, varargin)
+            this.FullModel.plotSingle(t, y, varargin{:});
         end
     end
     

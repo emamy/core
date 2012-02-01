@@ -229,6 +229,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % @todo in AModelData: delete datadir if empty on destruction
             % Clean up the simulation cache
             this.simCache.clearTrajectories;
+            %rmdir(this.simCache.DataDirectory);
         end
         
         function time = off1_createParamSamples(this)
@@ -522,6 +523,15 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % t: The times at which the model was evaluated. Will equal
             % the property Times
             % x: The state variables at the corresponding times t.
+            
+            if ~isempty(mu) && size(mu,2) > 1
+                if size(mu,1) > 1
+                    error('The mu parameter must be a single column vector.');
+                else
+                    warning('KerMor:BaseDynSystem','Please use column vectors for parameters. Reshaping.');
+                    mu = reshape(mu,[],1);
+                end
+            end
             
             if KerMor.App.UseDPCM
                 DPCM.criticalsCheck(this);

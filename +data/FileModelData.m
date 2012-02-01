@@ -24,11 +24,14 @@ classdef FileModelData < data.AModelData
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
     
-    properties%(Access=private)
+    properties(Access=private)
         % The HashMap used to store the indices for each trajectory.
         hm;
-        
-        datadir;
+    end
+    
+    properties(SetAccess=private)
+        % The directory where this FileModelData instance writes its files to.
+        DataDirectory;
     end
     
     properties(Access=private)
@@ -41,7 +44,7 @@ classdef FileModelData < data.AModelData
     
     methods
         function this = FileModelData(model, storage_root)
-            % Creates a new ModelData instance with trajectory datadir in a file folder.
+            % Creates a new ModelData instance with trajectory DataDirectory in a file folder.
             %
             % Parameters:
             % model: The model the data is stored for.
@@ -53,24 +56,25 @@ classdef FileModelData < data.AModelData
             this.hm = java.util.HashMap;
             if nargin == 2
                 if isa(storage_root,'char') && exist(storage_root,'dir') == 7
-                    this.datadir = storage_root;
+                    this.DataDirectory = storage_root;
                 else
                     error('Invalid folder: %s',storage_root);
                 end
             else
-                this.datadir = KerMor.App.DataStoreDirectory;
+                this.DataDirectory = KerMor.App.DataStoreDirectory;
             end
-            this.datadir = fullfile(this.datadir,['fm_' num2str(model.ID)]);
-            if exist(this.datadir,'dir') ~= 7
-                try
-                    mkdir(this.datadir);
-                catch ME
-                    me = MException('KerMor:data:FileModelData','Could not create dir "%s"',this.datadir);
-                    me.addCause(ME);
-                    me.throw;
-                end
-            end
+            this.DataDirectory = fullfile(this.DataDirectory,['fm_' num2str(model.ID)]);
+            this.ensureDir;
             this.clearTrajectories;
+        end
+        
+        function delete(this)
+            % Destructor for FileModelData
+            %
+            % Deletes the DataDirectory if no trajectories are stored in it.
+            if this.hm.size == 0
+                rmdir(this.DataDirectory);
+            end
         end
         
         function [x, ctime] = getTrajectory(this, mu, inputidx)
@@ -94,7 +98,7 @@ classdef FileModelData < data.AModelData
                 try
                     s = load(this.getfile(file),'x','ctime');
                     ctime = s.ctime;
-                catch
+                catch%#ok
                     s = load(this.getfile(file),'x');
                     ctime = Inf;
                 end
@@ -116,7 +120,7 @@ classdef FileModelData < data.AModelData
                 s = load(this.getfile(this.hm.get(keys(nr))),'x','mu','inputidx','ctime');
                 ctime = s.ctime;
                 % Workaround for backwards compatibility
-            catch
+            catch%#ok
                 s = load(this.getfile(this.hm.get(keys(nr))),'x','mu','inputidx');
                 ctime = Inf;
             end
@@ -140,7 +144,7 @@ classdef FileModelData < data.AModelData
             file = [key '.mat'];
             this.hm.put(key,file);
             
-            file = fullfile(this.datadir,file);
+            file = fullfile(this.DataDirectory,file);
             try
                 save(file,'x','mu','inputidx','ctime');
             catch ME
@@ -153,7 +157,7 @@ classdef FileModelData < data.AModelData
         function clearTrajectories(this)
             ks = this.hm.values.iterator;
             while ks.hasNext
-                file = fullfile(this.datadir,ks.next);
+                file = fullfile(this.DataDirectory,ks.next);
                 try
                     delete(file);
                 catch ME
@@ -190,7 +194,7 @@ classdef FileModelData < data.AModelData
                 newdir = fullfile(KerMor.App.DataStoreDirectory,['rm_' num2str(model.ID)]);
                 movefile(olddir,newdir);
             end
-            this.datadir = fullfile(KerMor.App.DataStoreDirectory,['rm_' num2str(model.ID)]);
+            this.DataDirectory = fullfile(KerMor.App.DataStoreDirectory,['rm_' num2str(model.ID)]);
             
             this.hm.clear;
             this.bbmin = [];
@@ -205,7 +209,7 @@ classdef FileModelData < data.AModelData
                     mu = this.ParamSamples(:,n);
                     key = general.Utils.getHash([mu; ui]);
                     file = [key '.mat'];
-                    ffile = fullfile(this.datadir, file);
+                    ffile = fullfile(this.DataDirectory, file);
                     if exist(ffile,'file') == 2
                         this.hm.put(key,file);
                         % Update the bounding box!
@@ -225,7 +229,7 @@ classdef FileModelData < data.AModelData
     
     methods(Access=private)
         function file = getfile(this, file)
-            file = fullfile(this.datadir,file);
+            file = fullfile(this.DataDirectory,file);
             if exist(file,'file') ~= 2
                 error('File not found: "%s". Have you deleted model data files?',file);
             end
@@ -242,9 +246,28 @@ classdef FileModelData < data.AModelData
                 this.bbmax = max(this.bbmin,M);
             end
         end
+        
+        function ensureDir(this)
+            if exist(this.DataDirectory,'dir') ~= 7
+                try
+                    mkdir(this.DataDirectory);
+                catch ME
+                    me = MException('KerMor:data:FileModelData','Could not create dir "%s"',this.DataDirectory);
+                    me.addCause(ME);
+                    me.throw;
+                end
+            end
+        end
     end
     
     methods(Static)
+        function this = loadobj(this)
+            % Loads a FileModelData instance.
+            %
+            % Ensures that the directory associated with this FileModelData is existent.
+            this.ensureDir;
+        end
+        
         function res = test_FileModelData
             
             model.ID = 'testModelData';
