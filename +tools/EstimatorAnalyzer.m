@@ -53,13 +53,13 @@ classdef EstimatorAnalyzer < handle
         % Whether to put the estimations and computations times into a
         % single figure using subplots or using separate figures.
         %
-        % @type logical @default false
+        % @type logical
         SingleFigures = false;
         
         % Determines whether to plot the errors on a logarithmic scale or
         % not
         %
-        % @type logical @default true
+        % @type logical
         LogarithmicPlot = true;
         
         % Flag whether to save the time results as a LaTeX-Table into a
@@ -67,18 +67,18 @@ classdef EstimatorAnalyzer < handle
         %
         % Set to [] to disable
         %
-        % @type char @default tables.tex
+        % @type char
         SaveTexTables = 'tables.tex';
         
         % Set flag to sort the resulting computation time and estimates
         % table by the product of comp-time and error estimate.
         %
-        % @type logical @default false
+        % @type logical
         SortResultTable = false;
         
         % Flag wether to use the output errors or state variable errors
         %
-        % @type logical @default true
+        % @type logical
         UseOutputError = true;
         
         % The figure handles for the created figures.

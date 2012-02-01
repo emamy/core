@@ -14,18 +14,31 @@ classdef RBFPrecondTest
 % - \c License @ref licensing
     
     methods(Static)
-        function run
-%             seed = 2;
-            seed = cputime * 1000;
-            rnd = RandStream('mt19937ar','Seed',seed);
+        function [condn, err, epsi, man] = run(dist, conf)
             
+            if nargin < 2
+                conf.seed = cputime * 1000;
+                if nargin < 1
+                    dist = 4e9;
+                end
+            end
+            rnd = RandStream('mt19937ar','Seed',conf.seed);
+            if ~isfield(conf,'estr')
+                conf.estr = 'L_{inf}-L_1';
+            	conf.efun = @(x)max(sum(abs(x),1));
+            end
+            if ~isfield(conf,'rel')
+                conf.rel = true;
+            end
+            if ~isfield(conf,'c')
+                conf.c = 100;
+            end
+            if ~isfield(conf,'dim')
+                conf.dim = 300;
+            end
             
-            % Random centers  
-            c = 100;
-            dim = 300;
-            r = [-10 10];
-            x = sort(r(1) + rnd.rand(dim,c)*(r(2)-r(1)),2);
-            dist = 4e9;
+            r = 2*[-10 10];
+            x = sort(r(1) + rnd.rand(conf.dim,conf.c)*(r(2)-r(1)),2);
 
             % Example 2.2 from S08
 %             dist = 5e4;
@@ -36,6 +49,7 @@ classdef RBFPrecondTest
             
             k = kernels.GaussKernel;
             gam = k.setGammaForDistance(dist,eps);
+            epsi = k.epsilon;
             kexp = kernels.KernelExpansion;
             kexp.Kernel = k;
             kexp.Centers.xi = x;
@@ -46,39 +60,55 @@ classdef RBFPrecondTest
             kexp.Ma = ki.interpolate(f(x))';
             
             pre_kexp = kexp.clone;
-            P = getPreconditioner(x, k);
+            P = ki.getPreconditioner(k, x);
             ki.init(data.MemoryKernelMatrix(P*K));
             pre_kexp.Ma = ki.interpolate(f(x)*P')';
             
-            t = PrintTable;
-            t.HasHeader = true;
-            t.Caption = sprintf('Comparison results for preconditioning test, dim=%d, #c=%d, gamma=%f, rnd-seed=%f',dim,c,gam,seed);
-            t.addRow('Results','no preconditioning','with preconditioning','difference');
-            cK = cond(K);
-            cPK = cond(P*K);
-            t.addRow('Condition numbers',cK,cPK,cK-cPK,{'%s','%e','%e','%e'});
-            t.addRow('Ma_norms',sum(kexp.Ma_norms),sum(pre_kexp.Ma_norms),...
-                sum(kexp.Ma_norms)-sum(pre_kexp.Ma_norms),{'%s','%e','%e','%e'});
+            condn(1) = cond(K);
+            condn(2) = cond(P*K);
             
             % Error on centers
             valfx = f(x);
             avalfx = kexp.evaluate(x);
             pavalfx = pre_kexp.evaluate(x);
-            caerr = sum(abs(valfx-avalfx));
-            cpaerr = sum(abs(valfx-pavalfx));
+            err(1) = conf.efun(valfx-avalfx);
+            err(2) = conf.efun(valfx-pavalfx);
             
-            % Error on random set
-            valx = r(1) + rnd.rand(dim,10000)*(r(2)-r(1));
-            valfx = f(valx);
-            avalfx = kexp.evaluate(valx);
-            pavalfx = pre_kexp.evaluate(valx);
-            aerr = sum((valfx-avalfx).^2);
-            paerr = sum((valfx-pavalfx).^2);
+            if conf.rel
+                err = err ./ conf.efun(valfx);
+            end
             
-            t.addRow('Error on centers',caerr,cpaerr,caerr-cpaerr,{'%s','%e','%e','%e'});
-            t.addRow('Error on random validation set',aerr,paerr,aerr-paerr,{'%s','%e','%e','%e'});
-            
-            t.print;
+            man(1) = sum(kexp.Ma_norms);
+            man(2) = sum(pre_kexp.Ma_norms);
+            if nargout == 0
+                t = PrintTable;
+                t.HasHeader = true;
+                t.Caption = sprintf('Comparison results for preconditioning test, dim=%d, #c=%d, gamma=%f, rnd-seed=%f',conf.dim,conf.c,gam,conf.seed);
+                t.addRow('Results','no preconditioning','with preconditioning','difference');
+                t.addRow('Condition numbers',condn(1),condn(2),condn(1)-condn(2),{'%s','%e','%e','%e'});
+                t.addRow('Ma_norms',man(1),man(2),...
+                    man(1)-man(2),{'%s','%e','%e','%e'});
+                
+                % Error on random set
+                valx = r(1) + rnd.rand(conf.dim,10000)*(r(2)-r(1));
+                valfx = f(valx);
+                avalfx = kexp.evaluate(valx);
+                pavalfx = pre_kexp.evaluate(valx);
+                aerr = conf.efun(valfx-avalfx);
+                paerr = conf.efun(valfx-pavalfx);
+                
+                if conf.rel
+                    aerr = aerr / conf.efun(valfx);
+                    paerr = paerr / conf.efun(valfx);
+                end
+                re = '';
+                if conf.rel
+                    re = 'Rel. ';
+                end
+                t.addRow(sprintf('%s%s-Error on centers',re,conf.estr),err(1),err(2),err(1)-err(2),{'%s','%e','%e','%e'});
+                t.addRow(sprintf('%s%s-Error on random validation set',re,conf.estr),aerr,paerr,aerr-paerr,{'%s','%e','%e','%e'});
+                t.print;
+            end
             
 %             if dim == 1
 %                 xv = repmat(linspace(r(1),r(2),200),dim,1);
@@ -94,91 +124,98 @@ classdef RBFPrecondTest
             function fx = f(x,~,~)
                 fx = sum(sin(pi*x/5),1);
             end
+        end
+        
+        function [C, E, M, ep] = runForDists(minr, maxr, c)
+            num = 25;
             
-            function [P, PM] = getPreconditioner(x, k)
-                N = size(x,2);
-                M = [];
-                I_N = eye(N);
-                pivi = 1;
-                cols = 1;
-                L = I_N; P = I_N;
-                tk = zeros(1,N);
-                mi = general.MonomialIterator(dim);
-                
-                while pivi <= N
-                    % Compute next monomial
-                    
-                    % Stragegy 1: Random
-%                     deg = ceil(randn(1)*N);
-%                     alpha = mi.getRandMonomial(deg);
-                    
-                    % Stragegy 2: Ordered list
-                    if pivi == 1
-                        alpha = mi.getNullMonomial;
-                        deg = 0;
-                    else
-                        [alpha, deg] = mi.nextMonomial;
-                    end         
-                    
-                    % Compute new moment matrix column
-                    newMcol = prod(x .^ repmat(alpha,1,N),1)';
-                    M = [M newMcol];%#ok
-                    
-                    % apply previous changes to new column
-                    newMcol = L*P*newMcol;
-                    
-                    % Select pivot element candidate indices in current column
-                    sel = pivi:N;
-
-                    % Strategy one: Use maximum pivoting
-%                     [v, maxidx] = max(abs(newMcol(sel)));
-%                     permidx = sel(maxidx);
-                    
-                    % Strategy two: Only find first nonzero-row and use it
-                    permidx = sel(find(abs(newMcol(sel)) > sqrt(eps),1));
-                    if ~isempty(permidx)
-                        v = abs(newMcol(permidx));
-                    else
-                        v = 0;
-                    end
-                    
-                    % step one column ahead if current column is already annihilated
-                    if v < sqrt(eps)
-                        %v
-                        cols = cols+1;
-                        continue;
-                    end
-                    
-                    % get new permutation matrix according to pivot
-                    Pn = getPermMat(pivi, permidx, N);
-                    % swap columns
-                    newMcol = Pn*newMcol;
-                    % compose L_k
-                    Ln = I_N;
-                    l_k = -newMcol(pivi+1:N)/newMcol(pivi);
-                    Ln(pivi+1:N,pivi) = l_k;
-                    
-                    % keep record of the column indices at which the next linear independent
-                    % monomial was added
-                    tk(pivi) = deg;
-                    
-                    L = Ln*Pn*L*Pn;
-                    P = Pn*P;
-                    
-                    pivi = pivi+1;
-                    cols = cols+1;
+            % Random seed
+            conf.seed = 2;
+            % relative error
+            conf.rel = true;
+            % centers
+            if nargin < 3
+                conf.c = 200;
+            else
+                if c < 2
+                    error('Minimum two centers required.');
                 end
-                
-                %U = L*P*M;
-                D = diag(k.Gamma.^tk);
-                PM = P; % return accum. permutation matrix
-                P = D * L* P; % compute preconditioning matrix
-                
-                function P = getPermMat(i,j,n)
-                    P = eye(n);
-                    P(i,i) = 0; P(j,j) = 0;
-                    P(j,i) = 1; P(i,j) = 1;
+                conf.c = c;
+            end
+            % dims
+            conf.dim = 1000;
+            
+            % L1 error
+            conf.estr = 'L_{inf}-L_1';
+            conf.efun = @(x)max(sum(abs(x),1));
+            
+            % L2 error
+%             conf.estr = 'L_2-L_2';
+%             conf.efun = @(x)norm(sqrt(sum(x.^2,1)));
+            
+            % Linf error
+%             conf.estr = 'L_inf';
+%             conf.efun = @(x)max(max(abs(x),[],1));
+            
+            if nargin == 0
+                minr = 1e-2;
+                maxr = 1e12;
+            end
+            dist = logspace(log10(minr),log10(maxr),num);
+            C = zeros(2,num);
+            E = C;
+            M = C;
+            ep = zeros(1,num);
+            fprintf('Starting %d runs for %d centers with dist range from %f to %f, seed=%e...\n',num,conf.c,minr,maxr,conf.seed)
+            for i = 1:num
+                [C(:,i), E(:,i), ep(i), M(:,i)] = testing.RBFPrecondTest.run(dist(i), conf);
+            end
+            if nargout == 0
+                figure;
+                subplot(1,2,1);
+                loglog(ep,C);
+                legend('no preconditioning','with preconditioning');
+                xlabel('epsilon (kernel dilation param)'); ylabel('condition number');
+                title(sprintf('Condition number comparison (minr=%e, maxr=%e)',minr,maxr));
+                axis tight;
+                subplot(1,2,2);
+                %semilogx(ep,E);
+                loglog(ep,E);
+                legend('no preconditioning','with preconditioning');
+                re = '';
+                if conf.rel
+                    re = 'Rel. ';
+                    hold on;
+                    loglog(ep,1,'k');
+                    hold off;
                 end
+                title(sprintf('%s%s-error on %d centers, dim=%d, ',re,conf.estr,conf.c,conf.dim));
+                xlabel('epsilon (kernel dilation param)'); ylabel('L2 error over centers');
+                axis tight;
+            end
+        end
+        
+        function ep = runForCenters(cmax)
+            if nargin == 0
+                cmax = 250;
+            end
+            
+            minr = 1e-2;
+            maxr = 1e12;
+            all = 2:5:cmax;
+            ep = zeros(1,cmax);
+            for cnum = all
+                [C, ~, ~, epsi] = testing.RBFPrecondTest.runForDists(minr, maxr, cnum);
+                % The first where preconditioning is better
+                pidx = find(C(2,:) < C(1,:),1);
+                if isempty(pidx)
+                    pidx = size(C,2);
+                end
+                ep(cnum) = epsi(pidx);
+            end
+            if nargout == 0
+                semilogy(all,ep(all));
+                xlabel('Number of centers'); ylabel('epsilon at which preconditioning gives better conditioning');
             end
         end
     end

@@ -1,7 +1,7 @@
 classdef ARBFKernel < kernels.BaseKernel
     % Abstract class for radial basis function / rotation- and translation invariant kernels
     %
-    % All rbf kernels have the form ` \Phi(x,y) := \phi(||x-y||_G), x\in\mathbb{R}^d` for some
+    % All rbf kernels have the form `\Phi(x,y) := \phi(||x-y||_G), x\in\mathbb{R}^d` for some
     % real-valued scalar function `\phi: [0, \infty] \longrightarrow \R` and a given
     % norm-inducing matrix `G`.
     %
@@ -131,6 +131,7 @@ classdef ARBFKernel < kernels.BaseKernel
         %
         % Return values:
         % phir: The evaluation matrix `\phi(R)\in\R^{n\times m}` with entries `\phi(R)_{ij} =
+        % \phi(r_{ij})`.
         % 
         phir = evaluateScalar(r);
     end

@@ -10,7 +10,12 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
     % `fx_i-\beta` values are below that a constant function is
     % assumed.
     %
+    % The preconditioning technique is implemented after \cite S08.
+    %
     % @author Daniel Wirtz @date 01.04.2010
+    %
+    % @new{0,6,dw,2012-01-23} Included preconditioning techniques for kernel interpolation
+    % according to \cite S08.
     %
     % @change{0,5,dw,2011-09-12} Set the UseLU flag to true per default.
     % Using IKernelMatrix instances now, along with flags of whether to
@@ -115,7 +120,7 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
                 error('Preconditioning with other than MemoryKernelMatrices not yet implemented.');
             end
             if nargin > 2 && isa(kexp.Kernel,'kernels.ARBFKernel') && kexp.Kernel.epsilon < .01
-                [this.P, k2] = this.getPreconditioner(kexp.Kernel,kexp.Centers.xi);
+                [this.P, k2] = this.getPreconditioner(kexp.Kernel, kexp.Centers.xi);
                 % Overwrite current matrix with preconditioned one
                 oldK = this.fK.K;
                 this.fK = data.MemoryKernelMatrix(this.P*this.fK.K);
@@ -155,8 +160,25 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
         end
     end
     
-    methods(Access=private)
-        function [P, k2] = getPreconditioner(this, k, x)
+    
+    
+    methods(Static)
+        function [P, k2] = getPreconditioner(k, x)
+            % Computes the preconditioning matrix `D_\ep M` from the work \cite S08 given a kernel
+            % expansion and the centers at which the function values are to be interpolated.
+            %
+            % Parameters:
+            % k: A radial kernel `\Phi`. @type kernels.ARBFKernel
+            % x: The centers `x_1 \ldots x_N \in\R^n` at which to interpolate using the kernel `\Phi`
+            %
+            % Return values:
+            % P: The preconditioning matrix `P\in\R^{n\times n}`
+            % k2: The number `k_2` of \cite S08
+            
+            if ~isa(k,'kernels.ARBFKernel')
+                error('The kernel used must be a kernels.ARBFKernel subclass');
+            end
+            
             N = size(x,2);
             M = [];
             I_N = eye(N);
@@ -241,10 +263,7 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
                 P(i,i) = 0; P(j,j) = 0;
                 P(j,i) = 1; P(i,j) = 1;
             end
-        end
-    end
-    
-    methods(Static)
+        end   
         
 % ------------ USED IN PAPER WH10 synth. model tests
 %         function test_KernelInterpolation2()
