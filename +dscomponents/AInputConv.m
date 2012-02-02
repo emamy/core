@@ -14,7 +14,7 @@ classdef AInputConv < KerMorObject & dscomponents.IProjectable
     methods(Abstract)
         % Template method that evaluates the input conversion matrix `B` at the current time `t`
         % and [optional] parameter `\mu`.
-        B = evaluate(t,mu);
+        B = evaluate(t, mu);
     end
     
 end

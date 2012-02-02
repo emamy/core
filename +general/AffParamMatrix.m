@@ -255,6 +255,9 @@ classdef AffParamMatrix < dscomponents.IProjectable
             %
             % Return values:
             % M: The `i`-th matrix of the AffParamMatrix
+            if idx > this.N
+                error('Invalid index %d. Max index is %d.',idx,this.N);
+            end
             M = reshape(this.Matrices(:,idx),this.dims);
         end
         

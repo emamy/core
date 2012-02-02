@@ -9,6 +9,9 @@ classdef AffLinCoreFun < dscomponents.ACoreFun ...
 %
 % @author Daniel Wirtz @date 15.03.2010
 %
+% @change{0,6,dw,2012-02-02} Removed the former offset term `b` as it can be modeled via the
+% input source `B(t,\mu)u(t)` with constant `u \equiv 1`.
+%
 % @new{0,6,dw,2011} Added an optional offset term `b` to the AffLinCoreFun
 % to enable affine-linear affine-parametric core functions.
 %
@@ -22,11 +25,6 @@ classdef AffLinCoreFun < dscomponents.ACoreFun ...
     
     properties(SetAccess=protected)
         AffParamMatrix;
-    end
-    
-    properties
-        % The offset term
-        b = [];
     end
     
     properties(Dependent, SetAccess=private)
@@ -43,9 +41,6 @@ classdef AffLinCoreFun < dscomponents.ACoreFun ...
         
         function fx = evaluateCoreFun(this, x, t, mu)
             fx = this.AffParamMatrix.compose(t, mu)*x;
-            if ~isempty(this.b)
-                fx = fx + this.b;
-            end
         end
         
         function J = getStateJacobian(this, ~, t, mu)
@@ -65,7 +60,6 @@ classdef AffLinCoreFun < dscomponents.ACoreFun ...
         function proj = project(this, V, W)
             proj = this.clone;
             proj.AffParamMatrix = this.AffParamMatrix.project(V, W);
-            proj.b = W'*this.b;
         end
         
         function addMatrix(this, coeff_fcn, mat)
@@ -81,7 +75,6 @@ classdef AffLinCoreFun < dscomponents.ACoreFun ...
         function copy = clone(this)
             copy = dscomponents.AffLinCoreFun;
             copy.AffParamMatrix = this.AffParamMatrix.clone;
-            copy.b = this.b;
         end
     end
     
