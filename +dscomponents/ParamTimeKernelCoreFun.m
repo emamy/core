@@ -25,6 +25,8 @@ classdef ParamTimeKernelCoreFun < kernels.ParamTimeKernelExpansion & dscomponent
             
             this.CustomProjection = true;
             this.MultiArgumentEvaluations = true;
+            this.TimeDependent = false;
+            this.addlistener('TimeKernel','PostSet',@this.TimeKernelPostSet);
         end
         
         function projected = project(this, V, W)
@@ -68,6 +70,20 @@ classdef ParamTimeKernelCoreFun < kernels.ParamTimeKernelExpansion & dscomponent
         
         function y = evaluateCoreFun(this)%#ok
             % Noting to do here, evaluate is implemented directly. This method will never be called.
+        end
+    end
+    
+    methods(Access=private)
+        function TimeKernelPostSet(this, ~, ~)
+            this.TimeDependent = ~isa(this.TimeKernel,'kernels.NoKernel');
+        end
+    end
+    
+    methods(Static,Access=protected)
+        function this = loadobj(this)
+            this = loadobj@DPCMObject(this);
+            % Register listener for TimeDependent changed
+            this.addlistener('TimeKernel','PostSet',@this.TimeKernelPostSet);
         end
     end
     

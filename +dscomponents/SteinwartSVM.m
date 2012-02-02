@@ -24,6 +24,7 @@ classdef SteinwartSVM < dscomponents.ACoreFun
             this = this@dscomponents.ACoreFun;
             this.MultiArgumentEvaluations = true;
             this.CustomProjection = false;
+            this.TimeDependent = false;
         end
         
         function y = evaluateCoreFun(this, x, t, mu)%#ok

@@ -37,6 +37,8 @@ classdef AffLinCoreFun < dscomponents.ACoreFun ...
         function this = AffLinCoreFun
             % Creates a new instance of the AffLinCoreFun.
             this.AffParamMatrix = general.AffParamMatrix;
+            % Get time dependency from AffParamMatrix member
+            this.AffParamMatrix.addlistener('TimeDependent','PostSet',@this.AffParMatTimeDepPostSet);
         end
         
         function fx = evaluateCoreFun(this, x, t, mu)
@@ -83,5 +85,17 @@ classdef AffLinCoreFun < dscomponents.ACoreFun ...
         end
     end
     
+    methods(Access=private)
+        function AffParMatTimeDepPostSet(this, ~, ~)
+            this.TimeDependent = this.AffParamMatrix.TimeDependent;
+        end
+    end
+    
+    methods(Static, Access=protected)
+        function this = loadobj(this)
+            this = loadobj@DPCMObject(this);
+            this.AffParamMatrix.addlistener('TimeDependent','PostSet',@this.AffParMatTimeDepPostSet);
+        end
+    end
 end
 

@@ -523,6 +523,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % t: The times at which the model was evaluated. Will equal
             % the property Times
             % x: The state variables at the corresponding times t.
+            %
+            % @todo check in model data if trajectory is not already present (if FileModelData
+            % is used the trajectories of the offline phase are stored twice in m.Data and
+            % m.simCache)
             
             if ~isempty(mu) && size(mu,2) > 1
                 if size(mu,1) > 1

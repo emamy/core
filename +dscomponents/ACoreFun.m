@@ -87,6 +87,19 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
         % might have sparsity pattern but not actually a analytic
         % jacobian..)
         JSparsityPattern = [];
+        
+        % Flag that indicates if the ACoreFun is (truly) time-dependent.
+        %
+        % Set in subclasses to the correct value for your implementation.
+        %
+        % This will cause different behaviour for e.g. ODE solvers.
+        %
+        % @propclass{critical} Not setting this value in implementing subclasses causes
+        % KerMor's ODE solvers to (possibly) produce wrong results due to wrong assumptions on
+        % the time dependence of the core function.
+        %
+        % @type logical @default true
+        TimeDependent = true;
     end
     
     properties(SetAccess=private, GetAccess=public)
@@ -98,7 +111,7 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
         
         function this = ACoreFun
             this = this@KerMorObject;
-            this.registerProps('CustomProjection','MultiArgumentEvaluations','JSparsityPattern');
+            this.registerProps('CustomProjection','MultiArgumentEvaluations','JSparsityPattern','TimeDependent');
         end
         
         function target = project(this, V, W, target)
@@ -210,6 +223,7 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             copy.CustomProjection = this.CustomProjection;
             copy.MultiArgumentEvaluations = this.MultiArgumentEvaluations;
             copy.JSparsityPattern = this.JSparsityPattern;
+            copy.TimeDependent = this.TimeDependent;
             copy.V = this.V;
             copy.W = this.W;
         end

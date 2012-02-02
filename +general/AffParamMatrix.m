@@ -9,6 +9,9 @@ classdef AffParamMatrix < dscomponents.IProjectable
     %
     % @ingroup general
     %
+    % @new{0,6,dw,2012-02-02} New property AffParamMatrix.TimeDependent which is to be used in
+    % order to indicate to KerMor if the affine time/parametric matrix is truly time-dependent.
+    %
     % @new{0,6,dw,2012-02-01} 
     % - Implementing the project method here directly as doing so outside requires access to
     % the interior of the AffParamMatrix (see dscomponents.AffLinCoreFun)
@@ -42,6 +45,18 @@ classdef AffParamMatrix < dscomponents.IProjectable
     % - implement/override other arithmetic operations
     % - add flags for time/parameter dependence
     % - add string for coeff method header '@(t,mu)'
+    
+    properties(SetObservable, SetAccess=public)
+        % Flag that indicates if this AffParamMatrix instance is truly time dependent, i.e. any
+        % coefficient function depends on the time `t`.
+        % 
+        % Set according to your setup.
+        %
+        % @todo Autodetection with regular expression in coeff_fun strings!
+        %
+        % @type logical @default false
+        TimeDependent = false;
+    end
         
     properties(SetAccess=private)
         % The number of affine matrices / size of the linear combination
