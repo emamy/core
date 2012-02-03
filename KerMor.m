@@ -229,6 +229,9 @@ classdef KerMor < handle
     % (idealerweise: nur nach output fragen?!?)
     %
     % @todo implement CME model from steffen in KerMor!
+    %
+    % @todo change TempDirectory and DataDirectory to be dependent-only values (read & write
+    % directly to preferences)
     
     properties(Constant)
         % The current KerMor main version number
@@ -505,7 +508,6 @@ classdef KerMor < handle
         end
         
         function h = get.TempDirectory(this)
-            
             % recover values if clear classes has been issued
             if isempty(this.TempDirectory)
                 h = getpref(this.getPrefTag,'TMPDIR','');

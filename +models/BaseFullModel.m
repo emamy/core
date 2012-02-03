@@ -155,6 +155,15 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         %
         % See also: preApproximationTrainingCallback
         postApproximationTrainingCallback;
+        
+        % Flag that enables caching of computed trajectories in a simulation cache stored in
+        % KerMor's TempDirectory folder.
+        %
+        % @propclass{optional} Caching can speedup computations but may require extra disk
+        % space.
+        %
+        % @type logical @default true
+        EnableTrajectoryCaching = true;
     end
     
     properties(SetObservable, Dependent)
@@ -189,6 +198,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
     properties(Access=private)
         fTrainingInputs = [];
         ftcold = struct;
+    end
+    
+    properties(Access=private, Transient)
         simCache;
     end
            
@@ -228,8 +240,11 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function delete(this)
             % @todo in AModelData: delete datadir if empty on destruction
             % Clean up the simulation cache
+            
+            % remove all temp files
             this.simCache.clearTrajectories;
-            %rmdir(this.simCache.DataDirectory);
+            % remove folder
+            this.simCache.delete;
         end
         
         function time = off1_createParamSamples(this)
@@ -348,8 +363,12 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                             inputidx = this.TrainingInputs(inidx);
                         end
                         
-                        % Get trajectory
+                        % Get trajectory (disable caching as trajectories go to this.Data
+                        % anyways)
+                        oldv = this.EnableTrajectoryCaching;
+                        this.EnableTrajectoryCaching = false;
                         [~, x, ctime] = this.computeTrajectory(mu, inputidx);
+                        this.EnableTrajectoryCaching = oldv;
                         
                         % Assign snapshot values
                         this.Data.addTrajectory(x, mu, inputidx, ctime);
@@ -540,15 +559,25 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             if KerMor.App.UseDPCM
                 DPCM.criticalsCheck(this);
             end
-
-            [x, time] = this.simCache.getTrajectory([this.T; this.dt; mu], inputidx);
+            
+            % Try local model data first
+            [x, time] = this.Data.getTrajectory(mu, inputidx);
+            if isempty(x) && this.EnableTrajectoryCaching
+                [x, time] = this.simCache.getTrajectory([this.T; this.dt; mu], inputidx);
+            end
             if ~isempty(x)
                 t = this.Times;
+                if size(x,2) ~= length(t)
+                    error(['Inconsistent trajectory data! Size of (mu,inputidx)-matching trajectory differs from the model''s Times property.\n'...
+                           'Did you change model.dt or model.T and leave model.Data filled with old trajectories?']);
+                end
             else
                 st = tic;
                 [t, x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
                 time = toc(st);
-                this.simCache.addTrajectory(x, [this.T; this.dt; mu], inputidx, time);
+                if this.EnableTrajectoryCaching
+                    this.simCache.addTrajectory(x, [this.T; this.dt; mu], inputidx, time);
+                end
             end
         end
     end
@@ -617,6 +646,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             end
             this.fTrainingInputs = value;
         end
+        
+        function set.EnableTrajectoryCaching(this, value)
+            if ~islogical(value) || ~isscalar(value)
+                error('EnableTrajectoryCaching must be a flag (scalar logical)');
+            end
+            this.EnableTrajectoryCaching = value;
+        end
 
         function ti = get.TrainingInputs(this)
             ti = this.fTrainingInputs;
@@ -629,8 +665,17 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             c = length(this.TrainingInputs);
         end
     end
+    
+    methods(Static, Access=protected)
+        function this = loadobj(this)
+            this = loadobj@DPCMObject(this);
+            % Reassign a simulation cache (transient variable)
+            this.simCache = data.FileModelData(this, KerMor.App.TempDirectory);
+        end
+    end
            
     methods(Static)
+        
         function test_BaseModels
             m = models.BaseFullModel;
             af = dscomponents.AffLinCoreFun;
