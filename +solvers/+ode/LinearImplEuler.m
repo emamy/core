@@ -16,6 +16,8 @@ classdef LinearImplEuler < solvers.ode.BaseCustomSolver & solvers.ode.AImplSolve
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
+%
+% @todo write unit tests for all combinations of time-dependency!
     
     properties(Access=private)
         model;
@@ -55,36 +57,57 @@ classdef LinearImplEuler < solvers.ode.BaseCustomSolver & solvers.ode.AImplSolve
                 x = [x0 zeros(size(x0,1),steps-1)];
             end
             
-            % Check if a mass matrix is present
+            % Check if a mass matrix is present, otherwise assume identity matrix
+            M = speye(length(x0));
+            mdep = false;
             if ~isempty(s.M)
-                M = s.M.evaluate(0); 
-            else
-                M = eye(size(s.f.A));
+                mdep = s.M.TimeDependent;
+                if ~mdep
+                    M = s.M.evaluate(0); 
+                end
             end
-            if isa(s.f,'dscomponents.AffLinCoreFun')
-                % Warning: no time-dependence implemented here
-                A = s.f.AffParamMatrix.compose(0, s.mu);
-            else
-                A = s.f.A;
+            fdep = s.f.TimeDependent;
+            if ~fdep
+                % Evaluation with x=1 "extracts" the matrix A of the linear system
+                A = s.f.evaluate(1, 0, s.mu);
             end
-            %[l,u] = lu(M + dt * A);
-            Ai = inv(M + dt * A);
+            
+            % Precompute inverse for iteration steps if all components are not time-dependent
+            if ~mdep && ~fdep
+                [l, u] = lu(M + dt * A);
+                %Ai = inv(M + dt * A);
+            end
             
             % Solve for each time step
             oldx = x0;
             for idx = 2:steps;
-                RHS = M*oldx + dt*s.f.b;
+                RHS = M*oldx;
                 if ~isempty(s.u)
                     RHS = RHS + dt*s.B.evaluate(t(idx), s.mu)*s.u(t(idx));
                 end
-                %newx = u\(l\RHS);
-                newx = Ai * RHS;
-                %newx = (M + dt * A)\RHS;
                 
+                % Time-independent case: constant
+                if ~fdep && ~mdep
+                    newx = u\(l\RHS);
+                    %newx = Ai * RHS; %inaccurate + slow to build for large systems
+                    %newx = (M + dt * A)\RHS; % ineffective (-> LU faster)
+                % Time-dependent case: compute time-dependent components with updated time
+                else
+                    if fdep
+                        A = s.f.evaluate(1, t(idx), s.mu);
+                    end
+                    if mdep
+                        M = s.M.evaluate(t(idx));
+                    end
+                    newx = (M + dt * A)\RHS;
+                end
+                
+                % Real time mode: Fire StepPerformed event
                 if rtm
                     ed.Times = t(idx);
                     ed.States = newx;
                     this.notify('StepPerformed',ed);
+                % Normal mode: Collect solution in result vector
                 else
                     x(:,idx) = newx;%#ok
                 end
@@ -92,5 +115,4 @@ classdef LinearImplEuler < solvers.ode.BaseCustomSolver & solvers.ode.AImplSolve
             end
         end
     end
-    
 end

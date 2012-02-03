@@ -227,6 +227,8 @@ classdef KerMor < handle
     % - im setup: typo in "compliling"
     % - hinweis: KerMor kommt mit mtoc++, do you want to configure matlabdocmaker now?
     % (idealerweise: nur nach output fragen?!?)
+    %
+    % @todo implement CME model from steffen in KerMor!
     
     properties(Constant)
         % The current KerMor main version number
