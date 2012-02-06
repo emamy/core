@@ -32,13 +32,18 @@ classdef ModelAnalyzer < handle;
            this.rm = rmodel; 
         end
         
-        function errs = getRedErrForParamSamples(this)
+        function errs = getRedErrForParamSamples(this, in)
+            % Computes the reduction error for all parameter samples in the full model's
+            % ModelData.
+            if nargin < 2
+                in = [];
+            end
             fm = this.rm.FullModel;
             errs = zeros(2,fm.Data.SampleCount);
             for pidx = 1:fm.Data.SampleCount
                 mu = fm.Data.ParamSamples(:,pidx);
-                y = fm.Data.getTrajectory(mu,[]);
-                [~, yr] = this.rm.simulate(mu,[]);
+                y = fm.Data.getTrajectory(mu,in);
+                [~, yr] = this.rm.simulate(mu,in);
                 errs(1,pidx) = max(sqrt(sum((yr-y).^2))); %linf l2 err
                 errs(2,pidx) = max(max(abs(yr-y),[],1)); %linf linf err
             end
@@ -72,7 +77,7 @@ classdef ModelAnalyzer < handle;
             t = PrintTable;
             t.addRow('Full model',sprintf('%2.4fs',ftime));
             t.addRow('Reduced model',sprintf('%2.4fs',rtime));
-            t.addRow('Speedup',sprintf('%2.4fs',ftime/rtime));
+            t.addRow('Speedup',sprintf('x%2.4f',ftime/rtime));
             t.display;
             fprintf('Error comparison for %s:\n',str);
             % L^2 errors
