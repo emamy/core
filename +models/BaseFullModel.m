@@ -200,7 +200,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         ftcold = struct;
     end
     
-    properties(Access=private, Transient)
+    properties(SetAccess=private, GetAccess=protected, Transient)
         simCache;
     end
            

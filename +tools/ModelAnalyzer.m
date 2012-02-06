@@ -44,6 +44,18 @@ classdef ModelAnalyzer < handle;
             end
         end
         
+        function errs = getRedErrForRandomParamSamples(this, num, inidx)
+            fm = this.rm.FullModel;
+            errs = zeros(2,fm.Data.SampleCount);
+            for pidx = 1:fm.Data.SampleCount
+                mu = fm.Data.ParamSamples(:,pidx);
+                y = fm.Data.getTrajectory(mu,[]);
+                [~, yr] = this.rm.simulate(mu,[]);
+                errs(1,pidx) = max(sqrt(sum((yr-y).^2))); %linf l2 err
+                errs(2,pidx) = max(max(abs(yr-y),[],1)); %linf linf err
+            end
+        end
+        
         function compareRedFull(this, mu, inputidx)
             % Compares the solutions of the reduced model and the associated full model by
             % calling the BaseModel.plot method for both solutions and again for the

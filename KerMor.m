@@ -378,6 +378,7 @@ classdef KerMor < handle
                 error('Value must be logical');
             end
             haspc = ~isempty(which('matlabpool'));
+            s = 0;
             if haspc
                 s = matlabpool('size');
             end
