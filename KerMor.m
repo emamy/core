@@ -749,6 +749,7 @@ classdef KerMor < handle
                 disp('Checking for 3rd party software...')
                 addpath(fullfile(p,'3rdparty'));
                 addpath(fullfile(p,'3rdparty','dpcm'));
+                addpath(fullfile(p,'3rdparty','export_fig'));
                 
                 % md5
                 d = fullfile(p,'3rdparty','calcmd5');

@@ -65,7 +65,7 @@ classdef Java < handle
                 error('Sourcefile must be set');
             end
             
-            [dummy, fname] = fileparts(this.Sourcefile);
+            [~, fname] = fileparts(this.Sourcefile);
             pkgdir = strrep(this.Package,'.',filesep);
             if isempty(this.JProjectSource)
                 cmd = sprintf('javac -d %s %s', this.TargetFolder, this.Sourcefile);

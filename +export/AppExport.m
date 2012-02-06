@@ -112,8 +112,18 @@ classdef AppExport
                 end
             elseif isa(cf, 'dscomponents.LinearCoreFun')
                 export.AppExport.saveRealMatrix(cf.A,'A.bin',folder);
+            elseif isa(cf, 'dscomponents.AffLinCoreFun')
+                if isempty(cf.CoeffClass)
+                    error('AffLinCoreFuns must have the CoeffClass value set for export.');
+                end
+                fprintf('\t\t<matrices>%d</matrices>\n',cf.N);
+                % Set path to IAffineCoefficients class to compile
+                fprintf('\t\t<coeffclass>%s</coeffclass>\n',cf.CoeffClass);
+                for i=1:cf.N
+                    export.AppExport.saveRealMatrix(cf.A,sprintf('A%d.bin',i),folder);
+                end
             else
-                error('System function must be a kernel expansion.');
+                error('System function type unknown for export.');
             end
             fprintf(f,'\t</corefun>\n');
             
