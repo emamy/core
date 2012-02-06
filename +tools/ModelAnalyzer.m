@@ -96,12 +96,8 @@ classdef ModelAnalyzer < handle;
                 end
             end
             fm = this.rm.FullModel;
-            tic;
-            [~,y] = fm.simulate(mu,inputidx);
-            ftime = toc;
-            tic;
-            [ti,yr] = this.rm.simulate(mu,inputidx);
-            rtime = toc;
+            [~, y, ftime] = fm.simulate(mu,inputidx);
+            [ti,yr, rtime] = this.rm.simulate(mu,inputidx);
             %% Text output
             str = sprintf('%s, mu=[%s], u_%d',fm.Name,...
                 general.Utils.implode(mu,', ','%2.3f'),inputidx);
