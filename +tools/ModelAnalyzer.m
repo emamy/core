@@ -78,7 +78,7 @@ classdef ModelAnalyzer < handle;
             end
         end
         
-        function compareRedFull(this, mu, inputidx)
+        function t = compareRedFull(this, mu, inputidx)
             % Compares the solutions of the reduced model and the associated full model by
             % calling the BaseModel.plot method for both solutions and again for the
             % difference. Also some information of `l^2` and `l^\infty` errors are printed.
@@ -86,6 +86,9 @@ classdef ModelAnalyzer < handle;
             % Parameters:
             % mu: The concrete mu parameter sample to simulate for.
             % inputidx: The index of the input function to use.
+            %
+            % Return values:
+            % t: The PrintTable instance
             if nargin < 3
                 inputidx = [];
                 if nargin < 2
@@ -146,21 +149,23 @@ classdef ModelAnalyzer < handle;
             t.display;
             
             %% Plotting
-            fm.plot(ti,y);
-            set(gcf,'Name',['Full simulation - ' str]);
-            fm.plot(ti,yr);
-            set(gcf,'Name',['Reduced simulation - ' str]);
-            fm.plot(ti,abs(y-yr));
-            set(gcf,'Name',['Absolute error - ' str]);
-            hlp = abs(y);
-            if any(hlp(:) == 0)
-                hlp2 = hlp;
-                hlp2(hlp==0) = [];
-                ep = min(hlp2(:))^2;
-                hlp(hlp==0) = ep;
+            if nargout == 0
+                fm.plot(ti,y);
+                set(gcf,'Name',['Full simulation - ' str]);
+                fm.plot(ti,yr);
+                set(gcf,'Name',['Reduced simulation - ' str]);
+                fm.plot(ti,abs(y-yr));
+                set(gcf,'Name',['Absolute error - ' str]);
+                hlp = abs(y);
+                if any(hlp(:) == 0)
+                    hlp2 = hlp;
+                    hlp2(hlp==0) = [];
+                    ep = min(hlp2(:))^2;
+                    hlp(hlp==0) = ep;
+                end
+                fm.plot(ti,abs(y-yr)./hlp);
+                set(gcf,'Name',['Relative error - ' str]);
             end
-            fm.plot(ti,abs(y-yr)./hlp);
-            set(gcf,'Name',['Relative error - ' str]);
         end
         
         function e = getTrajApproxError(this, mu, inputidx)
