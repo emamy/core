@@ -80,19 +80,32 @@ classdef FullyImplEuler < solvers.ode.BaseCustomSolver & solvers.ode.AImplSolver
                 
                 % write result of newton iteration to "newx"
                 
-                %% TODO: Newton-Iteration 'by hand'
+                %% Newton-Iteration 'by hand'
+%                 max_newton_steps = 1000;
+%                 min_rel_norm = 1e-5;
+%                 actx = oldx;
 %                 for newton_it = 1:max_newton_steps
-%                 
-%                     delta_x = (M - dt * s.f.getStateJacobian(oldx, t(idx+1), s.mu)) \ ( M*x )
-%                     
+%                     % computing increment
+%                     SysMat = M - dt * s.f.getStateJacobian(actx, t(idx+1), s.mu);                
+%                     delta_x = SysMat \ (M*(oldx - actx) + dt*odefun(t(idx+1), actx));
+%                     % updating current state
+%                     stepsize = 0.15;
+%                     actx = actx + stepsize*delta_x;  
+%                     % convergence check
+%                     if (norm(delta_x)/norm(actx) < min_rel_norm)
+%                         break;
+%                     end
 %                 end
+%                 newton_it
+%                 newx = actx;
                 %% Matlab fsolve
                 dis = 'iter';
                 %dis = 'final-detailed';
-                options_fsolve = optimset( 'Display', dis, 'Jacobian',...
-                        'on', 'MaxIter', 2000, 'MaxFunEvals', 10000, 'TolFun', 1e-3);
+                options_fsolve = optimset( 'Display', dis, 'Jacobian', 'on', ...
+                    'MaxIter', 2000, 'MaxFunEvals', 10000, 'TolFun', 1e-3);
                 nonlin_fun = @(x) deal(M * (x - oldx) - dt*odefun(t(idx+1), x),...
-                                   M - dt * s.f.getStateJacobian(x, t(idx+1), s.mu));
+                    M - dt * s.f.getStateJacobian(x, t(idx+1), s.mu));
+%                 nonlin_fun = @(x) deal(M * (x - oldx) - dt*odefun(t(idx+1), x));
                 % Nullstelle der schwachen Form finden
                 [newx, fval, exitflag, output, J_check] = fsolve( nonlin_fun, oldx, options_fsolve );
                 
