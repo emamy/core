@@ -65,7 +65,9 @@ classdef FullyImplEuler < solvers.ode.BaseCustomSolver & solvers.ode.AImplSolver
                 % Case: time-dependent Mass Matrix
                 if mdep
                     % Question: choose t(idx) or t(idx+1)?
-                    M = s.M.evaluate(t(idx));
+                    % Answer (Chris): t(idx+1), because this choice is independent of time-discr. of d/dt x !
+                    % and for impl Euler the evaluation time is the "future"-timestep
+                    M = s.M.evaluate(t(idx+1));
                 end
                 
                 %% Implementation part:
@@ -77,6 +79,18 @@ classdef FullyImplEuler < solvers.ode.BaseCustomSolver & solvers.ode.AImplSolver
                 % \Nabla g is accessible via s.f.getStateJacobian(<x>,<t>,s.mu)
                 
                 % write result of newton iteration to "newx"
+                
+                %% TODO: Newton-Iteration 'by hand'
+%                 for newton_it = 1:max_newton_steps
+%                 
+%                     delta_x = (M - dt * s.f.getStateJacobian(oldx, t(idx+1), s.mu)) \ ( M*x )
+%                     
+%                 end
+                %% Matlab fsolve
+                options_fsolve = optimset( 'Display', 'iter', 'Jacobian', 'on', 'MaxIter', 2000, 'MaxFunEvals', 10000, 'TolFun', 1e-6);
+                nonlin_fun = @(actx) [M * (actx - oldx) - dt*odefun(x, t(idx+1)), M - dt * s.f.getStateJacobian(oldx, t(idx+1), s.mu)];
+                % Nullstelle der schwachen Form finden
+                [newx, fval, exitflag, output, J_check] = fsolve( nonlin_fun, oldx, options_fsolve );
                 
                 %% Postprocessing
                 % Real time mode: Fire StepPerformed event
