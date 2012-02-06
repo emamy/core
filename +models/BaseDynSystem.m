@@ -248,13 +248,24 @@ classdef BaseDynSystem < KerMorObject
             end
         end
         
-        function mu = getRandomParam(this)
+        function mu = getRandomParam(this, num)
             % Gets a random parameter sample from the system's parameter
             % domain P
+            %
+            % Parameters:
+            % num: The number of random parameters to return. @type integer
+            % @default 1
+            %
+            % Return values:
+            % mu: A matrix of random parameters within the specified range
+            % for this model. @type matrix<double>
+            if nargin < 2
+                num = 1;
+            end
             if this.ParamCount > 0
                 pmin = [this.Params(:).MinVal]';
                 pmax = [this.Params(:).MaxVal]';
-                mu = rand(this.ParamCount,1) .* (pmax-pmin) + pmin;
+                mu = rand(this.ParamCount,num) .* (pmax-pmin) + pmin;
             else
                 mu = [];
             end

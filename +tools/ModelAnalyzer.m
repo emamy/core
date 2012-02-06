@@ -49,15 +49,32 @@ classdef ModelAnalyzer < handle;
             end
         end
         
-        function errs = getRedErrForRandomParamSamples(this, num, inidx)
+        function errs = getRedErrForRandomParamSamples(this, num, in)
+            % Computes the simulation errors (output) for 'num' random model parameters.
+            %
+            % Parameters:
+            % num: The number `n` of random parameters to sample and compute
+            % the error for. @type integer
+            % in: The input index to use for the simulations. @type integer
+            % @default []
+            %
+            % Return values:
+            % errs: A `4\times n` matrix containing the Linf-L2 absolute
+            % and relative error in rows 1,2 and Linf-Linf absolute and
+            % relative errors in rows 3-4.
+            if nargin < 3
+                in = [];
+            end
             fm = this.rm.FullModel;
-            errs = zeros(2,fm.Data.SampleCount);
-            for pidx = 1:fm.Data.SampleCount
-                mu = fm.Data.ParamSamples(:,pidx);
-                y = fm.Data.getTrajectory(mu,[]);
-                [~, yr] = this.rm.simulate(mu,[]);
+            errs = zeros(4,num);
+            for pidx = 1:num
+                mu = fm.System.getRandomParam;
+                [~, y] = fm.simulate(mu, in);
+                [~, yr] = this.rm.simulate(mu, in);
                 errs(1,pidx) = max(sqrt(sum((yr-y).^2))); %linf l2 err
-                errs(2,pidx) = max(max(abs(yr-y),[],1)); %linf linf err
+                errs(2,pidx) = errs(1,pidx) / max(sqrt(sum(y.^2))); % rel
+                errs(3,pidx) = max(max(abs(yr-y),[],1)); %linf linf err
+                errs(4,pidx) = errs(3,pidx) / max(max(abs(y),[],1)); % rel
             end
         end
         
