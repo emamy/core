@@ -32,19 +32,53 @@ classdef ModelAnalyzer < handle;
            this.rm = rmodel; 
         end
         
-        function errs = getRedErrForParamSamples(this)
+        function errs = getRedErrForParamSamples(this, in)
+            % Computes the reduction error for all parameter samples in the full model's
+            % ModelData.
+            if nargin < 2
+                in = [];
+            end
             fm = this.rm.FullModel;
             errs = zeros(2,fm.Data.SampleCount);
             for pidx = 1:fm.Data.SampleCount
                 mu = fm.Data.ParamSamples(:,pidx);
-                y = fm.Data.getTrajectory(mu,[]);
-                [~, yr] = this.rm.simulate(mu,[]);
+                y = fm.Data.getTrajectory(mu,in);
+                [~, yr] = this.rm.simulate(mu,in);
                 errs(1,pidx) = max(sqrt(sum((yr-y).^2))); %linf l2 err
                 errs(2,pidx) = max(max(abs(yr-y),[],1)); %linf linf err
             end
         end
         
-        function compareRedFull(this, mu, inputidx)
+        function errs = getRedErrForRandomParamSamples(this, num, in)
+            % Computes the simulation errors (output) for 'num' random model parameters.
+            %
+            % Parameters:
+            % num: The number `n` of random parameters to sample and compute
+            % the error for. @type integer
+            % in: The input index to use for the simulations. @type integer
+            % @default []
+            %
+            % Return values:
+            % errs: A `4\times n` matrix containing the Linf-L2 absolute
+            % and relative error in rows 1,2 and Linf-Linf absolute and
+            % relative errors in rows 3-4.
+            if nargin < 3
+                in = [];
+            end
+            fm = this.rm.FullModel;
+            errs = zeros(4,num);
+            for pidx = 1:num
+                mu = fm.System.getRandomParam;
+                [~, y] = fm.simulate(mu, in);
+                [~, yr] = this.rm.simulate(mu, in);
+                errs(1,pidx) = max(sqrt(sum((yr-y).^2))); %linf l2 err
+                errs(2,pidx) = errs(1,pidx) / max(sqrt(sum(y.^2))); % rel
+                errs(3,pidx) = max(max(abs(yr-y),[],1)); %linf linf err
+                errs(4,pidx) = errs(3,pidx) / max(max(abs(y),[],1)); % rel
+            end
+        end
+        
+        function t = compareRedFull(this, mu, inputidx)
             % Compares the solutions of the reduced model and the associated full model by
             % calling the BaseModel.plot method for both solutions and again for the
             % difference. Also some information of `l^2` and `l^\infty` errors are printed.
@@ -52,6 +86,9 @@ classdef ModelAnalyzer < handle;
             % Parameters:
             % mu: The concrete mu parameter sample to simulate for.
             % inputidx: The index of the input function to use.
+            %
+            % Return values:
+            % t: The PrintTable instance
             if nargin < 3
                 inputidx = [];
                 if nargin < 2
@@ -59,12 +96,8 @@ classdef ModelAnalyzer < handle;
                 end
             end
             fm = this.rm.FullModel;
-            tic;
-            [~,y] = fm.simulate(mu,inputidx);
-            ftime = toc;
-            tic;
-            [ti,yr] = this.rm.simulate(mu,inputidx);
-            rtime = toc;
+            [~, y, ftime] = fm.simulate(mu,inputidx);
+            [ti,yr, rtime] = this.rm.simulate(mu,inputidx);
             %% Text output
             str = sprintf('%s, mu=[%s], u_%d',fm.Name,...
                 general.Utils.implode(mu,', ','%2.3f'),inputidx);
@@ -72,7 +105,7 @@ classdef ModelAnalyzer < handle;
             t = PrintTable;
             t.addRow('Full model',sprintf('%2.4fs',ftime));
             t.addRow('Reduced model',sprintf('%2.4fs',rtime));
-            t.addRow('Speedup',sprintf('%2.4fs',ftime/rtime));
+            t.addRow('Speedup',sprintf('x%2.4f',ftime/rtime));
             t.display;
             fprintf('Error comparison for %s:\n',str);
             % L^2 errors
@@ -112,21 +145,23 @@ classdef ModelAnalyzer < handle;
             t.display;
             
             %% Plotting
-            fm.plot(ti,y);
-            set(gcf,'Name',['Full simulation - ' str]);
-            fm.plot(ti,yr);
-            set(gcf,'Name',['Reduced simulation - ' str]);
-            fm.plot(ti,abs(y-yr));
-            set(gcf,'Name',['Absolute error - ' str]);
-            hlp = abs(y);
-            if any(hlp(:) == 0)
-                hlp2 = hlp;
-                hlp2(hlp==0) = [];
-                ep = min(hlp2(:))^2;
-                hlp(hlp==0) = ep;
+            if nargout == 0
+                fm.plot(ti,y);
+                set(gcf,'Name',['Full simulation - ' str]);
+                fm.plot(ti,yr);
+                set(gcf,'Name',['Reduced simulation - ' str]);
+                fm.plot(ti,abs(y-yr));
+                set(gcf,'Name',['Absolute error - ' str]);
+                hlp = abs(y);
+                if any(hlp(:) == 0)
+                    hlp2 = hlp;
+                    hlp2(hlp==0) = [];
+                    ep = min(hlp2(:))^2;
+                    hlp(hlp==0) = ep;
+                end
+                fm.plot(ti,abs(y-yr)./hlp);
+                set(gcf,'Name',['Relative error - ' str]);
             end
-            fm.plot(ti,abs(y-yr)./hlp);
-            set(gcf,'Name',['Relative error - ' str]);
         end
         
         function e = getTrajApproxError(this, mu, inputidx)
