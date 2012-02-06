@@ -61,7 +61,7 @@ classdef FullyImplEuler < solvers.ode.BaseCustomSolver & solvers.ode.AImplSolver
                                     
             % Solve for each time step
             oldx = x0;
-            for idx = 2:steps;
+            for idx = 1:steps-1;
                 % Case: time-dependent Mass Matrix
                 if mdep
                     % Question: choose t(idx) or t(idx+1)?
@@ -74,7 +74,7 @@ classdef FullyImplEuler < solvers.ode.BaseCustomSolver & solvers.ode.AImplSolver
                 % principal equation: M(t)x'(t) = g(x(t),t)
                 % discretized M(t)x(t+) = M(t)x(t) + dt*g(x(t+),t+), t+ = t+\delta t
                 
-                % g is given by odefun handle: g(x(t),t) = odefun(<x>,<t>)
+                % g is given by odefun handle: g(x(t),t) = odefun(<t>,<x>)
                 % \delta t is given by "dt" (above)
                 % \Nabla g is accessible via s.f.getStateJacobian(<x>,<t>,s.mu)
                 
@@ -87,8 +87,12 @@ classdef FullyImplEuler < solvers.ode.BaseCustomSolver & solvers.ode.AImplSolver
 %                     
 %                 end
                 %% Matlab fsolve
-                options_fsolve = optimset( 'Display', 'iter', 'Jacobian', 'on', 'MaxIter', 2000, 'MaxFunEvals', 10000, 'TolFun', 1e-6);
-                nonlin_fun = @(actx) [M * (actx - oldx) - dt*odefun(x, t(idx+1)), M - dt * s.f.getStateJacobian(oldx, t(idx+1), s.mu)];
+                dis = 'iter';
+                %dis = 'final-detailed';
+                options_fsolve = optimset( 'Display', dis, 'Jacobian',...
+                        'on', 'MaxIter', 2000, 'MaxFunEvals', 10000, 'TolFun', 1e-3);
+                nonlin_fun = @(x) deal(M * (x - oldx) - dt*odefun(t(idx+1), x),...
+                                   M - dt * s.f.getStateJacobian(x, t(idx+1), s.mu));
                 % Nullstelle der schwachen Form finden
                 [newx, fval, exitflag, output, J_check] = fsolve( nonlin_fun, oldx, options_fsolve );
                 
