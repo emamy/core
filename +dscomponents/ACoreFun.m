@@ -321,36 +321,54 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             end
         end
         
-        function res = test_Jacobian(this, x, t, mu)
-            res = false;
+        function res = test_Jacobian(this, xa, ta, mua)
+            % Tests the custom provided jacobian matrix against the default
+            % finite difference computed one.
+            %
+            % Parameters:
+            % xa: A matrix of `x_i,i=1\ldots n`-values to try each. @type matrix<double>
+            % ta: The corresponding `n` times `t_i` @type rowvec<double>
+            % mua: The parameters `\mu_i`. @type matrix<double> @default []
+            %
+            % Return values:
+            % res: A flag indicating if each test had a relative error of
+            % less than 1e-7 @type logical
             if this.CustomJacobian
-                reltol = 1e-6;
+                reltol = 1e-7;
                 dt = sqrt(eps);
-                Jc = this.getStateJacobian(x,t,mu);
-                %% Numerical jacobian
-                d = size(x,1);
-                if this.MultiArgumentEvaluations
-                    X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(mu,1,d);
-                    I = speye(d,d);
-                    J = (this.evaluate(X+I,T,MU) - this.evaluate(X,T,MU))/dt;
-                    res = max(max(abs(J-Jc)))/max(max(abs(J))) < reltol;
-                else
-                    J = zeros(d,d);
-                    for i=1:d
-                        e = zeros(d,1);
-                        e(i) = dt;
-                        J(:,i) = (this.evaluate(x+e,t,mu) - this.evaluate(x,t,mu))/dt;
-                        di = max(abs(J(:,i) - Jc(:,i))) / max(abs(J(:,i)));
-                        if di > reltol
-                            fprintf('Relative difference at partial derivative %d/%d: %e (tolerance %e)\n',i,d,di,reltol);
-                            res = false;
-                            return;
-                        end
-                    end
-                    res = true;
+                res = false(size(xa,2),1);
+                if isempty(mua) || nargin < 4
+                    mua = double.empty(0,size(xa,2));
                 end
+                for k = 1:size(xa,2)
+                    x = xa(:,k); t = ta(k); mu = mua(:,k);
+                    Jc = this.getStateJacobian(x,t,mu);
+                    %% Numerical jacobian
+                    d = size(x,1);
+                    if this.MultiArgumentEvaluations
+                        X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(mu,1,d);
+                        I = speye(d,d)*dt;
+                        J = (this.evaluate(X+I,T,MU) - this.evaluate(X,T,MU))/dt;
+                        res(k) = max(max(abs(J-Jc)))/max(max(abs(J))) < reltol;
+                    else
+                        J = sparse(d,d);
+                        for i=1:d
+                            e = zeros(d,1);
+                            e(i) = dt;
+                            J(:,i) = sparse((this.evaluate(x+e,t,mu) - this.evaluate(x,t,mu)))/dt;%#ok
+                            di = max(abs(J(:,i) - Jc(:,i))) / max(abs(J(:,i)));
+                            if di > reltol
+                                fprintf('Relative difference at partial derivative %d/%d: %e (tolerance %e)\n',i,d,di,reltol);
+                                res = false;
+                                return;
+                            end
+                        end
+                        res(k) = true;
+                    end
+                end
+                res = all(res);
             else
-                error('Jacobian testing only possible if custom implementation of');
+                error('Jacobian testing only possible if custom implementation of getStateJacobian');
             end
         end
     end

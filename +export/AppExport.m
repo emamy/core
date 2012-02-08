@@ -155,6 +155,23 @@ classdef AppExport
                 sources{end+1} = 'Inputs';
             end
             
+            % Mass matrix
+            if ~isempty(s.M)
+                fprintf(f,'\t<massmatrix type="%s">\n',class(s.M));
+                if isa(s.M,'dscomponents.ConstMassMatrix')
+                    export.AppExport.saveRealMatrix(s.M.M,'M.bin',folder);
+                elseif isa(s.M,'dscomponents.AffLinMassMatrix')
+                    if isempty(s.M.CoeffClass)
+                        error('AffLinMassMatrix instances must have the CoeffClass value set for export.');
+                    end
+                    % Set path to IAffineCoefficients class to compile
+                    fprintf(f,'\t\t<coeffclass>%s</coeffclass>\n',s.M.CoeffClass);
+                    sources{end+1} = s.M.CoeffClass;
+                    export.AppExport.saveRealMatrix(s.M.Matrices,'M.bin',folder);
+                end
+                fprintf(f,'\t</massmatrix>\n');
+            end
+            
             % Output
             if ~isempty(s.C)
                 if isa(s.C,'dscomponents.LinearOutputConv')
