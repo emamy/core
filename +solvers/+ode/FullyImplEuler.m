@@ -20,9 +20,6 @@ classdef FullyImplEuler < solvers.ode.BaseCustomSolver & solvers.ode.AImplSolver
     
     methods
         function this = FullyImplEuler(model)
-            if ~isa(model.System.f,'dscomponents.IJacobian')
-                error('FullyImplEuler can only be used with system functions that implement dscomponents.IJacobian');
-            end
             this.model = model;
             % "Disable" MaxStep DPCM warning as implicit solvers are stable
             this.MaxStep = [];
@@ -101,13 +98,22 @@ classdef FullyImplEuler < solvers.ode.BaseCustomSolver & solvers.ode.AImplSolver
                 %% Matlab fsolve
                 dis = 'iter';
                 %dis = 'final-detailed';
-                options_fsolve = optimset( 'Display', dis, 'Jacobian', 'on', ...
-                    'MaxIter', 2000, 'MaxFunEvals', 10000, 'TolFun', 1e-3);
-                nonlin_fun = @(x) deal(M * (x - oldx) - dt*odefun(t(idx+1), x),...
-                    M - dt * s.f.getStateJacobian(x, t(idx+1), s.mu));
-%                 nonlin_fun = @(x) deal(M * (x - oldx) - dt*odefun(t(idx+1), x));
+                options_fsolve = optimset('Display', dis, 'Jacobian', 'on', ...
+                    'MaxIter', 2000, ...
+                    'MaxFunEvals', 10000, ...
+                    'TolFun', 1e-3);
+                options_fsolve = optimset(options_fsolve, ...
+                    'DerivativeCheck', 'on',...
+                    'Diagnostics','on');
+                %options_fsolve = optimset(options_fsolve, 'JacobPattern', s.f.JSparsityPattern);
+                
+%                 nonlin_fun_h = @(x) deal(M * (x - oldx) - dt*odefun(t(idx+1), x),...
+%                     M - dt * s.f.getStateJacobian(x, t(idx+1), s.mu));
+%                 nonlin_fun_h = @(x)M * (x - oldx) - dt*odefun(t(idx+1), x);
+                nonlin_fun_h = @nonlin_fun;
                 % Nullstelle der schwachen Form finden
-                [newx, fval, exitflag, output, J_check] = fsolve( nonlin_fun, oldx, options_fsolve );
+                %[newx, fval, exitflag, output, J_check] = fsolve( nonlin_fun, oldx, options_fsolve );
+                newx = fsolve(nonlin_fun_h, oldx, options_fsolve );
                 
                 %% Postprocessing
                 % Real time mode: Fire StepPerformed event
@@ -120,6 +126,10 @@ classdef FullyImplEuler < solvers.ode.BaseCustomSolver & solvers.ode.AImplSolver
                     x(:,idx) = newx;%#ok
                 end
                 oldx = newx;
+            end
+            function [x, jac] = nonlin_fun(x)
+                x = M * (x - oldx) - dt*odefun(t(idx+1), x);
+                jac = M - dt * s.f.getStateJacobian(x, t(idx+1), s.mu);
             end
         end
     end
