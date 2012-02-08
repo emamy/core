@@ -47,17 +47,19 @@ classdef AppExport
                     m.throw();
                 end
             end
+            % Init java sources string cell
+            sources = {};
             
             %% Create Model XML
             f = fopen(fullfile(folder,'model.xml'),'w+');
             fprintf(f,'<?xml version="1.0" encoding="utf-8"?>\n');
-            fprintf(f,'<model type="kermor" machformat="be">\n');
+            fprintf(f,'<model type="JKerMor" machformat="be">\n');
             fprintf(f,'\t<description>\n');
             fprintf(f,'\t\t<short>%s</short>\n',rm.Name);
             % get image
-            [fn,fo] = rm.createImage;
-            copyfile(fullfile(fo,fn),fullfile(folder,fn));
-            fprintf(f,'\t\t<image>%s</image>\n',fn);
+%             [fn,fo] = rm.createImage;
+%             copyfile(fullfile(fo,fn),fullfile(folder,fn));
+%             fprintf(f,'\t\t<image>%s</image>\n',fn);
             
             fprintf(f,'\t</description>\n');
             fprintf(f,'\t<kermor_model>\n');
@@ -69,15 +71,26 @@ classdef AppExport
             if ~isempty(rm.ParamSamples)
                 mu = rm.ParamSamples(:,1);
             end
-            fprintf(f,'\t<dim>%d</dim>\n',size(rm.System.x0.evaluate(mu),1));
+            dim = size(rm.System.x0.evaluate(mu),1);
+            fprintf(f,'\t<dim>%d</dim>\n',dim);
             
             %% Export model data
             export.AppExport.saveRealMatrix(rm.V,'V.bin',folder);
             export.AppExport.saveRealMatrix(rm.W,'W.bin',folder);
             %export.AppExport.saveRealMatrix(rm.W,'G.bin',folder);
             
-            %% Export system data
+            if ~isempty(rm.FullModel.JavaExportPackage)
+                fprintf(f,'\t<jkermorpackage>%s</jkermorpackage>\n',rm.FullModel.JavaExportPackage);
+            end
             
+            % ODE solver type
+            stype = 'explicit';
+            if isa(rm.ODESolver,'solvers.ode.AImplSolver')
+                stype = 'implicit';
+            end 
+            fprintf(f,'\t<solvertype>%s</solvertype>\n',stype);
+            
+            %% Export system data
             % Parameters
             fprintf(f,'\t<parameters>\n');
             p = rm.FullModel.System.Params;
@@ -94,8 +107,7 @@ classdef AppExport
             % Kernel expansion
             s = rm.System;
             cf = s.f;
-            fprintf(f,'\t<corefun>\n');
-            fprintf(f,'\t\t<corefuntype>%s</corefuntype>\n',class(cf));
+            fprintf(f,'\t<corefun type="%s">\n',class(cf));
             if isa(cf,'kernels.KernelExpansion')
                 export.AppExport.saveRealMatrix(cf.Ma,'Ma.bin',folder);
                 export.AppExport.saveRealMatrix(cf.Centers.xi,'xi.bin',folder);
@@ -116,34 +128,43 @@ classdef AppExport
                 if isempty(cf.CoeffClass)
                     error('AffLinCoreFuns must have the CoeffClass value set for export.');
                 end
-                fprintf('\t\t<matrices>%d</matrices>\n',cf.N);
                 % Set path to IAffineCoefficients class to compile
-                fprintf('\t\t<coeffclass>%s</coeffclass>\n',cf.CoeffClass);
-                for i=1:cf.N
-                    export.AppExport.saveRealMatrix(cf.A,sprintf('A%d.bin',i),folder);
-                end
+                fprintf(f,'\t\t<coeffclass>%s</coeffclass>\n',cf.CoeffClass);
+                sources{end+1} = cf.CoeffClass;
+                export.AppExport.saveRealMatrix(cf.AffParamMatrix.Matrices,'A.bin',folder);
             else
                 error('System function type unknown for export.');
             end
             fprintf(f,'\t</corefun>\n');
             
             % Input
-            if ~isempty(s.B)
+            if rm.System.InputCount > 0 && ~isempty(s.B)
+                fprintf(f,'\t<inputconv type="%s">\n',class(s.B));
                 if isa(s.B,'dscomponents.LinearInputConv')
                     export.AppExport.saveRealMatrix(s.B.B,'B.bin',folder);
-                    
                 elseif isa(s.B,'dscomponents.AffLinInputConv')
-                    
+                    if isempty(s.B.CoeffClass)
+                        error('AffLinInputConv instances must have the CoeffClass value set for export.');
+                    end
+                    % Set path to IAffineCoefficients class to compile
+                    fprintf(f,'\t\t<coeffclass>%s</coeffclass>\n',s.B.CoeffClass);
+                    sources{end+1} = s.B.CoeffClass;
+                    export.AppExport.saveRealMatrix(s.B.Matrices,'B.bin',folder);
                 end
-                fprintf(f,'\t<inputconvtype>%s</inputconvtype>\n',class(s.B));
+                fprintf(f,'\t</inputconv>\n');
+                sources{end+1} = 'Inputs';
             end
             
             % Output
             if ~isempty(s.C)
                 if isa(s.C,'dscomponents.LinearOutputConv')
-                    export.AppExport.saveRealMatrix(s.C.C,'C.bin',folder);
-                elseif isa(s.B,'dscomponents.AffLinOutputConv')
-                    
+                    C = s.C.C;
+                    if isscalar(C)
+                        C = eye(dim);
+                    end
+                    export.AppExport.saveRealMatrix(C,'C.bin',folder);
+                elseif isa(s.C,'dscomponents.AffLinOutputConv')
+                    error('Not yet implemented.');
                 end
                 fprintf(f,'\t<outputconvtype>%s</outputconvtype>\n',class(s.C));
             end
@@ -158,22 +179,19 @@ classdef AppExport
             
             fprintf(f,'\t</kermor_model>\n');
             
-            %% Inputs
-            if rm.System.InputCount > 0
+            %% Java sources compilation
+            if ~isempty(sources)
                 if isempty(KerMor.App.JKerMorSourceDirectory)
                     error('KerMor.JKerMorSourceDirectory is not set.');
                 end
-                j = general.Java;
+                j = export.Java;
                 j.TargetFolder = folder;
                 j.Package = rm.FullModel.JavaExportPackage;
                 j.JProjectSource = KerMor.App.JKerMorSourceDirectory;
-                j.Sourcefile = 'Inputs.java';
+                j.AdditionalClassPath  = {'D:\CreaByte\Software\Java\JRMCommons\src'};
+                j.Sources = sources;
                 j.CreateAndroid = true;
                 j.exportFunctions;
-                
-                fprintf(f,'<affinefunctions>\n');
-                fprintf(f,'\t<package>%s</package>\n',rm.FullModel.JavaExportPackage);
-                fprintf(f,'</affinefunctions>\n');
             end
             
             fprintf(f,'<geometry>\n');

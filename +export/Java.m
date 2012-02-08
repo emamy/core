@@ -14,22 +14,34 @@ classdef Java < handle
 % - \c License @ref licensing
     
     properties
-        % The name of the source file.
+        % The names of the source files.
         %
-        % If a JProjectSource is given, just specify the filename. It will
+        % If a JProjectSource is given, just specify the filenames. It will
         % be used in combination with a possibly set package to determine
-        % the source file location. 
-        Sourcefile;
+        % the source file location.
+        %
+        % @type cell<char>
+        Sources;
         
         % An additional JProjectSource for inclusion.
         %
         % Set this value if the class implements Interfaces from their
         % respective Java projects.
         %
-        % @default ''
+        % @type char @default ''
         JProjectSource = '';
         
+        % An additional cell of paths for the java classpath.
+        %
+        % Set this value if the class implements Interfaces from their
+        % respective Java projects.
+        %
+        % @type cell<char> @default {}
+        AdditionalClassPath = {};
+        
         % The classes package (optional, required if it has one but the default package)
+        %
+        % @type char @default ''
         Package = '';
         
         % The target folder for the class output.
@@ -37,17 +49,17 @@ classdef Java < handle
         % Required, an error will be thrown if the folder cannot be
         % created.
         %
-        % @default ''
-        TargetFolder;
+        % @type char @default ''
+        TargetFolder = '';
         
         % Create a class for java virtual machine
         %
-        % @default true
+        % @default true @type logical
         CreateJVM = true;
         
         % Create a class for the Dalvik VM (Android dex required)
         %
-        % @default true
+        % @default true @type logical
         CreateAndroid = false;
     end
     
@@ -61,34 +73,50 @@ classdef Java < handle
         
         function exportFunctions(this)
             % Compile AffFcns class. JProjectSource needed for JRB/JKerMor models.
-            if isempty(this.Sourcefile)
+            if isempty(this.Sources)
                 error('Sourcefile must be set');
             end
             
-            [~, fname] = fileparts(this.Sourcefile);
-            pkgdir = strrep(this.Package,'.',filesep);
-            if isempty(this.JProjectSource)
-                cmd = sprintf('javac -d %s %s', this.TargetFolder, this.Sourcefile);
-            else
-                jfile = fullfile(fullfile(this.JProjectSource,pkgdir),this.Sourcefile);
-                cmd = sprintf('javac -classpath %s -d %s %s', this.JProjectSource, this.TargetFolder, jfile);
-            end
+            outjava = cell.empty(1,0);
+            outdex = cell.empty(1,0);
+            for sidx = 1:length(this.Sources)
+                src = this.Sources{sidx};
+                pkgdir = strrep(this.Package,'.',filesep);
+                if isempty(this.JProjectSource)
+                    cmd = sprintf('javac -d %s %s', this.TargetFolder, [src '.java']);
+                else
+                    jfile = fullfile(fullfile(this.JProjectSource,pkgdir),[src '.java']);
+                    cp = this.JProjectSource;
+                    if ~isempty(this.AdditionalClassPath)
+                        cp = general.Utils.implode([{cp}, this.AdditionalClassPath],pathsep,'%s');
+                    end
+                    cmd = sprintf('javac -classpath "%s" -d %s %s', cp, this.TargetFolder, jfile);
+                end
 
-            fprintf('Compiling and exporting class "%s"...\n',this.Sourcefile);
-            system(cmd);
-            
-            outcl = fullfile(fullfile(this.TargetFolder,pkgdir),[fname '.class']);
+                fprintf('Compiling and exporting class "%s"...\n',src);
+                system(cmd);
+                
+                relpath = fullfile(pkgdir,[src '.class']);
+                if this.CreateJVM
+                    outjava{sidx} = sprintf('-C %s %s',this.TargetFolder,relpath);
+                end
+                if this.CreateAndroid
+                    outdex{sidx} = fullfile(this.TargetFolder,relpath);
+                end
+            end
             
             % Create normal jar file for Java VMs
             if this.CreateJVM
                 javajar = fullfile(this.TargetFolder,this.JavaJarFile);
-                system(sprintf('jar -cf %s -C %s %s',javajar,this.TargetFolder,fullfile(pkgdir,[fname '.class'])));
+                system(sprintf('jar -cf %s %s',javajar,...
+                    general.Utils.implode(outjava,' ','%s')));
             end
             % Create dex files for Android DalvikVM
             if this.CreateAndroid
                 dexjar = fullfile(this.TargetFolder,this.AndroidJarFile);
                 %system(sprintf('dx --dex --output="dexclasses.jar" %s',outcl));
-                system(sprintf('dx --dex --no-strict --output="%s" %s',dexjar,outcl));
+                system(sprintf('dx --dex --no-strict --output="%s" %s',dexjar,...
+                    general.Utils.implode(outdex,' ','%s')));
             end
             
             % Remove .class file - we're tidy :-)
@@ -122,6 +150,13 @@ classdef Java < handle
 %                 error('Error checking for dex compiler.');
 %             end
             this.CreateAndroid = value;
+        end
+        
+        function set.TargetFolder(this, value)
+            if (isunix && value(1) ~= '/') || ispc && isempty(strfind(value,':'))
+                value = fullfile(pwd,value);
+            end
+            this.TargetFolder = value;
         end
         
     end
