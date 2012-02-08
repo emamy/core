@@ -368,11 +368,10 @@ classdef BaseModel < KerMorObject
             % Assign jacobian information if available and solver is
             % implicit
             if isa(slv,'solvers.ode.AImplSolver')
-                % Set jacobian if possible
-                if isa(this.System.f,'dscomponents.IJacobian')
-                    slv.JacFun = @(t, x)this.System.f.getStateJacobian(x, t, mu);
-                else
-                    slv.JacFun = [];
+                % Set jacobian
+                slv.JacFun = @(t, x)this.System.f.getStateJacobian(x, t, mu);
+                if ~this.System.f.CustomJacobian
+                    warning('KerMor:NoJacobian','No user jacobian specified. Using finite difference approximation.');
                 end
                 % Set jacobian pattern if possible
                 if ~isempty(this.System.f.JSparsityPattern)

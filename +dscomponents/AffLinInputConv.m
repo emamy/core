@@ -15,6 +15,24 @@ classdef AffLinInputConv < general.AffParamMatrix & dscomponents.AInputConv
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
+
+    properties(SetObservable)
+        % Export setting. Java class name for JKerMor model export
+        %
+        % Set this value to the class inside your JKerMor source that
+        % implements the IAffineCoefficients interface for this core
+        % function.
+        %
+        % In order for this to work the coefficient functions must equal
+        % the AffParamMatrix' coefficient functions both mathematically and
+        % in the order of entry.
+        %
+        % @propclass{data} Set only if the model is intended for
+        % JKerMor export.
+        %
+        % @type char @default ''
+        CoeffClass = '';
+    end
     
     methods
         function B = evaluate(this, t, mu)
@@ -42,6 +60,7 @@ classdef AffLinInputConv < general.AffParamMatrix & dscomponents.AInputConv
         function copy = clone(this)
             copy = dscomponents.AffLinInputConv;
             copy = clone@general.AffParamMatrix(this, copy);
+            copy.CoeffClass = this.CoeffClass;
         end
     end
     

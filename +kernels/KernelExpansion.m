@@ -1,5 +1,4 @@
-classdef KernelExpansion < KerMorObject & ICloneable & ...
-        dscomponents.IJacobian & dscomponents.IGlobalLipschitz
+classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipschitz
 % KernelExpansion: Base class for state-space kernel expansions
 %
 % The KernelExpansion class represents a function `f` in the space induced by a given kernel `\Phi`

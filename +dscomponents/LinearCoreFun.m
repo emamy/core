@@ -1,4 +1,4 @@
-classdef LinearCoreFun < dscomponents.ACoreFun & dscomponents.IJacobian
+classdef LinearCoreFun < dscomponents.ACoreFun
     % Linear core function for state space models (no time or parameter)
     %
     % @new{0,6,dw,2011-12-7} Implemented the IJacobian interface.
@@ -16,6 +16,7 @@ classdef LinearCoreFun < dscomponents.ACoreFun & dscomponents.IJacobian
             this.CustomProjection = true;
             this.MultiArgumentEvaluations = true;
             this.TimeDependent = false;
+            this.CustomJacobian = true;
         end
         
         function projected = project(this, V, W, projected)

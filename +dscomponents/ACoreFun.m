@@ -10,6 +10,12 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
 %
 % @author Daniel Wirtz @date 2010-03-17
 %
+% @new{0,6,dw,2012-02-07} 
+% - Added a new property dscomponents.ACoreFun.CustomJacobian and
+% implemented the default jacobian via finite differences. 
+% - Removed the IJacobian interface and adopted the affected classes.
+% - Implemented a test function to compare both jacobians (custom and FD)
+%
 % @change{0,6,dw,2012-01-18} Fixed a bug so that PointerCoreFuns with no `t` or `\mu` argument
 % can be evaluated and no index out of range errors occur. Also the output dimension is now
 % automatically determined in that case.
@@ -100,6 +106,19 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
         %
         % @type logical @default true
         TimeDependent = true;
+        
+        % Flag that indicates if the default finite-difference
+        % 'getStateJacobian' method has been overridden by a custom
+        % implementation.
+        %
+        % @propclass{important} Defining an (analytic) jacobian matrix for
+        % the state space argument `x` can significantly improve simulation
+        % performance.
+        %
+        % @type logical @default false
+        %
+        % See also: getStateJacobian
+        CustomJacobian = false;
     end
     
     properties(SetAccess=private, GetAccess=public)
@@ -111,7 +130,9 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
         
         function this = ACoreFun
             this = this@KerMorObject;
-            this.registerProps('CustomProjection','MultiArgumentEvaluations','JSparsityPattern','TimeDependent');
+            this.registerProps('CustomProjection',...
+                'MultiArgumentEvaluations','JSparsityPattern',...
+                'TimeDependent','CustomJacobian');
         end
         
         function target = project(this, V, W, target)
@@ -194,6 +215,68 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             end
         end
 
+        function J = getStateJacobian(this, x, t, mu)
+            % Default implementation of jacobian matrix evaluation via
+            % finite differences.
+            %
+            % Override in subclasses for custom (analytic) implementations.
+            %
+            % Parameters:
+            % x: The state variable vector/matrix (with colum state
+            % vectors)
+            % t: The corresponding times for each state vector. Set to []
+            % if no time is used.
+            % mu: The parameter(s) to use. Set to [] if the function does not
+            % support parameters.
+            %
+            % Return values:
+            % J: The jacobian matrix at `x,t,\mu`.
+            dt = sqrt(eps);
+            d = size(x,2);
+            if this.MultiArgumentEvaluations
+                X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(mu,1,d);
+                I = speye(d,d);
+                J = (this.evaluate(X+I,T,MU) - this.evaluate(X,T,MU))/dt;
+            else
+                J = zeros(d,d);
+                for i=1:d
+                    e = zeros(d,1);
+                    e(i) = 1;
+                    J(:,i) = (this.evaluate(x+e,t,mu) - this.evaluate(x,t,mu))/dt;
+                end
+            end
+        end
+        
+        function copy = clone(this, copy)
+            if nargin == 1 || ~isa(copy,'dscomponents.ACoreFun')
+                error('Incorrect call to clone. As this class is abstract, a subclass of ACoreFun has to be passed as second argument.');
+            end
+            % Copy local properties
+            copy.CustomProjection = this.CustomProjection;
+            copy.MultiArgumentEvaluations = this.MultiArgumentEvaluations;
+            copy.JSparsityPattern = this.JSparsityPattern;
+            copy.TimeDependent = this.TimeDependent;
+            copy.CustomJacobian = this.CustomJacobian;
+            copy.V = this.V;
+            copy.W = this.W;
+        end
+        
+        
+    end
+        
+    methods(Abstract)
+        % Actual method used to evaluate the dynamical sytems' core function.
+        %
+        % Subclasses might implement this method and set the flags CustomProjection and
+        % MultiArgumentEvaluations appropriately.
+        % However, for speed reasons, if both are true one might as well override the 'evaluate' member directly as it
+        % basically cares for the cases when one of the flags is not true. In that case it is still
+        % important to set both flags to true as some components rely on them.
+        fx = evaluateCoreFun(this, x, t, mu);
+    end
+    
+    %% Getter & Setter
+    methods
         function set.CustomProjection(this, value)
             if ~islogical(value)
                 error('Property must be logical/boolean. either true or false');
@@ -213,19 +296,6 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
                 error('JSparsityPattern must be a sparse matrix.');
             end
             this.JSparsityPattern = value;
-        end
-        
-        function copy = clone(this, copy)
-            if nargin == 1 || ~isa(copy,'dscomponents.ACoreFun')
-                error('Incorrect call to clone. As this class is abstract, a subclass of ACoreFun has to be passed as second argument.');
-            end
-            % Copy local properties
-            copy.CustomProjection = this.CustomProjection;
-            copy.MultiArgumentEvaluations = this.MultiArgumentEvaluations;
-            copy.JSparsityPattern = this.JSparsityPattern;
-            copy.TimeDependent = this.TimeDependent;
-            copy.V = this.V;
-            copy.W = this.W;
         end
         
         function res = test_MultiArgEval(this, sdim, mudim)
@@ -250,17 +320,39 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
                 error('MultiArgumentEvaluations not switched on.');
             end
         end
-    end
         
-    methods(Abstract)
-        % Actual method used to evaluate the dynamical sytems' core function.
-        %
-        % Subclasses might implement this method and set the flags CustomProjection and
-        % MultiArgumentEvaluations appropriately.
-        % However, for speed reasons, if both are true one might as well override the 'evaluate' member directly as it
-        % basically cares for the cases when one of the flags is not true. In that case it is still
-        % important to set both flags to true as some components rely on them.
-        fx = evaluateCoreFun(this, x, t, mu);
+        function res = test_Jacobian(this, x, t, mu)
+            res = false;
+            if this.CustomJacobian
+                reltol = 1e-6;
+                dt = sqrt(eps);
+                Jc = this.getStateJacobian(x,t,mu);
+                %% Numerical jacobian
+                d = size(x,1);
+                if this.MultiArgumentEvaluations
+                    X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(mu,1,d);
+                    I = speye(d,d);
+                    J = (this.evaluate(X+I,T,MU) - this.evaluate(X,T,MU))/dt;
+                    res = max(max(abs(J-Jc)))/max(max(abs(J))) < reltol;
+                else
+                    J = zeros(d,d);
+                    for i=1:d
+                        e = zeros(d,1);
+                        e(i) = dt;
+                        J(:,i) = (this.evaluate(x+e,t,mu) - this.evaluate(x,t,mu))/dt;
+                        di = max(abs(J(:,i) - Jc(:,i))) / max(abs(J(:,i)));
+                        if di > reltol
+                            fprintf('Relative difference at partial derivative %d/%d: %e (tolerance %e)\n',i,d,di,reltol);
+                            res = false;
+                            return;
+                        end
+                    end
+                    res = true;
+                end
+            else
+                error('Jacobian testing only possible if custom implementation of');
+            end
+        end
     end
 end
 

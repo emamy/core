@@ -1,5 +1,4 @@
-classdef AffLinCoreFun < dscomponents.ACoreFun ...
-        & dscomponents.IGlobalLipschitz & dscomponents.IJacobian
+classdef AffLinCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLipschitz
 %Simple affine-linear core function "f" for a dynamical system.
 % 
 % Simply wraps an affine-linear function into the ACoreFun interface to
@@ -34,7 +33,7 @@ classdef AffLinCoreFun < dscomponents.ACoreFun ...
         % the AffParamMatrix' coefficient functions both mathematically and
         % in the order of entry.
         %
-        % @propclass{optional} Set only if the model is intended for
+        % @propclass{data} Set only if the model is intended for
         % JKerMor export.
         %
         % @type char @default ''
@@ -55,6 +54,7 @@ classdef AffLinCoreFun < dscomponents.ACoreFun ...
             this.AffParamMatrix = general.AffParamMatrix;
             % Get time dependency from AffParamMatrix member
             this.AffParamMatrix.addlistener('TimeDependent','PostSet',@this.AffParMatTimeDepPostSet);
+            this.CustomJacobian = true;
         end
         
         function fx = evaluateCoreFun(this, x, t, mu)
@@ -62,6 +62,8 @@ classdef AffLinCoreFun < dscomponents.ACoreFun ...
         end
         
         function J = getStateJacobian(this, ~, t, mu)
+            % Overrides the default jacobian finite difference
+            % implementation.
             J = this.AffParamMatrix.compose(t, mu);
         end
         
@@ -93,6 +95,7 @@ classdef AffLinCoreFun < dscomponents.ACoreFun ...
         function copy = clone(this)
             copy = dscomponents.AffLinCoreFun;
             copy.AffParamMatrix = this.AffParamMatrix.clone;
+            copy.CoeffClass = this.CoeffClass;
         end
     end
     

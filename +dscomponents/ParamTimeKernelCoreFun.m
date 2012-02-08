@@ -26,6 +26,7 @@ classdef ParamTimeKernelCoreFun < kernels.ParamTimeKernelExpansion & dscomponent
             this.CustomProjection = true;
             this.MultiArgumentEvaluations = true;
             this.TimeDependent = false;
+            this.CustomJacobian = true;
             this.addlistener('TimeKernel','PostSet',@this.TimeKernelPostSet);
         end
         
@@ -66,6 +67,12 @@ classdef ParamTimeKernelCoreFun < kernels.ParamTimeKernelExpansion & dscomponent
             end
             copy = clone@kernels.ParamTimeKernelExpansion(this, copy);
             copy = clone@dscomponents.ACoreFun(this, copy);
+        end
+        
+        function J = getStateJacobian(this, x, t, mu)
+            % Implement explicitly as both ACoreFun and KernelExpansion
+            % provide getStateJacobian methods.
+            J = getStateJacobian@kernels.ParamTimeKernelExpansion(this, x, t, mu);
         end
         
         function y = evaluateCoreFun(this)%#ok
