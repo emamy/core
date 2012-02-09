@@ -22,7 +22,7 @@ classdef JKerMorExportable < handle
     end
     
     methods(Abstract)
-        exportGeometry(this, f);
+        exportGeometry(this, f, folder);
     end
     
 end

@@ -212,7 +212,7 @@ classdef AppExport
             end
             
             fprintf(f,'<geometry>\n');
-            rm.FullModel.exportGeometry(f);
+            rm.FullModel.exportGeometry(f, folder);
             fprintf(f,'</geometry>\n');
             
             fprintf(f,'</model>\n');
