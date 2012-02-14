@@ -201,7 +201,7 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
             if ~isa(kexp, 'kernels.KernelExpansion')
                 error('Approximation method works only for kernel expansions.');
             elseif ~isa(kexp.Kernel,'kernels.GaussKernel')
-                error('The state kernel has to be a Gaussian for this approximation algorithm so far');
+                %error('The state kernel has to be a Gaussian for this approximation algorithm so far');
             end
             this.pte = isa(kexp,'kernels.ParamTimeKernelExpansion');
             if this.pte && ((~isa(kexp.TimeKernel,'kernels.GaussKernel') && ~isa(kexp.TimeKernel,'kernels.NoKernel')) || ...
@@ -306,13 +306,13 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
             % kexp: The kernel expansion @type kernels.KernelExpansion
             % atd: The approximation training data @type data.ApproxTrainData
             % idx: The index of the center to choose @type integer
-            kexp.Centers.xi(:,end+1) = atd.xi(:,idx);
+            kexp.Centers.xi(:,end+numel(idx)) = atd.xi(:,idx);
             if this.pte
                 if atd.hasTime
-                    kexp.Centers.ti(end+1) = atd.ti(idx);
+                    kexp.Centers.ti(end+numel(idx)) = atd.ti(idx);
                 end
                 if atd.hasParams
-                    kexp.Centers.mui(:,end+1) = atd.mui(:,idx);
+                    kexp.Centers.mui(:,end+numel(idx)) = atd.mui(:,idx);
                 end
             end
         end

@@ -14,7 +14,7 @@ classdef LinearKernel < kernels.BaseKernel
         end
         
         function K = evaluate(this, x, y)%#ok
-            if nargin == 2
+            if nargin == 2 || isempty(y)
                 y = x;
             end
             K = x'*y;
