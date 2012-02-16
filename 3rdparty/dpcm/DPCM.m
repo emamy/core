@@ -50,7 +50,7 @@ classdef DPCM
 % - \c scaling Scaling properties are used to perform numerical scaling of time, space or
 % states within a numerical simulation. They are of an optional nature and thus are not
 % elemental for simulations to produce accuracte results. However, for this special level it
-% might very well be important if \e{some} scaling properties are set and some others are not.
+% might very well be important if \e some scaling properties are set and some others are not.
 % This might lead to wrong computational results and thus a warning is issued if not all or
 % none of those properties are changed.
 % - \c optional Optional properties are, well, optional. They can refer to whole components of
@@ -115,6 +115,7 @@ classdef DPCM
             % models.BaseModel.getTrajectory
             %
             % Parameters:
+            % DPCMobj: The object to get the report for.
             % levels: [Optional] The property levels to print reports for. A list of admissible
             % values can be obtained by DPCM.PropClasses. Default is to print ''all''
             % data.
@@ -134,6 +135,7 @@ classdef DPCM
             % from their default setting.
             %
             % Parameters:
+            % DPCMobj: The object to get the summary for.
             % levels: [Optional] The property levels to print reports for. A list of admissible
             % values can be obtained by DPCM.PropClasses. Default is to print ''all''
             % data.

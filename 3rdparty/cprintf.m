@@ -37,6 +37,7 @@ function count = cprintf(style,format,varargin)
 %    like handle property names.
 %
 % Example:
+% @code
 %    cprintf('text',   'regular black text');
 %    cprintf('hyper',  'followed %s','by');
 %    cprintf('k',      '%d colored', 4);
@@ -46,6 +47,7 @@ function count = cprintf(style,format,varargin)
 %    cprintf('-green', 'underlined green');
 %    cprintf(-[1,0,1], 'underlined magenta');
 %    cprintf([1,0.5,0],'and multi-\nline orange\n');
+% @endcode
 %
 % Bugs and suggestions:
 %    Please send to Yair Altman (altmany at gmail dot com)

@@ -5,7 +5,7 @@ function str = object2str(obj, maxdepth)
 % objects therein as a string, intended by tabs equal to the sublevel and sorted alphabetically.
 %
 % Parameters:
-% obj: The object to convert to a string @type MatLab class
+% obj: The object to convert to a string @type handle
 % maxdepth: The maximum recursion depth. @type integer @default Inf
 %
 % Return values:
@@ -39,7 +39,6 @@ if nargin < 2
 elseif ~isnumeric(maxdepth) || ~isreal(maxdepth)
     error('maxdepth has to be a real value/integer.');
 end
-
 str = recursive2str(obj, maxdepth, 0, {});
 
     function str = recursive2str(obj, depth, numtabs, done)
@@ -117,7 +116,7 @@ str = recursive2str(obj, maxdepth, 0, {});
         end
         % Take away the last \n
         str = str(1:end-2);
-        
+
         % Format!
         str = sprintf(str);
     end

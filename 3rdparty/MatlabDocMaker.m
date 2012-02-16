@@ -225,13 +225,23 @@ classdef MatlabDocMaker
                 system(sprintf('echo "" > "%s"',tex));
             end
 
+            % Fix for unix systems where the MatLab installation uses older
+            % GLIBSTD libraries than doxygen/mtoc++
+            ldpath = '';
+            if isunix
+                ldpath = 'LD_LIBRARY_PATH= ';
+            end
             % Call doxygen
             fprintf('Running doxygen with mtoc++ filter...\n');
-            [~,warn] = system(sprintf('doxygen "%s" 1>%s', doxyfile, strs.null));
+            [~,warn] = system(sprintf('%sdoxygen "%s" 1>%s', ldpath, doxyfile, strs.null));
              
             % Postprocess
             fprintf('Running mtoc++ postprocessor...\n');
-            [~,~] = system(sprintf('mtocpp_post %s',MatlabDocMaker.getOutputDirectory));
+            [~,postwarn] = system(sprintf('%smtocpp_post "%s" 1>%s',ldpath,...
+                MatlabDocMaker.getOutputDirectory, strs.null));
+            if ~isempty(postwarn)
+                warn = [warn sprintf('mtoc++ postprocessor messages:\n') postwarn];
+            end
             
             % Tidy up
             delete(cbin);
@@ -247,7 +257,7 @@ classdef MatlabDocMaker
             
             % Process warnings
             warn = strtrim(warn);
-            if ~isempty(warn)
+            if ~isempty(warn) || ~isempty(postwarn)
                 fprintf(['Warnings generated during documentation creation:\n' strrep(warn,'\','\\') '\n']);
                 % Write to log file later
                 log = fullfile(MatlabDocMaker.getOutputDirectory,'warnings.log');

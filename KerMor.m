@@ -231,7 +231,8 @@ classdef KerMor < handle
     % @todo implement CME model from steffen in KerMor!
     %
     % @todo change TempDirectory and DataDirectory to be dependent-only values (read & write
-    % directly to preferences)
+    % directly to preferences), and enforce DIFFERENT folders (simCache
+    % uses same prefix etc)
     
     properties(Constant)
         % The current KerMor main version number
