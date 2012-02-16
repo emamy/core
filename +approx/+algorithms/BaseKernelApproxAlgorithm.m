@@ -128,6 +128,12 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable & ICloneable
             %
             % Please take care that the CoeffComp.init method was called
             % before executing this function.
+            %
+            % Parameters:
+            % kexp: The kernel expansion
+            % fxi: The `f(x_i)`values at the expansion centers
+            % initialalpha: Initial `\alpha_i` value to use as
+            % initialization (if applicable for the algorithm)
             if isempty(initialalpha)
                 initialalpha = double.empty(size(fxi,1),0);
             end

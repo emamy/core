@@ -52,8 +52,14 @@ classdef AModelData < handle
     
     methods
         function mu = getParams(this, idx)
-            % Returns the parameter `mu` for the given indices idx. Returns
-            % [] if any index is invalid or idx==[].
+            % Returns parameters for given indices.
+            %
+            % Parameters:
+            % idx: The parameter indices @type rowvec<int32>
+            %
+            % Return values: 
+            % mu: The parameters `mu` for the given indices idx. Returns
+            % [] if any index is invalid or idx==[]. @type matrix<double>
             mu = [];
             if ~isempty(idx) && all(idx > 0) && all(idx < size(this.ParamSamples,2)+1)
                 mu = this.ParamSamples(:,idx);

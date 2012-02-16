@@ -442,6 +442,10 @@ classdef BaseModel < KerMorObject
         end
     end
     
+    methods(Abstract)
+        bar = some_uncommented_method(this, foo);
+    end
+    
     %% Getter & Setter
     methods
         function value = get.Times(this)
