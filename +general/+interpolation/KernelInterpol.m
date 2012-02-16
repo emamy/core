@@ -4,7 +4,7 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
     % The basic interpolation form is 
     % `` f(x) = \sum\limits_{i=1}^N \alpha_i \Phi(x,x_i)``
     % Interpolation finds coefficients such that 
-    % `fx_i = RHS(x_i)` for `i=1\ldotsN`.
+    % `fx_i = RHS(x_i)` for `i=1\ldots N`.
     %
     % There is also a zero-function threshold `10*eps`. If all
     % `fx_i-\beta` values are below that a constant function is

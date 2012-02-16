@@ -243,9 +243,7 @@ classdef RBJavaExport < handle
             end
             
             if ~isempty(package)
-                fprintf(f,'<affinefunctions>\n');
-                fprintf(f,'\t<package>%s</package>\n',package);
-                fprintf(f,'</affinefunctions>\n');
+                fprintf(f,'<package>%s</package>\n',package);
             end
         end
         
@@ -260,7 +258,7 @@ classdef RBJavaExport < handle
             fprintf(f,'<geometry>\n');
             fprintf(f,'\t<dimension>2</dimension>\n');
             fprintf(f,'\t<nodes>%d</nodes>\n',length(g.X));
-            fprintf(f,'\t<discretization>FV</discretization>\n');
+            fprintf(f,'\t<fieldmapping>ELEMENT</fieldmapping>\n');
             fprintf(f,'</geometry>\n');
             
             % COMMENTED - dont write useless zeros to files, is big enough already.

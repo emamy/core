@@ -50,7 +50,7 @@ classdef AImplSolver < KerMorObject
         % See also: odeset
         JacFun = [];
         
-        % The sparsity pattern of the jacobian `\Nabla_x f(x,t,\mu)`
+        % The sparsity pattern of the jacobian `\nabla_x f(x,t,\mu)`
         %
         % @propclass{important} Providing a sparsity pattern to implicit solvers might be
         % crucial for the performance of the solver due to memory restrictions.

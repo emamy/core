@@ -146,7 +146,7 @@ classdef GaussKernel < kernels.BellFunction
         function g = setGammaForDistance(this, dist, ep)
             % Computes the `\gamma` value for which the Gaussian is smaller
             % than `\epsilon` in a distance of dist, i.e.
-            % ``e^{-\frac{d^2}{\gamma}) < \epsilon``
+            % ``e^{-\frac{d^2}{\gamma}} < \epsilon``
             % Returns the computed value AND sets the kernel's Gamma
             % property to this value.
             %

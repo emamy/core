@@ -41,7 +41,7 @@ classdef Base < KerMorObject & ICloneable
         % Evaluates the local lipschitz estimation function.
         %
         % Parameters:
-        % di: The distances `d_i(t) = \norm{Vz(t)-x_i}` at time `t`
+        % di: The distances `d_i(t) = \no{Vz(t)-x_i}` at time `t`
         % Ct: The coarse error bound `C(t)`. `C\equiv\infty` is allowed, too.
         ci = evaluate(this, di, Ct);
     end
