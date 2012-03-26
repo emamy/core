@@ -92,9 +92,10 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
                 dists(2,:) = dfun(mf*atd.tiDia, Mf*atd.tiDia);
             end
             if atd.hasParams
-                dists(2,:) = dfun(mf*atd.muiDia, Mf*atd.muiDia);
+                dists(3,:) = dfun(mf*atd.muiDia, Mf*atd.muiDia);
             end
             k = kernels.GaussKernel;
+            this.Gammas = zeros(size(dists));
             for i=1:ng
                this.Gammas(1,i) = k.setGammaForDistance(dists(1,i),gameps);
                this.Gammas(2,i) = k.setGammaForDistance(dists(2,i),gameps);

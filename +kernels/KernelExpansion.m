@@ -49,11 +49,24 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         Kernel;
     end
     
-    properties(SetAccess=private, Dependent)
+    properties(Dependent)
         % The norms of the coefficient matrix of the kernel expansion
         %
         % @type rowvec
         Ma_norms;
+        
+        % Returns the norm `||f||^2_{\H^q}` of `f` in the RKHS `\H^q,\quad q\in\N`
+        %
+        % For `q=1` this equals the ComponentNorms output.
+        %
+        % @type double
+        NativeNorm;
+        
+        % Returns the native space norms `||f_j||^2_\H` for each component function
+        % `j \equiv`'size(Ma,1)'
+        %
+        % @type colvec<double>
+        ComponentNorms;
     end
     
     properties(SetObservable)
@@ -79,7 +92,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         %
         % @propclass{data}
         %
-        % @type matrix
+        % @type matrix<double>
         Ma;
     end
     
@@ -196,6 +209,17 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         
         function m = get.Ma_norms(this)
             m = sqrt(sum(this.Ma.^2,1));
+        end
+        
+        function n = get.ComponentNorms(this)
+            n = sqrt(sum(this.Ma' .* (this.getKernelMatrix * this.Ma'),1))';
+        end
+        
+        function n = get.NativeNorm(this)
+            % Returns the native norm of the kernel expansion
+            
+            % doesnt use ComponentNorms as this way we save "sqrt(x).^2"
+            n = sqrt(sum(sum(this.Ma' .* (this.getKernelMatrix * this.Ma'))));
         end
     end
     
