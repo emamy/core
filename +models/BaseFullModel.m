@@ -566,7 +566,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 [x, time] = this.simCache.getTrajectory([this.T; this.dt; mu], inputidx);
             end
             if ~isempty(x)
-                t = this.Times;
+                t = this.scaledTimes;
                 if size(x,2) ~= length(t)
                     error(['Inconsistent trajectory data! Size of (mu,inputidx)-matching trajectory differs from the model''s Times property.\n'...
                            'Did you change model.dt or model.T and leave model.Data filled with old trajectories?']);

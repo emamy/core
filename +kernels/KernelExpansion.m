@@ -189,7 +189,10 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             % one argument.
             %
             % See also: evaluateAtCenters
-            K = this.fSK.evaluate(this.Centers.xi,[]);
+            K = [];
+            if ~isempty(this.Centers)
+                K = this.fSK.evaluate(this.Centers.xi,[]);
+            end
         end
         
         function c = getGlobalLipschitz(this, t, mu)%#ok            

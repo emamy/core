@@ -46,7 +46,7 @@ classdef KerMorObject < DPCMObject
         end
         
         function display(this)
-            disp(object2str(this));
+            %disp(object2str(this));
             disp(this);
         end
     end

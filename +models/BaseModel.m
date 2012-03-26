@@ -369,10 +369,11 @@ classdef BaseModel < KerMorObject
             % implicit
             if isa(slv,'solvers.ode.AImplSolver')
                 % Set jacobian
-                slv.JacFun = @(t, x)this.System.f.getStateJacobian(x, t, mu);
                 if ~this.System.f.CustomJacobian
                     warning('KerMor:NoJacobian','No user jacobian specified. Using finite difference approximation.');
                 end
+                slv.JacFun = @(t, x)this.System.f.getStateJacobian(x, t, mu);
+                
                 % Set jacobian pattern if possible
                 if ~isempty(this.System.f.JSparsityPattern)
                     slv.JPattern = this.System.f.JSparsityPattern;
@@ -440,10 +441,6 @@ classdef BaseModel < KerMorObject
             pause(max(0,this.RealTimePlottingMinPause-per));
             this.ctime = tic;
         end
-    end
-    
-    methods(Abstract)
-        bar = some_uncommented_method(this, foo);
     end
     
     %% Getter & Setter

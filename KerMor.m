@@ -320,7 +320,7 @@ classdef KerMor < handle
         % Switch to determine if the Default Property Changed System shall be used or not.
         %
         % @default true @type logical
-        UseDPCM = true;
+        UseDPCM = [];
         
         % Flag that determines if KerMor also enables the 'diary' function upon startup.
         %
@@ -328,7 +328,7 @@ classdef KerMor < handle
         % KerMor.TempDirectory.
         %      
         % @default true @type logical
-        UseDiary = true;
+        UseDiary = [];
     end
     
     properties(SetAccess=private)
@@ -610,9 +610,7 @@ classdef KerMor < handle
             value = this.UseDPCM;
             if isempty(value)
                 value = getpref(this.getPrefTag,'UseDPCM',true);
-                if ~isempty(value)
-                    this.UseDPCM = value;
-                end
+                this.UseDPCM = value;
             end
         end
         
@@ -628,9 +626,7 @@ classdef KerMor < handle
             value = this.UseDiary;
             if isempty(value)
                 value = getpref(this.getPrefTag,'UseDiary',true);
-                if ~isempty(value)
-                    this.UseDiary = value;
-                end
+                this.UseDiary = value;
             end
         end
         
