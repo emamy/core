@@ -1,0 +1,127 @@
+classdef ProcessIndicator < handle
+% ProcessIndicator: A simple class that indicates process either via waitbar or text output
+%
+% The flag UseWaitbar determines if a waitbar is used or text output is produced. The text
+% output restrains itself to only report progress at about each 10% to keep verbosity at an
+% acceptable level.
+%
+% @author Daniel Wirtz @date 2012-03-20
+%
+% @new{0,6,dw,2012-03-20} Added this class.
+%
+% This class is part of the framework
+% KerMor - Model Order Reduction using Kernels:
+% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+% - \c License @ref licensing
+
+    properties
+        % Flag that indicates if a waitbar should be used.
+        %
+        % @default false @type logical
+        UseWaitbar = false;
+    end
+    
+    properties(Access=private)
+        total;
+        p;
+        wb;
+        title;
+    end
+
+    methods
+        function this = ProcessIndicator(title, total, wb)
+            % Creates a new ProcessIndicator.
+            %
+            % If a total argument is given, the indicator is initialized via @code start(total)
+            % @endcode directly.
+            %
+            % Parameters:
+            % title: A title @type char @default 'Process running'
+            % total: The total process amount. Must be positive. @type double @default []
+            % wb: Flag that indicates how to initialize the UseWaitbar flag. @type logical
+            % @default false
+            %
+            % Return values:
+            % this: The new ProcessIndicator @type tools.ProcessIndicator
+            if nargin < 3
+                wb = false;
+                if nargin < 1
+                    this.title = 'Process running';
+                end
+            end
+            this.title = title;
+            this.UseWaitbar = wb;
+            if nargin > 1
+                this.start(total);
+            end
+        end
+        
+        function start(this, total)
+            % Starts the process indicator with the given total process amount.
+            %
+            % Parameters:
+            % total: The total process amount. Must be positive. @type double
+            if isempty(total) || ~isscalar(total) || total <= 0
+                error('Total must be ');
+            end
+            this.total = total;
+            this.p = 0;
+            if this.UseWaitbar
+                this.wb = waitbar(0,this.title,'Visible','off');
+                % Place at main monitor middle
+                mpos = get(0,'MonitorPositions');
+                if size(mpos,1) > 1
+                    npos = get(this.wb,'Position');
+                    npos(1) = (mpos(1,3)/2-npos(3));
+                    set(this.wb,'Position',npos);
+                end
+                set(this.wb,'Visible','on');
+            end
+        end
+        
+        function step(this, value)
+            % Reports process to the indicator and triggers waitbar or text output.
+            %
+            % Value is always restricted to `[0, total]`.
+            %
+            % Parameters:
+            % value: The process value. @type double
+            if value > this.total
+                value = this.total;
+            elseif value < 0
+                value = 0;
+            end
+            perc = value/this.total;
+            pstr = sprintf('%2.0f%% ',round(perc*100));
+            if this.UseWaitbar
+                waitbar(perc,this.wb,sprintf('%s: %s',this.title,pstr));
+            else
+                if perc > this.p
+                    %fprintf('%2.0f%%\n',round(perc*100));
+                    fprintf('%s',pstr);
+                    this.p = ceil(perc*10)/10;
+                end
+            end
+        end
+        
+        function stop(this)
+            % Stops the process indication and closes the waitbar, if any.
+            if this.UseWaitbar
+                if ~isempty(this.wb) && ishandle(this.wb)
+                    close(this.wb);
+                end
+            else
+                fprintf('done!\n');
+            end
+        end
+        
+        function set.UseWaitbar(this, value)
+            if ~islogical(value) || ~isscalar(value)
+                error('UseWaitbar must be a logical scalar');
+            end
+            this.UseWaitbar = value;
+        end
+    end
+    
+end
