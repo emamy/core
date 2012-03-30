@@ -301,7 +301,7 @@ classdef KerMor < handle
         % Verbose output level
         %
         % @default 1 @type integer
-        Verbose = 1;
+        Verbose = [];
         
         % Flag whether to enable use of the Matlab Parallel Computing
         % Toolbox.
@@ -636,6 +636,22 @@ classdef KerMor < handle
             end
             setpref(this.getPrefTag,'UseDiary',value);
             this.UseDiary = value;
+        end
+        
+        function value = get.Verbose(this)
+            value = this.Verbose;
+            if isempty(value)
+                value = getpref(this.getPrefTag,'Verbose',1);
+                this.Verbose = value;
+            end
+        end
+        
+        function set.Verbose(this, value)
+            if ~isposintscalar(value)
+                error('The Verbose flag must be a positive integer');
+            end
+            setpref(this.getPrefTag,'Verbose',value);
+            this.Verbose = value;
         end
     end
     

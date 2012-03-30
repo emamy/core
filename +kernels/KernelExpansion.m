@@ -84,9 +84,9 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         %
         % @propclass{data}
         %
-        % @default @code struct('xi',[],'ti',[],'mui',[]) @endcode
+        % @default @code struct('xi',[]) @endcode
         % @type struct
-        Centers;
+        Centers = struct('xi',[]);
         
         % The coefficient data for each dimension.
         %
@@ -208,6 +208,13 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             copy.Ma = this.Ma;
             copy.fSK = this.fSK;
             copy.RotationInvariant = this.RotationInvariant;
+        end
+        
+        function clear(this)
+            % Removes all centers and coefficients from the expansion and leaves the associated
+            % kernels untouched.
+            this.Ma = [];
+            this.Centers.xi = [];
         end
         
         function m = get.Ma_norms(this)

@@ -9,6 +9,8 @@ classdef ProcessIndicator < handle
 %
 % @new{0,6,dw,2012-03-20} Added this class.
 %
+% @todo process indicator for arbitrary (percentage/integer) values!
+%
 % This class is part of the framework
 % KerMor - Model Order Reduction using Kernels:
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
@@ -77,16 +79,22 @@ classdef ProcessIndicator < handle
                     set(this.wb,'Position',npos);
                 end
                 set(this.wb,'Visible','on');
+            else
+                fprintf('%s: ',this.title);
             end
         end
         
         function step(this, value)
             % Reports process to the indicator and triggers waitbar or text output.
             %
-            % Value is always restricted to `[0, total]`.
+            % Value is always restricted to `[0, total]`, and if no argument is given, value=1
+            % is assumed.
             %
             % Parameters:
-            % value: The process value. @type double
+            % value: The process value. @type double @default 1
+            if nargin == 1
+                value = 1;
+            end
             if value > this.total
                 value = this.total;
             elseif value < 0
