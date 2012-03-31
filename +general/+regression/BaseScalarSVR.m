@@ -122,7 +122,7 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
         end
         
         %% approx.algorithms.IKernelCoeffComp interface members
-        function init(this, K)
+        function init(this, K, varargin)
             this.K = K;
         end
         

@@ -379,6 +379,7 @@ classdef Utils
             % @todo use export_fig here!
             
             fig = figure('Visible','off','MenuBar','none','ToolBar','none');
+            %fig = figure('MenuBar','none','ToolBar','none');
             %fig = figure;
             % Set fig size to axis size
             %set(fig,'Position', [fpos(1:2) (apos(3:4)+ti(3:4))/2]);

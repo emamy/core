@@ -97,14 +97,11 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
         end
         
         function set.K(this, value)
-            % Sets the kernel matrix property and computes the LU
-            % decomposition if the UseLU flag is set to true.
+            if ismatrix(value) && isa(value,'double')
+                value = data.MemoryKernelMatrix(value);
+            end
             if ~isa(value, 'data.IKernelMatrix')
-                if ~ismatrix(value) || ~isa(value,'double')
-                    error('K must be a data.IKernelMatrix or a double matrix.');
-                else
-                    this.fK = data.MemoryKernelMatrix(value);
-                end
+                error('K must be a data.IKernelMatrix or a double matrix.');
             end
             this.fK = value;
         end

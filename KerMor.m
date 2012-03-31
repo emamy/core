@@ -301,7 +301,7 @@ classdef KerMor < handle
         % Verbose output level
         %
         % @default 1 @type integer
-        Verbose = 1;
+        Verbose = [];
         
         % Flag whether to enable use of the Matlab Parallel Computing
         % Toolbox.
@@ -320,7 +320,7 @@ classdef KerMor < handle
         % Switch to determine if the Default Property Changed System shall be used or not.
         %
         % @default true @type logical
-        UseDPCM = true;
+        UseDPCM = [];
         
         % Flag that determines if KerMor also enables the 'diary' function upon startup.
         %
@@ -328,7 +328,7 @@ classdef KerMor < handle
         % KerMor.TempDirectory.
         %      
         % @default true @type logical
-        UseDiary = true;
+        UseDiary = [];
     end
     
     properties(SetAccess=private)
@@ -609,9 +609,7 @@ classdef KerMor < handle
             value = this.UseDPCM;
             if isempty(value)
                 value = getpref(this.getPrefTag,'UseDPCM',true);
-                if ~isempty(value)
-                    this.UseDPCM = value;
-                end
+                this.UseDPCM = value;
             end
         end
         
@@ -627,9 +625,7 @@ classdef KerMor < handle
             value = this.UseDiary;
             if isempty(value)
                 value = getpref(this.getPrefTag,'UseDiary',true);
-                if ~isempty(value)
-                    this.UseDiary = value;
-                end
+                this.UseDiary = value;
             end
         end
         
@@ -639,6 +635,22 @@ classdef KerMor < handle
             end
             setpref(this.getPrefTag,'UseDiary',value);
             this.UseDiary = value;
+        end
+        
+        function value = get.Verbose(this)
+            value = this.Verbose;
+            if isempty(value)
+                value = getpref(this.getPrefTag,'Verbose',1);
+                this.Verbose = value;
+            end
+        end
+        
+        function set.Verbose(this, value)
+            if ~isposintscalar(value)
+                error('The Verbose flag must be a positive integer');
+            end
+            setpref(this.getPrefTag,'Verbose',value);
+            this.Verbose = value;
         end
     end
     

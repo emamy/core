@@ -232,7 +232,7 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             % Return values:
             % J: The jacobian matrix at `x,t,\mu`.
             dt = sqrt(eps);
-            d = size(x,2);
+            d = size(x,1);
             if this.MultiArgumentEvaluations
                 X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(mu,1,d);
                 I = speye(d,d);
@@ -260,8 +260,6 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             copy.V = this.V;
             copy.W = this.W;
         end
-        
-        
     end
         
     methods(Abstract)

@@ -105,6 +105,9 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
             % overridden
             this = this@kernels.KernelExpansion;
             
+            this.Centers.ti = [];
+            this.Centers.mui = [];
+            
             % The default kernels for time and parameters are neutral (=1)
             % kernels as not all models have time or parameter dependent
             % system functions.
@@ -171,10 +174,13 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
             % one argument.
             %
             % See also: evaluateAtCenters
-            K = this.SubKernelCombinationFun(...
-                this.fTK.evaluate(this.Centers.ti,[]), ...
-                getKernelMatrix@kernels.KernelExpansion(this), ...
-                this.fPK.evaluate(this.Centers.mui,[]));
+            K = [];
+            if ~isempty(this.Centers)
+                K = this.SubKernelCombinationFun(...
+                    this.fTK.evaluate(this.Centers.ti,[]), ...
+                    getKernelMatrix@kernels.KernelExpansion(this), ...
+                    this.fPK.evaluate(this.Centers.mui,[]));
+            end
         end
         
         function copy = clone(this, copy)
@@ -187,7 +193,15 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
             copy.StateNablaCombinationFun = this.StateNablaCombinationFun;
             copy.fTK = this.fTK;
             copy.fPK = this.fPK;
-        end       
+        end
+        
+        function clear(this)
+            % Removes all centers and coefficients from the expansion and leaves the associated
+            % kernels untouched.
+            clear@kernels.KernelExpansion(this);
+            this.Centers.ti = [];
+            this.Centers.mui = [];
+        end
     end
     
     %% Getter & Setter
