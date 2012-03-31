@@ -177,6 +177,15 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         TrainingInputs;
     end
     
+    properties%(SetAccess=protected)
+        % Export instance for possible export of this model to JKerMor.
+        %
+        % Leave empty if no export is possible.
+        %
+        % @type export.JKerMorExport @default []
+        JKerMorExport;
+    end
+    
     properties(SetAccess=private, Dependent)
         % Gets the number of inputs used for training.
         %

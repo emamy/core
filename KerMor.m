@@ -545,11 +545,10 @@ classdef KerMor < handle
         end
         
         function h = get.JKerMorSourceDirectory(this)
-            
             % recover values if clear classes has been issued
             if isempty(this.JKerMorSourceDirectory)
                 h = getpref(this.getPrefTag,'JKERMORDIR','');
-                if ~isempty(h)
+                if ~isempty(h) && isdir(h)
                     this.JKerMorSourceDirectory = h;
                 end
             else
