@@ -97,7 +97,7 @@ classdef VKOMP
             rf = RandStream('mt19937ar','Seed',seed^2 + 1);
             centers = 20;
             xrange = 10; xoff = -5;
-            dim = 100;
+            dim = 5;
             atdsize = max(dim*500,1000);
             vxsize = max(dim*200,500);
 
@@ -161,7 +161,8 @@ classdef VKOMP
                 res.terro(:,run) = ao.err(:,s);
                 res.verro(:,run) = ao.verr(:,s);
                 res.vrelerro(:,run) = ao.vrelerr(:,s);
-                res.cnumo(run) = size(kexp.Ma,2);
+                res.cnumo(run) = s;
+                res.ogabnd(run) = f.M^2 * dim / (1 + s/dim);
                 
                 kexp_OGA = kexp.clone;
                 
@@ -172,6 +173,7 @@ classdef VKOMP
                 res.verr(:,run) = a.verr(:,s);
                 res.vrelerr(:,run) = a.vrelerr(:,s);
                 res.cnum(run) = size(kexp.Ma,2);
+                res.vkogabnd(run) = f.M^2 * a.VKOGABound(s);
                 
                 pi.step(run);
                 
@@ -313,13 +315,8 @@ classdef VKOMP
             dim = size(f.Ma,1);
             bound_sq = (dim*M^2) ./ (1 + (0:(max(n1,n2))) / dim);
             semilogy(0:max(n1,n2),bound_sq(1:max(n1,n2)+1),'b--');
-            psum = zeros(1,n1);
-            psum(1) = 1/a.phinormmax(1);
-            for i=2:n1
-                psum(i) = psum(i-1) + 1/a.phinormmax(i);
-            end
-            bound_cm = (dim*M^2) ./ (1 + [0 psum]/dim);
-            semilogy(0:n1,bound_cm,'r--');
+            bound_cm = M^2 * [dim a.VKOGABound];
+            semilogy(0:n1,bound_cm(1:n1+1),'r--');
             title(sprintf('Decay plus upper convergence bound with M=%3.2f', M));
             legend('KOMP','OGA','Upper bound','VKOGA a-post bnd');
             axis tight;

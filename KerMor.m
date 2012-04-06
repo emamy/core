@@ -307,7 +307,7 @@ classdef KerMor < handle
         % Toolbox.
         %
         % @default false @type logical
-        UseMatlabParallelComputing = false;
+        UseMatlabParallelComputing = [];
         
         % The default figure position to use.
         %
@@ -368,7 +368,7 @@ classdef KerMor < handle
             %
             % Return values:
             % tag: The host-dependent tag used for KerMor preferences
-            tag = [KerMor.PrefTagPrefix this.getHost];
+            tag = [KerMor.PrefTagPrefix strrep(this.getHost,'.','')];
         end
     end
     
@@ -475,17 +475,13 @@ classdef KerMor < handle
         function value = get.UseMatlabParallelComputing(this)
             % recover values if clear classes has been issued or Matlab
             % Parallel processing toolbox deleted            
-            value = getpref(this.getPrefTag,'USEMATLABPARALLELCOMPUTING',[]);
+            value = getpref(this.getPrefTag,'USEMATLABPARALLELCOMPUTING',false);
             t = which('matlabpool');
-            if ~isempty(value)
-                if ~isempty(t)
-                    this.UseMatlabParallelComputing = value;
-                elseif value
-                    warning('KERMOR:ParComp','No parallel computing toolbox found but preference for UseMatlabParallelComputing contained true. Setting to false.');
-                    this.UseMatlabParallelComputing = false;
-                end
-            else
-                error('Invalid configuration detected. Have you run the installation routine?');
+            if ~isempty(t)
+                this.UseMatlabParallelComputing = value;
+            elseif value
+                warning('KERMOR:ParComp','No parallel computing toolbox found but preference for UseMatlabParallelComputing contained true. Setting to false.');
+                this.UseMatlabParallelComputing = false;
             end
         end
         
@@ -762,6 +758,7 @@ classdef KerMor < handle
                 addpath(fullfile(p,'3rdparty'));
                 addpath(fullfile(p,'3rdparty','dpcm'));
                 addpath(fullfile(p,'3rdparty','export_fig'));
+                addpath(fullfile(p,'3rdparty','compat'));
                 
                 % md5
                 d = fullfile(p,'3rdparty','calcmd5');
