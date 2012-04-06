@@ -97,7 +97,7 @@ classdef VKOMP
             rf = RandStream('mt19937ar','Seed',seed^2 + 1);
             centers = 20;
             xrange = 10; xoff = -5;
-            dim = 100;
+            dim = 5;
             atdsize = max(dim*500,1000);
             vxsize = max(dim*200,500);
 
@@ -178,7 +178,7 @@ classdef VKOMP
                 if runs == 1 || true
                     testing.VKOMP.plotStatistics(a,ao,f);
                     if runs > 1
-                        pause;
+                        %pause;
                     end
                 end
             end

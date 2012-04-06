@@ -162,7 +162,7 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                         fDotPhiSqAll = sum(fDotPhiSqAll_comp,1) ./ phinormsq;
                     end
                     
-                    if ~this.UseOGA && siz > 0 && ~isempty(this.f) || false
+                    if ~this.UseOGA && siz > 0 && ~isempty(this.f) && false
                         M = this.f.M;
                         % M-estimation verification stuff
                         f_fm = this.f - kexp;
