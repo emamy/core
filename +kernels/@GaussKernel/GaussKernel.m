@@ -168,6 +168,10 @@ classdef GaussKernel < kernels.BellFunction
                 fprintf('Setting Gamma = %12.20f\n',g);
             end
         end
+        
+        function bool = eq(A ,B)
+            bool = eq@kernels.ARBFKernel(A, B) && A.Gamma == B.Gamma;
+        end
     end
     
     methods(Static)

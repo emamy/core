@@ -29,8 +29,6 @@ classdef KerMorObject < DPCMObject
     %
     % @todo Extract DPCS into single class and put onto matlab file exchange!
     
-
-    
     methods
         function this = KerMorObject
             % Constructs a new KerMor object.
@@ -48,6 +46,21 @@ classdef KerMorObject < DPCMObject
         function display(this)
             %disp(object2str(this));
             disp(this);
+        end
+        
+        function bool = eq(A, B)
+            % Checks equality of two KerMor objects.
+            %
+            % Override (with superclass method call) in subclasses for
+            % specific comparison.
+            bool = strcmp(class(A), class(B));
+        end
+        
+        function bool = ne(A, B)
+            % Checks if two KerMorObjects are different
+            %
+            % Negates the result of eq(A,B) for KerMorObject.
+            bool = ~eq(A,B);
         end
     end
         

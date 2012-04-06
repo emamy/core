@@ -180,8 +180,10 @@ classdef Utils
             %
             % Parameters:
             % data: A cell array of strings/chars or a numeric vector @type char|rowvec
-            % glue: A string that is inserted between any element string representation @type char
-            % format: The sprintf format string if data is a vector @type char
+            % glue: A string that is inserted between any element string
+            % representation @type char @default ', '
+            % format: The sprintf format string if data is a vector @type
+            % char @default '%2.3e'
             %
             % Return values:
             % str: The concatented string of all 'data' strings glued together with the string
@@ -191,12 +193,18 @@ classdef Utils
             % format string.
             str = '';
             if ~isempty(data)
+                if nargin < 3
+                    format = '%2.3e';
+                    if nargin < 2
+                        glue = ', ';
+                    end
+                end
                 if isa(data,'cell')
                     str = data{1};
                     for idx = 2:length(data)
                         str = [str glue data{idx}];%#ok
                     end
-                elseif isnumeric(data) && nargin == 3
+                elseif isnumeric(data)
                     % first n-1 entries
                     if numel(data) > 1
                         str = sprintf([format glue],data(1:end-1));

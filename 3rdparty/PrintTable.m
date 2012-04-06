@@ -101,8 +101,12 @@ classdef PrintTable < handle
     properties(Constant)
         % Equivalent length of a tab character in single-space characters
         %
-        % @default 8 @type integer
-        TabCharLen = 8;
+        % The default value is actually read from the local MatLab
+        % preferences via
+        % 'com.mathworks.services.Prefs.getIntegerPref('EditorSpacesPerTab')'
+        %
+        % @default 4 @type integer
+        TabCharLen = com.mathworks.services.Prefs.getIntegerPref('EditorSpacesPerTab');
     end
     
     properties
@@ -144,8 +148,14 @@ classdef PrintTable < handle
     end
     
     methods
-        function this = PrintTable
+        function this = PrintTable(caption)
             % Creates a new PrintTable instance.
+            %
+            % Parameters:
+            % caption: The caption of the table. @type char @optional
+            if nargin > 0
+                this.Caption = caption;
+            end
             this.clear;
         end
         
@@ -204,8 +214,8 @@ classdef PrintTable < handle
             hasformat = iscell(varargin{end});
             if iscell(varargin{1})
                 error('Invalid input argument. Cells cannot be added to the PrintTable, and if you wanted to specify a sprintf format you forgot the actual value to add.');
-            elseif hasformat && length(varargin)-1 ~= length(varargin{end})
-                error('Input argument mismatch. If you specify a format string cell the number of arguments (=%d) to add must equal the number of format strings (=%d).',length(varargin)-1,length(varargin{end}));
+%             elseif hasformat && length(varargin)-1 ~= length(varargin{end})
+%                 error('Input argument mismatch. If you specify a format string cell the number of arguments (=%d) to add must equal the number of format strings (=%d).',length(varargin)-1,length(varargin{end}));
             end
             if isempty(this.data)
                 this.data{1} = this.stringify(varargin);
@@ -323,11 +333,16 @@ classdef PrintTable < handle
             end
         end
         
-        function str = stringify(~, data)
+        function str = stringify(this, data)
             % Converts any datatype to a string
             
             % Format cell array given
             if iscell(data{end})
+                % if format cell is only one item but have more values,
+                % apply same format string
+                if length(data{end}) == 1 && length(data)-1 > 1
+                    data{end} = repmat(data{end},1,length(data)-1);
+                end
                str = cell(1,length(data)-1);
                for i=1:length(data)-1
                    str{i} = sprintf(data{end}{i},data{i});
@@ -339,9 +354,17 @@ classdef PrintTable < handle
                     if isa(el,'char')
                         str{i} = el;
                     elseif isinteger(el)
-                        str{i} = sprintf('%d',el);
+                        if numel(el) > 1
+                            str{i} = this.implode(el(:),', ','%d');
+                        else
+                            str{i} = sprintf('%d',el);
+                        end
                     elseif isnumeric(el)
-                        str{i} = sprintf('%e',el);
+                        if numel(el) > 1
+                            str{i} = this.implode(el(:),', ','%e');
+                        else
+                            str{i} = sprintf('%e',el);
+                        end
                     elseif isa(el,'function_handle')
                         str{i} = func2str(el);
                     elseif isa(el,'handle')
@@ -351,6 +374,33 @@ classdef PrintTable < handle
                         error('Cannot automatically convert an argument of type %s for PrintTable display.',class(el));
                     end
                 end 
+            end
+        end
+        
+        function str = implode(~, data, glue, format)
+            str = '';
+            if ~isempty(data)
+                if nargin < 3
+                    format = '%2.3e';
+                    if nargin < 2
+                        glue = ', ';
+                    end
+                end
+                if isa(data,'cell')
+                    str = data{1};
+                    for idx = 2:length(data)
+                        str = [str glue data{idx}];%#ok
+                    end
+                elseif isnumeric(data)
+                    % first n-1 entries
+                    if numel(data) > 1
+                        str = sprintf([format glue],data(1:end-1));
+                    end
+                    % append last, no glue afterwards needed
+                    str = [str sprintf(format,data(end))];
+                else
+                    error('Can only pass cell arrays of strings or a vector with sprintf format pattern');
+                end
             end
         end
     end

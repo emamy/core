@@ -11,6 +11,7 @@ classdef BaseKernel < KerMorObject
     % @todo 
     % - Implement cloning for kernels
     % - write universal tests for kernels that check the interface functions (IJacobian etc)
+    % - Implement eq-method for all kernels
     
     properties(SetObservable)
         % Projection/selection matrix for argument components
@@ -45,6 +46,11 @@ classdef BaseKernel < KerMorObject
             %
             % See also: kernels.BellFunction error.BaseEstimator
             fcn = @this.getGlobalLipschitz;
+        end
+        
+        function bool = eq(A, B)
+            % Checks if a kernel equals another kernel
+            bool = eq@KerMorObject(A,B) && isequal(A.P, B.P);
         end
     end
         

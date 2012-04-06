@@ -75,6 +75,10 @@ classdef DPCMObject < handle
             % varargin: A list of char arrays, denoting the names of the properties to
             % register.
             
+            if ~KerMor.App.UseDPCM
+                return;
+            end
+            
             mc = metaclass(this);
             if isempty(varargin)
                 for idx = 1:length(mc.Properties)

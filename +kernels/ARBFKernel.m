@@ -76,6 +76,10 @@ classdef ARBFKernel < kernels.BaseKernel
             % squarerooting and squaring)
             Phi = this.evaluateScalar(sqrt(this.getSqDiffNorm(x, y)));
         end
+        
+        function bool = eq(A ,B)
+            bool = eq@kernels.BaseKernel(A, B) && A.epsilon == B.epsilon && isequal(A.G, B.G);
+        end
     end
     
     methods(Sealed)

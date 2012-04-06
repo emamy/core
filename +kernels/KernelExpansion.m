@@ -67,6 +67,10 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         %
         % @type colvec<double>
         ComponentNorms;
+        
+        % Returns the M upper bound for this KernelExpansion, which is `M
+        % := \max\limits_{j=1}^d\sum\limits_{i=1}^m |c^d_i|
+        M;
     end
     
     properties(SetObservable)
@@ -195,7 +199,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             end
         end
         
-        function c = getGlobalLipschitz(this, t, mu)%#ok            
+        function c = getGlobalLipschitz(this, t, mu)%#ok          
             c = sum(this.Ma_norms) * this.Kernel.getGlobalLipschitz;
         end
         
@@ -217,19 +221,21 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             this.Centers.xi = [];
         end
         
-        function m = get.Ma_norms(this)
-            m = sqrt(sum(this.Ma.^2,1));
+        function sum = plus(A, B)
+            % Adds two kernel expansions and will clone the frist
+            % argument's class as result type
+            sum = compose(A, B, 1);
         end
         
-        function n = get.ComponentNorms(this)
-            n = sqrt(sum(this.Ma' .* (this.getKernelMatrix * this.Ma'),1))';
+        function diff = minus(A, B)
+            % Adds two kernel expansions and will clone the frist
+            % argument's class as result type
+            diff = compose(A, B, -1);
         end
         
-        function n = get.NativeNorm(this)
-            % Returns the native norm of the kernel expansion
-            
-            % doesnt use ComponentNorms as this way we save "sqrt(x).^2"
-            n = sqrt(sum(sum(this.Ma' .* (this.getKernelMatrix * this.Ma'))));
+        function neg = uminus(this)
+            neg = this.clone;
+            neg.Ma = -this.Ma;
         end
     end
     
@@ -259,6 +265,25 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
                 error('Kernel must be a subclass of kernels.BaseKernel.');
             end
         end
+        
+        function m = get.Ma_norms(this)
+            m = sqrt(sum(this.Ma.^2,1));
+        end
+        
+        function n = get.ComponentNorms(this)
+            n = sqrt(sum(this.Ma' .* (this.getKernelMatrix * this.Ma'),1))';
+        end
+        
+        function n = get.NativeNorm(this)
+            % Returns the native norm of the kernel expansion
+            
+            % doesnt use ComponentNorms as this way we save "sqrt(x).^2"
+            n = sqrt(sum(sum(this.Ma' .* (this.getKernelMatrix * this.Ma'))));
+        end
+        
+        function M = get.M(this)
+            M = max(sum(abs(this.Ma),2));
+        end
     end
     
     methods(Access=protected)
@@ -266,6 +291,24 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             % Updates the RotationInvariant property of this CoreFun by
             % checking all registered kernels.
             this.RotationInvariant = isa(this.fSK,'kernels.ARBFKernel');
+        end
+    end
+    
+    methods(Access=private)
+        function c = compose(A, B, sgn)
+            if ~isa(A,'kernels.KernelExpansion') || ~isa(B,'kernels.KernelExpansion')
+                error('Both arguments must be at least kernels.KernelExpansion subclasses');
+            end
+            if A.Kernel ~= B.Kernel
+                error('Cannot add kernel expansions: different state space kernels');
+            elseif ~isempty(A.Ma) && ~isempty(B.Ma) && size(A.Ma,1) ~= size(B.Ma,1)
+                error('Cannot add kernel expansions: different output dimensions');
+            elseif ~isempty(A.Centers.xi) && ~isempty(B.Centers.xi) && size(A.Centers.xi,1) ~= size(B.Centers.xi,1)
+                error('Cannot add kernel expansions: different statespace center dimensions');
+            end
+            c = A.clone;
+            c.Centers.xi = [A.Centers.xi B.Centers.xi];
+            c.Ma = [A.Ma sgn*B.Ma];
         end
     end
     
