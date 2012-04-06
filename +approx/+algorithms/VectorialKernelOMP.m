@@ -38,7 +38,7 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
         % training data (DEBUG)
         f;
         
-        phinormmax;
+        VKOGABound;
     end
     
     methods
@@ -64,6 +64,7 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
             copy.used = this.used;
             copy.expsizes = this.expsizes;
             copy.f = this.f;
+            copy.VKOGABound = this.VKOGABound;
         end
     end
     
@@ -92,7 +93,7 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
             this.Gain = this.err;
             % Make one bigger as it starts with zero gain
             this.HerrDecay = this.err;
-            this.phinormmax = this.err;
+            this.VKOGABound = this.err;
             
             fxinorm = Norm.L2(atd.fxi);
             % Validation set initializations
@@ -232,18 +233,21 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                     this.extendExpansion(kexp, atd, used(end));
                     siz = siz+1;
                     
-                    this.phinormmax(siz) = max(phinormsq);
-                    
                     if this.UseOGA
                         this.Gain(gidx,siz) = v / phinormsq(maxidx);
                     else
                         this.Gain(gidx,siz) = v;
                     end
-                    off = 0;
+                    off = 0; off2 = 0;
                     if siz > 1
                         off = this.HerrDecay(siz-1);
+                        off2 = this.VKOGABound(siz-1);
                     end
                     this.HerrDecay(gidx, siz) = off + this.Gain(gidx,siz);
+                    % Only build improved bound if VKOGA is used
+                    if ~this.UseOGA
+                        this.VKOGABound(gidx, siz) = off2 + 1/max(phinormsq);
+                    end
                     
                     %% Debug - change later to better stopping criteria not using the kernel expansion
                     i.init(kexp.getKernelMatrix);
@@ -302,6 +306,12 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                 if atd.hasParams
                     kexp.Centers.mui = atd.mui(:,bestused);
                 end
+            end
+            % Clean up: remove improved bound if algorithm does use classic
+            % OGA
+            if ~this.UseOGA
+                dim = size(kexp.Ma,1);
+                this.VKOGABound = dim ./ (1 + this.VKOGABound/dim);
             end
             
             if KerMor.App.Verbose > 1

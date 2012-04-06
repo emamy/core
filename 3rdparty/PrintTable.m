@@ -104,9 +104,10 @@ classdef PrintTable < handle
         % The default value is actually read from the local MatLab
         % preferences via
         % 'com.mathworks.services.Prefs.getIntegerPref('EditorSpacesPerTab')'
+        % If no value is found, 4 is used.
         %
         % @default 4 @type integer
-        TabCharLen = com.mathworks.services.Prefs.getIntegerPref('EditorSpacesPerTab');
+        TabCharLen = com.mathworks.services.Prefs.getIntegerPref('EditorSpacesPerTab',4);
     end
     
     properties
