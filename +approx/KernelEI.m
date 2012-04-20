@@ -26,6 +26,8 @@ classdef KernelEI < approx.BaseApprox
         exps;
         
         variant = 2;
+        
+        Gammas = 10;
     end
 
     properties(SetObservable, Dependent)
@@ -98,9 +100,9 @@ classdef KernelEI < approx.BaseApprox
             
             a = approx.algorithms.VectorialKernelOMP;
             a.CoeffComp = general.interpolation.KernelInterpol;
-            a.NumGammas = 5;
+            a.NumGammas = this.Gammas;
             %a.Dists = 2;
-            a.MaxExpansionSize = 100;
+            a.MaxExpansionSize = 300;
             a.UsefScaling = false;
             a.UseOGA = false;
             

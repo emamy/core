@@ -7,6 +7,10 @@ classdef ProcessIndicator < handle
 %
 % @author Daniel Wirtz @date 2012-03-20
 %
+% @change{0,6,dw,2012-04-16} Fixed misinterpreted use of "step" method. Now
+% have a step method which takes an increase value and a set method which
+% takes the new absolute progress to show
+%
 % @new{0,6,dw,2012-03-20} Added this class.
 %
 % @todo process indicator for arbitrary (percentage/integer) values!
