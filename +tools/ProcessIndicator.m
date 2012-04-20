@@ -29,6 +29,7 @@ classdef ProcessIndicator < handle
         p;
         wb;
         title;
+        cur;
     end
 
     methods
@@ -68,6 +69,7 @@ classdef ProcessIndicator < handle
                 error('Total must be ');
             end
             this.total = total;
+            this.cur = 0;
             this.p = 0;
             if this.UseWaitbar
                 this.wb = waitbar(0,this.title,'Visible','off');
@@ -84,33 +86,41 @@ classdef ProcessIndicator < handle
             end
         end
         
-        function step(this, value)
-            % Reports process to the indicator and triggers waitbar or text output.
+        function set(this, value)
+            % Directly sets the current process value.
             %
             % Value is always restricted to `[0, total]`, and if no argument is given, value=1
             % is assumed.
-            %
-            % Parameters:
-            % value: The process value. @type double @default 1
             if nargin == 1
-                value = 1;
+                error('Set requires a value to set.');
             end
             if value > this.total
                 value = this.total;
             elseif value < 0
                 value = 0;
             end
-            perc = value/this.total;
-            pstr = sprintf('%2.0f%% ',round(perc*100));
-            if this.UseWaitbar
-                waitbar(perc,this.wb,sprintf('%s: %s',this.title,pstr));
-            else
-                if perc > this.p
-                    %fprintf('%2.0f%%\n',round(perc*100));
-                    fprintf('%s',pstr);
-                    this.p = ceil(perc*10)/10;
-                end
+            this.cur = value;
+            this.update;
+        end
+        
+        function step(this, value)
+            % Reports process to the indicator and triggers waitbar or text output.
+            %
+            % Increases the current process by the given value. If no value
+            % is specified, one is assumed.
+            %
+            % Parameters:
+            % value: The process value. @type double @default 1
+            if nargin == 1
+                value = 1;
             end
+            if value + this.cur > this.total
+                value = this.total - this.cur;
+            elseif value < -this.cur
+                value = -this.cur;
+            end
+            this.cur = this.cur + value;
+            this.update;
         end
         
         function stop(this)
@@ -129,6 +139,22 @@ classdef ProcessIndicator < handle
                 error('UseWaitbar must be a logical scalar');
             end
             this.UseWaitbar = value;
+        end
+    end
+    
+    methods(Access=private)
+        function update(this)
+            perc = this.cur/this.total;
+            pstr = sprintf('%2.0f%% ',round(perc*100));
+            if this.UseWaitbar
+                waitbar(perc,this.wb,sprintf('%s: %s',this.title,pstr));
+            else
+                if perc > this.p
+                    %fprintf('%2.0f%%\n',round(perc*100));
+                    fprintf('%s',pstr);
+                    this.p = ceil(perc*10)/10;
+                end
+            end
         end
     end
     

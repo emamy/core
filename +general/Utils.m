@@ -3,6 +3,10 @@ classdef Utils
 %
 % @author Daniel Wirtz @date 11.10.2010
 %
+% @new{0,6,dw,2012-04-13} New method "getTube" that allows to draw random
+% vectors from spaces of arbitrary dimension but restricted to a specified
+% tube.
+%
 % @change{0,6,dw,2011-11-17} Moved the getObjectConfig to a separate file.
 %
 % @change{0,6,dw,2011-11-16} Using mex CalcMD5 now to compute hash values for vectors.
@@ -436,9 +440,60 @@ classdef Utils
             %h = sprintf('%d',typecast(vec,'uint8'));
         end
         
+        function x = getTube(dim, num, length, spread, seed)
+            % Computes `n=`'num' random vectors inside a tube of length
+            % `l=`'length' inside a `d=`'dim' dimensional space.
+            % The tube starts at zero and ends at a random point `x_e\in\R^d`
+            % of length `l`.
+            % The spread `s=`'spread' determines the maximum distance `ls`
+            % by which the random vectors might be away from the tube
+            % center `\{x\in\R^d~|~ x = \alpha x_e,\alpha\in[0,1]\}`.
+            %
+            % Parameters:
+            % dim: The dimension of the tube. @type integer
+            % num: The number of desired random vectors. @type integer
+            % length: The length `l` of the tube. @type double @default 1
+            % spread: The spread `s` of the tube vectors around the tube
+            % core. @type double @default 0.15
+            % seed: The seed to use for the random number generator. @type
+            % integer @default cputime*10
+            %
+            % Return values:
+            % x: An `d\times n` matrix with random vectors from a random
+            % tube. @type matrix<double>
+            if nargin < 5
+                seed = cputime*10;
+                if nargin < 4
+                    spread = .15;
+                    if nargin < 3
+                        length = 1;
+                    end
+                end
+            end
+            r = RandStream('mt19937ar','Seed',seed);
+            farend = r.rand(dim,1)-.5;
+            farend = farend * length/norm(farend);
+            x = r.rand(dim,num)-.5;
+            x = bsxfun(@times, x, length*spread./Norm.L2(x));
+            x = x + bsxfun(@times, farend, r.rand(1,num));
+        end
+        
     end
     
     methods(Static)
+        function res = test_Tube
+            num = 1000;
+            res = true;
+            for i=1:50
+                dim = round(rand*30);
+                length = rand*100;
+                spread = rand/2;
+                
+                x = general.Utils.getTube(dim, num, length, spread);
+                res = res & all(Norm.L2(x) <= length*(1+spread));
+            end
+        end
+        
         function res = test_createCombinations
             % Tests the createCombinations function.
             % @author Daniel Wirtz @date 11.10.2010

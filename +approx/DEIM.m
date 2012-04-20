@@ -31,7 +31,7 @@ classdef DEIM < approx.BaseApprox
         Order;
     end
     
-    properties(Access=private)
+    properties%(Access=private)
         fOrder = 10;
         
         % The full approximation base
@@ -128,7 +128,7 @@ classdef DEIM < approx.BaseApprox
                 P = sparse(pts(1:i),1:i,ones(i,1),n,i);
             end
             if KerMor.App.Verbose > 2
-                fprintf('DEIM interpolation points [%s] with values [%s]',...
+                fprintf('DEIM interpolation points [%s] with values [%s]\n',...
                     general.Utils.implode(pts,' ','%d'),general.Utils.implode(v,' ','%2.2e'));
             end
         end
@@ -180,18 +180,21 @@ classdef DEIM < approx.BaseApprox
     end
     
     methods(Static)
-        function m = test_DEIM
+        function [m, r] = test_DEIM
             m = models.pcd.PCDModel(1);
             m.EnableTrajectoryCaching = false;
             m.Approx = approx.DEIM;
             m.Approx.MaxOrder = 40;
             m.System.Params(1).Desired = 10;
             m.SpaceReducer = spacereduction.PODGreedy;
-            m.off1_createParamSamples;
-            m.off2_genTrainingData;
-            m.off3_computeReducedSpace;
-            m.off4_genApproximationTrainData;
-            save DEIM m;
+            m.offlineGenerations;
+%             m.off1_createParamSamples;
+%             m.off2_genTrainingData;
+%             m.off3_computeReducedSpace;
+%             m.off4_genApproximationTrainData;
+%             m.off5_computeApproximation;
+            r = m.buildReducedModel;
+            save DEIM m r;
         end
     end
     

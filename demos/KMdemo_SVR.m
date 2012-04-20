@@ -20,7 +20,7 @@ if nargin == 0
 end
 
 x = -5:.1:5;
-fx = sinc(x)+.2*x;
+fx = sin(x)+.2*x;
 %             fx = sinc(x);
 
 svr = general.regression.ScalarEpsSVR_SMO;

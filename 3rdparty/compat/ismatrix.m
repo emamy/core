@@ -12,5 +12,9 @@ function ismat = ismatrix(value)
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
-ismat = isscalar(value) || ndims(value) == 2 && length(value) > 1;
+if exist('ismatrix','builtin') == 5
+    ismat = builtin('ismatrix', value);
+else
+    ismat = isscalar(value) || ndims(value) == 2 && length(value) > 1;
+end
 end
