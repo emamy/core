@@ -335,11 +335,14 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
                 reltol = 1e-7;
                 dt = sqrt(eps);
                 res = false(size(xa,2),1);
+                if isempty(ta) || nargin < 3
+                    ta = double.empty(0,size(xa,2));
+                end
                 if isempty(mua) || nargin < 4
                     mua = double.empty(0,size(xa,2));
                 end
                 for k = 1:size(xa,2)
-                    x = xa(:,k); t = ta(k); mu = mua(:,k);
+                    x = xa(:,k); t = ta(:,k); mu = mua(:,k);
                     Jc = this.getStateJacobian(x,t,mu);
                     %% Numerical jacobian
                     d = size(x,1);

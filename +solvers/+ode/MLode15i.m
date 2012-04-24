@@ -83,9 +83,9 @@ classdef MLode15i < solvers.ode.MLWrapper & solvers.ode.AImplSolver
             
             %% Use properties from AImplSolver
             % Set Jacobian or Mass matrix
-%             if ~isempty(this.JacFun) || ~isempty(this.M)
-%                 opts = odeset(opts, 'Jacobian', @this.FJAC);
-%             end
+            if ~isempty(this.JacFun) || ~isempty(this.M)
+                opts = odeset(opts, 'Jacobian', @this.FJAC);
+            end
             
             % Process any sparsity patterns
             JP = {[],[]};
