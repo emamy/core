@@ -259,9 +259,10 @@ classdef KernelEI < approx.BaseApprox
             m.EnableTrajectoryCaching = true;
             m.Approx = approx.KernelEI;
             m.Approx.MaxOrder = 60;
+            m.Approx.Gammas = 30;
             m.System.Params(1).Desired = 30;
-            m.SpaceReducer.Eps = 1e-10;
             m.SpaceReducer = spacereduction.PODGreedy;
+            m.SpaceReducer.Eps = 1e-10;
             m.off1_createParamSamples;
             m.off2_genTrainingData;
             m.off3_computeReducedSpace;
