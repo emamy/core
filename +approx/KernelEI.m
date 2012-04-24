@@ -254,15 +254,20 @@ classdef KernelEI < approx.BaseApprox
     methods(Static)
         function m = test_KernelEI
             m = models.pcd.PCDModel(1);
-            m.EnableTrajectoryCaching = false;
+            m.System.h = 1e-8;
+            m.T = 10;
+            m.EnableTrajectoryCaching = true;
             m.Approx = approx.KernelEI;
-            m.Approx.MaxOrder = 30;
-            m.System.Params(1).Desired = 10;
+            m.Approx.MaxOrder = 60;
+            m.System.Params(1).Desired = 30;
+            m.SpaceReducer.Eps = 1e-10;
             m.SpaceReducer = spacereduction.PODGreedy;
             m.off1_createParamSamples;
             m.off2_genTrainingData;
             m.off3_computeReducedSpace;
             m.off4_genApproximationTrainData;
+            save KernelEI m;
+            m.off5_computeApproximation;
             save KernelEI m;
         end
     end

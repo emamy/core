@@ -11,24 +11,29 @@ classdef PlotManager < handle
 % Examples:
 % % Run with subplots:
 % pm = PlotManager(false,2,1);
-% pm.Prefix = 'my_pm';
+% pm.FilePrefix = 'my_pm';
 % % [.. your plot function called with argument pm ..]
 % pm.nextPlot('fig_in_subplot1');
 % plot(1:10,sin(1:10));
 % pm.nextPlot('fig_in_subplot2');
-% plot(-10:10,cos(pi*-10:10));
+% plot(-10:10,cos(pi*(-10:10)));
+% pm.nextPlot('fig_in_new_subplot1');
+% plot(-10:10,exp((-10:10) / 5));
 % pm.done;
 % pm.savePlots('.','fig');
 % pm.savePlots('.','png',true);
 %
 % % Run with single figures:
+% % Run with subplots:
 % pm = PlotManager;
-% pm.Prefix = 'my_pm_single';
+% pm.FilePrefix = 'my_pm_single';
 % % [.. your plot function called with argument pm ..]
 % pm.nextPlot('fig_in_subplot1');
 % plot(1:10,sin(1:10));
 % pm.nextPlot('fig_in_subplot2');
-% plot(-10:10,cos(pi*-10:10));
+% plot(-10:10,cos(pi*(-10:10)));
+% pm.nextPlot('fig_in_new_subplot1');
+% plot(-10:10,exp((-10:10) / 5));
 % pm.done;
 % pm.savePlots('.','fig');
 % pm.savePlots('.','png',true);
@@ -64,6 +69,16 @@ classdef PlotManager < handle
         %
         % @type char @default ''
         FilePrefix = '';
+        
+        % DPI used for export. See export_fig settings.
+        %
+        % @type char @default '150'
+        ExportDPI = '150';
+        
+        % JPEG quality used for export. See export_fig settings.
+        %
+        % @type char @default '95'
+        JPEGQuality = '95';
     end
     
     properties(Access=private)
@@ -76,7 +91,7 @@ classdef PlotManager < handle
         % nextPlot.
         %
         % @type rowvec<double>
-        Handles;
+        Figures;
     end
     
     properties(Access=private, Transient)
@@ -103,8 +118,8 @@ classdef PlotManager < handle
                     this.cols = cols;    
                 end
             end
-            this.cnt = 1;
-            this.Handles = [];
+            this.cnt = 0;
+            this.Figures = [];
             s = get(0,'ScreenSize');
             this.ss = s(3:4);
         end
@@ -122,26 +137,26 @@ classdef PlotManager < handle
             % tag: The tag to use for the axes. @type char @default ''
             %
             % Return values:
-            % h: The handle to the new plot object. Either an axis or
-            % figure handle.
+            % h: The handle to the new axes object. @type axes
             if nargin == 1
                 tag = '';
             end
             this.finishCurrent;
             if this.Single
-                h = figure('Position',[(this.ss - this.SingleSize)/2 this.SingleSize],'Tag',tag);
+                this.Figures(end+1) = figure('Position',[(this.ss - this.SingleSize)/2 this.SingleSize],'Tag',tag);
+                h = gca;
             else
-                if isempty(this.h) || ~ishandle(this.h)
-                    this.h = figure;
+                this.cnt = this.cnt + 1;
+                if isempty(this.Figures) || this.cnt > this.rows*this.cols
+                    this.Figures(end+1) = figure('Tag',tag);
+                    this.cnt = 1;
                 else
-                    if gcf ~= this.h
+                    if gcf ~= this.Figures(end)
                         figure(this.h);
                     end
                 end
                 h = subplot(this.rows, this.cols, this.cnt, 'Tag', tag);
-                this.cnt = this.cnt + 1;
             end
-            this.Handles(end+1) = h;
         end
         
         function done(this)
@@ -168,35 +183,32 @@ classdef PlotManager < handle
                     end
                 end
             end
-            n = length(this.Handles);
-            pi = tools.ProcessIndicator(sprintf('Saving %d current plots as "%s"', n, format), n, false);
+            n = length(this.Figures);
+            fprintf('Saving %d current figures as "%s"...', n, format);
             for idx=1:n
-                h = this.Handles(idx);%#ok<*PROP>
+                h = this.Figures(idx);%#ok<*PROP>
                 if ishandle(h)
                     fname = get(h,'Tag');
                     % check for empty tags here as people may have changed
                     % the tag some place else in between
                     if isempty(fname)
-                        fname = sprintf('plot_nr_%d',idx);
+                        fname = sprintf('figure_%d',idx);
                     end
                     fname = fullfile(folder, [this.FilePrefix '_' fname]);
-                    if strcmp(get(h,'Type'),'axes')
-                        general.Utils.saveAxes(h, fname, format);
-                    elseif strcmp(get(h,'Type'),'figure')
-                        general.Utils.saveFigure(h, fname, format);
-                    end
+                    this.saveFigure(h, fname, format);
                 end
-                pi.step;
             end
-            pi.stop;
+            fprintf('done!\n');
             if close
                 this.closeAll;
             end
         end
         
         function closeAll(this)
-            for i=1:length(this.Handles)
-                h = this.Handles(i);
+            % Closes all currently openend plots and resets the Handles
+            % property.
+            for i=1:length(this.Figures)
+                h = this.Figures(i);
                 if ishandle(h) && strcmp(get(h,'Type'),'figure')
                     close(h);
                 end
@@ -204,14 +216,15 @@ classdef PlotManager < handle
                     close(this.h);
                 end
             end
-            this.Handles = [];
+            this.Figures = [];
+            this.cnt = 0;
         end
     end
     
     methods(Access=private)
         function finishCurrent(this)
-            if ~isempty(this.Handles)
-                ax = this.Handles(end);
+            if ~isempty(this.Figures)
+                ax = this.Figures(end);
                 if ishandle(ax)
                     % If not an axes, must be a figure
                     if ~strcmp(get(ax,'Type'),'axes')
@@ -219,8 +232,60 @@ classdef PlotManager < handle
                     end
                     axis(ax,'tight');
                 else
-                    this.Handles(end) = [];
+                    this.Figures(end) = [];
                 end
+            end
+        end
+        
+        function saveFigure(this, fig, filename, ext)
+            % Opens a matlab save dialog and saves the given figure to the
+            % file selected.
+            %
+            % Supported formats: eps, jpg, fig, png, tif, pdf
+            %
+            % @change{0,4,dw,2011-05-31} Improved the export capabilites and automatic removement of
+            % any figure margins is performed.
+                        
+            exts = {'fig','pdf','eps','jpg','png','tif'};
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            extidx = find(strcmp(ext,exts),1);
+            if isempty(extidx)
+                warning('KerMor:Utils:invalidExtension','Invalid extension: %s, using eps',ext);
+                extidx = 1;
+            end
+            file = [filename '.' exts{extidx}];
+            
+            if ~isempty(file)
+                d = fileparts(file);
+                if ~isempty(d) && exist(d,'file') ~= 7
+                    mkdir(d);
+                end
+                if extidx == 1 % fig
+                    saveas(fig, file, 'fig');
+                else
+                    args = {file, ['-' exts{extidx}],['-r' this.ExportDPI]};
+                    if any(extidx == [2 3]) %pdf, eps
+                        %args{end+1} = '-painters';
+                        args{end+1} = '-transparent';
+                    elseif extidx == 4 % jpg
+                        args{end+1} = ['-q' this.JPEGQuality];
+                        %args{end+1} = '-opengl';
+                    elseif extidx == 5 % png
+                        args{end+1} = '-transparent';
+                    end
+
+                    args{end+1} = fig;
+
+                    % export_fig ignores -transparent somehow on my machine..
+                    c = get(fig,'Color');
+                    set(fig,'Color','white');
+
+                    export_fig(args{:});
+
+                    set(fig,'Color',c);
+                end
+            else
+                fprintf(2,'No file specified. Aborting\n');
             end
         end
     end
