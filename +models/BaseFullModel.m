@@ -21,6 +21,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 %
 % @author Daniel Wirtz @date 16.03.2010
 %
+% @change{0,6,dw,2012-04-26} Using tools.ProcessIndicator for training data
+% generation now.
+%
 % @change{0,6,dw,2011-12-14} Now listening for changes to T and dt of the model and clearing
 % the model training data if either value changes
 %
@@ -251,9 +254,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % Clean up the simulation cache
             
             % remove all temp files
-            this.simCache.clearTrajectories;
+            %this.simCache.clearTrajectories;
             % remove folder
-            this.simCache.delete;
+            %this.simCache.delete;
         end
         
         function time = off1_createParamSamples(this)
@@ -344,25 +347,12 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 inputidx = [];
                 
                 if KerMor.App.Verbose > 0
-                    fprintf('Generating projection training data... ');
-                    p = 0;
+                    pi = tools.ProcessIndicator(sprintf('Generating projection training data (%d trajectories)...',num_in*num_s),num_in*num_s);
                 end
-                cnt = 0;
                 % Iterate through all input functions
                 for inidx = 1:num_in
                     % Iterate through all parameter samples
-                    for pidx = 1:num_s
-                        
-                        % Display
-                        if KerMor.App.Verbose > 0
-                            perc = cnt/(num_in*num_s);
-                            if perc > p
-                                %fprintf('%2.0f%%\n',round(perc*100));
-                                fprintf('%2.0f%% ',round(perc*100));
-                                p = ceil(perc*10)/10;
-                            end
-                        end
-                        
+                    for pidx = 1:num_s 
                         % Check for parameters
                         if this.Data.SampleCount > 0
                             mu = this.Data.getParams(pidx);
@@ -381,10 +371,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         
                         % Assign snapshot values
                         this.Data.addTrajectory(x, mu, inputidx, ctime);
+                        if KerMor.App.Verbose > 0
+                            pi.step;
+                        end
                     end
                 end
                 if KerMor.App.Verbose > 0
-                    fprintf('\n');
+                    pi.stop;
                 end
             end
             time = toc(time);
