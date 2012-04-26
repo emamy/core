@@ -76,6 +76,7 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
             
             if isempty(this.Dists)
                 d = this.getDists(atd);
+                this.Dists = d;
             else
                 d = this.Dists;
             end
@@ -115,12 +116,13 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
             
             minHerr = Inf;
             %% Run loop for all desired distances
+            pi = tools.ProcessIndicator(sprintf('VKOGA approximation for %d gamma values',size(d,2)),size(d,2));
             for gidx = 1:size(d,2)
                 
                 % Clear kexp
                 kexp.clear;
                 % Set current hyperconfiguration
-                this.setDistKernelConfig(kexp, d(:,gidx));
+%                 this.setDistKernelConfig(kexp, d(:,gidx));
                 
                 projpart_old = 0;
                 used = []; %#ok<*PROP>
@@ -296,10 +298,12 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                     minHerr = this.err(gidx,siz);
                     bestgidx = gidx;
                 end
+                pi.step;
             end
             
             % Restore best configuration
-            g = this.setDistKernelConfig(kexp, bestDist);
+%             g = this.setDistKernelConfig(kexp, bestDist);
+            g = kexp.ParamKernel.setGammaForDistance(bestDist(3),this.gameps);
             kexp.Ma = bestMa;
             kexp.Centers.xi = atd.xi(:,bestused);
             if this.pte
@@ -325,6 +329,8 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                 fprintf('VKOMP best gamma index:%d (value:%e) for VKOMP with OGA=%s, exp-size:%d\n',...
                     bestgidx,g,og,size(bestMa,2));
             end
+            
+            pi.stop;
             
             function compTrainingError
                 afxi = kexp.evaluate(xtmuargs{:});
