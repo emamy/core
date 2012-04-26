@@ -34,7 +34,7 @@ classdef BellFunction < kernels.ARBFKernel
     % hang if the newton iteration does not come to a hold. An error will
     % be thrown as finding the correct minima is necessary.
     
-    properties(SetObservable,Dependent)
+    properties(SetObservable, Dependent)
         % Point of maximum first derivative on scalar evaluation.
         %
         % @propclass{critical} This value is essential for any bell function.
@@ -83,9 +83,18 @@ classdef BellFunction < kernels.ARBFKernel
             c = abs(this.evaluateD1(this.r0));
         end
         
-        % clone:
-        % copy.NewtonTolerance = this.NewtonTolerance;
-        % copy.MaxNewtonIterations = this.MaxNewtonIterations;
+        function copy = clone(this, copy)
+            copy = clone@kernels.ARBFKernel(this, copy);
+            copy.NewtonTolerance = this.NewtonTolerance;
+            copy.MaxNewtonIterations = this.MaxNewtonIterations;
+            copy.fr0 = this.fr0;
+            copy.p = this.p;
+            copy.sc = this.sc;
+            copy.d1 = this.d1;
+            copy.d2 = this.d2;
+            copy.rm = this.rm;
+            copy.r0 = this.r0;
+        end
         
         function rtmp = ModifiedNewton(this, rstart, s)
             rtmp = rstart+2*this.NewtonTolerance;

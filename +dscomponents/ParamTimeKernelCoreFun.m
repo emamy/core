@@ -32,34 +32,37 @@ classdef ParamTimeKernelCoreFun < kernels.ParamTimeKernelExpansion & dscomponent
         
         function projected = project(this, V, W)
             % Call superclass method
-            projected = this.clone; 
-            
+            projected = this.clone;
             projected = project@dscomponents.ACoreFun(this, V, W, projected);
             % For rotation invariant kernel expansions the snapshots can be
             % transferred into the subspace without loss.
-            if this.RotationInvariant
+            k = this.Kernel;
+            if k.IsRBF
                 projected.Centers.xi = W' * this.Centers.xi;
+                if ~isequal(model.Data.V,model.Data.W) || model.G ~= 1
+                    projected.Kernel.G = V'*(k.G*V);
+                else
+                    projected.Kernel.G = 1;
+                end
+            elseif k.IsScProd
+                projected.Centers.xi = V' * (k.G * this.Centers.xi);
+                projected.Kernel.G = 1;
             end
             projected.Ma = W'*this.Ma;
         end
         
         function fx = evaluate(this, x, t, mu)
-            % From both inherited evaluate functions take the kernel evaluation, augmented by the
-            % `V` multiplication if projection is used but the kernel is not rotation invariant.
+            % From both inherited evaluate functions take the kernel evaluation.
+            fx = evaluate@kernels.ParamTimeKernelExpansion(this, x, t, mu);
+        end
+        
+%         function phi = getKernelVector(this, x, t, mu)
 %             V = 1;
 %             if ~this.RotationInvariant && ~isempty(this.V)
 %                 V = this.V;
 %             end
-            fx = evaluate@kernels.ParamTimeKernelExpansion(this, x, t, mu);
-        end
-        
-        function phi = getKernelVector(this, x, t, mu)
-            V = 1;
-            if ~this.RotationInvariant && ~isempty(this.V)
-                V = this.V;
-            end
-            phi = getKernelVector@kernels.ParamTimeKernelExpansion(this, V*x, t, mu);
-        end
+%             phi = getKernelVector@kernels.ParamTimeKernelExpansion(this, V*x, t, mu);
+%         end
         
         function copy = clone(this, copy)
             if nargin < 2

@@ -116,17 +116,13 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
             
             % DONT CHANGE THIS LINE unless you know what you are doing or
             % you are me :-)
-            this.updateRotInv;
+%             this.updateRotInv;
             
             this.registerProps('TimeKernel','ParamKernel',...
                 'SubKernelCombinationFun','StateNablaCombinationFun');
         end
 
         function fx = evaluate(this, x, t, mu)
-%             phi = this.SubKernelCombinationFun(...
-%                 this.fTK.evaluate(t, this.Centers.ti), ...
-%                 this.fSK.evaluate(x, this.Centers.xi), ...
-%                 this.fPK.evaluate(mu, this.Centers.mui));
               fx = this.Ma * this.getKernelVector(x, t, mu)';
         end
         
@@ -191,8 +187,8 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
             copy = clone@kernels.KernelExpansion(this, copy);
             copy.SubKernelCombinationFun = this.SubKernelCombinationFun;
             copy.StateNablaCombinationFun = this.StateNablaCombinationFun;
-            copy.fTK = this.fTK;
-            copy.fPK = this.fPK;
+            copy.fTK = this.fTK.clone;
+            copy.fPK = this.fPK.clone;
         end
         
         function clear(this)
@@ -226,7 +222,6 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
         function set.ParamKernel(this, value)
             if isa(value,'kernels.BaseKernel')
                 this.fPK = value;
-                this.updateRotInv;
             else
                 error('ParamKernel must be a subclass of kernels.BaseKernel.');
             end
@@ -235,21 +230,9 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
         function set.TimeKernel(this, value)
             if isa(value,'kernels.BaseKernel')
                 this.fTK = value;
-                this.updateRotInv;
             else
                 error('TimeKernel must be a subclass of kernels.BaseKernel.');
             end
         end
     end
-    
-    methods(Access=protected)
-        function updateRotInv(this)
-            % Updates the RotationInvariant property of this KernelExpansion
-            updateRotInv@kernels.KernelExpansion(this);
-            this.RotationInvariant = this.RotationInvariant && ...
-                isa(this.fTK,'kernels.ARBFKernel') && ...
-                isa(this.fPK,'kernels.ARBFKernel');
-        end
-    end
-    
 end

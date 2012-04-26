@@ -1,4 +1,4 @@
-classdef NoKernel < kernels.BaseKernel & kernels.ARBFKernel
+classdef NoKernel < kernels.ARBFKernel
     % Neutral Kernel which has no effect.
     %
     % A call to evaluate just returns 1.
@@ -6,9 +6,13 @@ classdef NoKernel < kernels.BaseKernel & kernels.ARBFKernel
     methods
         
         function this = NoKernel
-            this = this@kernels.BaseKernel;
             this = this@kernels.ARBFKernel;
             this.G = [];
+            this.P = [];
+        end
+        
+        function copy = clone(this)
+            copy = clone@kernels.ARBFKernel(this, kernels.NoKernel);
         end
         
         function K = evaluate(this, x, y)%#ok
@@ -28,8 +32,6 @@ classdef NoKernel < kernels.BaseKernel & kernels.ARBFKernel
         function c = getGlobalLipschitz(this)%#ok
             c = 1;
         end
-    
     end
-    
 end
 

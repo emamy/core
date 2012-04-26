@@ -3,6 +3,9 @@ classdef LinearKernel < kernels.BaseKernel
     %   Detailed explanation goes here
     
     methods
+        function this = LinearKernel
+            this.IsScProd = true;
+        end
         
         function c = getGlobalLipschitz(this)%#ok
             c = 1;
@@ -13,11 +16,22 @@ classdef LinearKernel < kernels.BaseKernel
             Nabla = y;
         end
         
-        function K = evaluate(this, x, y)%#ok
+        function K = evaluate(this, x, y)
+            if ~isempty(this.P)
+                x = x(this.P,:);
+            end
             if nargin == 2 || isempty(y)
                 y = x;
+            else
+                if ~isempty(this.P)
+                    y = y(this.P,:);
+                end
             end
-            K = x'*y;
+            K = x'*(this.G*y);
+        end
+        
+        function copy = clone(this)
+            copy = clone@kernels.BaseKernel(this, kernels.LinearKernel);
         end
     end
     

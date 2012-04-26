@@ -65,6 +65,12 @@ classdef InvMultiquadrics < kernels.ARBFKernel
         function Ks = evaluateScalar(this, r)
             Ks = (this.c^2 + (this.epsilon*r).^2).^this.beta;
         end
+        
+        function copy = clone(this)
+            copy = clone@kernels.ARBFKernel(this, kernels.InvMultiquadrics);
+            copy.beta = this.beta;
+            copy.c = this.c;
+        end
     end
     
 end

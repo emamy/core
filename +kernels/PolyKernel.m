@@ -19,6 +19,12 @@ classdef PolyKernel < kernels.BaseKernel
                 % TODO validity checks
                 this.Degree = deg;
             end
+            this.IsScProd = true;
+        end
+        
+        function copy = clone(this)
+            copy = clone@kernels.BaseKernel(this, kernels.PolyKernel);
+            copy.Degree = this.Degree;
         end
         
         function c = getGlobalLipschitz(this)%#ok
@@ -32,10 +38,17 @@ classdef PolyKernel < kernels.BaseKernel
         end
         
         function K = evaluate(this, x, y)
-            if nargin == 2 || isempty(y)
-                y=x;
+            if ~isempty(this.P)
+                x = x(this.P,:);
             end
-            K = x'*y.^this.Degree;
+            if nargin == 2 || isempty(y)
+                y = x;
+            else
+                if ~isempty(this.P)
+                    y = y(this.P,:);
+                end
+            end
+            K = (x'*(this.G*y)).^this.Degree;
         end
     end
     

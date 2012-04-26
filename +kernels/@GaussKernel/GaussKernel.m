@@ -172,6 +172,11 @@ classdef GaussKernel < kernels.BellFunction
         function bool = eq(A ,B)
             bool = eq@kernels.ARBFKernel(A, B) && A.Gamma == B.Gamma;
         end
+        
+        function copy = clone(this)
+            copy = clone@kernels.BellFunction(this, kernels.GaussKernel);
+            copy.Gamma = this.Gamma;
+        end
     end
     
     methods(Static)

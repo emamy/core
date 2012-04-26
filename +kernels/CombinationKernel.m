@@ -57,7 +57,6 @@ classdef CombinationKernel < kernels.BaseKernel
             end
             this.Kernels{end+1} = kernel;
             this.Weights(end+1) = weight;
-            %this.RotationInvariant = this.RotationInvariant && kernel.RotationInvariant;
         end
     end
     

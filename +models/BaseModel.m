@@ -462,6 +462,7 @@ classdef BaseModel < KerMorObject
         end
         
         function gs = get.GScaled(this)
+            % @todo move GScaled to BaseDynSystem
             ss = this.System.StateScaling;
             if isscalar(ss)
                 gs = this.G * ss^2;
@@ -526,6 +527,11 @@ classdef BaseModel < KerMorObject
         
         function set.G(this, value)
             % @todo check for p.d. and symmetric, -> sparsity?
+            if isempty(value)
+                error('G must not be empty. Use G=1 for default euclidean scalar product and norms');
+            elseif any(abs(value-value') > eps)
+                error('G must be symmetric.');
+            end
             this.G = value;
         end
         

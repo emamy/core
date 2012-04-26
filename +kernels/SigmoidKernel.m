@@ -23,15 +23,20 @@ classdef SigmoidKernel < kernels.BaseKernel
     methods
         
         function this = SigmoidKernel(kappa, nu)
-            
             this.registerProps('kappa','nu');
-            
+            this.IsScProd = true;
             if nargin > 0
                 this.kappa = kappa;
                 if nargin > 1
                     this.nu = nu;
                 end
             end
+        end
+        
+        function copy = clone(this)
+            copy = clone@kernels.BaseKernel(this, kernels.SigmoidKernel);
+            copy.kappa = this.kappa;
+            copy.nu = this.nu;
         end
         
         function c = getGlobalLipschitz(this)%#ok
@@ -45,10 +50,17 @@ classdef SigmoidKernel < kernels.BaseKernel
         end
         
         function K = evaluate(this, x, y)
-            if nargin == 2
-                y = x;
+            if ~isempty(this.P)
+                x = x(this.P,:);
             end
-            K = tanh( this.kappa * x'*y + this.nu);
+            if nargin == 2 || isempty(y)
+                y = x;
+            else
+                if ~isempty(this.P)
+                    y = y(this.P,:);
+                end
+            end
+            K = tanh( this.kappa * x'*(this.G*y) + this.nu);
         end
         
         function set.kappa(this, value)

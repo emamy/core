@@ -85,11 +85,12 @@ classdef KernelApprox < approx.BaseApprox & dscomponents.ParamTimeKernelCoreFun
             % If V=W, we have W^tV = I_r by assumption, so if G=1 we have
             % V^tGV = I_r and we dont need to set a custom norm for the
             % kernels (would mean additional rounding error)
-            if isa(this.Kernel,'kernels.ARBFKernel') && ...
-                    ~isequal(model.Data.V,model.Data.W) || model.G ~= 1
-                % Set norm matrix to V^tGV as required by theory.
-                this.Kernel.G = model.Data.V'*(model.G*model.Data.V);
-            end
+%             if isa(this.Kernel,'kernels.ARBFKernel') && ...
+%                     ~isequal(model.Data.V,model.Data.W) || model.G ~= 1
+%                 % Set norm matrix to V^tGV as required by theory.
+%                 this.Kernel.G = model.Data.V'*(model.G*model.Data.V);
+%             end
+            this.Kernel.G = model.G;
                         
             % First argument: this kernel expansion!
             this.Algorithm.computeApproximation(this, model.Data.ApproxTrainData);

@@ -167,7 +167,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             this.Ma_norms = f.Ma_norms;
             
             this.G = this.ReducedModel.GScaled;
-            if f.RotationInvariant && ~isempty(this.ReducedModel.V)
+            if f.Kernel.IsRBF && ~isempty(this.ReducedModel.V)
                 % Use the projected centers z_i from the reduces system with x_i = Vz_i in this
                 % case.
                 this.c = this.ReducedModel.System.f.Centers;

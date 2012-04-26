@@ -9,6 +9,11 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
 %
 % @author Daniel Wirtz @date 2011-07-07
 %
+% @change{0,6,2012-04-25} Removed the RotationInvariant property from the
+% kernel expansions and introduced kernels.BaseKernel.IsRBF and
+% kernels.BaseKernel.IsScProd to indicate the properties on a per-kernel
+% basis.
+%
 % @change{0,5,dw,2011-07-28} Fixed the evaluate method, it had an argument Centers.xi too much.
 %
 % @new{0,5,dw,2011-07-07} Added this class.
@@ -100,16 +105,6 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         Ma;
     end
     
-    properties(SetAccess=protected)
-        % A flag that tells subclasses if this (kernel-based)
-        % function is rotation invariant.
-        % 
-        % Depending on the flag projection of subclasses can be different.
-        %
-        % @default false @type logical
-        RotationInvariant = false;
-    end
-    
     properties(SetAccess=private, GetAccess=protected)
         % The inner (state) kernel object
         %
@@ -131,7 +126,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             
             % DONT CHANGE THIS LINE unless you know what you are doing or
             % you are me :-)
-            this.updateRotInv;
+%             this.updateRotInv;
             
             this.registerProps('Kernel','Centers');
         end
@@ -210,8 +205,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             % Copy local variables
             copy.Centers = this.Centers;
             copy.Ma = this.Ma;
-            copy.fSK = this.fSK;
-            copy.RotationInvariant = this.RotationInvariant;
+            copy.fSK = this.fSK.clone;
         end
         
         function clear(this)
@@ -260,7 +254,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         function set.Kernel(this, value)
             if isa(value,'kernels.BaseKernel')
                 this.fSK = value;
-                this.updateRotInv;
+%                 this.updateRotInv;
             else
                 error('Kernel must be a subclass of kernels.BaseKernel.');
             end
@@ -283,14 +277,6 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         
         function M = get.M(this)
             M = max(sum(abs(this.Ma),2));
-        end
-    end
-    
-    methods(Access=protected)
-        function updateRotInv(this)
-            % Updates the RotationInvariant property of this CoreFun by
-            % checking all registered kernels.
-            this.RotationInvariant = isa(this.fSK,'kernels.ARBFKernel');
         end
     end
     

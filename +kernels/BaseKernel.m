@@ -1,4 +1,4 @@
-classdef BaseKernel < KerMorObject
+classdef BaseKernel < KerMorObject & ICloneable
     %BASEKERNEL Basic KerMor Kernel
     %
     % All Kernels have to inherit from this class.
@@ -14,6 +14,19 @@ classdef BaseKernel < KerMorObject
     % - Implement eq-method for all kernels
     
     properties(SetObservable)
+%     properties(SetObservable, Dependent)
+        % The matrix `G` that induces the state space scalar product
+        % `\langle x-y\rangle_G` and norm `||x-y||_G` to use.
+        %
+        % Must be a positive definite, symmetric matrix `G`.
+        %
+        % @propclass{critical} If a custom norm is used (i.e. after
+        % subspace projection) tihs must be set in order to obtain correct
+        % evaluations.
+        %
+        % @type matrix<double> @default 1
+        G = 1;
+        
         % Projection/selection matrix for argument components
         %
         % Set this value to the indices of the components of any argument passed to the kernel
@@ -26,13 +39,59 @@ classdef BaseKernel < KerMorObject
         %
         % @default [] @type matrix
         P = [];
+    
+        % A set of center vectors that is to be used upon calls to
+        % evaluateAtCenters.
+        %
+        % Setting the center values causes some pre-computations to be
+        % performed in order for increased performance.
+        %
+        % @propclass{data}
+        %
+        % @type matrix<double> @default []
+%         Centers;
+    end
+        
+    properties(SetAccess=protected)
+        % Flag that determines if the current kernel is a radial basis
+        % function, i.e. its evaluation is of the form $\Phi(x,y) =
+        % \phi(\norm{x-y}{G})$ for some scalar function $\phi$.
+        %
+        % Set in subclasses according to current kernel.
+        %
+        % @type logical @default false
+        IsRBF = false;
+        
+        % Flag that determines if the current kernel bases on scalar
+        % product evaluations, i.e. are of the form $\Phi(x,y) =
+        % \phi(\sp{x}{y}_G)$ for some scalar function $\phi$.
+        %
+        % Set in subclasses according to current kernel.
+        %
+        % @type logical @default false
+        IsScProd = false;
+    end
+    
+    properties(Access=private)
+%         fCenters = [];
+        fG = 1;
+        fP = [];
     end
     
     methods
         function this = BaseKernel
             this = this@KerMorObject;
-            this.registerProps('P');
+%             this.registerProps('P', 'G', 'Centers');
+            this.registerProps('P', 'G');
         end
+        
+%         function phix = evaluateAtCenters(this, xi)
+%             % Default implementation.
+%             %
+%             % Returns the kernel matrix for the points `x_i` and the
+%             % current Centers
+%             phix = this.evaluate(xi, this.fCenters);
+%         end
         
         function fcn = getLipschitzFunction(this)
             % Method that allows error estimators to obtain a lipschitz
@@ -52,6 +111,26 @@ classdef BaseKernel < KerMorObject
             % Checks if a kernel equals another kernel
             bool = eq@KerMorObject(A,B) && isequal(A.P, B.P);
         end
+        
+        function copy = clone(this, copy)
+            copy.G = this.G;
+            copy.P = this.P;
+        end
+    end
+    
+    %% Getter & Setter
+    methods
+        function G = get.G(this)
+            G = this.fG;
+        end
+        
+        function P = get.P(this)
+            P = this.fP;
+        end
+        
+%         function c = get.Centers(this)
+%             c = this.fCenters;
+%         end
     end
         
     methods(Abstract)
@@ -65,7 +144,7 @@ classdef BaseKernel < KerMorObject
         % Return values:
         % Phi: The evaluation matrix `\Phi(x,y) \in \R^{n\times m}` of the kernel `\Phi`, with
         % entries `\Phi(x_i,y_j)` at `i,j`.
-        K = evaluate(x,y);
+        K = evaluate(x, y);
         
         % Computes the partial derivatives with respect to each component of the first argument.
         %

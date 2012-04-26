@@ -25,19 +25,6 @@ classdef ARBFKernel < kernels.BaseKernel
     % @todo: change property to check for interface implementation,
     % implement in other suitable kernels
     
-    properties(SetObservable)
-        % The norm to use for the evaluation of `||x-y||_G`.
-        %
-        % Must be a positive definite, symmetric matrix `G`.
-        %
-        % @propclass{critical} If a custom norm is used (i.e. after
-        % subspace projection) tihs must be set in order to obtain correct
-        % evaluations.
-        %
-        % @type matrix<double> @default 1
-        G = 1;
-    end
-    
     properties(SetAccess=protected)
         % The 'dilation parameter' after [S08], which is used by the preconditioning process
         % for kernel interpolation.
@@ -51,7 +38,7 @@ classdef ARBFKernel < kernels.BaseKernel
     methods
         function this = ARBFKernel
             this = this@kernels.BaseKernel;
-            this.registerProps('G');
+            this.IsRBF = true;
         end
         
         function Phi = evaluate(this, x, y)
@@ -79,6 +66,11 @@ classdef ARBFKernel < kernels.BaseKernel
         
         function bool = eq(A ,B)
             bool = eq@kernels.BaseKernel(A, B) && A.epsilon == B.epsilon && isequal(A.G, B.G);
+        end
+        
+        function copy = clone(this, copy)
+            copy = clone@kernels.BaseKernel(this, copy);
+            copy.epsilon = this.epsilon;
         end
     end
     

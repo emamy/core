@@ -108,6 +108,7 @@ classdef KernelEI < approx.BaseApprox
             
             k = kernels.ParamTimeKernelExpansion;
             k.Kernel = kernels.GaussKernel;
+            k.Kernel.G = model.G;
             if ~isempty(atd.ti)
                 k.TimeKernel = kernels.GaussKernel;
             end
