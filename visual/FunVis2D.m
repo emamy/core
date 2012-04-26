@@ -496,7 +496,7 @@ function updateATDPoints(h, c)
 if ~isempty(c.td)
     xsel = c.idxmap([c.d1 c.d2]);
     C = [c.td.xi];
-    if c.isptke
+    if c.isptke || isa(c.fun,'dscomponents.ACoreFun')
         C = [C; c.td.ti; c.td.mui];
     end
     % Determine the % closest centers

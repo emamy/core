@@ -44,8 +44,8 @@ classdef ModelAnalyzer < handle;
                 mu = fm.Data.ParamSamples(:,pidx);
                 y = fm.Data.getTrajectory(mu,in);
                 [~, yr] = this.rm.simulate(mu,in);
-                errs(1,pidx) = max(sqrt(sum((yr-y).^2))); %linf l2 err
-                errs(2,pidx) = max(max(abs(yr-y),[],1)); %linf linf err
+                errs(1,pidx) = max(Norm.L2(yr-y)); %linf l2 err
+                errs(2,pidx) = max(Norm.Linf(yr-y)); %linf linf err
             end
         end
         

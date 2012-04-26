@@ -1,5 +1,8 @@
 classdef Norm
-% Norm: Static class for commonly used norms
+% Norm: Static class for commonly used norms on sets of vectors
+%
+% All norm functions perform their respective computations on each column
+% of a given matrix!
 %
 % @author Daniel Wirtz @date 2012-03-29
 %
