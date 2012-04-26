@@ -72,7 +72,7 @@ classdef GaussKernel < kernels.BellFunction
             if size(x,2) > 1 && size(y,2) > 1
                 error('One argument must be a vector.');
             end
-            if ~isempty(this.P)
+            if ~isempty(this.fP)
                 error('Not yet implemented correctly.');
 %                 xl = x(this.P,:);
 %                 yl = y(this.P,:);

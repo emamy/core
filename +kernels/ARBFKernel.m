@@ -96,10 +96,10 @@ classdef ARBFKernel < kernels.BaseKernel
             % r: The matrix `R \in \R^{n\times m}` with entries `R_{ij} = \norm{x_i-y_j}{G}^2`
             %
             % See also: kernels.BaseKernel.P kernels.ARBFKernel.G
-            if ~isempty(this.P)
-                x = x(this.P,:);
+            if ~isempty(this.fP)
+                x = x(this.fP,:);
             end
-            sx = this.G*x;
+            sx = this.fG*x;
             n1sq = sum(x.*sx,1);
             n1 = size(x,2);
             if isempty(y)
@@ -107,10 +107,10 @@ classdef ARBFKernel < kernels.BaseKernel
                 n2 = n1;
                 y = x;
             else
-                if ~isempty(this.P)
-                    y = y(this.P,:);
+                if ~isempty(this.fP)
+                    y = y(this.fP,:);
                 end
-                n2sq = sum(y.*(this.G*y),1);
+                n2sq = sum(y.*(this.fG*y),1);
                 n2 = size(y,2);
             end;
             r = (ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*sx'*y;

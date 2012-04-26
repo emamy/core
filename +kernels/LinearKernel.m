@@ -17,17 +17,17 @@ classdef LinearKernel < kernels.BaseKernel
         end
         
         function K = evaluate(this, x, y)
-            if ~isempty(this.P)
-                x = x(this.P,:);
+            if ~isempty(this.fP)
+                x = x(this.fP,:);
             end
             if nargin == 2 || isempty(y)
                 y = x;
             else
-                if ~isempty(this.P)
-                    y = y(this.P,:);
+                if ~isempty(this.fP)
+                    y = y(this.fP,:);
                 end
             end
-            K = x'*(this.G*y);
+            K = x'*(this.fG*y);
         end
         
         function copy = clone(this)

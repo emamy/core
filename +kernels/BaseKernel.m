@@ -72,7 +72,7 @@ classdef BaseKernel < KerMorObject & ICloneable
         IsScProd = false;
     end
     
-    properties(Access=private)
+    properties(SetAccess=private, GetAccess=protected)
 %         fCenters = [];
         fG = 1;
         fP = [];
@@ -115,6 +115,8 @@ classdef BaseKernel < KerMorObject & ICloneable
         function copy = clone(this, copy)
             copy.G = this.G;
             copy.P = this.P;
+            copy.IsRBF = this.IsRBF;
+            copy.IsScProd = this.IsScProd;
         end
     end
     
