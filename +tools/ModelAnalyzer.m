@@ -78,7 +78,7 @@ classdef ModelAnalyzer < handle;
             end
         end
         
-        function t = compareRedFull(this, mu, inputidx)
+        function [t, pm] = compareRedFull(this, mu, inputidx)
             % Compares the solutions of the reduced model and the associated full model by
             % calling the BaseModel.plot method for both solutions and again for the
             % difference. Also some information of `l^2` and `l^\infty` errors are printed.
@@ -109,12 +109,12 @@ classdef ModelAnalyzer < handle;
             t.display;
             fprintf('Error comparison for %s:\n',str);
             % L^2 errors
-            l2 = sqrt(sum((yr-y).^2));
+            l2 = Norm.L2(yr-y);
             lil2 = max(l2);
-            l2l2 = sqrt(sum(l2.^2));
+            l2l2 = Norm.L2(l2');
             meanl2 = mean(l2);
-            l2relyl2 = l2 ./ sqrt(sum(y.^2));
-            l2l2relyl2 = sqrt(sum(l2relyl2.^2));
+            l2relyl2 = l2 ./ Norm.L2(y);
+            l2l2relyl2 = Norm.L2(l2relyl2');
             lil2relyl2 = max(l2relyl2);
             meanrell2 = mean(l2relyl2);
             %fprintf('||y(t_i)||_2: %s',general.Utils.implode(l2,', ','%2.3f'));
@@ -127,12 +127,12 @@ classdef ModelAnalyzer < handle;
             t.addRow('Mean relative L2 error','Mean(||(y(t) - yr(t)) / y(t)||_2,[0,T])',meanrell2);
             
             % L^inf errors
-            li = max(abs(yr-y),[],1);
+            li = Norm.Linf(yr-y);
             lili = max(li);
-            l2li = sqrt(sum(li.^2));
+            l2li = Norm.L2(li');
             meanli = mean(li);
-            lirelyli = li ./ max(abs(y),[],1);
-            l2lirelyli = sqrt(sum(lirelyli.^2));
+            lirelyli = li ./ Norm.Linf(y);
+            l2lirelyli = Norm.L2(lirelyli');
             lilirelyli = max(lirelyli);
             meanrelli = mean(lirelyli);
             %fprintf('||y(t_i)||_2: %s',general.Utils.implode(li,', ','%2.3f'));
@@ -145,12 +145,13 @@ classdef ModelAnalyzer < handle;
             t.display;
             
             %% Plotting
-            if nargout == 0
-                fm.plot(ti,y);
+            if nargout > 1
+                pm = tools.PlotManager(false, 2, 2);
+                fm.plot(ti, y, pm.nextPlot('full_sim'));
                 set(gcf,'Name',['Full simulation - ' str]);
-                fm.plot(ti,yr);
+                fm.plot(ti,yr, pm.nextPlot('red_sim'));
                 set(gcf,'Name',['Reduced simulation - ' str]);
-                fm.plot(ti,abs(y-yr));
+                fm.plot(ti,abs(y-yr), pm.nextPlot('abs_err'));
                 set(gcf,'Name',['Absolute error - ' str]);
                 hlp = abs(y);
                 if any(hlp(:) == 0)
@@ -159,12 +160,12 @@ classdef ModelAnalyzer < handle;
                     ep = min(hlp2(:))^2;
                     hlp(hlp==0) = ep;
                 end
-                fm.plot(ti,abs(y-yr)./hlp);
+                fm.plot(ti,abs(y-yr)./hlp, pm.nextPlot('rel_err'));
                 set(gcf,'Name',['Relative error - ' str]);
             end
         end
         
-        function e = getTrajApproxError(this, mu, inputidx)
+        function [el2, elinf] = getTrajApproxError(this, mu, inputidx)
             % Computes the approximation training error on the trajectory
             % for given mu and inputidx.
             %
@@ -188,8 +189,8 @@ classdef ModelAnalyzer < handle;
                 mu = repmat(mu,1,numel(t));
                 fx = fm.Approx.evaluate(x,t,mu);
                 afx = fm.System.f.evaluate(x,t,mu);
-                %e = sqrt(sum((fx-afx).^2,1));
-                e = max(abs(fx-afx),[],1);
+                el2 = Norm.L2(fx-afx);
+                elinf = Norm.Linf(fx-afx);
             else
                 error('The approximation error can only be computed for models with an approx.BaseApprox instance present.');
             end

@@ -286,7 +286,7 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
             %
             % See also: ErrFun
             if this.pte
-                afxi = kexp.evaluate(atd.xi,atd.ti,atd.mui);
+                afxi = kexp.evaluate(atd.xi, atd.ti, atd.mui);
             else
                 afxi = kexp.evaluate(atd.xi);
             end
@@ -344,12 +344,20 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
                 end
             end
             
-            dists = dfun(this.MinGFactor*xm, this.MaxGFactor*atd.xiDia);
+            Mf = this.MaxGFactor;
+            mf = this.MinGFactor;
+            if isscalar(mf)
+                mf = ones(3,1)*mf;
+            end
+            if isscalar(Mf)
+                Mf = ones(3,1)*Mf;
+            end
+            dists = dfun(mf(1)*xm, Mf(1)*atd.xiDia);
             if atd.hasTime
-                dists(2,:) = dfun(this.MinGFactor*tm, this.MaxGFactor*atd.tiDia);
+                dists(2,:) = dfun(mf(2)*tm, Mf(2)*atd.tiDia);
             end
             if atd.hasParams
-                dists(3,:) = dfun(this.MinGFactor*mum, this.MaxGFactor*atd.muiDia);
+                dists(3,:) = dfun(mf(3)*mum, Mf(3)*atd.muiDia);
             end
             
             function d = linsp(from, to)%#ok

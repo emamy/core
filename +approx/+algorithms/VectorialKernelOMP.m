@@ -70,6 +70,8 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
     
     methods(Access=protected, Sealed)
         function detailedAdaptiveApproximation(this, kexp, atd)
+            % Flag for experimental mode
+            exp_mode = false;
             
             i = general.interpolation.KernelInterpol;
             total = 1:size(atd.xi,2);
@@ -81,7 +83,14 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                 d = this.Dists;
             end
             
+            this.Gain = zeros(this.NumGammas,this.MaxExpansionSize);
+            this.HerrDecay = this.Gain;
+            this.VKOGABound = this.Gain;
+            
+            effabs = this.MaxAbsErrFactor * max(Norm.L2(atd.fxi));
+            
             %% Debug/error information inits
+            
             xtmuargs = {atd.xi};
             if ~isempty(atd.ti)
                 xtmuargs{2} = atd.ti;
@@ -89,28 +98,27 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
             if ~isempty(atd.mui)
                 xtmuargs{3} = atd.mui;
             end
-            this.err = zeros(this.NumGammas,this.MaxExpansionSize);
+            this.err = this.Gain;
             this.relerr = this.err;
-            this.Gain = this.err;
-            % Make one bigger as it starts with zero gain
-            this.HerrDecay = this.err;
-            this.VKOGABound = this.err;
-            
-            fxinorm = Norm.L2(atd.fxi);
+
+%             fxinorm = Norm.L2(atd.fxi);
             fximeans = mean(abs(atd.fxi),2);
-            % Validation set initializations
-            if ~isempty(this.vxtmuargs)
-                this.verr = this.err;
-                this.vrelerr = this.err;
-                vfxnorm = Norm.L2(this.vfx);
-            end
             
-            if ~this.UseOGA && ~isempty(this.f)
-                hlp1 = this.f.NativeNorm^2;
-                hlp2 = size(this.f.Ma,1)*this.f.M^2;
-                fprintf('Initial condition ||f||^2 (%e) <= qM^2 (%e)\n', hlp1, hlp2);
-                if hlp1 > hlp2
-                    error('Initial condition violated.');
+            if exp_mode
+                % Validation set initializations
+                if ~isempty(this.vxtmuargs)
+                    this.verr = this.err;
+                    this.vrelerr = this.err;
+                    vfxnorm = Norm.L2(this.vfx);
+                end
+            
+                if ~this.UseOGA && ~isempty(this.f)
+                    hlp1 = this.f.NativeNorm^2;
+                    hlp2 = size(this.f.Ma,1)*this.f.M^2;
+                    fprintf('Initial condition ||f||^2 (%e) <= qM^2 (%e)\n', hlp1, hlp2);
+                    if hlp1 > hlp2
+                        error('Initial condition violated.');
+                    end
                 end
             end
             
@@ -122,11 +130,15 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                 % Clear kexp
                 kexp.clear;
                 % Set current hyperconfiguration
-%                 this.setDistKernelConfig(kexp, d(:,gidx));
+                this.setDistKernelConfig(kexp, d(:,gidx));
                 
-                projpart_old = 0;
+                if exp_mode
+                    projpart_old = 0;
+                end
+                
                 used = []; %#ok<*PROP>
                 siz = 0;
+%                 oldgain = Inf;
                 %% Main extension loop
                 while true
                     % get indices of still free centers
@@ -166,73 +178,75 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                         fDotPhiSqAll = sum(fDotPhiSqAll_comp,1) ./ phinormsq;
                     end
                     
-                    if ~this.UseOGA && siz > 0 && ~isempty(this.f) && false
-                        M = this.f.M;
-                        % M-estimation verification stuff
-                        f_fm = this.f - kexp;
-%                         cn = f_fm.ComponentNorms.^2;
-                        cn = sum(this.f.Ma .* (this.f.evaluate(this.f.Centers.xi) - kexp.evaluate(this.f.Centers.xi)),2);
-%                         s3 = sum(abs(this.f.Ma) .* abs((this.f.evaluate(this.f.Centers.xi) - kexp.evaluate(this.f.Centers.xi))),2);
-%                         s3b = sum(abs(this.f.Ma),2) .* max(abs((this.f.evaluate(this.f.Centers.xi) - kexp.evaluate(this.f.Centers.xi))),[],2);
-%                         s3c = sum(abs(this.f.Ma),2) .* max(abs((this.f.evaluate(atd.xi) - kexp.evaluate(atd.xi))),[],2);
-%                         A = i.interpolate(kexp.getKernelVector(atd.xi));
-%                         F = atd.fxi(:,used);
-%                         fdotphi = abs(atd.fxi - F*A);
-%                         s4b = sum(abs(this.f.Ma),2) .* max(fdotphi,[],2);
-%                         s4 = sum(abs(this.f.Ma),2) .* max(sqrt(fDotPhiSqAll_comp),[],2);
-                        ubnd = M * max(sqrt(fDotPhiSqAll_comp),[],2);
-                        pt = PrintTable;
-                        pt.addRow('||f_j-f_j^m||^2', 'M*max <f_j,phi~>', 'diff');
-                        pt.addRow(cn, ubnd, ubnd-cn);
-%                         pt.display;
-                        if any(ubnd < cn)
-                            warning('fck:id','Upper bound estimation for gain failed.');
+                    if exp_mode && ~this.UseOGA && ~isempty(this.f)
+                        if siz > 0
+                            M = this.f.M;
+                            % M-estimation verification stuff
+                            f_fm = this.f - kexp;
+    %                         cn = f_fm.ComponentNorms.^2;
+                            cn = sum(this.f.Ma .* (this.f.evaluate(this.f.Centers.xi) - kexp.evaluate(this.f.Centers.xi)),2);
+    %                         s3 = sum(abs(this.f.Ma) .* abs((this.f.evaluate(this.f.Centers.xi) - kexp.evaluate(this.f.Centers.xi))),2);
+    %                         s3b = sum(abs(this.f.Ma),2) .* max(abs((this.f.evaluate(this.f.Centers.xi) - kexp.evaluate(this.f.Centers.xi))),[],2);
+    %                         s3c = sum(abs(this.f.Ma),2) .* max(abs((this.f.evaluate(atd.xi) - kexp.evaluate(atd.xi))),[],2);
+    %                         A = i.interpolate(kexp.getKernelVector(atd.xi));
+    %                         F = atd.fxi(:,used);
+    %                         fdotphi = abs(atd.fxi - F*A);
+    %                         s4b = sum(abs(this.f.Ma),2) .* max(fdotphi,[],2);
+    %                         s4 = sum(abs(this.f.Ma),2) .* max(sqrt(fDotPhiSqAll_comp),[],2);
+                            ubnd = M * max(sqrt(fDotPhiSqAll_comp),[],2);
+                            pt = PrintTable;
+                            pt.addRow('||f_j-f_j^m||^2', 'M*max <f_j,phi~>', 'diff');
+                            pt.addRow(cn, ubnd, ubnd-cn);
+    %                         pt.display;
+                            if any(ubnd < cn)
+                                warning('fck:id','Upper bound estimation for gain failed.');
+                            end
+    %                         
+    %                         % sum/max exchange verification stuff
+                            dim = size(this.f.Ma,1);
+                            maxsum = max(sum(fDotPhiSqAll_comp,1));
+                            summax = sum(max(fDotPhiSqAll_comp,[],2));
+                            pt = PrintTable;
+                            pt.addRow('Dim', 'Gain','MaxSum','SumMax','sum(f_j-f_j^m)^4/(qM^2)','sum(cn)^2/(d*M)^2','f_fm.NativeNorm^4/(d*M)^2');
+                            hlp = f_fm.NativeNorm^4/(dim*M)^2;
+                            pt.addRow(dim, v, maxsum, summax/dim, 1/(dim*M^2) * sum(cn.^2), ...
+                                sum(cn)^2/(dim*M)^2, hlp, {'%2.3e'});
+                            pt.ColSep = ' >= ';
+    %                         pt.display;
+                            if v < hlp
+                                error('Gain term smaller than lower bound');
+                            end
+
+                            fd = this.f - kexp;
+                            fdprev = this.f - kexp_prev;
+                            pt = PrintTable;
+                            pt.addRow('||f-f^m||^2','||f-f^{m-1}||^2 - gain','||f-f^{m-1}||^2(1-||f-f^{m-1}||^2/q^2M^2)', '||f-f^{m-1}||^2','gain');
+                            fdprevn2 = fdprev.NativeNorm^2;
+                            hlp = fdprevn2*(1-fdprevn2/(dim*M)^2);
+                            pt.addRow(fd.NativeNorm^2, fdprevn2 - v,...
+                                hlp, fdprevn2, v, {'%2.3e'});
+                            pt.ColSep = ' <= ';
+                            pt.display;
+                            if fd.NativeNorm^2 > hlp || fdprevn2 - v > hlp
+                                error('Wrong gain calculations');
+                            end
+
+                            pt = PrintTable;
+                            pt.addRow('||f-f^m||^2','||f||^2 - sum_k^m sum_j^d<f_j,phi_x^{m-1}>^2');
+                            hlp1 = fd.NativeNorm^2;
+                            hlp2 = this.f.NativeNorm^2 - this.HerrDecay(gidx, siz);
+                            pt.addRow(hlp1, hlp2);
+                            pt.display;
+                            if abs(hlp1-hlp2)/abs(hlp1) > 5e-4
+                                warning('freak:out','Inconsistent ||f-f^m|| vs. ||f|| - accumulated gain');
+                            end
                         end
-%                         
-%                         % sum/max exchange verification stuff
-                        dim = size(this.f.Ma,1);
-                        maxsum = max(sum(fDotPhiSqAll_comp,1));
-                        summax = sum(max(fDotPhiSqAll_comp,[],2));
-                        pt = PrintTable;
-                        pt.addRow('Dim', 'Gain','MaxSum','SumMax','sum(f_j-f_j^m)^4/(qM^2)','sum(cn)^2/(d*M)^2','f_fm.NativeNorm^4/(d*M)^2');
-                        hlp = f_fm.NativeNorm^4/(dim*M)^2;
-                        pt.addRow(dim, v, maxsum, summax/dim, 1/(dim*M^2) * sum(cn.^2), ...
-                            sum(cn)^2/(dim*M)^2, hlp, {'%2.3e'});
-                        pt.ColSep = ' >= ';
-%                         pt.display;
-                        if v < hlp
-                            error('Gain term smaller than lower bound');
-                        end
-                        
-                        fd = this.f - kexp;
-                        fdprev = this.f - kexp_prev;
-                        pt = PrintTable;
-                        pt.addRow('||f-f^m||^2','||f-f^{m-1}||^2 - gain','||f-f^{m-1}||^2(1-||f-f^{m-1}||^2/q^2M^2)', '||f-f^{m-1}||^2','gain');
-                        fdprevn2 = fdprev.NativeNorm^2;
-                        hlp = fdprevn2*(1-fdprevn2/(dim*M)^2);
-                        pt.addRow(fd.NativeNorm^2, fdprevn2 - v,...
-                            hlp, fdprevn2, v, {'%2.3e'});
-                        pt.ColSep = ' <= ';
-                        pt.display;
-                        if fd.NativeNorm^2 > hlp || fdprevn2 - v > hlp
-                            error('Wrong gain calculations');
-                        end
-                        
-                        pt = PrintTable;
-                        pt.addRow('||f-f^m||^2','||f||^2 - sum_k^m sum_j^d<f_j,phi_x^{m-1}>^2');
-                        hlp1 = fd.NativeNorm^2;
-                        hlp2 = this.f.NativeNorm^2 - this.HerrDecay(gidx, siz);
-                        pt.addRow(hlp1, hlp2);
-                        pt.display;
-                        if abs(hlp1-hlp2)/abs(hlp1) > 5e-4
-                            warning('freak:out','Inconsistent ||f-f^m|| vs. ||f|| - accumulated gain');
-                        end
+                        kexp_prev = kexp.clone;
                     end
                     
                     [v, maxidx] = max(fDotPhiSqAll);
-                    
                     used(end+1) = free(maxidx);%#ok
-                    kexp_prev = kexp.clone;
+                    
                     this.extendExpansion(kexp, atd, used(end));
                     siz = siz+1;
                     
@@ -251,41 +265,48 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                     if ~this.UseOGA
                         this.VKOGABound(gidx, siz) = off2 + 1/max(phinormsq);
                     end
-                    
-                    %% Debug - change later to better stopping criteria not using the kernel expansion
+                        
                     i.init(kexp.getKernelMatrix);
                     kexp.Ma = i.interpolate(atd.fxi(:,used))';
-                    
-                    if siz > 1 %&& KerMor.App.Verbose > 1
-                        if KerMor.App.Verbose > 3
-                            this.doplots(Kbig, A, kexp, afxi, phinormsq, atd, ...
-                                free, fDotPhiSqAll, maxidx, v, gidx, siz);
-                            %pause;
-                            a = 5;
-                        end
-                    end
-                    
-                    % Compute errors
                     compTrainingError;
-                    compValidationError;
                     
-                    projpart = -sum(sum(kexp.Ma .* atd.fxi(:,used),2));
-                    
-                    gain_direct = abs(projpart - projpart_old);
-                    gain_impl = this.Gain(gidx,siz);
-                    if KerMor.App.Verbose > 2
-                        fprintf('Rel err:%e, gains dir: %e, impl: %e, rel. diff (to impl): %e, ||f^m||_H^2: %e\n',...
-                            this.relerr(gidx,siz),gain_direct,gain_impl,(gain_direct-gain_impl)/gain_impl, kexp.NativeNorm^2);
+                    %% Debug - change later to better stopping criteria not using the kernel expansion
+                    if exp_mode
+                        if siz > 1 %&& KerMor.App.Verbose > 1
+                            if KerMor.App.Verbose > 3
+                                this.doplots(Kbig, A, kexp, afxi, phinormsq, atd, ...
+                                    free, fDotPhiSqAll, maxidx, v, gidx, siz);
+                                %pause;
+                                a = 5;
+                            end
+                        end
+
+                        % Compute errors
+                        compValidationError;
+
+                        projpart = -sum(sum(kexp.Ma .* atd.fxi(:,used),2));
+
+                        gain_direct = abs(projpart - projpart_old);
+                        gain_impl = this.Gain(gidx,siz);
+                        if KerMor.App.Verbose > 2
+                            fprintf('Rel err:%e, gains dir: %e, impl: %e, rel. diff (to impl): %e, ||f^m||_H^2: %e\n',...
+                                this.relerr(gidx,siz),gain_direct,gain_impl,(gain_direct-gain_impl)/gain_impl, kexp.NativeNorm^2);
+                        end
+                        projpart_old = projpart;
                     end
-                    projpart_old = projpart;
-                    
-                    % Check stopping conditions
-                    if siz >= this.MaxExpansionSize || this.relerr(gidx,siz) <= this.MaxRelErr
+                    % Check stopping conditions - experimental mode
+                    if siz >= this.MaxExpansionSize || ...
+                            this.relerr(gidx,siz) <= this.MaxRelErr || ...
+                            this.err(gidx,siz) <= effabs
                         this.HerrDecay(gidx, siz+1:end) = this.HerrDecay(gidx, siz);
-                        this.err(gidx, siz+1:end) = this.err(gidx, siz);
-                        this.relerr(gidx, siz+1:end) = this.relerr(gidx, siz);
+                        if exp_mode
+                            this.err(gidx, siz+1:end) = this.err(gidx, siz);
+                            this.relerr(gidx, siz+1:end) = this.relerr(gidx, siz);
+                        end
                         break;
                     end
+                    
+                    
                 end
                 
                 this.used(gidx,1:siz) = used;
@@ -302,8 +323,8 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
             end
             
             % Restore best configuration
-%             g = this.setDistKernelConfig(kexp, bestDist);
-            g = kexp.ParamKernel.setGammaForDistance(bestDist(3),this.gameps);
+            g = this.setDistKernelConfig(kexp, bestDist);
+%             g = kexp.ParamKernel.setGammaForDistance(bestDist(3),this.gameps);
             kexp.Ma = bestMa;
             kexp.Centers.xi = atd.xi(:,bestused);
             if this.pte
@@ -417,34 +438,3 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
         end
     end
 end
-
-% Compute LaGrange basis coefficients
-% K = kexp.getKernelMatrix;
-% %                 if siz > 1
-% %                     mesh(K);
-% %                 end
-% I = speye(siz);
-% 
-% %                 [P, k2] = i.getPreconditioner(kexp.Kernel, kexp.Centers.xi);
-% %                 fprintf('cond(K)=%e, cond(P*K)=%e, k2=%d\n',cond(K),cond(P*K),k2);
-% %                 K = P*K; I = P*I;
-% 
-% i.init(data.MemoryKernelMatrix(K));
-% A = i.interpolate(I);
-% 
-% F = atd.fxi(:,used)';
-% 
-% args = {};
-% if this.pte
-%     args = {atd.ti(free), atd.mui(:,free)};
-% end
-% Kbig = kexp.getKernelVector(atd.xi(:,free),args{:});
-% 
-% fDotPhiSqAll = (atd.fxi(:,free)' - Kbig*A'*F).^2;
-% 
-% % Sum
-% [~, maxidx] = max(sum(fDotPhiSqAll,2));
-% % Supremum
-% %[v, maxidx] = max(max(abs(fDotPhiSqAll),[],2));
-% 
-% %plot(sum(fDotPhiSqAll,2))

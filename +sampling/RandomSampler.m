@@ -39,6 +39,10 @@ classdef RandomSampler < sampling.BaseSampler
             miv = repmat([sys.Params(:).MinVal]',1,this.Samples);
             mav = repmat([sys.Params(:).MaxVal]',1,this.Samples);
             samples = miv + factor.*(mav-miv);
+            % Sort samples if one-dimensional
+            if size(samples,1) == 1
+                samples = sort(samples);
+            end
         end
     end
     

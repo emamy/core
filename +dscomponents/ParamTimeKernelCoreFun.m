@@ -39,11 +39,11 @@ classdef ParamTimeKernelCoreFun < kernels.ParamTimeKernelExpansion & dscomponent
             k = this.Kernel;
             if k.IsRBF
                 projected.Centers.xi = W' * this.Centers.xi;
-                if ~isequal(model.Data.V,model.Data.W) || model.G ~= 1
-                    projected.Kernel.G = V'*(k.G*V);
-                else
-                    projected.Kernel.G = 1;
+                PG = V'*(k.G*V);
+                if all(all(abs(PG - eye(size(PG,1))) < 100*eps))
+                    PG = 1;
                 end
+                projected.Kernel.G = PG;
             elseif k.IsScProd
                 projected.Centers.xi = V' * (k.G * this.Centers.xi);
                 projected.Kernel.G = 1;
