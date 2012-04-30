@@ -27,6 +27,11 @@ function varargout = FunVis2D(varargin)
 % So, if you leave out 'trange' but pass 'murange', the function will be
 % expected to have an interface `f(x,\mu)`.
 %
+% 'FunVis2D(fun_handle, range_matrix)': Same as 'FunVis2D(fun_handle,
+% ranges)', but automatically fills the struct ranges with the field
+% 'xranges' equal to the matrix passed. No time/parameter range and
+% arguments.
+%
 % 'FunVis2D(class_instance, ranges)': Expects the first argument to be a
 % class with an 'evaluate' method, corresponding to the evaluation of the
 % function to plot. The rest behaves like the call 'FunVis2D(fun_handle,
@@ -64,6 +69,9 @@ function varargout = FunVis2D(varargin)
 % but custom labels are required.
 %
 % @author Daniel Wirtz @date 2011-07-26
+%
+% @change{0,6,dw,2012-04-30} Can also pass a double matrix with direct
+% range values if only the x-argument is used (no time/param)
 %
 % @new{0,6,dw,2011-11-15} 
 % - Centers and approximation training data are now plotted completely if the only non-constant
@@ -189,6 +197,10 @@ else
     fun = varargin{1};
     if isa(fun,'function_handle')
         % Wrap in core fun so that evaluate works
+%         if nargin(fun) == 1
+%             ranges.trange = [0 0];
+%             ranges.murange = [0 0];
+%         end
         fun = dscomponents.PointerCoreFun(fun);
     elseif ~ismethod(fun,'evaluate')
         stop(h,'If the first argument is not a function pointer it must be a class with an "evaluate" method.');
@@ -213,8 +225,10 @@ else
         % Use the bounds of the training data as ranges
         ranges = rangesFromATD(sec);
         conf.td = sec;
+    elseif isa(sec,'double')
+        ranges.xrange = sec;
     else
-        stop(h,'The second argument has to be a ranges struct or a struct with the fields xi,fxi (+ti,mui if given).');
+        stop(h,'The second argument has to be a ranges struct or a struct with the fields xrange (+trange,murange if given).');
     end
 end
 conf.fun = fun;
@@ -276,6 +290,8 @@ if isempty(lbl)
     if conf.hastime && all(conf.const ~= conf.timeoff)
         lbl.x{end+1} = 't';
         args{2} = 0;
+    else
+        args{2} = double.empty(0,1);
     end
     if conf.hasparams
         munum = 1:size(conf.ranges.murange,1);
@@ -284,6 +300,8 @@ if isempty(lbl)
             lbl.x{end+1} = ['mu_{' num2str(munum(idx(i))) '}'];
         end
         args{3} = zeros(munum,1);
+    else
+        args{3} = double.empty(0,1);
     end
     lbl.fx = {};
     if ~isempty(conf.td)

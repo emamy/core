@@ -46,7 +46,7 @@ classdef LinspaceSelector < approx.selection.ASelector
         end
         
         function set.Size(this, value)
-            if ~isposintscalar(value)
+            if ~isposintscalar(value) && ~isinf(value)
                 error('The value must be a positive integer.');
             end
             this.Size = value;

@@ -7,6 +7,11 @@ classdef FileModelData < data.AModelData
 %
 % @author Daniel Wirtz @date 2011-08-04
 %
+% @change{0,6,dw,2012-04-27} Added an internal property 'host' to the class
+% in order to record on which machine the FileModelData instance was
+% created on. When saved and loaded at another machine, the dictionary will
+% be cleared if the same path does not exist anymore on the new machine.
+%
 % @new{0,5,dw,2011-11-02} Implemented the getBoundingBox method from superclass. Now keeping
 % track of bounding box while adding trajectories.
 %
@@ -40,6 +45,9 @@ classdef FileModelData < data.AModelData
         
         % Bounding box maximum
         bbmax = [];
+        
+        % The host machine this file model data is created on
+        host = '';
     end
     
     methods
@@ -54,6 +62,7 @@ classdef FileModelData < data.AModelData
                 error('FileModelData cannot be used as java is not enabled.');
             end
             this.hm = java.util.HashMap;
+            this.host = KerMor.getHost;
             if nargin == 2
                 if isa(storage_root,'char') && exist(storage_root,'dir') == 7
                     this.DataDirectory = storage_root;
@@ -73,7 +82,9 @@ classdef FileModelData < data.AModelData
             %
             % Deletes the DataDirectory if no trajectories are stored in it.
             if this.hm.size == 0
-                rmdir(this.DataDirectory);
+                if exist(this.DataDirectory,'dir') == 7
+                    rmdir(this.DataDirectory);
+                end
             end
         end
         
@@ -159,7 +170,9 @@ classdef FileModelData < data.AModelData
             while ks.hasNext
                 file = fullfile(this.DataDirectory,ks.next);
                 try
-                    delete(file);
+                    if exist(file,'file') == 2
+                        delete(file);
+                    end
                 catch ME
                     warning('KerMor:data:FileModelData','Could not delete file "%s": %s',file,ME.message);
                 end
@@ -265,7 +278,16 @@ classdef FileModelData < data.AModelData
             % Loads a FileModelData instance.
             %
             % Ensures that the directory associated with this FileModelData is existent.
-            this.ensureDir;
+            if strcmp(this.host,KerMor.getHost)
+                this.ensureDir;
+            else
+                if exist(this.DataDirectory,'dir') ~= 7
+                    this.hm.clear;
+                    this.bbmin = [];
+                    this.bbmax = [];
+                    warning('FileModelData:load','This FileModelData instance was created on host "%s" and the DataDirectory cannot be found on the local machine "%s". Clearing FileModelData.',this.host,KerMor.getHost);
+                end                
+            end
         end
         
         function res = test_FileModelData

@@ -29,10 +29,10 @@ classdef PointerCoreFun < dscomponents.ACoreFun
             %
             % @change{0,6,dw,2012-01-19} Added a new optional \c multieval parameter to
             % indicate that the function handle can take matrix valued arguments `x,t,\mu`.
-            if nargin < 2
+            if nargin < 3
                 % Assume worst case: set time dependency to true!
                 timedep = true;
-                if nargin < 1
+                if nargin < 2
                     multieval = false;
                 end
             end

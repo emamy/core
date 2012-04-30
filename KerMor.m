@@ -368,7 +368,7 @@ classdef KerMor < handle
             %
             % Return values:
             % tag: The host-dependent tag used for KerMor preferences
-            tag = [KerMor.PrefTagPrefix strrep(this.getHost,'.','')];
+            tag = [KerMor.PrefTagPrefix strrep(KerMor.getHost,'.','')];
         end
     end
     
@@ -651,10 +651,6 @@ classdef KerMor < handle
     end
     
     methods(Access=private)
-        function host = getHost(this)%#ok
-            % Returns the hostname of the current machine
-            host = char(getHostName(java.net.InetAddress.getLocalHost));
-        end
         
         function initialize(this)
             % Internal main startup script.
@@ -982,6 +978,11 @@ classdef KerMor < handle
             % Closes the matlab-pool for parallel computing is closed
             % if in use.
             KerMor.App.shutdown;
+        end
+        
+        function host = getHost
+            % Returns the hostname of the current machine
+            host = char(getHostName(java.net.InetAddress.getLocalHost));
         end
         
         function d = DocumentationLocation
