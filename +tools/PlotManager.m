@@ -13,11 +13,11 @@ classdef PlotManager < handle
 % pm = PlotManager(false,2,1);
 % pm.FilePrefix = 'my_pm';
 % % [.. your plot function called with argument pm ..]
-% pm.nextPlot('fig_in_subplot1');
+% pm.nextPlot('fig_in_subplot1','Title of subplot 1','xlabel','ylabel');
 % plot(1:10,sin(1:10));
-% pm.nextPlot('fig_in_subplot2');
+% pm.nextPlot('fig_in_subplot2','Only title given');
 % plot(-10:10,cos(pi*(-10:10)));
-% pm.nextPlot('fig_in_new_subplot1');
+% pm.nextPlot('fig_in_new_subplot1','Yeay! a new figure has popped up.');
 % plot(-10:10,exp((-10:10) / 5));
 % pm.done;
 % pm.savePlots('.','fig');
@@ -28,15 +28,20 @@ classdef PlotManager < handle
 % pm = PlotManager;
 % pm.FilePrefix = 'my_pm_single';
 % % [.. your plot function called with argument pm ..]
-% pm.nextPlot('fig_in_subplot1');
+% pm.nextPlot('fig_in_subplot1','Title of subplot 1','xlabel','ylabel');
 % plot(1:10,sin(1:10));
-% pm.nextPlot('fig_in_subplot2');
+% pm.nextPlot('fig_in_subplot2','Only title given');
 % plot(-10:10,cos(pi*(-10:10)));
-% pm.nextPlot('fig_in_new_subplot1');
+% pm.nextPlot('fig_in_new_subplot1','Yeay! a new figure has popped up.');
 % plot(-10:10,exp((-10:10) / 5));
 % pm.done;
 % pm.savePlots('.','fig');
 % pm.savePlots('.','png',true);
+%
+% @new{0,6,dw,2012-04-27} Added support to optionally pass title, x- and
+% ylabels for upcoming plots. If those values are given they will overwrite
+% any manually set values. This is done by storing the given values and
+% applying them upon 'nextPlot'/'done'.
 %
 % @new{0,6,dw,2012-04-12} Added this class.
 %
@@ -95,9 +100,13 @@ classdef PlotManager < handle
     end
     
     properties(Access=private, Transient)
-        h;
+        h = [];
         cnt;
         ss;
+        % caption/labels for next plots
+        ncap = [];
+        nxl = [];
+        nyl = [];
     end
     
     methods
@@ -124,7 +133,7 @@ classdef PlotManager < handle
             this.ss = s(3:4);
         end
         
-        function h = nextPlot(this, tag)
+        function h = nextPlot(this, tag, caption, xlab, ylab)
             % Creates a new axis to plot in. Depending on the property
             % tools.PlotMananger.Single this will either advance to the
             % next subplot or open up a new figure window of size
@@ -138,10 +147,25 @@ classdef PlotManager < handle
             %
             % Return values:
             % h: The handle to the new axes object. @type axes
-            if nargin == 1
-                tag = '';
+            if nargin < 5
+                ylab = [];
+                if nargin < 4
+                    xlab =[];
+                    if nargin < 3
+                        caption = [];
+                        if nargin < 2
+                            tag = '';
+                        end
+                    end
+                end
             end
+            % Finish current plot
             this.finishCurrent;
+            % Store caption etc for upcoming plot
+            this.ncap = caption;
+            this.nxl = xlab;
+            this.nyl = ylab;
+            
             if this.Single
                 this.Figures(end+1) = figure('Position',[(this.ss - this.SingleSize)/2 this.SingleSize],'Tag',tag);
                 h = gca;
@@ -157,6 +181,7 @@ classdef PlotManager < handle
                 end
                 h = subplot(this.rows, this.cols, this.cnt, 'Tag', tag);
             end
+            this.h = h;
         end
         
         function done(this)
@@ -212,9 +237,10 @@ classdef PlotManager < handle
                 if ishandle(h) && strcmp(get(h,'Type'),'figure')
                     close(h);
                 end
-                if ~isempty(this.h) && ishandle(this.h)
-                    close(this.h);
-                end
+            end
+            if ~isempty(this.h) && ishandle(this.h)
+                close(this.h);
+                this.h = [];
             end
             this.Figures = [];
             this.cnt = 0;
@@ -223,17 +249,19 @@ classdef PlotManager < handle
     
     methods(Access=private)
         function finishCurrent(this)
-            if ~isempty(this.Figures)
-                ax = this.Figures(end);
-                if ishandle(ax)
-                    % If not an axes, must be a figure
-                    if ~strcmp(get(ax,'Type'),'axes')
-                        ax = gca(ax);
-                    end
-                    axis(ax,'tight');
-                else
-                    this.Figures(end) = [];
+            h = this.h;
+            if ishandle(h)
+                % Set title and labels if given 
+                if ~isempty(this.ncap)
+                    title(h,this.ncap);
                 end
+                if ~isempty(this.nxl)
+                    xlabel(h, this.nxl);
+                end
+                if ~isempty(this.nyl)
+                    ylabel(h, this.nyl);
+                end
+                axis(h,'tight');
             end
         end
         

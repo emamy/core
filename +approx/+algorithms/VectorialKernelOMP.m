@@ -71,7 +71,7 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
     methods(Access=protected, Sealed)
         function detailedAdaptiveApproximation(this, kexp, atd)
             % Flag for experimental mode
-            exp_mode = false;
+            exp_mode = true;
             
             i = general.interpolation.KernelInterpol;
             total = 1:size(atd.xi,2);
@@ -112,7 +112,7 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                     vfxnorm = Norm.L2(this.vfx);
                 end
             
-                if ~this.UseOGA && ~isempty(this.f)
+                if ~this.UseOGA && ~isempty(this.f) && isa(this.f, 'kernels.KernelExpansion')
                     hlp1 = this.f.NativeNorm^2;
                     hlp2 = size(this.f.Ma,1)*this.f.M^2;
                     fprintf('Initial condition ||f||^2 (%e) <= qM^2 (%e)\n', hlp1, hlp2);
@@ -179,7 +179,7 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                     end
                     
                     if exp_mode && ~this.UseOGA && ~isempty(this.f)
-                        if siz > 0
+                        if siz > 0 && isa(this.f,'kernels.KernelExpansion')
                             M = this.f.M;
                             % M-estimation verification stuff
                             f_fm = this.f - kexp;
@@ -274,10 +274,12 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                     if exp_mode
                         if siz > 1 %&& KerMor.App.Verbose > 1
                             if KerMor.App.Verbose > 3
-                                this.doplots(Kbig, A, kexp, afxi, phinormsq, atd, ...
-                                    free, fDotPhiSqAll, maxidx, v, gidx, siz);
-                                %pause;
-                                a = 5;
+%                                 this.doplots(Kbig, A, kexp, afxi, phinormsq, atd, ...
+%                                     free, fDotPhiSqAll, maxidx, v, gidx, siz);
+                                if isa(this.f,'function_handle')
+                                    FunVis2D(kexp, atd, [], this.f);
+                                end
+                                pause;
                             end
                         end
 
@@ -298,11 +300,11 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                     if siz >= this.MaxExpansionSize || ...
                             this.relerr(gidx,siz) <= this.MaxRelErr || ...
                             this.err(gidx,siz) <= effabs
-                        this.HerrDecay(gidx, siz+1:end) = this.HerrDecay(gidx, siz);
-                        if exp_mode
-                            this.err(gidx, siz+1:end) = this.err(gidx, siz);
-                            this.relerr(gidx, siz+1:end) = this.relerr(gidx, siz);
-                        end
+%                         this.HerrDecay(gidx, siz+1:end) = this.HerrDecay(gidx, siz);
+%                         if exp_mode
+%                             this.err(gidx, siz+1:end) = this.err(gidx, siz);
+%                             this.relerr(gidx, siz+1:end) = this.relerr(gidx, siz);
+%                         end
                         break;
                     end
                     

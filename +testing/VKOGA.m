@@ -1,7 +1,5 @@
-classdef VKOMP
-% VKOMP: 
-%
-% Tests for the VKOGA algorithm
+classdef VKOGA
+% VKOGA: Tests for the VKOGA algorithm
 %
 % @author Daniel Wirtz @date 2012-04-04
 %
@@ -20,35 +18,35 @@ classdef VKOMP
             ap.Verbose = 1;
             
             dir = 'C:\Users\CreaByte\Documents\Uni\VKOGA\img\test';
-            [~, ~, ~, a, ao, f, ~] = testing.VKOMP.test_VKOMP_Versions_5dim(1, 1);
+            [~, ~, ~, a, ao, f, ~] = testing.VKOGA.test_VKOGA_Versions_5dim(1, 1);
             pm = tools.PlotManager(true);
             pm.FilePrefix = '5d';
-            testing.VKOMP.plotStatistics(a,ao,f,pm);
+            testing.VKOGA.plotStatistics(a,ao,f,pm);
             pm.savePlots(dir, 'fig');
             pm.savePlots(dir, 'eps', true);
             
             pm = tools.PlotManager(true);
             pm.FilePrefix = '5druns';
             %load 5dim_VKOGA;
-            [res, kexp, kexp_OGA, a, ao, f, atd] = testing.VKOMP.test_VKOMP_Versions_5dim(50, 1);
+            [res, kexp, kexp_OGA, a, ao, f, atd] = testing.VKOGA.test_VKOGA_Versions_5dim(50, 1);
             save 5dim_VKOGA res kexp kexp_OGA a ao f atd;
-            testing.VKOMP.plotVKOGARes(res, pm);
+            testing.VKOGA.plotVKOGARes(res, pm);
             pm.savePlots(dir, 'fig');
             pm.savePlots(dir, 'eps', true);
             
             % Different gamma values
-            res = testing.VKOMP.test_VKOMP_Versions_diffgamma(30, 1);
+            res = testing.VKOGA.test_VKOGA_Versions_diffgamma(30, 1);
             save diffgamma res;
             pm = tools.PlotManager(true);
             pm.FilePrefix = 'diffgamma';
-            testing.VKOMP.plotVKOGARes(res, pm);
+            testing.VKOGA.plotVKOGARes(res, pm);
             pm.savePlots(dir, 'fig');
             pm.savePlots(dir, 'eps', true);
             
             ap.Verbose = oldv;
         end
         
-        function [kexp, atd, a, f] = test_VKOMP(oga, seed, pm)
+        function [kexp, atd, a, f] = test_VKOGA(oga, seed, pm)
             if nargin < 3
                 pm = tools.PlotManager(false, 1, 2);
                 if nargin < 2
@@ -118,7 +116,7 @@ classdef VKOMP
             pm.done;
         end
         
-        function [res, kexp, kexp_OGA, a, ao, f, atd] = test_VKOMP_Versions_diffgamma(runs, seed)
+        function [res, kexp, kexp_OGA, a, ao, f, atd] = test_VKOGA_Versions_diffgamma(runs, seed)
             % res structure: 8 x runs double with
             % 1-2: absolute errors on training set for komp,oga
             % 3-4: absolute errors on validation set for komp,oga
@@ -233,7 +231,7 @@ classdef VKOMP
                 pi.step(run);
                 
                 if runs == 1 || true
-                    testing.VKOMP.plotStatistics(a,ao,f);
+                    testing.VKOGA.plotStatistics(a,ao,f);
                     if runs > 1
                         %pause;
                     end
@@ -242,11 +240,11 @@ classdef VKOMP
             pi.stop;
             
             if nargout == 0
-                testing.VKOMP.plotKompRes(res);
+                testing.VKOGA.plotKompRes(res);
             end
         end
         
-        function [res, kexp, kexp_OGA, a, ao, f, atd] = test_VKOMP_Versions_tube(dim, runs, seed)
+        function [res, kexp, kexp_OGA, a, ao, f, atd] = test_VKOGA_Versions_tube(dim, runs, seed)
             if nargin < 3
                 seed = 1;
                 if nargin < 2
@@ -341,7 +339,7 @@ classdef VKOMP
                 pi.step;
                 
                 if runs == 1
-                    testing.VKOMP.plotStatistics(a,ao,f);
+                    testing.VKOGA.plotStatistics(a,ao,f);
                     if runs > 1
                         %pause;
                     end
@@ -350,7 +348,7 @@ classdef VKOMP
             pi.stop;
             
             if nargout == 0 && runs > 1
-                testing.VKOMP.plotVKOGARes(res);
+                testing.VKOGA.plotVKOGARes(res);
             end
         end
         
@@ -450,7 +448,7 @@ classdef VKOMP
                 pi.step;
                 
                 if runs == 1 || true
-                    testing.VKOMP.plotStatistics(a,ao,f);
+                    testing.VKOGA.plotStatistics(a,ao,f);
                     if runs > 1
                         %pause;
                     end
@@ -459,11 +457,11 @@ classdef VKOMP
             pi.stop;
             
             if nargout == 0
-                testing.VKOMP.plotKompRes(res);
+                testing.VKOGA.plotKompRes(res);
             end
         end
         
-        function [res, kexp, kexp_OGA, a, ao, f, atd] = test_VKOMP_Versions_5dim(runs, seed)
+        function [res, kexp, kexp_OGA, a, ao, f, atd] = test_VKOGA_Versions_5dim(runs, seed)
             % res structure: 8 x runs double with
             % 1-2: absolute errors on training set for komp,oga
             % 3-4: absolute errors on validation set for komp,oga
@@ -564,7 +562,7 @@ classdef VKOMP
                 pi.step(run);
                 
                 if runs == 1 || true
-                    testing.VKOMP.plotStatistics(a,ao,f);
+                    testing.VKOGA.plotStatistics(a,ao,f);
                     if runs > 1
                         %pause;
                     end
@@ -573,11 +571,11 @@ classdef VKOMP
             pi.stop;
             
             if nargout == 0
-                testing.VKOMP.plotKompRes(res);
+                testing.VKOGA.plotKompRes(res);
             end
         end
         
-        function [res, kexp, kexp1, a, a1, f, atd] = test_VKOMP_Versions_5dim_2step(runs, seed)
+        function [res, kexp, kexp1, a, a1, f, atd] = test_VKOGA_Versions_5dim_2step(runs, seed)
             % res structure: 8 x runs double with
             % 1-2: absolute errors on training set for komp,oga
             % 3-4: absolute errors on validation set for komp,oga
@@ -689,7 +687,7 @@ classdef VKOMP
                 pi.step(run);
                 
                 if runs == 1
-                    %testing.VKOMP.plotStatistics(a,a1,f);
+                    %testing.VKOGA.plotStatistics(a,a1,f);
                     if runs > 1
                         %pause;
                     end
@@ -698,7 +696,7 @@ classdef VKOMP
             pi.stop;
             
             if nargout == 0 && runs > 1
-                testing.VKOMP.plotKompRes(res);
+                testing.VKOGA.plotKompRes(res);
             end
         end
         
@@ -912,6 +910,114 @@ classdef VKOMP
                 xlabel('run');
                 ylabel('gamma value');
             end
+        end
+        
+        function [kexp, kexpo, a, ao, atd, pm] = test_VKOGA_TestFuns(name, atdsize, seed)
+            if nargin < 3
+                seed = 1;
+                if nargin < 2
+                    atdsize = 4000;
+                    if nargin < 1
+                        name = 'F3';
+                    end
+                end
+            end
+            r = RandStream('mt19937ar','Seed',seed);
+            [fun, dom] = eval(sprintf('testing.TestFunctions.%s',name));
+            dim = size(dom,1);
+            vxsize = atdsize/2;
+
+            x = repmat(dom(:,1),1,atdsize+vxsize) + r.rand(dim,atdsize+vxsize).*repmat(dom(:,2)-dom(:,1),1,atdsize+vxsize);
+            if dim == 1
+                x = sort(x);
+            end
+            
+            a = eval(['testing.VKOGA.getAlg' name]);
+            a.f = fun;
+            
+%             vx = x(:,1:vxsize);
+%             x(:,1:vxsize) = [];
+%             a.vxtmuargs{1} = vx;
+            
+            ao = a.clone;
+            ao.UseOGA = true;
+            ao.f = fun;
+            
+            atd = data.ApproxTrainData(x,[],[]);
+            kexp = kernels.KernelExpansion;
+            kexp.Kernel = kernels.GaussKernel;
+            
+            atd.fxi = fun(x);
+            %                 a.vfx = fun(vx);
+            %                 ao.vfx = a.vfx;
+            
+            % Original greedy version
+            ao.computeApproximation(kexp, atd);
+            kexpo = kexp.clone;
+            % Normalized version
+            a.computeApproximation(kexp, atd);
+            
+            save(sprintf('vkoga_testfun_%s',name),'a','ao','kexp','kexpo','atd');
+            
+            pm = tools.PlotManager(false,2,2);
+            pm.FilePrefix = sprintf('testfun_%s',name);
+            pm.nextPlot('VKOGA_abserr','VKOGA absolute error','expansion size','absolute error');
+            semilogy(a.err');
+            pm.nextPlot('WSOGA2_abserr','WSOGA2 absolute error','expansion size','absolute error');
+            semilogy(ao.err');
+            pm.nextPlot('VKOGA_relerr','VKOGA relative error','expansion size','relative error');
+            semilogy(a.relerr');
+            hold on;
+            plot(1:a.MaxExpansionSize,a.MaxRelErr,'k-');
+            pm.nextPlot('WSOGA2_relerr','WSOGA2 relative error','expansion size','relative error');
+            semilogy(ao.relerr');
+            hold on;
+            plot(1:ao.MaxExpansionSize,ao.MaxRelErr,'k-');
+            
+            pm.nextPlot('expsizes','Expansion sizes','gamma value','size');
+            plot([a.expsizes; ao.expsizes]');
+            legend('VKOGA','WSOGA2');
+            
+            pm.nextPlot('VKOGA_herrdecay','VKOGA H-error decay','iteration nr','decay');
+            semilogy(a.HerrDecay');
+            pm.nextPlot('WSOGA2_herrdecay','WSOGA2 H-error decay','iteration nr','decay');
+            semilogy(ao.HerrDecay');
+            
+            pm.done;
+        end
+    end
+    
+    methods(Static, Access=private)
+        function a = getAlgF7
+            a = approx.algorithms.VectorialKernelOMP;
+            a.CoeffComp = general.interpolation.KernelInterpol;
+            a.UseOGA = false;
+            %a.CoeffComp.UseLU = true;
+            %a.Dists = sqrt(dia);
+            a.gameps = 1e-3;
+            a.NumGammas = 20;
+            a.MaxExpansionSize = 200;
+            a.UsefScaling = false;
+            a.MaxRelErr = 1e-3;
+            a.PhiNormMin = 1e-3;%sqrt(eps);
+            a.MinGFactor = .1;
+            a.MaxGFactor = 1;
+        end
+        
+        function a = getAlgF3
+            a = approx.algorithms.VectorialKernelOMP;
+            a.CoeffComp = general.interpolation.KernelInterpol;
+            a.UseOGA = false;
+            %a.CoeffComp.UseLU = true;
+            %a.Dists = sqrt(dia);
+            a.gameps = 1e-3;
+            a.NumGammas = 20;
+            a.MaxExpansionSize = 200;
+            a.UsefScaling = false;
+            a.MaxRelErr = 1e-4;
+            a.PhiNormMin = 1e-3;%sqrt(eps);
+            a.MinGFactor = .1;
+            a.MaxGFactor = 1;
         end
     end
     
