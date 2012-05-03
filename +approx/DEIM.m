@@ -263,16 +263,23 @@ classdef DEIM < approx.BaseApprox
                 
                 Um = this.u(:,1:o);
                 Umd = this.u(:,o+1:o+om);
+%                 t = tic;
                 A = P'*Um;
                 B = P'*Umd;
                 C = Perr'*Um;
                 D = Perr'*Umd;
-                G = C / A; % G = CA^-1
-                E = D - G*B;
-                F = B / E; % F = BE^-1 = B(D-CA^-1B)^-1
-                this.Uerr1 = (Um / A)*F*G - (Umd / D)*(G + G*F*G);
-                this.Uerr2 = (Um / A)*F - Umd / E;
+                E = C / A;
+                F = D - E*B;
+                this.Uerr2 = ((Um/A)*B - Umd) / F;
+                this.Uerr1 = this.Uerr2 * E;
+%                 t1 = toc(t);
                 
+%                 t = tic; % slower ... one wont believe it!
+%                 this.Uerr2 = ((Um/(P'*Um))*P'*Umd - Umd) / (Perr'*Umd - ((Perr'*Um) / (P'*Um))*(P'*Umd));
+%                 this.Uerr1 = this.Uerr2 * ((Perr'*Um) / (P'*Um));
+%                 t2 = toc(t);
+                
+                fprintf('%f ',t1,t2); fprintf('\n');
                 %% DEBUG
 %                 full Q(P'Q)P' for M+M'
 %                 Pfull = sparse(this.pts(1:o+om),1:o+om,ones(o+om,1),n,o+om);
