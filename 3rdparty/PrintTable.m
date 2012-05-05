@@ -24,9 +24,13 @@ classdef PrintTable < handle
 % # There must be one format string for each columns of the PrintTable
 % # The column contents and the format string must be valid arguments for sprintf.
 %
-% Example:
-% % Simply run
-% PrintTable.test_PrintTable;
+% Examples:
+% Simply run
+% 'PrintTable.test_PrintTable;'
+% or
+% 'PrintTable.test_PrintTable_RowHeader_Caption;'
+% or
+% 'PrintTable.test_PrintTable_LaTeX_Export;'
 %
 % % Or copy & paste
 % t = PrintTable;
@@ -35,6 +39,9 @@ classdef PrintTable < handle
 % t.addRow('1234567','12345678','789');
 % t.addRow('12345678','123','789');
 % % sprintf-format compatible strings can also be passed as last argument:
+% % single format argument:
+% t.addRow(123.456789,pi,789,{'%3.4f'});
+% % custom format for each element:
 % t.addRow(123.456789,pi,789,{'%3.4f','%g','format. dec.:%d'});
 % t.addRow('123456789','12345678910','789');
 % t.addRow('adgag',uint8(4),4.6);
@@ -45,8 +52,23 @@ classdef PrintTable < handle
 % t.HasHeader = true;
 % % or simply state the variable to print
 % t
+%
+% % To use a different column separator just set e.g.
 % t.ColSep = ' -@- ';
-% t
+% t.display;
+%
+% % PrintTable with "row header" mode
+% t = PrintTable('This is PrintTable_RowHeader_Caption test, created on %s',datestr(now));
+% t.HasRowHeader = true;
+% t.HasHeader = true;
+% t.addRow('A','B','C');
+% t.addRow('header-autofmt',456,789,{'%d'});
+% t.addRow(1234.345,456,789,{'%2.2E','%d','%d'});
+% t.addRow('header-expl-fmt',456,pi,{'%s','%d','%2.2f'});
+% t.addRow('nofmt-header',456,pi,{'%d','%f'});
+% t.addRow('1234567','12345','789');
+% t.addRow('foo','bar',datestr(clock));
+% t.display;
 %
 % % Latex output
 % t.Format = 'tex';
@@ -57,18 +79,50 @@ classdef PrintTable < handle
 % % You can also print the table to a file. Any MatLab file handle can be used (any first
 % % argument for fprintf). Run the above example, then type
 % fid = fopen('mytable.txt','w');
+% % [..do some printing here ..]
 % t.print(fid);
+% % [..do some printing here ..]
 % fclose(fid);
-% % this is actually equivalent to calling
-% t.saveToFile('mytable.txt');
 %
-% @note Of course, any editor might have its own setting regarding tab spacing. As the default
-% in MatLab and e.g. KWrite is 8 characters, this is what is used here. Change the TabCharLen
-% constant to fit to your platform/editor/requirements.
+% % Saving the table to a file:
+% % Plaintext
+% t.saveToFile('mytable_plain.txt');
+% % LaTeX
+% t.saveToFile('mytable_tex.tex');
+% % Tight PDF
+% t.saveToFile('mytable_tightpdf.pdf');
+% % Whole page PDF
+% t.TightPDF = false;
+% t.saveToFile('mytable_tightpdf.pdf');
+%
+%
+% @note Of course, any editor might have its own setting regarding tab
+% spacing. As the default in MatLab and e.g. KWrite is four characters,
+% this is what is used here. Change the TabCharLen constant to fit to your
+% platform/editor/requirements.
 % 
 % See also: fprintf sprintf
 %
 % @author Daniel Wirtz @date 2011-11-17
+%
+% Those links were helpful for programming the PDF export:
+% - http://tex.stackexchange.com/questions/2917/resize-paper-to-mbox
+% - http://tex.stackexchange.com/questions/22173
+% - http://www.weinelt.de/latex/
+%
+% @change{0,6,dw,2012-05-04}
+% - Added a property PrintTable.HasRowHeader that allows to use a single
+% format specification for all row entries but the first one. Added a test
+% for that.
+% - A caption with sprintf-compatible arguments can be passed directly to
+% the PrintTable constructor now.
+% - Added support for pdf export (requires pdflatex on PATH)
+% - The saveToFile method either opens a save dialog to pick a file or
+% takes a filename.
+% - New property PrintTable.TightPDF that determines if the pdf file
+% generated for a table should be cropped to the actual table size or
+% inserted into a standard article document. Having a tight pdf removes the
+% caption of the table.
 %
 % @change{0,6,dw,2011-12-14} Added support for arrays of PrintTable instances in display, print
 % and saveToFile methods.
@@ -123,12 +177,33 @@ classdef PrintTable < handle
         % @default false @type logical
         HasHeader = false;
         
-        % The output format of the table.
+        % Flag that determines if there is a row header for the table.
         %
-        % Currently the values 'plain' for plaintext and 'tex' for LaTeX output are available.
+        % If true, this causes a special behaviour regarding
+        % formatting the the first argument passed to PrintTable.addRow.
+        % Let `n` be the total number of row content arguments.
+        % - No format is given: The first argument will be "stringyfied" as
+        % all other elements
+        % - A cell with `n=1` format strings, i.e. {'%f'}, is given: This
+        % format will be applied to all but the first argument of addRow.
+        % This is the actual reason why this flag was introduced, in order
+        % to be able to specify a current row string header and set the
+        % format for all other entries using one format string.
+        % - A cell with `n-1` format strings is given: They will be applied
+        % to the 2nd until last argument of addRow (in that order)
+        % - A cell with `n` format strings is given: They will be applied
+        % to all content arguments including the row header (in that order)
         %
-        % @default 'plain' @type enum<'plain', 'tex'>
-        Format = 'plain';
+        % @type logical @default false
+        HasRowHeader = false;
+        
+        % The output format of the table when using the print method.
+        %
+        % Currently the values 'txt' for plaintext and 'tex' for LaTeX
+        % output are available.
+        %
+        % @default 'txt' @type enum<'txt', 'tex'>
+        Format = 'txt';
         
         % A caption for the table.
         %
@@ -138,6 +213,13 @@ classdef PrintTable < handle
         %
         % @default '' @type char
         Caption = '';
+        
+        % Flag that indicates if exported tables in PDF format should be
+        % sized to the actual table size or be contained in a normal
+        % unformatted article page.
+        %
+        % @type logical @default true
+        TightPDF = true;
     end
     
     properties(Access=private)
@@ -149,15 +231,22 @@ classdef PrintTable < handle
     end
     
     methods
-        function this = PrintTable(caption)
+        function this = PrintTable(caption, varargin)
             % Creates a new PrintTable instance.
             %
             % Parameters:
-            % caption: The caption of the table. @type char @optional
-            if nargin > 0
-                this.Caption = caption;
-            end
+            % caption: The caption of the table. @type char @default ''
+            % varargin: If given, they will be passed to sprintf using the
+            % specified caption argument to create the table's Caption.
+            % @type cell @default []
             this.clear;
+            if nargin > 0
+                if ~isempty(varargin)
+                    this.Caption = sprintf(caption,varargin{:});
+                else
+                    this.Caption = caption;
+                end
+            end
         end
         
         function display(this)
@@ -165,7 +254,7 @@ classdef PrintTable < handle
             %
             % Calls print with argument 1, i.e. standard output.
             for i = 1:length(this)
-                this(i).printPlain(1);
+                this(i).print(1);
             end
         end
         
@@ -182,9 +271,9 @@ classdef PrintTable < handle
             end
             for i = 1:length(this)
                 t = this(i);
-                if strcmp(t.Format,'plain')
+                if strcmp(t.Format,'txt')
                     t.printPlain(outfile);
-                elseif strcmp(t.Format,'tex')
+                elseif any(strcmp(t.Format,{'tex','pdf'}))
                     t.printTex(outfile);
                 else
                     error('Unsupported format: %s',t.Format);
@@ -192,15 +281,76 @@ classdef PrintTable < handle
             end
         end
         
-        function saveToFile(this, filename)
+        function saveToFile(this, filename, openfile)
             % Prints the current table to a file.
             %
+            % If a file name is specified, the format is determined by the
+            % file extension. Allowed types are "txt" for plain text, "tex"
+            % for a LaTeX table and "pdf" for an immediate export of the
+            % LaTeX table to a PDF document.
+            %
+            % @note The last option required "pdflatex" to be available on
+            % the system's environment.
+            %
             % Parameters:
-            % filename: The file to print to. If the file exists, any contents are discarded.
-            % If the file does not exist, an attempt to create a new one is made. @type char
-            fid = fopen(filename,'w');
-            this.print(fid);
-            fclose(fid);
+            % filename: The file to print to. If the file exists, any
+            % contents are discarded.
+            % If the file does not exist, an attempt to create a new one is
+            % made. @type char @default Prompts for saving target
+            % openfile: Flag that indicates if the exported file should be
+            % opened after saving. @type logical @default false
+            
+            % Case 1: No file name given
+            if nargin < 2 || isempty(filename)
+                initdir = getpref('PrintTable','LastDir',pwd);
+                choices = {'*.txt', 'Text files (*.txt)';...
+                           '*.tex', 'LaTeX files (*.tex)';...
+                           '*.pdf', 'PDF files (*.pdf)'};
+                [fname, path, extidx] = uiputfile(choices, ...
+                    sprintf('Save table "%s" as',this.Caption), initdir);
+                % Abort if no file was selected
+                if fname == 0
+                    return;
+                end
+                setpref('PrintTable','LastDir',path);
+                ext = choices{extidx,1}(2:end);
+                filename = fullfile(path, fname);
+                % Take off the extension of the fname (automatically added
+                % by uiputfile)
+                fname = fname(1:end-4);
+            % Case 2: File name given. Determine format by file
+            % extension
+            else
+                [path, fname, ext] = fileparts(filename);
+                if isempty(ext)
+                    ext = ['.' this.Format];
+                elseif ~any(strcmp(ext,{'.txt','.tex','.pdf'}))
+                    error('Valid file formats are *.txt, *.tex, *.pdf');
+                end
+                % Try to create directory if not existing
+                if ~isempty(path) && exist(pathstr,'dir') ~= 7
+                    mkdir(path);
+                end
+            end
+            if nargin < 3
+                openfile = false;
+            end
+            
+            oldfmt = this.Format; % store old format
+            this.Format = ext(2:end);
+            % PDF export
+            if strcmp(ext,'.pdf')
+                this.pdfExport(path, fname);
+            % Text export in either plain or LaTeX format
+            else
+                fid = fopen(filename,'w');
+                this.print(fid);
+                fclose(fid);
+            end
+            this.Format = oldfmt; % restore old format
+            if openfile
+                open(filename);
+            end
         end
         
         function addRow(this, varargin)
@@ -258,6 +408,13 @@ classdef PrintTable < handle
             this.HasHeader = value;
         end
         
+        function set.HasRowHeader(this, value)
+            if ~islogical(value) || ~isscalar(value)
+                error('HasRowHeader must be a logical scalar.');
+            end
+            this.HasRowHeader = value;
+        end
+        
         function set.Caption(this, value)
             if ~isempty(value) && ~ischar(value)
                 error('Caption must be a character array.');
@@ -266,8 +423,10 @@ classdef PrintTable < handle
         end
         
         function set.Format(this, value)
-            if ~any(strcmp({'plain','tex'},value))
-                error('Format must be either ''plain'' or ''tex''.');
+            % 'Hide' the valid format pdf as its only used internally .. i
+            % know .. lazyness :-)
+            if ~any(strcmp({'txt','tex','pdf'},value))
+                error('Format must be either ''txt'' or ''tex''.');
             end
             this.Format = value;
         end
@@ -285,7 +444,12 @@ classdef PrintTable < handle
                 this.printRow(row,outfile,this.ColSep);
                 fprintf(outfile,'%s\n',row{end});
                 if ridx == 1 && this.HasHeader
-                    fprintf(outfile,'%s\n',repmat('_',1,sum(this.contlen) + length(this.ColSep)*length(this.data)));
+                    % Compute number of tabs
+                    ttabs = 0;
+                    for i = 1:length(row)
+                        ttabs = ttabs +  ceil((length(this.ColSep)*(i~=1)+this.contlen(i))/PrintTable.TabCharLen);
+                    end
+                    fprintf(outfile,'%s\n',repmat('_',1,(ttabs+1)*PrintTable.TabCharLen));
                 end
             end
         end
@@ -303,7 +467,13 @@ classdef PrintTable < handle
             if ~isempty(this.data)
                 cols = length(this.data{1});
             end
-            fprintf(outfile,'\\begin{table}[!hb]\n\t\\centering\n\t');
+            % Only add surroundings for pure tex output or full-sized PDF
+            % generation
+            if strcmp(this.Format,'tex') || ~this.TightPDF
+                fprintf(outfile,'\\begin{table}[!hb]\n\t\\centering\n\t');
+            elseif ~isempty(this.Caption)
+                fprintf(outfile,'Table: %s\\newline\\\\asfasf\n',this.Caption);
+            end
             fprintf(outfile,'\\begin{tabular}{%s}\n',repmat('l',1,cols));
             % Print all rows
             for ridx = 1:length(this.data)
@@ -316,10 +486,53 @@ classdef PrintTable < handle
                 end
             end
             fprintf(outfile, '\t\\end{tabular}\n');
-            if ~isempty(this.Caption)
-                fprintf(outfile,'\t\\caption{%s}\n',this.Caption);
+            % Only add surroundings for pure tex output or full-sized PDF
+            % generation
+            if strcmp(this.Format,'tex') || ~this.TightPDF
+                if ~isempty(this.Caption)
+                    fprintf(outfile,'\t\\caption{%s}\n',this.Caption);
+                end
+                fprintf(outfile, '\\end{table}\n');
             end
-            fprintf(outfile, '\\end{table}\n');
+        end
+        
+        function pdfExport(this, path, fname)
+            [status, msg] = system('pdflatex --version');
+            if status ~= 0
+                error('pdfLaTeX not found or not working:\n%s',msg);
+            else
+                cap = 'table';
+                if ~isempty(this.Caption)
+                    cap = ['''' this.Caption ''''];
+                end
+                fprintf('Exporting %s to PDF using "%s"... ',cap,msg(1:strfind(msg,sprintf('\n'))-1));
+            end
+
+            texfile = fullfile(path, [fname '.tex']);
+            fid = fopen(texfile,'w');
+            fprintf(fid,'\\documentclass{article}\n\\begin{document}');
+            if this.TightPDF
+                fprintf(fid,'\\newsavebox{\\tablebox}\\begin{lrbox}{\\tablebox}\n');
+            else
+                fprintf(fid, '\\thispagestyle{empty}\n');
+            end
+            % Print actual tex table
+            this.print(fid);
+            if this.TightPDF
+                fprintf(fid, ['\\end{lrbox}\\pdfhorigin=0pt\\pdfvorigin=0pt'...
+                    '\\pdfpagewidth=\\wd\\tablebox\\pdfpageheight=\\ht\\tablebox'...
+                    '\\advance\\pdfpageheight by \\dp\\tablebox'...
+                    '\\shipout\\box\\tablebox']);
+            end
+            fprintf(fid,'\n\n\\end{document}');
+            fclose(fid);
+            [status, msg] = system(sprintf('pdflatex -interaction=nonstopmode -output-directory="%s" %s',path,texfile));
+            if status ~= 0
+                error('pdfLaTeX finished with errors:\n%s',msg);
+            else
+                delete(texfile,fullfile(path, [fname '.aux']),fullfile(path, [fname '.log']));
+                fprintf('done!\n');
+            end
         end
         
         function printRow(this, row, outfile, sep)
@@ -343,6 +556,17 @@ classdef PrintTable < handle
                 % apply same format string
                 if length(data{end}) == 1 && length(data)-1 > 1
                     data{end} = repmat(data{end},1,length(data)-1);
+                    if this.HasRowHeader    
+                        % Make sure the row header becomes a string if not
+                        % already one
+                        data(1) = this.stringify(data(1));
+                        data{end}{1} = '%s';
+                    end
+                elseif this.HasRowHeader && length(data{end}) == length(data)-2
+                    % Make sure the row header becomes a string if not
+                    % already one
+                    data(1) = this.stringify(data(1));
+                    data{end} = ['%s' data{end}(:)'];
                 end
                str = cell(1,length(data)-1);
                for i=1:length(data)-1
@@ -427,6 +651,54 @@ classdef PrintTable < handle
             t.print;
             t.HasHeader = true;
             t.print;
+        end
+        
+        function t = test_PrintTable_RowHeader_Caption
+            % A simple test for PrintTable
+            t = PrintTable('This is PrintTable_RowHeader_Caption test, created on %s',datestr(now));
+            t.HasRowHeader = true;
+            t.HasHeader = true;
+            t.addRow('A','B','C');
+            t.addRow('header-autofmt',456,789,{'%d'});
+            t.addRow(1234.345,456,789,{'%2.2E','%d','%d'});
+            t.addRow('header-expl-fmt',456,pi,{'%s','%d','%2.2f'});
+            t.addRow('nofmt-header',456,pi,{'%d','%f'});
+            t.addRow('1234567','12345','789');
+            t.addRow('foo','bar',datestr(clock));
+            t.addRow(123.45678,pi,789,{'%2.3f','$%4.4g$','decimal: %d'});
+            t.addRow(12345678,'123','789');
+            t.addRow(12345.6789,'123','789');
+            t.display;
+            
+            t.Format = 'tex';
+            t.print;
+            t.HasHeader = true;
+            t.print;
+            t.saveToFile('test_PrintTable_RowHeader_Caption.pdf');
+        end
+        
+         function t = test_PrintTable_LaTeX_Export
+            % A simple test for PrintTable
+            t = PrintTable('LaTeX PrintTable demo, %s',datestr(now));
+            t.HasRowHeader = true;
+            t.HasHeader = true;
+            t.addRow('A','B','C');
+            t.addRow('Data 1',456,789,{'$%d$'});
+            t.addRow(1234.345,456,789,{'$%2.2E$','$%d$','$%d$'});
+            t.addRow('header-expl-fmt',456,pi,{'%s','$%d$','$%2.2f$'});
+            t.addRow('1234567','12345','789');
+            x = 4;
+            t.addRow('x=4','\sin(x)',sin(x),{'$%s$','%f'});
+            t.addRow('$x=4,\alpha=.2$','\alpha\exp(x)\cos(x)',.2*exp(x)*cos(x),{'$%s$','%f'});
+            t.display;
+            
+            % LaTeX
+            t.saveToFile('mytable_tex.tex',true);
+            % Tight PDF
+            t.saveToFile('mytable_tightpdf.pdf',true);
+            % Whole page PDF
+            t.TightPDF = false;
+            t.saveToFile('mytable_fullpage.pdf',true);
         end
     end
     
