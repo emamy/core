@@ -1,4 +1,4 @@
-function [h, Y, E] = ParamSweep(rmodel, mu, inputidx, param, paramvals)
+function [h, Y, E] = ParamSweep(rmodel, mu, inputidx, param, paramvals, ax)
 % ParamSweep: Plots the output with error bounds for a range of one specified parameter.
 %
 % This function may only be used if the output of the reduced models is one-dimensional.
@@ -11,6 +11,7 @@ function [h, Y, E] = ParamSweep(rmodel, mu, inputidx, param, paramvals)
 % param: Either a string containing the name of the parameter to sweep, or it's index in the
 % parameter vector.
 % paramvals: A row vector of parameter values for sweeping.
+% pm: A PlotManager instance to use for plotting
 %
 % Return values:
 % h: The handle of the created figure
@@ -43,6 +44,10 @@ end
 npar = length(paramvals);
 if npar == 0
     error('Parameter values to sweep must be given.');
+end
+if nargin < 6
+    h = figure;
+    ax = gca(h);
 end
 
 p = 0;
@@ -81,8 +86,7 @@ end
 fprintf('\n');
 
 %% Prepare plot
-h = figure;
-ax = gca(h);
+
 [T,MU] = meshgrid(t,paramvals);
 ustr = '';
 if ~isempty(inputidx)

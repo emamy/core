@@ -7,6 +7,9 @@ classdef ProcessIndicator < handle
 %
 % @author Daniel Wirtz @date 2012-03-20
 %
+% @change{0,6,dw,2012-05-07} The constructor takes varargin arguments that
+% are forwarded to a sprintf of the title string, if given.
+%
 % @change{0,6,dw,2012-04-16} Fixed misinterpreted use of "step" method. Now
 % have a step method which takes an increase value and a set method which
 % takes the new absolute progress to show
@@ -37,7 +40,7 @@ classdef ProcessIndicator < handle
     end
 
     methods
-        function this = ProcessIndicator(title, total, wb)
+        function this = ProcessIndicator(title, total, wb, varargin)
             % Creates a new ProcessIndicator.
             %
             % If a total argument is given, the indicator is initialized via @code start(total)
@@ -48,6 +51,8 @@ classdef ProcessIndicator < handle
             % total: The total process amount. Must be positive. @type double @default []
             % wb: Flag that indicates how to initialize the UseWaitbar flag. @type logical
             % @default false
+            % varargin: Any further parameters are passed to a sprintf call
+            % for the title string.
             %
             % Return values:
             % this: The new ProcessIndicator @type tools.ProcessIndicator
@@ -57,7 +62,11 @@ classdef ProcessIndicator < handle
                     this.title = 'Process running';
                 end
             end
-            this.title = title;
+            if ~isempty(varargin)
+                this.title = sprintf(title,varargin{:});
+            else
+                this.title = title;
+            end
             this.UseWaitbar = wb;
             if nargin > 1
                 this.start(total);

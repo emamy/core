@@ -38,6 +38,14 @@ classdef PlotManager < handle
 % pm.savePlots('.','fig');
 % pm.savePlots('.','png',true);
 %
+% @change{0,6,dw,2012-05-07} 
+% - PlotManager.savePlots now takes a cell array with file extensions,
+% allowing to call the function once and generate all desired output types.
+% Updated info string.
+% - New default values (fig + pdf for savePlots, rows=cols=2 for subplots)
+% - Only setting 'axes tight' if no manual changes have been made to the
+% axis limits
+%
 % @new{0,6,dw,2012-04-27} Added support to optionally pass title, x- and
 % ylabels for upcoming plots. If those values are given they will overwrite
 % any manually set values. This is done by storing the given values and
@@ -117,14 +125,17 @@ classdef PlotManager < handle
             % single: If to create single figures for each call to
             % nextPlot. @type logical @default true
             % rows: If on non-single mode, the number of rows to pass to
-            % subplot. @type integer
+            % subplot. @type integer @default 2
             % cols: If on non-single mode, the number of columns to pass to
-            % subplot. @type integer
+            % subplot. @type integer @default 2
             if nargin > 0
                 this.Single = single;
                 if nargin > 1
                     this.rows = rows;
                     this.cols = cols;    
+                elseif ~this.Single
+                    this.rows = 2;
+                    this.cols = 2;
                 end
             end
             this.cnt = 0;
@@ -202,14 +213,21 @@ classdef PlotManager < handle
             if nargin < 4
                 close = false;
                 if nargin < 3
-                    format = 'fig';
+                    format = {'fig', 'eps'};
                     if nargin < 2
                         folder = pwd;
                     end
                 end
             end
+            if ischar(format)
+                format = {format};
+            end
             n = length(this.Figures);
-            fprintf('Saving %d current figures as "%s"...', n, format);
+            fmtstr = format{1};
+            if length(format) > 1
+                fmtstr = [sprintf('%s, ',format{1:end-1}) format{end}];
+            end
+            fprintf('Saving %d current figures as "%s"...', n, fmtstr);
             for idx=1:n
                 h = this.Figures(idx);%#ok<*PROP>
                 if ishandle(h)
@@ -220,7 +238,9 @@ classdef PlotManager < handle
                         fname = sprintf('figure_%d',idx);
                     end
                     fname = fullfile(folder, [this.FilePrefix '_' fname]);
-                    this.saveFigure(h, fname, format);
+                    for fmt = 1:length(format)
+                        this.saveFigure(h, fname, format{fmt});
+                    end
                 end
             end
             fprintf('done!\n');
@@ -248,7 +268,10 @@ classdef PlotManager < handle
     end
     
     methods(Access=private)
+        
         function finishCurrent(this)
+            % Finishes processing of the current plot, e.g. sets the labels
+            % and tight axis.
             h = this.h;
             if ishandle(h)
                 % Set title and labels if given 
@@ -261,7 +284,10 @@ classdef PlotManager < handle
                 if ~isempty(this.nyl)
                     ylabel(h, this.nyl);
                 end
-                axis(h,'tight');
+                % Make axis tight if no manual values have been set
+                if ~any(strcmp(get(h,{'XLimMode','YLimMode','ZLimMode'}),'manual'))
+                    axis(h,'tight');
+                end
             end
         end
         
@@ -271,14 +297,14 @@ classdef PlotManager < handle
             %
             % Supported formats: eps, jpg, fig, png, tif, pdf
             %
-            % @change{0,4,dw,2011-05-31} Improved the export capabilites and automatic removement of
-            % any figure margins is performed.
+            % This is a scrap function from a differen class i didnt want
+            % to include completely.
                         
             exts = {'fig','pdf','eps','jpg','png','tif'};
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             extidx = find(strcmp(ext,exts),1);
             if isempty(extidx)
-                warning('KerMor:Utils:invalidExtension','Invalid extension: %s, using eps',ext);
+                warning('ohno:invalidExtension','Invalid extension: %s, using eps',ext);
                 extidx = 1;
             end
             file = [filename '.' exts{extidx}];

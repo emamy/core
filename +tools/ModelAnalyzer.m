@@ -99,15 +99,20 @@ classdef ModelAnalyzer < handle;
             [~, y, ftime] = fm.simulate(mu,inputidx);
             [ti,yr, rtime] = this.rm.simulate(mu,inputidx);
             %% Text output
-            str = sprintf('%s, mu=[%s], u_%d',fm.Name,...
-                general.Utils.implode(mu,', ','%2.3f'),inputidx);
-            fprintf('Computation times %s:\n',str);
-            t = PrintTable;
-            t.addRow('Full model',sprintf('%2.4fs',ftime));
-            t.addRow('Reduced model',sprintf('%2.4fs',rtime));
-            t.addRow('Speedup',sprintf('x%2.4f',ftime/rtime));
+            str = sprintf('%s',fm.Name);
+            if ~isempty(mu)
+                str = sprintf('%s, mu=[%s]',str,general.Utils.implode(mu,', ','%2.3f'));
+            end
+            if ~isempty(inputidx)
+                str = sprintf('%s, u_%d',str,inputidx);
+            end
+            t = PrintTable('Computation times %s:\n',str);
+            t.HasRowHeader = true;
+            t.addRow('Full model',ftime,{'%2.4fs'});
+            t.addRow('Reduced model',rtime,{'%2.4fs'});
+            t.addRow('Speedup',ftime/rtime,{'x%2.4f'});
             t.display;
-            fprintf('Error comparison for %s:\n',str);
+            
             % L^2 errors
             l2 = Norm.L2(yr-y);
             lil2 = max(l2);
@@ -118,7 +123,7 @@ classdef ModelAnalyzer < handle;
             lil2relyl2 = max(l2relyl2);
             meanrell2 = mean(l2relyl2);
             %fprintf('||y(t_i)||_2: %s',general.Utils.implode(l2,', ','%2.3f'));
-            t = PrintTable;
+            t = PrintTable('Error comparison for %s:\n',str);
             t.addRow('L2 time and space error','L^2(||y(t) - yr(t)||_2,[0,T])',l2l2);
             t.addRow('Linf time and L2 space error','L^inf(||y(t) - yr(t)||_2,[0,T])',lil2);
             t.addRow('Relative L2 time and space error','L^2(||(y(t) - yr(t)) / y(t)||_2,[0,T])',l2l2relyl2);
@@ -135,7 +140,6 @@ classdef ModelAnalyzer < handle;
             l2lirelyli = Norm.L2(lirelyli');
             lilirelyli = max(lirelyli);
             meanrelli = mean(lirelyli);
-            %fprintf('||y(t_i)||_2: %s',general.Utils.implode(li,', ','%2.3f'));
             t.addRow('Linf time and space error','L^inf(||y(t) - yr(t)||_inf,[0,T])',lili);
             t.addRow('L2 time and Linf space error','L^2(||y(t) - yr(t)||_inf,[0,T])',l2li);
             t.addRow('Relative Linf time and space error','L^inf(||(y(t) - yr(t)) / y(t)||_inf,[0,T])',lilirelyli);
@@ -147,42 +151,32 @@ classdef ModelAnalyzer < handle;
             %% Plotting
             if nargout > 1
                 pm = tools.PlotManager(false, 2, 2);
-                fm.plot(ti, y, pm.nextPlot('full_sim'));
-                set(gcf,'Name',['Full simulation - ' str]);
-                fm.plot(ti,yr, pm.nextPlot('red_sim'));
-                set(gcf,'Name',['Reduced simulation - ' str]);
-                fm.plot(ti,abs(y-yr), pm.nextPlot('abs_err'));
-                set(gcf,'Name',['Absolute error - ' str]);
+                fm.plot(ti, y, pm.nextPlot('full_sim',sprintf('Full simulation\n%s',str)));
+                fm.plot(ti, yr, pm.nextPlot('red_sim',sprintf('Reduced simulation\n%s',str)));
+                fm.plot(ti, log10(abs(y-yr)), pm.nextPlot('abs_err',sprintf('Absolute error (log scale)\n%s',str)));
                 hlp = abs(y);
-                if any(hlp(:) == 0)
-                    hlp2 = hlp;
-                    hlp2(hlp==0) = [];
-                    ep = min(hlp2(:))^2;
-                    hlp(hlp==0) = ep;
-                end
-                fm.plot(ti,abs(y-yr)./hlp, pm.nextPlot('rel_err'));
-                set(gcf,'Name',['Relative error - ' str]);
+%                 if any(hlp(:) == 0)
+%                     hlp2 = hlp;
+%                     hlp2(hlp==0) = [];
+%                     ep = min(hlp2(:))^2;
+%                     hlp(hlp==0) = ep;
+%                 end
+                fm.plot(ti, log10(abs(y-yr)./hlp), pm.nextPlot('rel_err',sprintf('Relative error (log scale)\n%s',str)));
+                pm.done;
             end
         end
         
-        function [el2, elinf] = getTrajApproxError(this, mu, inputidx)
-            % Computes the approximation training error on the trajectory
-            % for given mu and inputidx.
-            %
-            % @todo include check for FullModel.Data if full traj is
-            % already there
+        function [el2, elinf, t, x, fx, afx] = getTrajApproxError(this, mu, inputidx)
+            % Computes the approximation training error on the full
+            % system's trajectory for given mu and inputidx.
             fm = this.rm.FullModel;
             if ~isempty(fm.Approx)
                 if nargin == 2
                     inputidx = [];
                 end
-                x = fm.Data.getTrajectory(mu, inputidx);
-                if ~isempty(x)
-                    fm.System.setConfig(mu, inputidx);
-                    t = fm.scaledTimes;
-                else
-                    [t,x] = fm.computeTrajectory(mu, inputidx);
-                end
+                % Computes trajectory (including cache-lookup in
+                % BaseFullModel!)
+                [t,x] = fm.computeTrajectory(mu, inputidx);
                 if ~isempty(fm.Data.V)
                     x = fm.Data.V*(fm.Data.W'*x);
                 end
@@ -325,6 +319,184 @@ classdef ModelAnalyzer < handle;
                 'reduced solution)\nmean(ered_{rel})=%g, mean(estred_{rel})=%g'],...
                 mean(erelr),mean(estrelr)));
             legend('True error','Estimated error');%,'Location','Best');
+        end
+        
+        %% %%%%%%%%%%%%%%%% DEIM stuff %%%%%%%%%%%%%%%%%%%%%%%%
+        function [etrue, EE, ED, pm] = getTrajApproxErrorDEIMEstimates(this, mu, inputidx)
+            % [etrue, EE, ED, pm] = getTrajApproxErrorDEIMEstimates(this, mu, inputidx)
+            % Computes the DEIM approximation errors for given mu and input.
+            %
+            % Depending on the current Order `o` of the DEIM approximation,
+            % all possible ErrorOrders `eo = o+1 ... N` to the
+            % approx.DEIM.MaxOrder `N` are used estimations for the given
+            % trajectory computed.
+            %
+            % Return values:
+            % etrue: The true approximation error using the full
+            % trajectory.
+            % EE: The matrix of estimated errors, containing the estimated
+            % state-space L2 error (columns) for each possible ErrorOrder
+            % (rows).
+            % time step.
+            % ED: The absolute difference between true and estimated error
+            % for each ErrorOrder (rows) and timestep (columns)
+            % pm: The PlotManager used to create the result plots. If not
+            % requested as output, no plotting will be done. @optional
+            fm = this.rm.FullModel;
+            if nargin < 3
+                inputidx = fm.TrainingInputs;
+                if nargin < 2
+                    mu = fm.Data.ParamSamples;
+                end
+            end
+            f = fm.Approx;
+            olde = f.Order(2); % store old setting
+            o = f.Order(1);
+            mo = f.MaxOrder;
+            
+            num_mu = max(1,size(mu,2));
+            num_in = max(1,length(inputidx));
+            etrue = zeros(num_mu*num_in,length(fm.Times));
+            EE = zeros(mo-o,length(fm.Times),num_mu*num_in);
+            ED = EE;
+            
+            % Assume no parameters or inputs
+            curmu = [];
+            curin = [];
+            for eo = 1:mo-o
+                f.Order = [o eo];
+                % Iterate through all input functions
+                cnt = 1;
+                for inidx = 1:num_in
+                    % Iterate through all parameter samples
+                    for muidx = 1:num_mu
+                        % Check for inputs
+                        if ~isempty(inputidx)
+                            curin = inputidx(inidx);
+                        end
+                        % Check for parameters
+                        if size(mu,2) > 0
+                            curmu = mu(:,muidx);
+                        end
+
+                        [curetrue, ~, t, x] = this.getTrajApproxError(curmu, curin);
+                        eest = Norm.L2(f.getEstimatedError(x, t, repmat(curmu,1,length(t))));
+                        EE(eo,:,cnt) = eest;
+                        ED(eo,:,cnt) = abs(eest - curetrue);
+                        etrue(cnt,:) = curetrue;
+                        cnt = cnt+1;
+                    end
+                end
+            end
+            f.Order = [o olde]; % restore old setting
+            
+            if nargout == 4
+                pm = this.getTrajApproxErrorDEIMEstimates_plots(t, etrue(1,:), EE(:,:,1), ED(:,:,1));
+            end
+        end
+        
+        function [res, relerrs, orders, t] = getMeanRequiredErrorOrders(this, relerrs, orders, mu)
+            % [res, relerrs, orders, t] = getMeanRequiredErrorOrders(this, relerrs, orders, mu)
+            % This high-level function computes the minimum values of M' in
+            % order to have the relative error of true to estimated DEIM
+            % error smaller than the specified relerrs.
+            %
+            % Parameters:
+            % relerrs: The relative errors that may occur between true and
+            % estimated approximation error, maximized over time of each
+            % trajectory, averaged over all trajectories. @type
+            % rowvec<double> @default [1e-1 1e-2 1e-3 1e-4]
+            % orders: The different orders for which to compute the minimum
+            % ErrorOrders @type rowvec<integer> @default One to
+            % approx.DEIM.MaxOrder in steps of three
+            % mu: The parameters that determine the desired trajectories.
+            % The minimum needed M' will be averaged over all trajectories.
+            % @type matrix<double> @default All full model's parameter
+            % samples
+            %
+            % Return values:
+            % res: A matrix containing the minimum required M', indexed by
+            % orders in rows and relative errors in columns. @type
+            % matrix<double>
+            % relerrs: The effectively used relerrs. @type rowvec<double>
+            % orders: The effectively used orders. @type rowvec<integer>
+            % t: A PrintTable containing the results. If not specified as a
+            % nargout argument, the table will be printed instead. @type
+            % PrintTable @optional
+            fm = this.rm.FullModel;
+            f = fm.Approx;
+            if nargin < 4
+                mu = fm.Data.ParamSamples(:,1:10);
+                if nargin < 3
+                    orders = 1:3:f.MaxOrder;
+                    if nargin < 2
+                        relerrs = [1e-1 1e-2 1e-3 1e-4];
+                    end
+                end
+            end
+            oldo = f.Order;
+            res = zeros(length(orders),length(relerrs));
+            t = PrintTable('Mean required M'', averaged over %d trajectories',size(mu,2));
+            t.HasHeader = true;
+            title = arrayfun(@(e)sprintf('%g',e),relerrs,'Unif',false);
+            t.addRow('DEIM order / rel. error',title{:});
+            for i = 1:length(orders)
+                f.Order = orders(i);
+                [etrue, ~, ED] = this.getTrajApproxErrorDEIMEstimates(mu, []);
+                ET = repmat(etrue',[1 1 size(ED,1)]);
+                ET = shiftdim(ET,2);
+                rel = squeeze(max(ED ./ ET,[],2));
+                for j = 1:length(relerrs)
+                    % Trick: find nonzero flags, get first occurrence for each
+                    % column and use their row index as index of the ErrorOrder
+                    % at which the relative error (between estimate and true)
+                    % is smaller than relerrs(i) for all time-steps!
+                    [r, c] = find(rel < relerrs(j));
+                    [~, firstpos] = unique(c,'first');
+                    res(i,j) = mean(r(firstpos));
+                end
+                hlp = num2cell(res(i,:));
+                t.addRow(orders(i),hlp{:},{'%g'});
+            end
+            f.Order = oldo;
+            
+            if nargout < 4
+                t.display;
+            end
+        end
+        
+        %% %%%%%%%%%%%%%%%%%%%%% DEIM Plotting stuff %%%%%%%%%%%%%%%%%%%%%%%%
+        function pm = getTrajApproxErrorDEIMEstimates_plots(this, t, etrue, EE, ED, pm)
+            % Visualizes the results of the
+            % tools.ModelAnalyzer.getTrajApproxErrorDEIMEstimates method.
+            f = this.rm.FullModel.Approx;
+            o = f.Order(1);
+            mo = f.MaxOrder;
+            if nargin < 6
+                pm = tools.PlotManager(false,2,2);
+            end
+            h = pm.nextPlot('true_err','True approximation error on trajectory','time','error');
+            semilogy(h,t,etrue);
+            h = pm.nextPlot('est_err',sprintf('Estimated approximation errors on trajectory\nDEIM order = %d / max %d',f.Order(1),f.MaxOrder),...
+                'time', 'DEIM error order');
+            [T,O] = meshgrid(t,1:mo-o);
+            tools.LogPlot.logsurf(h,T,O,EE);
+            view(0,0);
+            
+            h = pm.nextPlot('abs_diff',sprintf('Difference true to estimated error\nDEIM order = %d / max %d',f.Order(1),f.MaxOrder),...
+                'time','DEIM error order');
+            tools.LogPlot.logsurf(h,T,O,ED);
+            view(90,0);
+            
+            h = pm.nextPlot('rel_diff',sprintf('Relative error between true to estimated error\nDEIM order = %d / max %d',f.Order(1),f.MaxOrder),...
+                'time','DEIM error order');
+            tools.LogPlot.logsurf(h,T,O,ED./repmat(etrue,mo-o,1));
+            hold on;
+            p = surf(h,T,O,-ones(size(T))*2);%,'FaceColor','r','EdgeColor','none');
+            alpha(p,.5);
+            view(90,0);
+            hold off;
+            pm.done;
         end
     end
 end

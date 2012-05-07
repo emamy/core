@@ -50,12 +50,6 @@ classdef EstimatorAnalyzer < handle
         % @type rowvec
         EstimatorVersions = [1 1 0 0 1 0 0 1 1];
         
-        % Whether to put the estimations and computations times into a
-        % single figure using subplots or using separate figures.
-        %
-        % @type logical
-        SingleFigures = false;
-        
         % Determines whether to plot the errors on a logarithmic scale or
         % not
         %
@@ -80,16 +74,6 @@ classdef EstimatorAnalyzer < handle
         %
         % @type logical
         UseOutputError = true;
-        
-        % The figure handles for the created figures.
-        %
-        % @type handle
-        Figures;
-        
-        % Axes
-        %
-        % @type handle
-        Axes;
         
         % The marker size for error and relative errors plots.
         MarkerSize = 8;
@@ -182,21 +166,16 @@ classdef EstimatorAnalyzer < handle
             relerrs = errs ./ repmat(yfullnorm,size(errs,1),1);
         end
         
-        function plotErrors(this, errs)
-            this.Figures{1} = figure;
-            this.Axes{1} = gca;
-            if ~this.SingleFigures
-                pos = get(0,'MonitorPosition');
-                set(this.Figures{1},'OuterPosition',pos(1,:));
-                subplot(1,3,1);
-            end
+        function plotErrors(this, errs, pm)
+            ax = pm.nextPlot('abserr',['Error estimations for model: ' this.Model.Name],...
+                'Time', 'Error estimates');
             if this.LogarithmicPlot
-                ph = semilogy(this.Model.Times,errs);
+                ph = semilogy(ax,this.Model.Times,errs);
             else
-                ph = plot(this.Model.Times,errs);
+                ph = plot(ax,this.Model.Times,errs);
             end
             set(ph(1),'LineWidth',2);
-            hold on;
+            hold(ax, 'on');
             % Select extra marker places
             nt = length(this.Model.Times);
             sel = round(1:nt/this.NumMarkers:nt);
@@ -205,13 +184,10 @@ classdef EstimatorAnalyzer < handle
                 set(ph(idx),'LineStyle',this.Est(idx).LineStyle);
                 % Shift marker positions for better visual
                 pos = mod(sel+round(nt/(this.NumMarkers*length(this.Est)))*(idx-1),nt)+1;
-                h = plot(this.Model.Times(pos), errs(idx,pos),this.Est(idx).MarkerStyle,'MarkerSize',this.MarkerSize);
+                h = plot(ax,this.Model.Times(pos), errs(idx,pos),this.Est(idx).MarkerStyle,'MarkerSize',this.MarkerSize);
                 c = get(ph(idx),'Color');
                 set(h,'MarkerFaceColor',c,'MarkerEdgeColor',c*.7);
             end
-            %keyboard;
-            xlabel('Time');
-            ylabel('Error estimates');
             a = cell(1,length(this.Est));
             [a{:}] = this.Est(:).Name;
             [~,oh] = legend(a,'Location','NorthEast');
@@ -224,27 +200,17 @@ classdef EstimatorAnalyzer < handle
                 set(oh(2*idx),'Marker',this.Est(idx).MarkerStyle,'MarkerFaceColor',c,'MarkerEdgeColor',c*.7,...
                     'MarkerSize',this.MarkerSize);
             end
-            title(['Error estimations for model: ' this.Model.Name]);
             emin = min(errs(:));
-            axis([0 this.Model.T emin*.9 max(emin,1e4)]);
+            axis(ax,[0 this.Model.T emin*.9 max(emin,1e4)]);
         end
         
-        function plotRelativeErrors(this, relerrs)
-            if ~this.SingleFigures
-                if isempty(this.Figures)
-                    this.Figures{1} = figure;
-                    pos = get(0,'MonitorPosition');
-                    set(this.Figures{1},'OuterPosition',pos(1,:));
-                end
-                subplot(1,3,2);
-            else
-                this.Figures{2} = figure;
-                this.Axes{2} = gca;
-            end
+        function plotRelativeErrors(this, relerrs, pm)
+            ax = pm.nextPlot('relerr',['Relative error estimations e(t)/||y||, \Delta x(t)/||y|| for model: ' ...
+                this.Model.Name], 'Time', 'Relative error estimates');
             if this.LogarithmicPlot
-                ph = semilogy(this.Model.Times,relerrs);
+                ph = semilogy(ax,this.Model.Times,relerrs);
             else
-                ph = plot(this.Model.Times,relerrs);
+                ph = plot(ax,this.Model.Times,relerrs);
             end
             set(ph(1),'LineWidth',2);
             hold on;
@@ -255,13 +221,11 @@ classdef EstimatorAnalyzer < handle
                 set(ph(idx),'LineStyle',this.Est(idx).LineStyle);
                 % Shift marker positions for better visual
                 pos = mod(sel+round(nt/(this.NumMarkers*length(this.Est)))*(idx-1),nt)+1;
-                h = plot(this.Model.Times(pos), relerrs(idx,pos),this.Est(idx).MarkerStyle,...
+                h = plot(ax,this.Model.Times(pos), relerrs(idx,pos),this.Est(idx).MarkerStyle,...
                     'MarkerSize',this.MarkerSize);
                 c = get(ph(idx),'Color');
                 set(h,'MarkerFaceColor',c,'MarkerEdgeColor',c*.7);
             end
-            xlabel('Time');
-            ylabel('Relative error estimates');
             a = cell(1,length(this.Est));
             [a{:}] = this.Est(:).Name;
             legend(a,'Location','NorthWest');
@@ -275,23 +239,12 @@ classdef EstimatorAnalyzer < handle
                 set(oh(2*idx),'Marker',this.Est(idx).MarkerStyle,'MarkerFaceColor',c,...
                     'MarkerEdgeColor',c*.7,'MarkerSize',this.MarkerSize);
             end
-            title(['Relative error estimations e(t)/||y||, \Delta x(t)/||y|| for model: ' this.Model.Name]);
             emin = min(relerrs(:));
-            axis([0 this.Model.T emin*.9 max(emin,1)]);
+            axis(ax,[0 this.Model.T emin*.9 max(emin,1)]);
         end
         
-        function plotCTimes(this, errs, ctimes)
-            if ~this.SingleFigures
-                if isempty(this.Figures)
-                    this.Figures{1} = figure;
-                    pos = get(0,'MonitorPosition');
-                    set(this.Figures{1},'OuterPosition',pos(1,:));
-                end
-                subplot(1,3,3);
-            else
-                this.Figures{3} = figure;
-                this.Axes{3} = gca;
-            end
+        function plotCTimes(this, errs, ctimes, pm)
+            ax = pm.nextPlot('ctimes',['Error estimator computation times: ' this.Model.Name], '\Delta(T)', 'Comp. time [s]');
             str = ''; compplot = [];
             for idx = 1:length(this.Est)
                 % Plotting preparations
@@ -301,9 +254,9 @@ classdef EstimatorAnalyzer < handle
                 end
             end
             if this.LogarithmicPlot
-                eval(['ph = semilogx(' str '''MarkerSize'',10);']);
+                eval(['ph = semilogx(ax, ' str '''MarkerSize'',10);']);
             else
-                eval(['ph = plot(' str '''MarkerSize'',10);']);
+                eval(['ph = plot(ax, ' str '''MarkerSize'',10);']);
             end
             % Fill symbols
             for i=1:length(ph) 
@@ -311,17 +264,13 @@ classdef EstimatorAnalyzer < handle
                 set(ph(i),'MarkerEdgeColor',get(ph(i),'Color')*.7); 
             end
             % Add line for minimum error!
-            hold on;
-            plot([errs(1,end) errs(1,end)],[min(ctimes(compplot)) max(ctimes(compplot))],'black');
-            hold off;
+            hold(ax, 'on');
+            plot(ax,[errs(1,end) errs(1,end)],[min(ctimes(compplot)) max(ctimes(compplot))],'black');
+            hold(ax,'off');
             
-            xlabel('\Delta(T)');
-            ylabel('Comp. time [s]');
             a = cell(1,length(this.Est));
             [a{:}] = this.Est(:).Name;
             legend(a(compplot));
-            title(['Error estimator computation times: ' this.Model.Name]);
-            axis tight;
         end
         
         function pt = getResultTable(this, errs, ctimes)
@@ -332,17 +281,17 @@ classdef EstimatorAnalyzer < handle
                 str = 'Estimator list';
                 idx = 1:size(errs,2);
             end
-            pt = PrintTable;
-            pt.Caption = sprintf('%s for model "%s"',str,this.Model.Name);
+            pt = PrintTable('%s for model "%s"',str,this.Model.Name);
+            pt.HasRowHeader = true;
             pt.addRow('Name',sprintf('$\\Delta(%d)$',this.Model.T),'Time','Overestimation');
-            pt.HasHeader = true;
             for id = 1:length(this.Est)
                 pt.addRow(this.Est(idx(id)).Name,errs(idx(id),end),ctimes(idx(id)),...
-                    errs(idx(id),end)/errs(1,end),{'%s','$%1.3e}$','%2.2fs','$%1.3e}$'});
+                    errs(idx(id),end)/errs(1,end),{'$%1.3e}$','%2.2fs','$%1.3e}$'});
             end
+            pt.HasHeader = true;
         end
         
-        function [ctimes, errs, relerrs] = start(this, mu, inidx)
+        function [ctimes, errs, relerrs] = start(this, mu, inidx, pm)
             % Runs the demo with the current settings.
             %
             % Parameters:
@@ -350,27 +299,26 @@ classdef EstimatorAnalyzer < handle
             % inidx: The input index `i` of the input function `u_i` to use
             % @type integer
             
-            if nargin < 3
-                inidx = [];
-                if nargin < 2
-                    mu = [];
+            if nargin < 4
+                pm = tools.PlotManager(false, 2, 2);
+                if nargin < 3
+                    inidx = [];
+                    if nargin < 2
+                        mu = [];
+                    end
                 end
             end
             
             [errs, ctimes, relerrs] = this.getErrorEstimates(mu, inidx, true);
             
-            % Plot preps
-            fprintf('Preparing plots...\n');
-            this.Figures = {};
-            
             % Absolute error plots
-            this.plotErrors(errs)
+            this.plotErrors(errs, pm)
             
             % Relative error plots
-            this.plotRelativeErrors(relerrs);
+            this.plotRelativeErrors(relerrs, pm);
             
             % Computation ctimes plot
-            this.plotCTimes(errs, ctimes);
+            this.plotCTimes(errs, ctimes, pm);
             
             % MaxErr data
             this.ModelData(end+1).Name = this.Model.Name;
