@@ -75,7 +75,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         
         % Returns the M upper bound for this KernelExpansion, which is `M
         % := \max\limits_{j=1}^d\sum\limits_{i=1}^m |c^d_i|
-        M;
+        MBnd;
     end
     
     properties(SetObservable)
@@ -275,7 +275,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             n = sqrt(sum(sum(this.Ma' .* (this.getKernelMatrix * this.Ma'))));
         end
         
-        function M = get.M(this)
+        function M = get.MBnd(this)
             M = max(sum(abs(this.Ma),2));
         end
     end

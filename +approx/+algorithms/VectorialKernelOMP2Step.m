@@ -106,7 +106,7 @@ classdef VectorialKernelOMP2Step < approx.algorithms.BaseAdaptiveCWKA
             
             if ~this.UseOGA && ~isempty(this.f)
                 hlp1 = this.f.NativeNorm^2;
-                hlp2 = size(this.f.Ma,1)*this.f.M^2;
+                hlp2 = size(this.f.Ma,1)*this.f.MBnd^2;
                 fprintf('Initial condition ||f||^2 (%e) <= qM^2 (%e)\n', hlp1, hlp2);
                 if hlp1 > hlp2
                     error('Initial condition violated.');

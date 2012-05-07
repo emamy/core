@@ -78,7 +78,7 @@ classdef VKOGA
             f.Kernel.setGammaForDistance(a.Dists,a.gameps);
             f.Centers.xi = r.rand(dim,6)*20-10;
             f.Ma = r.rand(dim,6)*5;%-2.5;
-            M = max(Norm.L1(f.Ma'));
+            M = f.MBnd;
             
             fx = f.evaluate(x);
             atd = data.ApproxTrainData(x,[],[]);
@@ -218,14 +218,14 @@ classdef VKOGA
                 res.Herro(:,run) = f.NativeNorm^2 - ao.HerrDecay(:,s);
                 res.vrelerro(:,run) = ao.vrelerr(:,s);
                 res.cnumo(run) = size(kexp_OGA.Ma,2);
-                res.ogabnd(run) = f.M^2 * dim / (1 + s/dim);
+                res.ogabnd(run) = f.MBnd^2 * dim / (1 + s/dim);
                 
                 res.terr(:,run) = a.err(:,s);
                 res.verr(:,run) = a.verr(:,s);
                 res.Herr(:,run) = f.NativeNorm^2 - a.HerrDecay(:,s);
                 res.vrelerr(:,run) = a.vrelerr(:,s);
                 res.cnum(run) = size(kexp.Ma,2);
-                res.vkogabnd(run) = f.M^2 * a.VKOGABound(s);
+                res.vkogabnd(run) = f.MBnd^2 * a.VKOGABound(s);
                 
                 
                 pi.step(run);
@@ -327,14 +327,14 @@ classdef VKOGA
                 res.Herro(:,run) = f.NativeNorm^2 - ao.HerrDecay(:,s);
                 res.vrelerro(:,run) = ao.vrelerr(:,s);
                 res.cnumo(run) = size(kexp_OGA.Ma,2);
-                res.ogabnd(run) = f.M^2 * dim / (1 + s/dim);
+                res.ogabnd(run) = f.MBnd^2 * dim / (1 + s/dim);
                 
                 res.terr(:,run) = a.err(:,s);
                 res.verr(:,run) = a.verr(:,s);
                 res.Herr(:,run) = f.NativeNorm^2 - a.HerrDecay(:,s);
                 res.vrelerr(:,run) = a.vrelerr(:,s);
                 res.cnum(run) = size(kexp.Ma,2);
-                res.vkogabnd(run) = f.M^2 * a.VKOGABound(s);
+                res.vkogabnd(run) = f.MBnd^2 * a.VKOGABound(s);
 
                 pi.step;
                 
@@ -436,14 +436,14 @@ classdef VKOGA
                 res.Herro(:,run) = f.NativeNorm^2 - ao.HerrDecay(:,s);
                 res.vrelerro(:,run) = ao.vrelerr(:,s);
                 res.cnumo(run) = size(kexp_OGA.Ma,2);
-                res.ogabnd(run) = f.M^2 * dim / (1 + s/dim);
+                res.ogabnd(run) = f.MBnd^2 * dim / (1 + s/dim);
                 
                 res.terr(:,run) = a.err(:,s);
                 res.verr(:,run) = a.verr(:,s);
                 res.Herr(:,run) = f.NativeNorm^2 - a.HerrDecay(:,s);
                 res.vrelerr(:,run) = a.vrelerr(:,s);
                 res.cnum(run) = size(kexp.Ma,2);
-                res.vkogabnd(run) = f.M^2 * a.VKOGABound(s);
+                res.vkogabnd(run) = f.MBnd^2 * a.VKOGABound(s);
 
                 pi.step;
                 
@@ -549,14 +549,14 @@ classdef VKOGA
                 res.Herro(:,run) = f.NativeNorm^2 - ao.HerrDecay(:,s);
                 res.vrelerro(:,run) = ao.vrelerr(:,s);
                 res.cnumo(run) = size(kexp_OGA.Ma,2);
-                res.ogabnd(run) = f.M^2 * dim / (1 + s/dim);
+                res.ogabnd(run) = f.MBnd^2 * dim / (1 + s/dim);
                 
                 res.terr(:,run) = a.err(:,s);
                 res.verr(:,run) = a.verr(:,s);
                 res.Herr(:,run) = f.NativeNorm^2 - a.HerrDecay(:,s);
                 res.vrelerr(:,run) = a.vrelerr(:,s);
                 res.cnum(run) = size(kexp.Ma,2);
-                res.vkogabnd(run) = f.M^2 * a.VKOGABound(s);
+                res.vkogabnd(run) = f.MBnd^2 * a.VKOGABound(s);
                 
                 
                 pi.step(run);
@@ -675,14 +675,14 @@ classdef VKOGA
                 res.Herro(:,run) = f.NativeNorm^2 - a1.HerrDecay(:,s);
                 res.vrelerro(:,run) = a1.vrelerr(:,s);
                 res.cnumo(run) = size(kexp1.Ma,2);
-                res.ogabnd(run) = f.M^2 * dim / (1 + s/dim);
+                res.ogabnd(run) = f.MBnd^2 * dim / (1 + s/dim);
                 
                 res.terr(:,run) = a.err(:,s);
                 res.verr(:,run) = a.verr(:,s);
                 res.Herr(:,run) = f.NativeNorm^2 - a.HerrDecay(:,s);
                 res.vrelerr(:,run) = a.vrelerr(:,s);
                 res.cnum(run) = size(kexp.Ma,2);
-                res.vkogabnd(run) = f.M^2 * a.VKOGABound(s);                
+                res.vkogabnd(run) = f.MBnd^2 * a.VKOGABound(s);                
                 
                 pi.step(run);
                 
@@ -813,7 +813,7 @@ classdef VKOGA
             legend('VKOGA','WSOGA2');
             xlabel('expansion size N'); ylabel('relative error');
 
-            M = f.M;
+            M = f.MBnd;
             pm.nextPlot('H_err_decay_bounds');
             fnsq = f.NativeNorm^2;
             semilogy(0:n1,fnsq-[0 a.HerrDecay(1:n1)],'r',0:n2,fnsq-[0 ao.HerrDecay(1:n2)],'b');

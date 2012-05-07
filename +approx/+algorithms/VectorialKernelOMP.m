@@ -114,7 +114,7 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
             
                 if ~this.UseOGA && ~isempty(this.f) && isa(this.f, 'kernels.KernelExpansion')
                     hlp1 = this.f.NativeNorm^2;
-                    hlp2 = size(this.f.Ma,1)*this.f.M^2;
+                    hlp2 = size(this.f.Ma,1)*this.f.MBnd^2;
                     fprintf('Initial condition ||f||^2 (%e) <= qM^2 (%e)\n', hlp1, hlp2);
                     if hlp1 > hlp2
                         error('Initial condition violated.');
@@ -180,7 +180,7 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                     
                     if exp_mode && ~this.UseOGA && ~isempty(this.f)
                         if siz > 0 && isa(this.f,'kernels.KernelExpansion')
-                            M = this.f.M;
+                            M = this.f.MBnd;
                             % M-estimation verification stuff
                             f_fm = this.f - kexp;
     %                         cn = f_fm.ComponentNorms.^2;
@@ -260,6 +260,7 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                         off = this.HerrDecay(siz-1);
                         off2 = this.VKOGABound(siz-1);
                     end
+                    % @todo use cumsum at the end!
                     this.HerrDecay(gidx, siz) = off + this.Gain(gidx,siz);
                     % Only build improved bound if VKOGA is used
                     if ~this.UseOGA
