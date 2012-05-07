@@ -119,6 +119,17 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
         %
         % See also: getStateJacobian
         CustomJacobian = false;
+        
+        % The current state space dimension of the function's argument `x`.
+        %
+        % Must be set in inheriting classes on order to ensure
+        % functionality of KerMor classes and algorithms.
+        %
+        % @propclass{critical} Not setting this value in inheriting classes
+        % may cause errors in some KerMor algorithms.
+        %
+        % @type integer @default []
+        XDim = [];
     end
     
     properties(SetAccess=private, GetAccess=public)
@@ -132,7 +143,7 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             this = this@KerMorObject;
             this.registerProps('CustomProjection',...
                 'MultiArgumentEvaluations','JSparsityPattern',...
-                'TimeDependent','CustomJacobian');
+                'TimeDependent','CustomJacobian','XDim');
         end
         
         function target = project(this, V, W, target)
@@ -165,6 +176,8 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             end
             target.V = V;
             target.W = W;
+            % New state space argument size is the number of columns of V.
+            target.XDim = size(V,2);
         end
         
         function fx = evaluate(this, x, t, mu)
@@ -259,6 +272,7 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             copy.CustomJacobian = this.CustomJacobian;
             copy.V = this.V;
             copy.W = this.W;
+            copy.XDim = this.XDim;
         end
     end
         
@@ -294,6 +308,13 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
                 error('JSparsityPattern must be a sparse matrix.');
             end
             this.JSparsityPattern = value;
+        end
+        
+        function set.XDim(this, value)
+            if ~isempty(value) && ~isposintscalar(value)
+                error('XDim must be a positive integer.');
+            end
+            this.XDim = value;
         end
         
         function res = test_MultiArgEval(this, sdim, mudim)

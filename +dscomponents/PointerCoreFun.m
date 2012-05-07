@@ -16,7 +16,7 @@ classdef PointerCoreFun < dscomponents.ACoreFun
     end
     
     methods
-        function this = PointerCoreFun(funPtr, multieval, timedep)
+        function this = PointerCoreFun(funPtr, xdim, multieval, timedep)
             % Creates a new core function using the function pointer as inner function.
             %
             % Parameters:
@@ -47,6 +47,7 @@ classdef PointerCoreFun < dscomponents.ACoreFun
             this.MultiArgumentEvaluations = multieval;
             this.TimeDependent = timedep;
             this.target = funPtr;
+            this.XDim = xdim;
         end
         
         function fx = evaluateCoreFun(this, x, t, mu)

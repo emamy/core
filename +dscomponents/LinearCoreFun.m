@@ -12,6 +12,9 @@ classdef LinearCoreFun < dscomponents.ACoreFun
         function this = LinearCoreFun(A)
             if nargin > 0
                 this.A = A;
+                % If not set here, subclasses must take care to set XDim
+                % whenever A changes.
+                this.XDim = size(A,2);
             end
             this.CustomProjection = true;
             this.MultiArgumentEvaluations = true;

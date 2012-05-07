@@ -83,6 +83,10 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLipschitz
         end
         
         function addMatrix(this, coeff_fcn, mat)
+            % Update the XDim as first matrix is added
+            if isempty(this.XDim)
+                this.XDim = size(mat,2);
+            end
             this.AffParamMatrix.addMatrix(coeff_fcn, mat);
         end
         
