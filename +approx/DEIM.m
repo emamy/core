@@ -12,6 +12,9 @@ classdef DEIM < approx.BaseApprox
 %
 % @new{0,6,dw,2012-03-26} Added this class.
 %
+% @todo think of exporting the jrow, jend, S properties to ACompEvalCoreFun
+% and precompute stuff there; projection happens at that stage
+%
 % This class is part of the framework
 % KerMor - Model Order Reduction using Kernels:
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
@@ -55,17 +58,11 @@ classdef DEIM < approx.BaseApprox
         % Some matrices for M+M' error estimation
         Uerr1;
         Uerr2;
-        Serr;
         
         % The function which DEIM is applied to
+        %
+        % Is a subclass of dscomponents.ACompEvalCoreFun
         f;
-        
-        % Notational vectors for EI-point function argument dependencies
-        jrow;
-        jend;
-        
-        % The x-component selection matrix (precomputed in updateOrderData)
-        S;
     end
     
     methods
@@ -83,8 +80,8 @@ classdef DEIM < approx.BaseApprox
         
         function computeDEIM(this, f, fxi)
             this.f = f;
-            if ~isa(this.f,'dscomponents.IComponentEvaluable');
-                error('Cannot use DEIM with no IComponentEvaluable core functions.');
+            if ~isa(this.f,'dscomponents.ACompEvalCoreFun');
+                error('Cannot use DEIM with non ACompEvalCoreFun-implementing functions.');
             end
             
             %% Generate u_1 ... u_m base
@@ -104,23 +101,15 @@ classdef DEIM < approx.BaseApprox
         end
         
         function fx = evaluateCoreFun(this, x, t, mu)
-            fx = this.U * this.f.evaluateComponents(this.pts(1:this.fOrder(1)),...
-                this.jend(1:this.fOrder(1)),...
-                this.S*x, t, mu);
+            fx = this.U * this.f.evaluateComponentSet(1, x, t, mu);
         end
         
         function err = getEstimatedError(this, x, t, mu)
-            o = this.fOrder(1);
-            om = this.fOrder(2);
-            if om == 0
+            if this.fOrder(2) == 0
                 error('No error estimation possible with zero ErrOrder property');
             end
-            err = this.Uerr1 * this.f.evaluateComponents(this.pts(1:o),...
-                this.jend(1:o),...
-                this.S*x, t, mu) ...
-                - this.Uerr2 * this.f.evaluateComponents(this.pts(o+1:o+om),...
-                this.jend(o+1:o+om)-this.jend(o),...
-                this.Serr*x, t, mu);
+            err = this.Uerr1 * this.f.evaluateComponentSet(1, x, t, mu) ...
+                - this.Uerr2 * this.f.evaluateComponentSet(2, x, t, mu);
         end
         
         function [res, pm] = computeDEIMErrors(this, atd, orders, errorders)
@@ -148,7 +137,8 @@ classdef DEIM < approx.BaseApprox
             sumfun = @(x)Norm.Linf(x');
             fxinorm = efun(atd.fxi);
             
-            res = zeros(8,no);
+            res = zeros(6,no);
+%             res = zeros(8,no);
             pi = tools.ProcessIndicator(sprintf('Computing DEIM errors and estimates for %d Order/ErrOrder settings',no),no);
             co = [];
             for i = 1:no
@@ -173,12 +163,12 @@ classdef DEIM < approx.BaseApprox
                 res(5,i) = sumfun(hlp);
                 res(6,i) = sumfun(hlp./fxinorm);
                 
-                % Compute actual error between M and M' approximations
-                this.Order = [sum(this.fOrder) 0];
-                % Get order+errorder eval
-                hlp = efun(this.evaluateCoreFun(atd.xi,atd.ti,atd.mui) - afxi);
-                res(7,i) = sumfun(hlp);
-                res(8,i) = sumfun(hlp./fxinorm);
+%                 % Compute actual error between M and M' approximations
+%                 this.Order = [sum(this.fOrder) 0];
+%                 % Get order+errorder eval
+%                 hlp = efun(this.evaluateCoreFun(atd.xi,atd.ti,atd.mui) - afxi);
+%                 res(7,i) = sumfun(hlp);
+%                 res(8,i) = sumfun(hlp./fxinorm);
                 pi.step;
             end
             pi.stop;
@@ -191,6 +181,8 @@ classdef DEIM < approx.BaseApprox
         function projected = project(this, V, W)
             projected = this.clone;
             projected = project@approx.BaseApprox(this, V, W, projected);
+            % Important: Project the component evaluable function, too!
+            projected.f = this.f.project(V,W);
             projected.updateOrderData;
         end
         
@@ -201,14 +193,10 @@ classdef DEIM < approx.BaseApprox
             copy.u = this.u;
             copy.pts = this.pts;
             copy.U = this.U;
-            copy.f = this.f;
-            copy.jrow = this.jrow;
-            copy.jend = this.jend;
-            copy.S = this.S;
+            copy.f = this.f.clone;
             copy.MaxOrder = this.MaxOrder;
             copy.Uerr1 = this.Uerr1;
             copy.Uerr2 = this.Uerr2;
-            copy.Serr = this.Serr;
         end
     end
     
@@ -234,36 +222,23 @@ classdef DEIM < approx.BaseApprox
         
         function updateOrderData(this)
             o = this.fOrder(1);
-            to = sum(this.fOrder);
-            jr = [];
-            this.jend = zeros(1,to);
-            for i=1:to
-                jr = [jr this.f.getComponentArgumentIndices(this.pts(i))];%#ok
-                this.jend(i) = length(jr);
-            end
-            this.jrow = jr;
-            
             n = size(this.u,1);
+            
             P = sparse(this.pts(1:o),1:o,ones(o,1),n,o);
-            %this.U = this.u(:,1:this.fOrder) * inv(P'*this.u(:,1:this.fOrder));
             this.U = this.u(:,1:o) / (P'*this.u(:,1:o));
             
-            % Compose x-entry selection matrix
-            len = this.jend(o);
-            sel = this.jrow(1:len);
-            if ~isempty(this.V)
-                this.S = this.V(sel,:);
-            else
-                this.S = sparse(1:len,sel,ones(len,1),len,n);
-            end
+            % Set primary point set in ACompEvalCoreFun
+            this.f.setPointSet(1,this.pts(1:o));
             
             om = this.fOrder(2);
             if om > 0
+                % Use second point set in ACompEvalCoreFun
+                this.f.setPointSet(2,this.pts(o+1:o+om));
+                
                 Perr = sparse(this.pts(o+1:o+om),1:om,ones(om,1),n,om);
                 
                 Um = this.u(:,1:o);
                 Umd = this.u(:,o+1:o+om);
-%                 t = tic;
                 A = P'*Um;
                 B = P'*Umd;
                 C = Perr'*Um;
@@ -272,48 +247,14 @@ classdef DEIM < approx.BaseApprox
                 F = D - E*B;
                 this.Uerr2 = ((Um/A)*B - Umd) / F;
                 this.Uerr1 = this.Uerr2 * E;
-%                 t1 = toc(t);
-                
-%                 t = tic; % slower ... one wont believe it!
-%                 this.Uerr2 = ((Um/(P'*Um))*P'*Umd - Umd) / (Perr'*Umd - ((Perr'*Um) / (P'*Um))*(P'*Umd));
-%                 this.Uerr1 = this.Uerr2 * ((Perr'*Um) / (P'*Um));
-%                 t2 = toc(t);
-                
-                fprintf('%f ',t1,t2); fprintf('\n');
-                %% DEBUG
-%                 full Q(P'Q)P' for M+M'
-%                 Pfull = sparse(this.pts(1:o+om),1:o+om,ones(o+om,1),n,o+om);
-%                 full = (this.u(:,1:o+om) / (Pfull'*this.u(:,1:o+om)))* Pfull';
-%                 
-%                 i1 = inv(A-(B/D)*C);
-%                 i2 = inv(D-(C/A)*B);
-%                 s1 = Um * i1 * P' - (Umd/D) * C * i1 * P' + (Umd - (Um/A)*B)*i2*Perr';
-%                 Ei = inv(E);
-%                 Ai = inv(A);
-%                 s2 = (Um - (Umd/D)*C) * (Ai + Ai*B*Ei*C*Ai)*P' + (Umd - (Um/A)*B)*i2*Perr';
-%                 s3 = Um*Ai*P' + (Um*Ai*B*Ei*C*Ai - (Umd/D)*C*Ai - (Umd/D)*C*Ai*B*Ei*C*Ai)*P'...
-%                     -Um*Ai*B*Ei*Perr' + Umd*Ei*Perr';
-%                 s4 = (Um/A)*P' + ((Um/A)*(B/E)*(C/A) - (Umd/D)*(C/A) - (Umd/D)*(C/A)*(B/E)*(C/A))*P'...
-%                     -(Um/A)*(B/E)*Perr' + (Umd/E)*Perr';
-%                 s5 = (Um/A)*P' + ((Um/A)*F*G - (Umd/D)*G - (Umd/D)*G*F*G)*P'...
-%                      -(Um/A)*F*Perr' + (Umd/E)*Perr';
-%                 s6 = (Um/A)*P' + ((Um/A)*F*G - (Umd/D)*(G + G*F*G))*P'...
-%                      -((Um/A)*F - (Umd/E))*Perr';
-                
-                elen = this.jend(o+om) - len;
-                sel = this.jrow(len+1:this.jend(o+om));
-                if ~isempty(this.V)
-                    this.Serr = this.V(sel,:);
-                else
-                    this.Serr = sparse(1:elen,sel,ones(elen,1),elen,n);
-                end
             end
             
             if ~isempty(this.W)
                 this.U = this.W'*this.U;
-                error('not yet checked');
-                this.Uerr1 = this.W'*this.Uerr1;
-                this.Uerr2 = this.W'*this.Uerr2;
+                if om > 0
+                    this.Uerr1 = this.W'*this.Uerr1;
+                    this.Uerr2 = this.W'*this.Uerr2;
+                end
             end
         end
     end
@@ -365,59 +306,54 @@ classdef DEIM < approx.BaseApprox
 %             pm.done;
 %         end
         
-        function pm = plotDEIMErrs(res)
+        function pm = plotDEIMErrs(res, pm)
             %% Plotting
             tri = delaunay(res(1,:),res(2,:));
-            pm = tools.PlotManager(false,3,2);
-            pm.FilePrefix = 'deim';
+            if nargin < 2
+                pm = tools.PlotManager(false,2,3);
+                pm.FilePrefix = 'deim';
+            end
             h = pm.nextPlot('true_abs','Linf-L2 absolute error','order','error order');
-            trisurf_log(h,tri,res(1,:),res(2,:),res(3,:));
+            doplot(h,tri,res(1,:),res(2,:),res(3,:));
             h = pm.nextPlot('true_rel','Linf-L2 relative  error','order','error order');
-            trisurf_log(h,tri,res(1,:),res(2,:),res(4,:));
+            doplot(h,tri,res(1,:),res(2,:),res(4,:));
             
-            h = pm.nextPlot('est_abs','Direct estimation of absolute error','order','error order');
-            trisurf_log(h,tri,res(1,:),res(2,:),res(7,:));
-            h = pm.nextPlot('est_rel','Direct estimation of relative error','order','error order');
-            trisurf_log(h,tri,res(1,:),res(2,:),res(8,:));
-            
-            h = pm.nextPlot('est_abs','Reformulated estimation of absolute error','order','error order');
-            trisurf_log(h,tri,res(1,:),res(2,:),res(5,:));
-            h = pm.nextPlot('est_rel','Reformulated estimation of relative error','order','error order');
-            trisurf_log(h,tri,res(1,:),res(2,:),res(6,:));
+            h = pm.nextPlot('est_abs','Estimated absolute error','order','error order');
+            doplot(h,tri,res(1,:),res(2,:),res(5,:));
+            h = pm.nextPlot('est_rel','Estimated relative error','order','error order');
+            doplot(h,tri,res(1,:),res(2,:),res(6,:));
                         
-            h = pm.nextPlot('abs_diff','|true - dir. est.| absolute error','order','error order');
-            trisurf_log(h,tri,res(1,:),res(2,:),abs(res(7,:)-res(3,:)));
-            h = pm.nextPlot('rel_diff','|true - dir. est.| relative error','order','error order');
-            trisurf_log(h,tri,res(1,:),res(2,:),abs(res(8,:)-res(4,:)));
+            h = pm.nextPlot('abs_diff','|true - estimated| absolute error','order','error order');
+            doplot(h,tri,res(1,:),res(2,:),abs(res(5,:)-res(3,:)));
+            view(0,90);
+            h = pm.nextPlot('rel_diff','|true - estimated| relative error','order','error order');
+            doplot(h,tri,res(1,:),res(2,:),abs(res(6,:)-res(4,:)));
+            view(71,52);
             
-            h = pm.nextPlot('abs_diff','|true - ref. est.| absolute error','order','error order');
-            trisurf_log(h,tri,res(1,:),res(2,:),abs(res(5,:)-res(3,:)));
-            h = pm.nextPlot('rel_diff','|true - ref. est.| relative error','order','error order');
-            trisurf_log(h,tri,res(1,:),res(2,:),abs(res(6,:)-res(4,:)));
-            
-            h = pm.nextPlot('abs_diff','|dir est - ref. est.| absolute error','order','error order');
-            trisurf_log(h,tri,res(1,:),res(2,:),abs(res(5,:)-res(7,:)));
-            h = pm.nextPlot('rel_diff','|dir est - ref. est.| relative error','order','error order');
-            trisurf_log(h,tri,res(1,:),res(2,:),abs(res(6,:)-res(8,:)));
+%             h = pm.nextPlot('abs_diff','|true - dir. est.| absolute error','order','error order');
+%             doplot(h,tri,res(1,:),res(2,:),abs(res(7,:)-res(3,:)));
+%             h = pm.nextPlot('rel_diff','|true - dir. est.| relative error','order','error order');
+%             doplot(h,tri,res(1,:),res(2,:),abs(res(8,:)-res(4,:)));
+%             
+%             h = pm.nextPlot('abs_diff','|dir est - ref. est.| absolute error','order','error order');
+%             doplot(h,tri,res(1,:),res(2,:),abs(res(5,:)-res(7,:)));
+%             h = pm.nextPlot('rel_diff','|dir est - ref. est.| relative error','order','error order');
+%             doplot(h,tri,res(1,:),res(2,:),abs(res(6,:)-res(8,:)));
+%             
+%             h = pm.nextPlot('est_abs','Direct estimation of absolute error','order','error order');
+%             doplot(h,tri,res(1,:),res(2,:),res(7,:));
+%             h = pm.nextPlot('est_rel','Direct estimation of relative error','order','error order');
+%             doplot(h,tri,res(1,:),res(2,:),res(8,:));
             
             pm.done;
             
-            function p = trisurf_log(h, tri, x, y, z)
-                z = log10(z);
-                p = trisurf(tri, x, y, z,'Parent',h,'FaceColor','interp','EdgeColor','interp');
-                axis(h,'tight');
-                lbl = arrayfun(@(e)sprintf('%1.1e',e),10.^get(h,'ZTick'),'Unif',false);
-                set(h,'ZTickLabel',lbl,'ZTickMode','manual');
+            function p = doplot(h, tri, x, y, z)
+                p = tools.LogPlot.logtrisurf(h, tri, x, y, z);
                 hold on;
                 [~, hc] = tricontour([x; y]', tri, z', get(h,'ZTick'));
                 set(hc,'EdgeColor','k');
                 hold off;
-                
-                view(71,52);
-                % color log-scaling mess
-                %set(h,'zscale','log');
-                %zdata = log10(get(p,'ZData'));
-                %cdata = get(p,'CDATA');
+                view(0,0);
             end
         end
         
@@ -434,6 +370,7 @@ classdef DEIM < approx.BaseApprox
             m.off3_computeReducedSpace;
             m.off4_genApproximationTrainData;
             m.off5_computeApproximation;
+            m.Approx.Order = [20 4];
             r = m.buildReducedModel;
             save DEIM m r;
         end
