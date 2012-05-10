@@ -79,7 +79,7 @@ classdef ProcessIndicator < handle
             % Parameters:
             % total: The total process amount. Must be positive. @type double
             if isempty(total) || ~isscalar(total) || total <= 0
-                error('Total must be ');
+                error('Total must be a positve scalar value');
             end
             this.total = total;
             this.cur = 0;
@@ -163,7 +163,6 @@ classdef ProcessIndicator < handle
                 waitbar(perc,this.wb,sprintf('%s: %s',this.title,pstr));
             else
                 if perc > this.p
-                    %fprintf('%2.0f%%\n',round(perc*100));
                     fprintf('%s',pstr);
                     this.p = ceil(perc*10)/10;
                 end
