@@ -350,33 +350,36 @@ classdef BaseModel < KerMorObject
                     mu = [];
                 end
             end
+            sys = this.System;
             
             % Stop the time
             st = tic;
             
             % Prepare the system by setting mu and inputindex.
-            this.System.setConfig(mu, inputidx);
+            sys.setConfig(mu, inputidx);
             
             %% Solve ODE
             slv = this.ODESolver;
-            if ~isempty(this.System.MaxTimestep)
+            if ~isempty(sys.MaxTimestep)
                 % Remember: When scaling is used, these are the 
-                slv.MaxStep = this.System.MaxTimestep;
-                slv.InitialStep = .5*this.System.MaxTimestep;
+                slv.MaxStep = sys.MaxTimestep;
+                slv.InitialStep = .5*sys.MaxTimestep;
             end
             
             % Assign jacobian information if available and solver is
             % implicit
             if isa(slv,'solvers.ode.AImplSolver')
                 % Set jacobian
-                if ~this.System.f.CustomJacobian
-                    warning('KerMor:NoJacobian','No user jacobian specified. Using finite difference approximation.');
+                if ~sys.f.CustomJacobian
+                    if KerMor.App.Verbose > 0
+                        fprintf(2,'Implicit solver: No user jacobian specified. Will use finite difference approximation.\n');
+                    end
                 end
-                slv.JacFun = @(t, x)this.System.f.getStateJacobian(x, t, mu);
+                slv.JacFun = @(t, x)sys.f.getStateJacobian(x, t, mu);
                 
                 % Set jacobian pattern if possible
-                if ~isempty(this.System.f.JSparsityPattern)
-                    slv.JPattern = this.System.f.JSparsityPattern;
+                if ~isempty(sys.f.JSparsityPattern)
+                    slv.JPattern = sys.f.JSparsityPattern;
                 else
                     slv.JPattern = [];
                 end
@@ -384,12 +387,25 @@ classdef BaseModel < KerMorObject
             
             % Assign mass matrix to solver if present
             slv.M = [];
-            if ~isempty(this.System.M)
-                slv.M = this.System.M;
+            if ~isempty(sys.M)
+                slv.M = sys.M;
             end
             
+            % Determine correct ODE function (A,f,B combination)
+            str = '';
+            if ~isempty(sys.A)
+                str = [str 'A'];
+            end
+            if ~isempty(sys.f)
+                str = [str 'f'];
+            end
+            if ~isempty(sys.B) &&  ~isempty(inputidx)
+                str = [str 'B'];
+            end
+            odefun = eval(sprintf('@(t,x)sys.ODEFun_%s(t,x)',str));
+            
             % Call solver
-            [t, x] = slv.solve(@(t,x)this.System.ODEFun(t,x), this.scaledTimes, this.getX0(mu));
+            [t, x] = slv.solve(odefun, this.scaledTimes, this.getX0(mu));
             
             % Get used time
             ctime = toc(st);

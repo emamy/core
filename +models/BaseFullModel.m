@@ -705,7 +705,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             m.Sampler = [];
             A = rand(2,2);
             m.System = models.BaseDynSystem(m);
-            m.System.f = dscomponents.PointerCoreFun(@(x,t,mu)A*x);
+            m.System.f = dscomponents.PointerCoreFun(@(x,t,mu)A*x,2);
             m.System.x0 = dscomponents.ConstInitialValue(sin(1:2)');
             m.offlineGenerations;
             red = m.buildReducedModel;
@@ -721,7 +721,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             ts = testing.testsettings;
             m = ts.m;
             s = m.System;
-            s.f = dscomponents.PointerCoreFun(ts.flin);
+            s.f = dscomponents.PointerCoreFun(ts.flin,ts.testdim);
             s.x0 = ts.x0;
             m.simulate();
             m.offlineGenerations;
@@ -735,7 +735,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             m = ts.m;
             m.SpaceReducer = [];
             s = m.System;
-            s.f = dscomponents.PointerCoreFun(ts.flin);
+            s.f = dscomponents.PointerCoreFun(ts.flin,ts.testdim);
             s.x0 = ts.x0;
             m.simulate();
             m.offlineGenerations;
@@ -749,7 +749,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             m = ts.m;
             m.Approx = [];
             s = m.System;
-            s.f = dscomponents.PointerCoreFun(ts.flin);
+            s.f = dscomponents.PointerCoreFun(ts.flin,ts.testdim);
             s.x0 = ts.x0;
             m.simulate();
             m.offlineGenerations;
@@ -763,7 +763,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             m = ts.m;
             m.Approx.ParamKernel = ts.ParamKernel;
             s = m.System;
-            s.f = dscomponents.PointerCoreFun(ts.flin_p);
+            s.f = dscomponents.PointerCoreFun(ts.flin_p,ts.testdim);
             s.x0 = ts.x0_p;
             for idx = 1:length(ts.params)
                 p = ts.params(idx);
@@ -781,10 +781,11 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             m = ts.m;
             s = m.System;
             s.B = dscomponents.PointerInputConv(ts.B);
-            s.f = dscomponents.PointerCoreFun(ts.flin);
+            s.f = dscomponents.PointerCoreFun(ts.flin,ts.testdim);
             s.x0 = ts.x0;
             s.Inputs = ts.Inputs;
             m.simulate([],1);
+            m.TrainingInputs = 1:ts.testinputs;
             m.offlineGenerations;
             r = m.buildReducedModel;
             r.simulate([],1);
@@ -796,7 +797,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             m = ts.m;
             m.Approx.ParamKernel = ts.ParamKernel;
             s = m.System;
-            s.f = dscomponents.PointerCoreFun(ts.flin_p);
+            s.f = dscomponents.PointerCoreFun(ts.flin_p, ts.testdim);
             s.B = dscomponents.PointerInputConv(ts.B_p);
             s.x0 = ts.x0_p;
             for idx = 1:length(ts.params)
@@ -805,6 +806,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             end
             s.Inputs = ts.Inputs;
             m.simulate(m.System.getRandomParam, 1);
+            m.TrainingInputs = 1:ts.testinputs;
             m.offlineGenerations;
             r = m.buildReducedModel;
             r.simulate(r.System.getRandomParam, 1);

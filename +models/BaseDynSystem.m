@@ -63,6 +63,18 @@ classdef BaseDynSystem < KerMorObject
         % @type dscomponents.ACoreFun
         f;
         
+        % Represents a linear or affine-linear component of the dynamical
+        % system.
+        %
+        % If there is any linear part in your system, assign it here to
+        % take advantage of more involved solvers like semi-implicit euler.
+        %
+        % @propclass{optional}
+        %
+        % @type dscomponents.AffLinCoreFun,dscomponents.LinearCoreFun
+        % @default []
+        A;
+        
         % The input conversion
         %
         % @propclass{optional}
@@ -196,9 +208,10 @@ classdef BaseDynSystem < KerMorObject
             this.Model = model;
             this.C = dscomponents.LinearOutputConv(1);
             this.x0 = dscomponents.ConstInitialValue(0);
+            this.A = [];
             
             % Register default properties
-            this.registerProps('f','B','C','x0','Inputs','Params','MaxTimestep','StateScaling');
+            this.registerProps('A','f','B','C','x0','Inputs','Params','MaxTimestep','StateScaling');
         end
        
         function setConfig(this, mu, inputidx)
@@ -237,17 +250,50 @@ classdef BaseDynSystem < KerMorObject
             end
         end
     
-        function y = ODEFun(this, t, x)
+        %% ODE functions for different combinations
+        function y = ODEFun_A(this, t, x)
             % Evaluates the ODE function for the currently set up parameter mu and input u.
             %
             % See also: setConfig Inputs Params
-                        
-            y = this.f.evaluate(x, t, this.mu);
-            if ~isempty(this.u)
-                y = y + this.B.evaluate(t, this.mu)*this.u(t);    
-            end
+            y = this.A.evaluate(t, this.mu) * x;
         end
         
+        function y = ODEFun_f(this, t, x)
+            % Evaluates the ODE function for the currently set up parameter mu and input u.
+            %
+            % See also: setConfig Inputs Params
+            y = this.f.evaluate(x, t, this.mu);
+        end
+        
+        function y = ODEFun_Af(this, t, x)
+            % Evaluates the ODE function for the currently set up parameter mu and input u.
+            %
+            % See also: setConfig Inputs Params
+            y = this.A.evaluate(t, this.mu) * x + this.f.evaluate(x, t, this.mu);
+        end
+        
+        function y = ODEFun_AB(this, t, x)
+            % Evaluates the ODE function for the currently set up parameter mu and input u.
+            %
+            % See also: setConfig Inputs Params
+            y = this.A.evaluate(t, this.mu) * x + this.B.evaluate(t, this.mu)*this.u(t);
+        end
+        
+        function y = ODEFun_fB(this, t, x)
+            % Evaluates the ODE function for the currently set up parameter mu and input u.
+            %
+            % See also: setConfig Inputs Params
+            y = this.f.evaluate(x, t, this.mu) + this.B.evaluate(t, this.mu)*this.u(t);
+        end
+        
+        function y = ODEFun_AfB(this, t, x)
+            % Evaluates the ODE function for the currently set up parameter mu and input u.
+            %
+            % See also: setConfig Inputs Params
+            y = this.A.evaluate(t, this.mu) * x + this.f.evaluate(x, t, this.mu) + this.B.evaluate(t, this.mu)*this.u(t);
+        end
+        
+        %% Parameter manipulation
         function mu = getRandomParam(this, num)
             % Gets a random parameter sample from the system's parameter
             % domain P
