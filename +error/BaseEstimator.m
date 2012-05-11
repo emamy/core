@@ -165,6 +165,9 @@ classdef BaseEstimator < KerMorObject & ICloneable
             e0 = this.e0Comp.getE0(mu);
         end
         
+        function ct = prepareConstants(~, ~, ~)
+            ct = 0;
+        end
     end
     
     %% Getter & Setter
@@ -254,6 +257,8 @@ classdef BaseEstimator < KerMorObject & ICloneable
                 est = error.GLEstimator(model);
             elseif isa(model.System.f,'models.synth.KernelTest')
                 est = error.ExperimentalEstimator(model);
+            elseif isempty(error.DEIMEstimator.validModelForEstimator(model))
+                est = error.DEIMEstimator(model);
             else
                 est = error.DefaultEstimator(model);
                 fprintf('BaseEstimator::getEstimator: No suitable error estimator found for given model. Using the default estimator (disabled).\n');

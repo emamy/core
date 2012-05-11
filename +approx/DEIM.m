@@ -59,6 +59,9 @@ classdef DEIM < approx.BaseApprox
         Uerr1;
         Uerr2;
         
+        % Extra matrix used in the error.DEIMEstimator class
+        Uerr1_VW;
+        
         % The function which DEIM is applied to
         %
         % Is a subclass of dscomponents.ACompEvalCoreFun
@@ -252,6 +255,8 @@ classdef DEIM < approx.BaseApprox
             if ~isempty(this.W)
                 this.U = this.W'*this.U;
                 if om > 0
+                    this.Uerr1_VW = this.Uerr1 + (Um - this.V*(this.W'*Um))/A;
+                    
                     this.Uerr1 = this.W'*this.Uerr1;
                     this.Uerr2 = this.W'*this.Uerr2;
                 end
