@@ -151,4 +151,33 @@ classdef ApproxTrainData
         end
     end
     
+    methods(Static)
+        function atd = makeUniqueXi(atd)
+            [~, selidx] = unique(atd.xi','rows');
+            if length(selidx) ~= size(atd.xi,2)
+                atd.xi = atd.xi(:,selidx);
+                if ~isempty(atd.fxi)
+                    atd.fxi = atd.fxi(:,selidx);
+                else
+                    warning('KerMor:atd','No fxi data set yet but changing xi values! CAREFUL!');
+                end
+                if ~isempty(atd.ti)
+                    atd.ti = atd.ti(selidx);
+                end
+                if ~isempty(atd.mui)
+                    atd.mui = atd.mui(:,selidx);
+                end
+            else
+                fprintf('Nothing to do, all xi unique.\n');
+            end
+        end
+        
+        function [atd, minScale, maxScale] = scaleXiZeroOne(atd)
+            minScale = min(atd.xi,[],2);
+            maxScale = max(atd.xi,[],2);
+            n = size(atd.xi,2);
+            atd.xi = (atd.xi - repmat(minScale,1,n)) ./ repmat(maxScale - minScale,1,n);
+        end
+    end
+    
 end

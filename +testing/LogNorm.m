@@ -1,4 +1,4 @@
-function [res, pos, l, sel, seli] = LogNorm(m, numt)
+function [res, mScale, MScale, pos, l, sel, seli] = LogNorm(m, numt)
 % LogNorm: 
 %
 %
@@ -122,6 +122,7 @@ end
 pi.stop;
 
 res = data.ApproxTrainData(zi,[],[]);
-res.fxi = ln;
-        
+res.fxi = ln;        
+res = data.ApproxTrainData.makeUniqueXi(res);
+[res, mScale, MScale] = data.ApproxTrainData.scaleXiZeroOne(res);
 end
