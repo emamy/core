@@ -68,7 +68,8 @@ classdef DEIMEstimator < error.BaseEstimator
                 a = a + v1'*this.M2.evaluate(t,mu)*ut - v2'*this.M3.evaluate(t,mu)*ut ...
                     + ut'*this.M4.evaluate(t,mu)*ut;
             end
-            x = x .* (this.scale(:,2) - this.scale(:,1)) + this.scale(:,1);
+            %x = x .* (this.scale(:,2) - this.scale(:,1)) + this.scale(:,1);
+            x = (x - this.scale(:,1)) ./ (this.scale(:,2) - this.scale(:,1));
             eint = this.kexp.evaluate(x, t, mu)*olderr + sqrt(abs(a));
         end
         

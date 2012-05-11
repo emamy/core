@@ -284,7 +284,7 @@ classdef DEIM < approx.BaseApprox
             if any(value) > size(this.u,2) || any(value) < 1
                 error('Invalid Order/ErrOrder value. Allowed are integers in [1, %d]',size(this.u,2));
             elseif sum(value) > this.MaxOrder
-                error('Order and ErrOrder values may not exceed MaxOrder');
+                error('Order (%d) and ErrOrder (%d) values may not exceed MaxOrder (%d)',value,this.MaxOrder);
             end
             this.fOrder = value;
             
