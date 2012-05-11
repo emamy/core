@@ -65,13 +65,13 @@ classdef MUnit
             end
             
             a = KerMor.App;
-            old = a.UseDPCS;
-            a.UseDPCS = false;
+            old = a.UseDPCM;
+            a.UseDPCM = false;
             
             % Start recursive run
             [s,f] = testing.MUnit.recursiveRun(dir,curPackage);
             
-            a.UseDPCS = old;
+            a.UseDPCM = old;
             
             % Summary
             fprintf('\n\n All Class Tests finished.\n');

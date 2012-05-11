@@ -29,10 +29,10 @@ classdef PointerCoreFun < dscomponents.ACoreFun
             %
             % @change{0,6,dw,2012-01-19} Added a new optional \c multieval parameter to
             % indicate that the function handle can take matrix valued arguments `x,t,\mu`.
-            if nargin < 3
+            if nargin < 4
                 % Assume worst case: set time dependency to true!
                 timedep = true;
-                if nargin < 2
+                if nargin < 3
                     multieval = false;
                 end
             end
@@ -63,7 +63,7 @@ classdef PointerCoreFun < dscomponents.ACoreFun
             % no need to call clone here as the only property gets changed
             % anyways.
             newfun = @(z,t,mu)W' * this.target(V*z,t,mu);
-            proj = dscomponents.PointerCoreFun(newfun);
+            proj = dscomponents.PointerCoreFun(newfun, size(V,2));
         end
     end
     
