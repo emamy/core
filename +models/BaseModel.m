@@ -11,6 +11,10 @@ classdef BaseModel < KerMorObject
 %
 % @author Daniel Wirtz @date 19.03.2010
 %
+% @change{0,6,dw,2012-05-26} Adopted way of computing the jacobian and
+% jsparsity pattern for ode solvers according to new possibility of having
+% a (affine) linear models.BaseDynSystem.A component.
+%
 % @change{0,6,dw,2011-12-14} Introduced a \c ctime argument to the simulate and
 % computeTrajectory methods. This motivates from several caching strategies that may be applied
 % which lead to less computation time due to simple trajectory lookup. however, when comparing
