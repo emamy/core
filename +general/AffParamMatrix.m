@@ -9,6 +9,10 @@ classdef AffParamMatrix < dscomponents.IProjectable
     %
     % @ingroup general
     %
+    % @change{0,6,dw,2012-05-24} Added automatic guessing of time
+    % dependency via evaluation of the coefficient functions after building
+    % them, using 0 and Inf times (with a 100-dim ones parameter vector)
+    %
     % @new{0,6,dw,2012-02-02} New property AffParamMatrix.TimeDependent which is to be used in
     % order to indicate to KerMor if the affine time/parametric matrix is truly time-dependent.
     %
@@ -43,20 +47,19 @@ classdef AffParamMatrix < dscomponents.IProjectable
     %
     % @todo
     % - implement/override other arithmetic operations
-    % - add flags for time/parameter dependence
     % - add string for coeff method header '@(t,mu)'
     
-    properties(SetObservable, SetAccess=public)
-        % Flag that indicates if this AffParamMatrix instance is truly time dependent, i.e. any
-        % coefficient function depends on the time `t`.
-        % 
-        % Set according to your setup.
-        %
-        % @todo Autodetection with regular expression in coeff_fun strings!
-        %
-        % @type logical @default false
-        TimeDependent = false;
-    end
+%     properties(SetObservable, SetAccess=public)
+%         % Flag that indicates if this AffParamMatrix instance is truly time dependent, i.e. any
+%         % coefficient function depends on the time `t`.
+%         % 
+%         % Set according to your setup.
+%         %
+%         % @todo Autodetection with regular expression in coeff_fun strings!
+%         %
+%         % @type logical @default false
+%         TimeDependent = false;
+%     end
         
     properties(SetAccess=private)
         % The number of affine matrices / size of the linear combination
@@ -69,8 +72,11 @@ classdef AffParamMatrix < dscomponents.IProjectable
     
     properties(Access=private)
         funStr = {};
-        cfun = [];
         dims;
+    end
+    
+    properties(SetAccess=private, GetAccess=protected)
+        cfun = [];
     end
     
     methods 
@@ -109,7 +115,9 @@ classdef AffParamMatrix < dscomponents.IProjectable
             copy.N = this.N;
             copy.funStr = this.funStr;
             copy.dims = this.dims;
-            copy.buildCoeffFun;
+            copy.funStr = this.funStr;
+            copy.cfun = this.cfun;
+%             copy.TimeDependent = this.TimeDependent;
         end
         
         function addMatrix(this, coeff_fun, mat)
@@ -174,7 +182,7 @@ classdef AffParamMatrix < dscomponents.IProjectable
                     if A.dims(2) ~= size(B,1)
                         error('Matrix dimensions must agree.');
                     end
-                    pr.dims = [B.dims(1) size(A,2)];
+                    pr.dims = [A.dims(1) size(B,2)];
                     pr.Matrices = zeros(prod(pr.dims),pr.N);
                     for i=1:A.N
                         pr.Matrices(:,i) = reshape(...

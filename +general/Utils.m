@@ -478,6 +478,19 @@ classdef Utils
             x = x + bsxfun(@times, farend, r.rand(1,num));
         end
         
+        function ln = logNorm(A, G)
+            % Computes the logarithmic norm of a matrix, optionally using a
+            % positive definite symmetric matrix `G` inducing the matrix
+            % norm to use.
+            if nargin < 2
+                G = 1;
+            end
+            if ~isscalar(G)
+                L = chol(G,'lower');
+                A = L\(A'*L);
+            end
+            ln = eigs(.5*(A' + A),1);
+        end
     end
     
     methods(Static)

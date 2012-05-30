@@ -98,7 +98,7 @@ classdef POD < KerMorObject
             % For these "dynamic" modes the full singular values have
             % to be computed in order to determine how many to use.
             if any(strcmpi(this.Mode,{'sign','eps'}))
-                [u,s,v] = svd(vec,'econ');
+                [u,s] = svd(vec,'econ');
                 s = diag(s);
                 if strcmpi(this.Mode,'sign')
                     sig = s >= s(1)*this.Value;
@@ -113,7 +113,7 @@ classdef POD < KerMorObject
                 end
                 % Select wanted subspace
                 u = u(:,sig);
-                v = v(:,sig);
+%                 v = v(:,sig);
                 s = s(sig);
             else
                 %% Reduction for modes 'abs' and 'rel'
@@ -126,16 +126,16 @@ classdef POD < KerMorObject
                 % svd.
                 if this.UseSVDS
                     fprintf('POD mode ''%s'' with value %2.6f: Warning, SVDS results are non-reproducable (Arnoldi with random seed)\n',this.Mode,this.Value);
-                    [u,s,v] = svds(vec, target_dim);
+                    [u,s] = svds(vec, target_dim);
                     s = diag(s);
                 else
-                    [u,s,v] = svd(vec,'econ');
+                    [u,s] = svd(vec,'econ');
                     s = diag(s);
                     err = sum(s(target_dim+1:end));
                     rerr = 100*err/sum(s);
-                    fprintf('POD mode ''%s'' with value %2.6f: Target dimension is %d singular values, error %.4e (%.4e%% relative)\n',this.Mode,this.Value,target_dim,err,rerr);
+                    fprintf('POD mode ''%s'' with value %2.6f: Target dimension is %d singular values, error %.4e (%.4e%%)\n',this.Mode,this.Value,target_dim,err,rerr);
                     u(:,target_dim+1:end) = [];
-                    v(:,target_dim+1:end) = [];
+%                     v(:,target_dim+1:end) = [];
                     s(target_dim+1:end) = [];
                 end
             end
