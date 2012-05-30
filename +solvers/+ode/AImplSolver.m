@@ -1,5 +1,5 @@
 classdef AImplSolver < KerMorObject
-% AImplSolver: Base abstract class for implicit ode solvers
+% AImplSolver: Base abstract class for fully implicit ode solvers
 %
 % Some models like the models.pcd.PCDModel have a small CFL constant due to fast diffusion. Thus,
 % implicit solvers are required to avoid long computation times.
