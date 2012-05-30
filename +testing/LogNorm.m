@@ -16,9 +16,8 @@ function [res, mScale, MScale, pos, l, sel, seli] = LogNorm(m, numt)
 atd = m.Data.ApproxTrainData;
 N = size(atd.xi,2);
 
-num = 10000;
 if nargin < 2
-    numt = 500;
+    numt = N;
 else
     numt = min(numt, N);
 end
@@ -26,7 +25,7 @@ seed = 1;
 % Show plots for each numt value
 doplot = 4==5;
 % Sort training points after norm values (ascending)
-dosort = 4==4;
+dosort = 4==5;
 % Plot negative local logarithmic norms
 plotneg = 4==4;
 
@@ -71,7 +70,8 @@ VV = 1;%V'*V;
 
 % Locally selected "Vz" terms
 zi = W'*atd.xi(:,seli);
-fVzi = m.System.f.evaluate(V*zi,atd.ti(seli),atd.mui(:,seli));
+MU = atd.mui(:,seli);
+fVzi = m.System.f.evaluate(V*zi,atd.ti(seli),MU);
 
 % Only needed for efficient local lipschitz constant computation
 % fxinsq = sum(fxi.*fxi);
@@ -88,16 +88,16 @@ for i = 1:n
     
 %     L = sqrt(abs((fxinsq - 2*fz'*fxi + fz'*fz) ./ denom));
 %     L2 = Norm.L2(fxi - fVzi(:,ones(1,length(sel))*i)) ./ sqrt(denom);
-   
+    
+    [~, idx] = sort(denom);
+    Ln = Ln(idx);
+
     zer = denom == 0;
-%     L(zer) = [];
     Ln(zer) = [];
     
-%     l(i) = max(L);
     [ln(i), pos(i)] = max(Ln);
     
 %     [~, sortidx] = sort(denom);
-%     L = L(sortidx);
 %     Ln = Ln(sortidx);
     if doplot
         ti = sprintf('Idx %d: loc Lip const %g, loc log norm %g',seli(i),l(i),ln(i));

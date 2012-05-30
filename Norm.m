@@ -63,5 +63,4 @@ classdef Norm
             n = sqrt(sum(x.*(G*x),1));
         end
     end
-    
 end
