@@ -248,13 +248,13 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             d = size(x,1);
             if this.MultiArgumentEvaluations
                 X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(mu,1,d);
-                I = speye(d,d);
+                I = speye(d,d)*dt;
                 J = (this.evaluate(X+I,T,MU) - this.evaluate(X,T,MU))/dt;
             else
                 J = zeros(d,d);
                 for i=1:d
                     e = zeros(d,1);
-                    e(i) = 1;
+                    e(i) = dt;
                     J(:,i) = (this.evaluate(x+e,t,mu) - this.evaluate(x,t,mu))/dt;
                 end
             end
@@ -362,14 +362,14 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
                 if isempty(mua) || nargin < 4
                     mua = double.empty(0,size(xa,2));
                 end
+                d = size(xa,1);
+                I = speye(d,d)*dt;
                 for k = 1:size(xa,2)
                     x = xa(:,k); t = ta(:,k); mu = mua(:,k);
-                    Jc = this.getStateJacobian(x,t,mu);
+                    Jc = this.getStateJacobian(x, t, mu);
                     %% Numerical jacobian
-                    d = size(x,1);
                     if this.MultiArgumentEvaluations
                         X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(mu,1,d);
-                        I = speye(d,d)*dt;
                         J = (this.evaluate(X+I,T,MU) - this.evaluate(X,T,MU))/dt;
                         res(k) = max(max(abs(J-Jc)))/max(max(abs(J))) < reltol;
                     else

@@ -1,4 +1,5 @@
-classdef AffLinCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLipschitz
+classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
+        & dscomponents.IGlobalLipschitz
 %Simple affine-linear core function "f" for a dynamical system.
 % 
 % Simply wraps an affine-linear function into the ACoreFun interface to
@@ -39,40 +40,40 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLipschitz
         % @type char @default ''
         CoeffClass = '';
     end
-    
-    properties(SetAccess=protected)
-        AffParamMatrix;
-    end
-    
-    properties(Dependent, SetAccess=private)
-        N;
-    end
-    
+   
     methods
         function this = AffLinCoreFun
             % Creates a new instance of the AffLinCoreFun.
-            this.AffParamMatrix = general.AffParamMatrix;
-            % Get time dependency from AffParamMatrix member
-            this.AffParamMatrix.addlistener('TimeDependent','PostSet',@this.AffParMatTimeDepPostSet);
-            this.CustomJacobian = true;
+            this = this@general.AffParamMatrix;
+            this = this@dscomponents.ACoreFun;
+            this.CustomProjection = true;
         end
         
-        function fx = evaluateCoreFun(this, x, t, mu)
-            fx = this.AffParamMatrix.compose(t, mu)*x;
+        function fx = evaluate(this, x, t, mu)
+            fx = this.compose(t, mu)*x;
+        end
+        
+        function fx = evaluateCoreFun(varargin)%#ok
+            % This method will never be called as evaluate is overridden
+            % directly for performance.
+            % this is possible as AffLinCoreFuns have both CustomProjection
+            % and MultiArgumentEvaluations.
+            error('This method should never be called.');
         end
         
         function J = getStateJacobian(this, ~, t, mu)
             % Overrides the default jacobian finite difference
             % implementation.
-            J = this.AffParamMatrix.compose(t, mu);
+            J = this.compose(t, mu);
         end
         
         function c = getGlobalLipschitz(this, t, mu)
             % Implementation of the interface method from IGlobalLipschitz.
+            error('need to update.');
             a = this.AffParamMatrix;
             c = 0;
-            for idx=1:length(a.Coefficients)
-                cfun = a.Coefficients{idx};
+            for idx=1:length(this.Coefficients)
+                cfun = this.Coefficients{idx};
                 c = c + abs(cfun(t,mu)) * norm(a.Matrices(:,:,idx));
             end
         end
@@ -87,33 +88,35 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLipschitz
             if isempty(this.XDim)
                 this.XDim = size(mat,2);
             end
-            this.AffParamMatrix.addMatrix(coeff_fcn, mat);
-        end
-        
-        function N = get.N(this)
-            N = this.AffParamMatrix.N;
+            
+            addMatrix@general.AffParamMatrix(this, coeff_fcn, mat);
+            
+            mu = ones(1,100);
+            this.TimeDependent = ~all(this.cfun(0,mu) == this.cfun(Inf,mu));
+            fprintf('AffLinCoreFun: Guessed time-dependency to %d.\n',this.TimeDependent);
         end
     end
     
     methods(Sealed)
         function copy = clone(this)
             copy = dscomponents.AffLinCoreFun;
-            copy.AffParamMatrix = this.AffParamMatrix.clone;
+            copy = clone@general.AffParamMatrix(this, copy);
+            copy = clone@dscomponents.ACoreFun(this, copy);
             copy.CoeffClass = this.CoeffClass;
         end
     end
     
-    methods(Access=private)
-        function AffParMatTimeDepPostSet(this, ~, ~)
-            this.TimeDependent = this.AffParamMatrix.TimeDependent;
-        end
-    end
+%     methods(Access=private)
+%         function AffParMatTimeDepPostSet(this, ~, ~)
+%             this.TimeDependent = this.AffParamMatrix.TimeDependent;
+%         end
+%     end
     
-    methods(Static, Access=protected)
-        function this = loadobj(this)
-            this = loadobj@DPCMObject(this);
-            this.AffParamMatrix.addlistener('TimeDependent','PostSet',@this.AffParMatTimeDepPostSet);
-        end
-    end
+%     methods(Static, Access=protected)
+%         function this = loadobj(this)
+%             this = loadobj@DPCMObject(this);
+%             this.AffParamMatrix.addlistener('TimeDependent','PostSet',@this.AffParMatTimeDepPostSet);
+%         end
+%     end
 end
 
