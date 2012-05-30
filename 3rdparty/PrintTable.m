@@ -370,7 +370,7 @@ classdef PrintTable < handle
             end
             if isempty(this.data)
                 this.data{1} = this.stringify(varargin);
-                this.contlen = ones(1,length(varargin));
+                this.contlen = ones(1,length(this.data{1}));
             else
                 % Check new number of columns
                 newlen = length(varargin);
