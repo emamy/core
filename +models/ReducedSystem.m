@@ -6,6 +6,12 @@ classdef ReducedSystem < models.BaseDynSystem
 % 
 % @author Daniel Wirtz @date 17.03.2010
 %
+% @change{0,6,dw,2012-05-29}
+% - New direct methods for ODE handles (selection once per call more
+% effective than if clauses every evaluation)
+% - fixed cases with A component
+% - fixed setting of A component upon setReducedModel
+%
 % @change{0,5,dw,2011-10-15} Fixed the computation of reduced systems. Previously, the scaling
 % was not included in the reduced model if no subspace projection was used. Now, scaling is
 % included if set and independently from any subspace projection.
@@ -125,6 +131,10 @@ classdef ReducedSystem < models.BaseDynSystem
                 if ~isempty(fullsys.B)
                     this.B = fullsys.B.project(V,W);
                 end
+                % Project linear part
+                if ~isempty(fullsys.A)
+                    this.A = fullsys.A.project(V,W);
+                end
                 % Project the approximated CoreFun of the full model if exists
                 if ~isempty(fullmodel.Approx)
                     this.f = fullmodel.Approx.project(V,W);
@@ -159,7 +169,7 @@ classdef ReducedSystem < models.BaseDynSystem
             % the ODE function if any error estimators are enabled.
             est = this.Model.ErrorEstimator;
             if ~isempty(est) && est.Enabled
-                y = [this.A.evaluate(t,this.mu) * x(1:end-est.ExtraODEDims,:);...
+                y = [this.A.evaluate(x(1:end-est.ExtraODEDims,:), t, this.mu);...
                      est.evalODEPart(x, t, this.mu, [])];
             else
                 % If no estimator is used or is disabled just call the "normal" ODE function from the
@@ -187,8 +197,8 @@ classdef ReducedSystem < models.BaseDynSystem
             % the ODE function if any error estimators are enabled.
             est = this.Model.ErrorEstimator;
             if ~isempty(est) && est.Enabled
-                y = [this.A.evaluate(t,this.mu) * x(1:end-est.ExtraODEDims,:) + ...
-                     this.f.evaluate(x(1:end-est.ExtraODEDims,:),t,this.mu); ...
+                y = [this.A.evaluate(x(1:end-est.ExtraODEDims,:), t, this.mu) + ...
+                     this.f.evaluate(x(1:end-est.ExtraODEDims,:), t, this.mu); ...
                      est.evalODEPart(x, t, this.mu, [])];
             else
                 % If no estimator is used or is disabled just call the "normal" ODE function from the
@@ -203,7 +213,7 @@ classdef ReducedSystem < models.BaseDynSystem
             est = this.Model.ErrorEstimator;
             if ~isempty(est) && est.Enabled
                 ut = this.u(t);    
-                y = [this.A.evaluate(t,this.mu) * x(1:end-est.ExtraODEDims,:) + ...
+                y = [this.A.evaluate(x(1:end-est.ExtraODEDims,:), t, this.mu) + ...
                      this.B.evaluate(t,this.mu)*ut; ...
                      est.evalODEPart(x, t, this.mu, ut)];
             else
@@ -235,8 +245,8 @@ classdef ReducedSystem < models.BaseDynSystem
             est = this.Model.ErrorEstimator;
             if ~isempty(est) && est.Enabled
                 ut = this.u(t);    
-                y = [this.A.evaluate(t,this.mu) * x(1:end-est.ExtraODEDims,:) + ...
-                     this.f.evaluate(x(1:end-est.ExtraODEDims,:),t,this.mu) + ...
+                y = [this.A.evaluate(x(1:end-est.ExtraODEDims,:), t, this.mu) + ...
+                     this.f.evaluate(x(1:end-est.ExtraODEDims,:), t, this.mu) + ...
                      this.B.evaluate(t,this.mu)*ut; ...
                      est.evalODEPart(x, t, this.mu, ut)];
             else

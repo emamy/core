@@ -671,6 +671,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
     methods(Static, Access=protected)
         function this = loadobj(this)
             this = loadobj@DPCMObject(this);
+            this.addlistener('T','PreSet', @this.intTimeChanging);
+            this.addlistener('dt','PreSet', @this.intTimeChanging);
+            this.addlistener('T','PostSet', @this.intTimeChanged);
+            this.addlistener('dt','PostSet', @this.intTimeChanged);
             % Reassign a simulation cache (transient variable)
             this.simCache = data.FileModelData(this, KerMor.App.TempDirectory);
         end

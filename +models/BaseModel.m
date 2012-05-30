@@ -370,18 +370,31 @@ classdef BaseModel < KerMorObject
             % implicit
             if isa(slv,'solvers.ode.AImplSolver')
                 % Set jacobian
-                if ~sys.f.CustomJacobian
-                    if KerMor.App.Verbose > 0
-                        fprintf(2,'Implicit solver: No user jacobian specified. Will use finite difference approximation.\n');
-                    end
-                end
-                slv.JacFun = @(t, x)sys.f.getStateJacobian(x, t, mu);
+%                 if ~sys.f.CustomJacobian
+%                     if KerMor.App.Verbose > 0
+%                         fprintf(2,'Implicit solver: No user jacobian specified. Will use finite difference approximation.\n');
+%                     end
+%                 end
                 
-                % Set jacobian pattern if possible
-                if ~isempty(sys.f.JSparsityPattern)
-                    slv.JPattern = sys.f.JSparsityPattern;
-                else
-                    slv.JPattern = [];
+                slv.JPattern = [];
+                slv.JacFun = [];
+                if ~isempty(sys.A) && ~isempty(sys.f)
+                    slv.JacFun = @(t, x)sys.A.getStateJacobian(x, t, mu) + sys.f.getStateJacobian(x, t, mu);
+                    if ~isempty(sys.A.JSparsityPattern) && ~isempty(sys.f.JSparsityPattern)
+                        [i,j] = find(sys.A.JSparsityPattern + sys.f.JSparsityPattern);
+                            slv.JPattern = sparse(i,j,ones(length(i),1),...
+                                sys.A.XDim,sys.A.XDim);
+                    end
+                elseif ~isempty(sys.A)
+                    slv.JacFun = @(t, x)sys.A.getStateJacobian(x, t, mu);
+                    if  ~isempty(sys.A.JSparsityPattern)
+                        slv.JPattern = sys.A.JSparsityPattern;
+                    end
+                elseif ~isempty(sys.f)
+                    slv.JacFun = @(t, x)sys.f.getStateJacobian(x, t, mu);
+                    if  ~isempty(sys.f.JSparsityPattern)
+                        slv.JPattern = sys.f.JSparsityPattern;
+                    end
                 end
             end
             

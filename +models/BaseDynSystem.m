@@ -255,7 +255,7 @@ classdef BaseDynSystem < KerMorObject
             % Evaluates the ODE function for the currently set up parameter mu and input u.
             %
             % See also: setConfig Inputs Params
-            y = this.A.evaluate(t, this.mu) * x;
+            y = this.A.evaluate(x, t, this.mu);
         end
         
         function y = ODEFun_f(this, t, x)
@@ -269,14 +269,14 @@ classdef BaseDynSystem < KerMorObject
             % Evaluates the ODE function for the currently set up parameter mu and input u.
             %
             % See also: setConfig Inputs Params
-            y = this.A.evaluate(t, this.mu) * x + this.f.evaluate(x, t, this.mu);
+            y = this.A.evaluate(x, t, this.mu) + this.f.evaluate(x, t, this.mu);
         end
         
         function y = ODEFun_AB(this, t, x)
             % Evaluates the ODE function for the currently set up parameter mu and input u.
             %
             % See also: setConfig Inputs Params
-            y = this.A.evaluate(t, this.mu) * x + this.B.evaluate(t, this.mu)*this.u(t);
+            y = this.A.evaluate(x, t, this.mu) + this.B.evaluate(t, this.mu)*this.u(t);
         end
         
         function y = ODEFun_fB(this, t, x)
@@ -290,7 +290,7 @@ classdef BaseDynSystem < KerMorObject
             % Evaluates the ODE function for the currently set up parameter mu and input u.
             %
             % See also: setConfig Inputs Params
-            y = this.A.evaluate(t, this.mu) * x + this.f.evaluate(x, t, this.mu) + this.B.evaluate(t, this.mu)*this.u(t);
+            y = this.A.evaluate(x, t, this.mu) + this.f.evaluate(x, t, this.mu) + this.B.evaluate(t, this.mu)*this.u(t);
         end
         
         %% Parameter manipulation
