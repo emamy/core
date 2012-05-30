@@ -6,6 +6,11 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
 %
 % @author Daniel Wirtz @date 2012-03-26
 %
+% @new{0,6,dw,2012-05-30} Added the evaluateComponentSetGradients and
+% evaluateComponentGradients methods for efficient jacobian computation of
+% the DEIM approximation. The evaluateComponentGradients default
+% implementation uses finite differences.
+%
 % @new{0,6,dw,2012-03-26} Added this class.
 %
 % This class is part of the framework
@@ -34,6 +39,24 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
         function fx = evaluateComponentSet(this, nr, x, t, mu)
             fx = this.evaluateComponents(this.PointSets{nr},...
                 this.jend{nr}, this.jrow{nr}, this.jself{nr}, this.S{nr}*x, t, mu);
+        end
+        
+        function dfx = evaluateComponentSetGradients(this, nr, x, t, mu)
+            % For the current component-evaluable function, this returns
+            % the gradients of each component per row at the position x,t,mu.
+            %
+            % Uses the template method with a default finite difference 
+            % implementation The default implementation
+            dfx = this.evaluateComponentGradients(this.PointSets{nr},...
+                this.jend{nr}, this.jrow{nr}, this.jself{nr}, this.S{nr}*x, t, mu) ...
+                * this.S{nr};
+            % the multiplication by S{nr} from the right is due to the
+            % inner derivative (chain rule).
+            % this is identity if no projection occured.
+            % If this function has been projected, the argument passed to
+            % it is Vz, so the component set gradient is right-multiplied
+            % by the components of V (which are in S in this case, see
+            % setPointSet).
         end
         
         function setPointSet(this, nr, pts)
@@ -101,7 +124,28 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
         end
     end
     
+    methods(Access=protected)
+        function dfx = evaluateComponentGradients(this, pts, ends, idx, self, x, t, mu)
+            % Default implementation of gradient computation via finite
+            % differences.
+            %
+            % Override in subclasses for more performance if direct
+            % derivative information is available.
+            dt = sqrt(eps);
+            d = size(x,1);
+            X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(mu,1,d);
+            I = speye(d,d)*dt;
+            dfx = (this.evaluateComponents(pts, ends, idx, self, X+I, T, MU) ...
+                - this.evaluateComponents(pts, ends, idx, self, X, T, MU))/dt;
+        end
+    end
+    
     methods(Abstract)
+        % This is the template method that actually evaluates the
+        % components at given points and values.
+        %
+        % @attention This method must be able to handle vector-arguments
+        % for `x,t,mu`!
         evaluateComponents(this, pts, ends, idx, self, x, t, mu);
     end
 end

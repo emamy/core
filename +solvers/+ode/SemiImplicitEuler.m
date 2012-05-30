@@ -28,6 +28,7 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
     methods
         function this = SemiImplicitEuler(model)
             this.model = model;
+            this.Name = 'Semi-implicit euler method';
         end
     end
     

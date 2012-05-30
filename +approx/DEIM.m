@@ -10,6 +10,9 @@ classdef DEIM < approx.BaseApprox
 %
 % @author Daniel Wirtz @date 2012-03-26
 %
+% @new{0,6,dw,2012-05-30} Added a custom implementation of the
+% getStateJacobian method
+%
 % @change{0,6,dw,2012-05-29} Besides many work-in-progress changes, now the
 % evaluate function is implemented directly. further, some matrices needed
 % for the DEIMEstimator have been included and are being computed.
@@ -112,6 +115,14 @@ classdef DEIM < approx.BaseApprox
         
         function fx = evaluate(this, x, t, mu)
             fx = this.U * this.f.evaluateComponentSet(1, x, t, mu);
+        end
+        
+        function J = getStateJacobian(this, x, t, mu)
+            hlp = this.U * this.f.evaluateComponentSetGradients(1, x, t, mu);
+            p = logical(this.f.JSparsityPattern);
+            J = sparse(this.f.XDim,this.f.XDim);
+            J(p) = hlp(p);
+            %J2 = getStateJacobian@dscomponents.ACoreFun(this, x, t, mu);
         end
         
         function fx = evaluateCoreFun(varargin)

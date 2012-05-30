@@ -123,6 +123,13 @@ classdef DEIMEstimator < error.BaseEstimator
     
     methods(Access=protected)
         function time = postprocess(this, x, varargin)
+            % Postprocessing for the error estimate.
+            %
+            % Parameters:
+            % x: The whole just computed trajectory @type matrix<double>
+            % varargin: Any further arguments that are passed, but ignored
+            % here as not necessary. @type varargin
+            %
             % t, mu, inputidx
             % do nothing
             time = tic;

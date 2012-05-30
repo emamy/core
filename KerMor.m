@@ -9,6 +9,10 @@ classdef KerMor < handle
     %
     % @author Daniel Wirtz @date 2011-03-04
     %
+    % @new{0,6,dw,2012-05-3} Added a getGitBranch function to easily access
+    % the current branch. This is intended to be helpful on figuring out
+    % under which commit a certain simulation was run (and saved)
+    %
     % @change{0,6,CS,2011-12-05} Removed external folders from PATH (supervised by dw)
     %
     % @change{0,6,dw,2011-11-21} Implemented fake loadobj and saveobj methods so that
@@ -983,6 +987,17 @@ classdef KerMor < handle
         function host = getHost
             % Returns the hostname of the current machine
             host = char(getHostName(java.net.InetAddress.getLocalHost));
+        end
+        
+        function m = getGitBranch
+            % Returns the current git branch
+            olddir = pwd;
+            cd(KerMor.App.HomeDirectory);
+            [s, m] = system('git branch -v');
+            cd(olddir);
+            if s ~= 0
+                error('An error occurred retrieving the git branch: %s',m);
+            end
         end
         
         function d = DocumentationLocation
