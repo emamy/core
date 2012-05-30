@@ -1,9 +1,10 @@
 classdef DEIMEstimator < error.BaseEstimator
-% DEIMEstimator: 
-%
-%
+% DEIMEstimator: A-posteriori error estimation for DEIM reduced models.
 %
 % @author Daniel Wirtz @date 2012-05-10
+%
+% @change{0,6,dw,2012-05-26} Updated the computation to the new structure
+% of systems (A + f components) and replaced the previous (errorneous) one
 %
 % @new{0,6,dw,2012-05-10} Added this class.
 %
@@ -14,11 +15,18 @@ classdef DEIMEstimator < error.BaseEstimator
 % - \c License @ref licensing
     
     properties
-        M1 = [];
-        M2 = [];
         M3 = [];
         M4 = [];
-        B = [];
+        M5 = [];
+        M6 = [];
+        M7 = [];
+        M8 = [];
+        M9 = [];
+        M10 = [];
+        M11 = [];
+        M12 = [];
+        Ah; % the \hat{A} component
+        Bh; % the \hat{B} component
         
         % Stores the projected DEIM approximation
         deim;
@@ -34,8 +42,7 @@ classdef DEIMEstimator < error.BaseEstimator
         function this = DEIMEstimator(rmodel)
             this = this@error.BaseEstimator;
             this.ExtraODEDims = 1;
-            this.deim = rmodel.System.f;
-            if nargin == 1
+            if nargin == 1    
                 this.setReducedModel(rmodel);
             end
         end
@@ -47,15 +54,36 @@ classdef DEIMEstimator < error.BaseEstimator
             % Call superclass
             setReducedModel@error.BaseEstimator(this, rmodel);
             fm = rmodel.FullModel;
+            this.deim = rmodel.System.f;
+            A = [];
+            if ~isempty(fm.System.A)
+                A = (fm.System.A - rmodel.V*(rmodel.W'*fm.System.A))*rmodel.V;
+                this.M6 = A'*A;
+                this.Ah = A;
+            else
+                this.M6 = []; this.M7 = []; this.M8 = []; this.M9 = [];
+            end
+            B = [];
             if ~isempty(fm.System.B)
-                this.B = fm.System.B - rmodel.V*(rmodel.W'*fm.System.B);
-                this.M4 = this.B'*this.B;
+                B = fm.System.B - rmodel.V*(rmodel.W'*fm.System.B);
+                this.M12 = B'*B;
+                this.Bh = B;
+            else
+                this.M9 = []; this.M10 = []; this.M11 = []; this.M12 = [];
+            end
+            if ~isempty(A) && ~isempty(B)
+                this.M9 = 2*A'*B;
+            else
+                this.M9 = [];
             end
             
-            addlistener(rmodel.System.f,'Order','PostSet',@this.orderUpdated);
-            this.updateErrMatrices;
+            % Update the other matrices and add a listener to the deim
+            % instance to react to DEIM order changes
+            this.updateErrMatrices;    
+            addlistener(this.deim,'Order','PostSet',@this.orderUpdated);
             
-            this.computeLogNormApprox;
+            % Compute approximation for local logarithmic norm
+%             this.computeLogNormApprox;
         end
         
         function eint = evalODEPart(this, x, t, mu, ut)
@@ -63,14 +91,27 @@ classdef DEIMEstimator < error.BaseEstimator
             x = x(1:end-1);
             v1 = this.deim.f.evaluateComponentSet(1, x, t, mu);
             v2 = this.deim.f.evaluateComponentSet(2, x, t, mu);
-            a = v1'*v1 + v2'*v2 - 2*v1'*this.M1*v2;
+            
+            % NOTE: The factors 2 before some summands are added at offline
+            % stage!!
+            a = v1'*this.M3*v1 - v1'*this.M4*v2 + v2'*this.M5*v2;
+            if ~isempty(this.M6) % An time/param affine A is set
+                a = a + x'*this.M6.evaluate(t,mu)*x + x'*this.M7.evaluate(t,mu)*v1 ...
+                    - x'*this.M7.evaluate(t,mu)*v2;
+                if ~isempty(ut)
+                    a = a + x'*this.M9.evaluate(t,mu)*ut;
+                end
+            end
             if ~isempty(ut) % An input function u is set
-                a = a + v1'*this.M2.evaluate(t,mu)*ut - v2'*this.M3.evaluate(t,mu)*ut ...
-                    + ut'*this.M4.evaluate(t,mu)*ut;
+                a = a + v1'*this.M10.evaluate(t,mu)*ut - v2'*this.M11.evaluate(t,mu)*ut ...
+                    + ut'*this.M12.evaluate(t,mu)*ut;
             end
             %x = x .* (this.scale(:,2) - this.scale(:,1)) + this.scale(:,1);
-            x = (x - this.scale(:,1)) ./ (this.scale(:,2) - this.scale(:,1));
-            eint = this.kexp.evaluate(x, t, mu)*olderr + sqrt(abs(a));
+%             x = (x - this.scale(:,1)) ./ (this.scale(:,2) - this.scale(:,1));
+%             eint = this.kexp.evaluate(x, t, mu)*olderr + sqrt(abs(a));
+            J = this.deim.getStateJacobian(x,t,mu);
+            b = general.Utils.logNorm(J);
+            eint = b*olderr + sqrt(abs(a));
         end
         
         function copy = clone(this)
@@ -92,15 +133,39 @@ classdef DEIMEstimator < error.BaseEstimator
     
     methods(Access=private)
         function updateErrMatrices(this)
-            d = this.deim;
-            this.M1 = d.Uerr1'*d.Uerr2;
-            if ~isempty(this.B)
-                this.M2 = d.Uerr1'*this.B;
-                this.M3 = d.Uerr2'*this.B;
+            % This methods updates all the offline-computable matrices
+            % involved for error estimation that depend on the DEIM
+            % approximation order.
+            if this.deim.Order(2) > 0
+                M1 = this.deim.M1;
+                M2 = this.deim.M2;
+                this.M3 = M1'*M1;
+                this.M4 = 2*M1'*M2;
+                this.M5 = M2'*M2;
+                if ~isempty(this.Ah)
+                    this.M7 = 2*M1'*this.Ah;
+                    this.M8 = 2*M2'*this.Ah;
+                end
+                if ~isempty(this.Bh)
+                    this.M10 = 2*M1'*this.Bh;
+                    this.M11 = 2*M2'*this.Bh;
+                end
+            else
+                if this.Enabled
+                    this.Enabled = false;
+                    fprintf('DEIM error estimation order not set. Disabling DEIMEstimator.\n');
+                end
             end
         end
         
         function orderUpdated(this, ~, ~)%sender, data
+            if KerMor.App.Verbose > 0
+                fprintf('Updating DEIM error estimator matrices..\n');
+            end
+            if ~this.Enabled && this.deim.Order(2) > 0
+                this.Enabled = true;
+                fprintf('DEIM error estimation order set. Enabling DEIMEstimator.\n');
+            end
             this.updateErrMatrices;
         end
         
@@ -140,8 +205,8 @@ classdef DEIMEstimator < error.BaseEstimator
     
     methods(Static, Access=protected)
         function obj = loadobj(obj)
-            obj = loadobj@BaseEstimator(obj);
-            addlistener(obj.ReducedModel.System.f,'Order','PostSet',@obj.orderUpdated);
+            obj = loadobj@error.BaseEstimator(obj);
+            addlistener(obj.deim,'Order','PostSet',@obj.orderUpdated);
         end
     end
 end

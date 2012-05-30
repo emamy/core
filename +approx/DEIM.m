@@ -10,6 +10,10 @@ classdef DEIM < approx.BaseApprox
 %
 % @author Daniel Wirtz @date 2012-03-26
 %
+% @change{0,6,dw,2012-05-29} Besides many work-in-progress changes, now the
+% evaluate function is implemented directly. further, some matrices needed
+% for the DEIMEstimator have been included and are being computed.
+%
 % @new{0,6,dw,2012-03-26} Added this class.
 %
 % @todo think of exporting the jrow, jend, S properties to ACompEvalCoreFun
@@ -59,6 +63,9 @@ classdef DEIM < approx.BaseApprox
         Uerr1;
         Uerr2;
         
+        M1;
+        M2;
+        
         % Extra matrix used in the error.DEIMEstimator class
         Uerr1_VW;
         
@@ -103,13 +110,17 @@ classdef DEIM < approx.BaseApprox
             this.Order = this.fOrder;
         end
         
-        function fx = evaluateCoreFun(this, x, t, mu)
+        function fx = evaluate(this, x, t, mu)
             fx = this.U * this.f.evaluateComponentSet(1, x, t, mu);
+        end
+        
+        function fx = evaluateCoreFun(varargin)
+            % do nothing as evaluate is overridden directly
         end
         
         function err = getEstimatedError(this, x, t, mu)
             if this.fOrder(2) == 0
-                error('No error estimation possible with zero ErrOrder property');
+                error('No error estimation possible with zero ErrorOrder property');
             end
             err = this.Uerr1 * this.f.evaluateComponentSet(1, x, t, mu) ...
                 - this.Uerr2 * this.f.evaluateComponentSet(2, x, t, mu);
@@ -255,8 +266,11 @@ classdef DEIM < approx.BaseApprox
             if ~isempty(this.W)
                 this.U = this.W'*this.U;
                 if om > 0
-                    this.Uerr1_VW = this.Uerr1 + (Um - this.V*(this.W'*Um))/A;
+                    % Compute values for error estimator
+                    this.M1 = this.Uerr1 + (Um - this.V*(this.W'*Um))/A;
+                    this.M2 = this.Uerr2;
                     
+                    % Project DEIM error estimation values
                     this.Uerr1 = this.W'*this.Uerr1;
                     this.Uerr2 = this.W'*this.Uerr2;
                 end
