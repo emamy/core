@@ -1,4 +1,4 @@
-function [h, Y, E] = ParamSweep(rmodel, mu, inputidx, param, paramvals, ax)
+function [pm, Y, E] = ParamSweep(rmodel, mu, inputidx, param, paramvals, pm)
 % ParamSweep: Plots the output with error bounds for a range of one specified parameter.
 %
 % This function may only be used if the output of the reduced models is one-dimensional.
@@ -46,44 +46,30 @@ if npar == 0
     error('Parameter values to sweep must be given.');
 end
 if nargin < 6
-    h = figure;
-    ax = gca(h);
-end
-
-p = 0;
-fprintf('Starting parameter sweep for %s... ',pname);
-
-mu(pidx) = paramvals(1);
-[t, y] = rmodel.simulate(mu, inputidx);
-if size(y,1) > 1
-    error('PlotParamSweep only applicable for onedimensional system output.');
-end
-
-Y = zeros(npar,length(t));
-Y(1,:) = y;
-if rmodel.ErrorEstimator.Enabled
-    E = zeros(npar,length(t));
-    E(1,:) = rmodel.ErrorEstimator.OutputError;
-else
-    E = [];
+    pm = tools.PlotManager;
 end
 
 % Iterate over parameter values
-for idx = 2:npar
+Y = zeros(npar,length(rmodel.Times));
+E = [];
+if rmodel.ErrorEstimator.Enabled
+    E = Y;
+end
+pi = tools.ProcessIndicator('Starting parameter sweep with %d parameter sets for %s...',npar,false,npar,pname);
+for idx = 1:npar
     mu(pidx) = paramvals(idx);
-    [t, Y(idx,:)] = rmodel.simulate(mu, inputidx);
+    [t, y] = rmodel.simulate(mu, inputidx);
+    if size(y,1) > 1
+        y = Norm.L2(y);
+    end
+    Y(idx,:) = y;
     
     if rmodel.ErrorEstimator.Enabled
-        E(idx,:) = rmodel.ErrorEstimator.OutputError;
+        E(idx,:) = rmodel.ErrorEstimator.OutputError;%#ok
     end
-    
-    perc = idx/npar;
-    if perc > p
-        fprintf('%2.0f%% ',round(perc*100));
-        p = ceil(perc*10)/10;
-    end
+    pi.step;
 end
-fprintf('\n');
+pi.stop;
 
 %% Prepare plot
 
@@ -92,26 +78,28 @@ ustr = '';
 if ~isempty(inputidx)
     ustr = sprintf(', u_%d',inputidx);
 end
-tit = sprintf('Outputs for parameter sweep of "%s" (idx:%d) from %1.3f to %1.3f, base \\mu = [%s]%s',pname,param,paramvals(1),paramvals(end),num2str(mu'),ustr);
-
+tit = sprintf('Outputs for parameter sweep of "%s" (idx:%d) from %1.3f to %1.3f, base \\mu = [%s]%s',...
+    pname,param,paramvals(1),paramvals(end),num2str(mu'),ustr);
+h = pm.nextPlot('param_sweep',tit,'t',sprintf('Parameter %d: %s',param,pname));
 %% Upper bound
 if rmodel.ErrorEstimator.Enabled
-    obj = surf(ax,T,MU,Y+E,'EdgeColor','none','FaceColor','red');
+    obj = surf(h,T,MU,Y+E,'EdgeColor','none','FaceColor','red');
     alpha(obj,.3);
 %     mesh(T,MU,Y+E,'EdgeColor','none','FaceColor','red');
     hold on;
 end
 
 %% y plot
-surf(ax,T,MU,Y,'EdgeColor','none');
+surf(h,T,MU,Y,'EdgeColor','none');
 colormap jet;
-title(tit); axis tight; xlabel('t'); ylabel(sprintf('Parameter %d: %s',param,pname));
 
 %% Lower bound
 if rmodel.ErrorEstimator.Enabled    
-    obj = surf(ax,T,MU,Y-E,'EdgeColor','none','FaceColor','red');
+    obj = surf(h,T,MU,Y-E,'EdgeColor','none','FaceColor','red');
     alpha(obj,.3);
 %     mesh(T,MU,Y-E,'EdgeColor','none','FaceColor','red');
     hold off;
 end
-
+if nargout < 1
+    pm.done;
+end

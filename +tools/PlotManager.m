@@ -305,7 +305,7 @@ classdef PlotManager < handle
             extidx = find(strcmp(ext,exts),1);
             if isempty(extidx)
                 warning('ohno:invalidExtension','Invalid extension: %s, using eps',ext);
-                extidx = 1;
+                extidx = 3;
             end
             file = [filename '.' exts{extidx}];
             
