@@ -23,17 +23,19 @@ classdef AffineInitialValue < dscomponents.AInitialValue & general.AffParamMatri
             x0 = compose@general.AffParamMatrix(this, [], mu);
         end
         
-        function projected = project(this, V, W)%#ok
+        function projected = project(this, V, W)
             % Projects the affine parametric initial value into the subspace spanned by
             % `V,W`.
             
             % Uses the overridden operators in AffParamMatrix to create a copy.
             projected = W'*this;
+            
+            projected = project@general.AProjectable(this, V, W, projected);
         end
         
         function copy = clone(this)
-            copy = dscomponents.AffineInitialValue;
-            copy = clone@general.AffParamMatrix(this, copy);
+            copy = clone@general.AffParamMatrix(this,...
+                dscomponents.AffineInitialValue);
         end
     end
     

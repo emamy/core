@@ -7,7 +7,7 @@ classdef LinearOutputConv < dscomponents.AOutputConv
     %
     % @author Daniel Wirtz @date 15.03.2010
     %
-    % @change{0,3,dw,2011-04-11} Due to the new inheritance IProjectable <
+    % @change{0,3,dw,2011-04-11} Due to the new inheritance AProjectable <
     % ICloneable the clone method is implemented here now, too.
     
     properties(SetAccess=private)
@@ -26,10 +26,10 @@ classdef LinearOutputConv < dscomponents.AOutputConv
             this.TimeDependent = false;
         end
         
-        function copy = project(this, V, W)%#ok
+        function proj = project(this, V, W)
             % Performs projection for the standard output conversion.
-            copy = this.clone;
-            copy.C = this.C*V;
+            proj = project@general.AProjectable(this, V, W,...
+                dscomponents.LinearOutputConv(this.C*V));
         end
         
         function copy = clone(this)

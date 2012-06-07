@@ -23,17 +23,18 @@ classdef ConstInitialValue < dscomponents.AInitialValue
             this.x0 = x0;
         end
         
-        function x0 = evaluate(this, mu)%#ok
+        function x0 = evaluate(this, ~)
             x0 = this.x0;
         end
         
-        function projected = project(this, V, W)%#ok
-            projected = this.clone;
+        function projected = project(this, V, W)
+            projected = project@general.AProjectable(this, V, W, this.clone);
             projected.x0 = W'*this.x0;
         end
         
         function copy = clone(this)
             copy = dscomponents.ConstInitialValue(this.x0);
+            copy = clone@general.AProjectable(this, copy);
         end
     end
     

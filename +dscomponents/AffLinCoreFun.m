@@ -80,7 +80,9 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
         
         function proj = project(this, V, W)
             proj = this.clone;
-            proj.AffParamMatrix = this.AffParamMatrix.project(V, W);
+            proj = project@dscomponents.ACoreFun(this, V, W, proj);
+            proj = project@general.AffParamMatrix(this, V, W, proj);
+            proj.JSparsityPattern = [];
         end
         
         function addMatrix(this, coeff_fcn, mat)
@@ -91,9 +93,49 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
             
             addMatrix@general.AffParamMatrix(this, coeff_fcn, mat);
             
+            % Compute sparsity pattern
+            if issparse(mat)
+                if ~isempty(this.JSparsityPattern)
+                    this.JSparsityPattern = mat ~= 0 && this.JSparsityPattern;
+                else
+                    this.JSparsityPattern = mat ~= 0;
+                end
+            else
+                this.JSparsityPattern = [];
+            end
+            
             mu = ones(1,100);
             this.TimeDependent = ~all(this.cfun(0,mu) == this.cfun(Inf,mu));
             fprintf('AffLinCoreFun: Guessed time-dependency to %d.\n',this.TimeDependent);
+        end
+        
+        function prod = mtimes(this, other)
+            prod = mtimes@general.AffParamMatrix(this, other);
+            prod.postprocess;
+        end
+        
+        function diff = minus(this, other)
+            diff = minus@general.AffParamMatrix(this, other);
+            diff.postprocess;
+        end
+        
+        function sum = plus(this, other)
+            sum = plus@general.AffParamMatrix(this, other);
+            sum.postprocess;
+        end
+        
+        function transp = ctranspose(this)
+            transp = ctranspose@general.AffParamMatrix(this);
+            transp.postprocess;
+        end
+    end
+    
+    methods(Access=private)
+        function postprocess(this)
+            if this.N > 0
+                this.XDim = this.dims(2);
+                this.JSparsityPattern = [];
+            end
         end
     end
     
@@ -105,18 +147,5 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
             copy.CoeffClass = this.CoeffClass;
         end
     end
-    
-%     methods(Access=private)
-%         function AffParMatTimeDepPostSet(this, ~, ~)
-%             this.TimeDependent = this.AffParamMatrix.TimeDependent;
-%         end
-%     end
-    
-%     methods(Static, Access=protected)
-%         function this = loadobj(this)
-%             this = loadobj@DPCMObject(this);
-%             this.AffParamMatrix.addlistener('TimeDependent','PostSet',@this.AffParMatTimeDepPostSet);
-%         end
-%     end
 end
 

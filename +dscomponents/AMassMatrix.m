@@ -1,4 +1,4 @@
-classdef AMassMatrix < KerMorObject & dscomponents.IProjectable
+classdef AMassMatrix < KerMorObject & general.AProjectable
 % AMassMatrix: 
 %
 %
@@ -35,10 +35,18 @@ classdef AMassMatrix < KerMorObject & dscomponents.IProjectable
         SparsityPattern = [];
     end
     
+    methods
+        function copy = clone(this, copy)
+            copy = clone@general.AProjectable(this, copy);
+            copy.TimeDependent = this.TimeDependent;
+            copy.SparsityPattern = this.SparsityPattern;
+        end
+    end
+    
     methods(Abstract)
-        M = evaluate(this, t);
+        M = evaluate(this, t, mu);
         
-        [L,U,Q,P] = getLU(this, t);
+        [L,U,Q,P] = getLU(this, t, mu);
     end
     
 end

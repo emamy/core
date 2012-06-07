@@ -27,16 +27,20 @@ classdef ConstMassMatrix < dscomponents.AMassMatrix
     methods
         
         function this = ConstMassMatrix(M)
-            this.M = M;
-            this.TimeDependent = false;
-            [this.l, this.u, this.q, this.p] = lu(M);
-            % Compute sparsity pattern straight away
-            [i, j] = find(M);
-            s = size(M,1);
-            this.SparsityPattern = sparse(i,j,ones(size(i)),s,s);
+            if nargin == 1
+                this.M = M;
+                this.TimeDependent = false;
+                [this.l, this.u, this.q, this.p] = lu(M);
+                % Compute sparsity pattern straight away
+                [i, j] = find(M);
+                s = size(M,1);
+                if length(i) < numel(M)
+                    this.SparsityPattern = sparse(i,j,ones(size(i)),s,s);
+                end
+            end
         end
         
-        function M = evaluate(this, ~)
+        function M = evaluate(this, ~, ~)
             M = this.M;
         end
         
@@ -48,12 +52,18 @@ classdef ConstMassMatrix < dscomponents.AMassMatrix
         end
         
         function projected = project(this, V, W)
-            projected = this.clone;
-            projected.M = W'*(this.M*V);
+            projected = dscomponents.ConstMassMatrix(W'*(this.M*V));
+            projected = project@general.AProjectable(this, V, W, projected);
         end
         
         function copy = clone(this)
-            copy = dscomponents.ConstMassMatrix(this.M);
+            copy = clone@dscomponents.AMassMatrix(this, ...
+                dscomponents.ConstMassMatrix);
+            copy.l = this.l;
+            copy.u = this.u;
+            copy.q = this.q;
+            copy.p = this.p;
+            copy.M = this.M;
         end
     end
     

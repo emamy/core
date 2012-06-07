@@ -1,6 +1,6 @@
-classdef ACoreFun < KerMorObject & dscomponents.IProjectable
+classdef ACoreFun < KerMorObject & general.AProjectable
 % Basic interface for all dynamical system's core functions
-% Inherits the IProjectable interface.
+% Inherits the AProjectable interface.
 %
 % Subclassers have to implement the clone method according to the rules
 % explained in ICloneable, but only must re-implmement the project
@@ -87,7 +87,7 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
         % @propclass{optional} Some ODE solvers can work more efficiently if a sparsity pattern
         % for the jacobian matrix of the core function can be provided.
         % 
-        % @type sparsematrix @default []
+        % @type sparse<logical> @default []
         %
         % @todo maybe move this property to the IJacobian interface? (but:
         % might have sparsity pattern but not actually a analytic
@@ -132,11 +132,6 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
         XDim = [];
     end
     
-    properties(SetAccess=private, GetAccess=public)
-        V;
-        W;
-    end
-
     methods
         
         function this = ACoreFun
@@ -166,7 +161,7 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             %
             % @change{0,3,dw,2011-04-11} Modified the project method to
             % also cater for the noncustomized projection case by cloning
-            % the current instance (dscomponents.IProjectable now inherits
+            % the current instance (general.AProjectable now inherits
             % from ICloneable per default).
             if nargin < 4
                 if this.CustomProjection
@@ -174,8 +169,7 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
                 end
                 target = this.clone;
             end
-            target.V = V;
-            target.W = W;
+            target = project@general.AProjectable(this, V, W, target);
             % New state space argument size is the number of columns of V.
             target.XDim = size(V,2);
         end
@@ -264,14 +258,13 @@ classdef ACoreFun < KerMorObject & dscomponents.IProjectable
             if nargin == 1 || ~isa(copy,'dscomponents.ACoreFun')
                 error('Incorrect call to clone. As this class is abstract, a subclass of ACoreFun has to be passed as second argument.');
             end
+            copy = clone@general.AProjectable(this, copy);
             % Copy local properties
             copy.CustomProjection = this.CustomProjection;
             copy.MultiArgumentEvaluations = this.MultiArgumentEvaluations;
             copy.JSparsityPattern = this.JSparsityPattern;
             copy.TimeDependent = this.TimeDependent;
             copy.CustomJacobian = this.CustomJacobian;
-            copy.V = this.V;
-            copy.W = this.W;
             copy.XDim = this.XDim;
         end
     end

@@ -15,8 +15,9 @@ classdef LinearInputConv < dscomponents.AInputConv
             res = this.B;
         end
         
-        function proj = project(this, ~, W)
+        function proj = project(this, V, W)
             proj = dscomponents.LinearInputConv(W' * this.B);
+            proj = project@general.AProjectable(this, V, W, proj);
         end
         
         function copy = clone(this)
@@ -24,15 +25,39 @@ classdef LinearInputConv < dscomponents.AInputConv
         end
         
         function prod = mtimes(this, other)
-            prod = dscomponents.LinearInputConv(this.B * other.B);
+            if isa(this,'dscomponents.LinearInputConv')
+                if isa(other,'dscomponents.LinearInputConv')
+                    prod = dscomponents.LinearInputConv(this.B * other.B);
+                else
+                    prod = dscomponents.LinearInputConv(this.B * other);
+                end
+            elseif isa(other,'dscomponents.LinearInputConv')
+                prod = dscomponents.LinearInputConv(this * other.B);
+            end
         end
         
         function diff = minus(this, other)
-            diff = dscomponents.LinearInputConv(this.B - other.B);
+            if isa(this,'dscomponents.LinearInputConv')
+                if isa(other,'dscomponents.LinearInputConv')
+                    diff = dscomponents.LinearInputConv(this.B - other.B);
+                else
+                    diff = dscomponents.LinearInputConv(this.B - other);
+                end
+            elseif isa(other,'dscomponents.LinearInputConv')
+                diff = dscomponents.LinearInputConv(this - other.B);
+            end
         end
         
         function diff = plus(this, other)
-            diff = dscomponents.LinearInputConv(this.B + other.B);
+            if isa(this,'dscomponents.LinearInputConv')
+                if isa(other,'dscomponents.LinearInputConv')
+                    diff = dscomponents.LinearInputConv(this.B + other.B);
+                else
+                    diff = dscomponents.LinearInputConv(this.B + other);
+                end
+            elseif isa(other,'dscomponents.LinearInputConv')
+                diff = dscomponents.LinearInputConv(this + other.B);
+            end
         end
         
         function transp = ctranspose(this)

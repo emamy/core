@@ -1,4 +1,4 @@
-classdef AffParamMatrix < dscomponents.IProjectable
+classdef AffParamMatrix < general.AProjectable
     % General time/parameter-affine matrix
     %
     % Represents a linear combination of matrices `A_i` with scalar parameter and/or time dependent
@@ -33,8 +33,8 @@ classdef AffParamMatrix < dscomponents.IProjectable
     % - Added checks for the correct dimensions for standard operations. Scalar values are
     % treated seperately.
     %
-    % @change{0,5,dw,2011-07-05} Renamed this class to AffParamMatrix and removed the IProjectable
-    % interfaces. Renamed the 'evaluate' function to 'compose'.
+    % @change{0,5,dw,2011-07-05} Renamed this class to AffParamMatrix and
+    % renamed the 'evaluate' function to 'compose'.
     %
     % @change{0,4,sa,2011-05-06} Implemented Setters for the class
     % properties
@@ -48,18 +48,6 @@ classdef AffParamMatrix < dscomponents.IProjectable
     % @todo
     % - implement/override other arithmetic operations
     % - add string for coeff method header '@(t,mu)'
-    
-%     properties(SetObservable, SetAccess=public)
-%         % Flag that indicates if this AffParamMatrix instance is truly time dependent, i.e. any
-%         % coefficient function depends on the time `t`.
-%         % 
-%         % Set according to your setup.
-%         %
-%         % @todo Autodetection with regular expression in coeff_fun strings!
-%         %
-%         % @type logical @default false
-%         TimeDependent = false;
-%     end
         
     properties(SetAccess=private)
         % The number of affine matrices / size of the linear combination
@@ -70,13 +58,13 @@ classdef AffParamMatrix < dscomponents.IProjectable
         Matrices = [];
     end
     
-    properties(Access=private)
+    properties(SetAccess=private)
         funStr = {};
-        dims;
     end
     
     properties(SetAccess=private, GetAccess=protected)
         cfun = [];
+        dims;
     end
     
     methods 
@@ -97,27 +85,19 @@ classdef AffParamMatrix < dscomponents.IProjectable
             end
             M = reshape(sum(this.Matrices * this.cfun(t,mu),2),this.dims);
         end
-        
-%         function varargout = subsref(this, S)
-%             if S(1).type(1) == '('
-%                 varargout{1} = this.compose(S.subs{1},S.subs{2});
-%             else
-%                 [varargout{1:nargout}] = builtin('subsref',this,S);
-%             end
-%         end
                 
         function copy = clone(this, copy)
             % Creates a copy of this affine parametric matrix.
             if nargin == 1
                 copy = general.AffParamMatrix;
             end
+            copy = clone@general.AProjectable(this, copy);
             copy.Matrices = this.Matrices;
             copy.N = this.N;
             copy.funStr = this.funStr;
             copy.dims = this.dims;
             copy.funStr = this.funStr;
             copy.cfun = this.cfun;
-%             copy.TimeDependent = this.TimeDependent;
         end
         
         function addMatrix(this, coeff_fun, mat)
@@ -154,13 +134,14 @@ classdef AffParamMatrix < dscomponents.IProjectable
             % Implements the default multiplication method.
             if isa(A,'general.AffParamMatrix') && isa(B,'general.AffParamMatrix')
                 if ~all(strcmp({class(A),class(B)},'general.AffParamMatrix')) && ~strcmp(class(A),class(B))
-                    error('Cannot consistently multiply two real different subclasses of general.AffParamMatrix as the return type is not well defined. Please multiply manually.');
+                    warning('KerMor:Ambiguousclass','Cannot consistently multiply two real different subclasses of general.AffParamMatrix as the return type is not well defined.');
+                    %error('Cannot consistently multiply two real different subclasses of general.AffParamMatrix as the return type is not well defined. Please multiply manually.');
                 end
                 if A.dims(2) ~= B.dims(1)
                     error('Matrix dimensions must agree.');
                 end
                 % Clone the instance of A as the check above ensures that both 
-                pr = A.clone; %general.AffParamMatrix;
+                pr = A.clone;
                 pr.N = A.N * B.N;
                 pr.dims = [A.dims(1) B.dims(2)];
                 pr.Matrices = zeros(prod(pr.dims),pr.N);
@@ -269,7 +250,7 @@ classdef AffParamMatrix < dscomponents.IProjectable
             M = reshape(this.Matrices(:,idx),this.dims);
         end
         
-        function proj = project(this, V, W)
+        function target = project(this, V, W, target)
             % Projects the affine parametric matrix using `V` and `W`.
             %
             % Set either `V` or `W` to one if single-sided projection is desired.
@@ -281,19 +262,21 @@ classdef AffParamMatrix < dscomponents.IProjectable
             if isempty(V) || isempty(W)
                 error('Both V and W must be given and nonempty (Set either to 1 for neutral as required).');
             end
-            proj = this.clone;
+            if nargin < 4
+                target = this.clone;
+            end
             if V ~= 1
-                proj.dims(2) = size(V,2);
+                target.dims(2) = size(V,2);
             end
             if W ~= 1
-                proj.dims(1) = size(W,2);
+                target.dims(1) = size(W,2);
             end
             % Autodetects size & type of projected matrix!
             if this.N > 0
-                proj.Matrices = reshape(W'*(this.getMatrix(1)*V),[],1);
+                target.Matrices = reshape(W'*(this.getMatrix(1)*V),[],1);
             end
             for idx=2:this.N
-                proj.Matrices(:,idx) = reshape(W'*(this.getMatrix(idx)*V),[],1);
+                target.Matrices(:,idx) = reshape(W'*(this.getMatrix(idx)*V),[],1);
             end
         end
         

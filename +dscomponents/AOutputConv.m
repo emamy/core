@@ -1,4 +1,4 @@
-classdef AOutputConv < KerMorObject & dscomponents.IProjectable
+classdef AOutputConv < KerMorObject & general.AProjectable
     %BASEOUTPUTCONV Base class for output conversion "C".
     %   For simpler output conversions, it will be convenient to simply use
     %   the Pointer versions and pass the target function. For more complex
