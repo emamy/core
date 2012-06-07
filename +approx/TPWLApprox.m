@@ -104,8 +104,8 @@ classdef TPWLApprox < approx.BaseApprox
         end
         
         function projected = project(this, V, W)
-            % Implements IProjectable.project()
-            projected = this.clone;
+            % Implements AProjectable.project()
+            projected = project@approx.BaseApprox(this, V, W, this.clone);
             for i=1:length(this.Ai)
                 projected.Ai{i} = W'*this.Ai{i}*V;
             end

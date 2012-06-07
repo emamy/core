@@ -24,6 +24,8 @@ classdef ASelector < KerMorObject & ICloneable
     %
     % @new{0,3,dw,2011-04-12} Added this class to implement strategy
     % pattern for training data selection.
+    %
+    % @todo move to +data/+selection package
     
     methods
         
