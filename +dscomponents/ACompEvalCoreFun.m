@@ -6,6 +6,13 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
 %
 % @author Daniel Wirtz @date 2012-03-26
 %
+% @new{0,6,dw,2012-06-06} Added new methods
+% ACompEvalCoreFun.evaluateJacobianSet and
+% ACompEvalCoreFun.evaluateComponentPartialDerivatives to support jacobian
+% entry evaluation for this class of functions (they inherit the same
+% sparsity access to components). Also updated the test_CompEvalMatch to
+% use random point sets and not only the full set (but that also)
+%
 % @new{0,6,dw,2012-05-30} Added the
 % ACompEvalCoreFun.evaluateComponentSetGradients and
 % ACompEvalCoreFun.evaluateComponentGradients methods for efficient

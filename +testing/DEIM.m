@@ -47,6 +47,123 @@ classdef DEIM
             save analysis_DEIM_approx;
         end
         
+        function [res, pm] = computeDEIMErrors(deim, atd, orders, errorders)
+            oldo = deim.fOrder;
+            if nargin < 4
+                if nargin < 3
+                    orders = 1:deim.MaxOrder-1;
+                end
+                errorders = [];
+                neworders = [];
+                no = length(orders);
+                for i=1:no
+                    new = 1:(deim.MaxOrder-orders(i));
+                    errorders = [errorders new];
+                    neworders = [neworders orders(i)*ones(1,length(new))];
+                end
+                orders = neworders;
+            elseif length(orders) ~= length(errorders)
+                error('If both the orders and error orders are given they must have same number of elements');
+            end
+            no = length(orders);
+            % State space error function
+            efun = @Norm.L2;
+            % Elements error functions
+            sumfun = @(x)Norm.Linf(x');
+            fxinorm = efun(atd.fxi);
+            
+            res = zeros(6,no);
+%             res = zeros(8,no);
+            pi = tools.ProcessIndicator(sprintf('Computing DEIM errors and estimates for %d Order/ErrOrder settings',no),no);
+            co = [];
+            for i = 1:no
+                o = orders(i);
+                eo = errorders(i);
+                deim.Order = [o eo];
+                res(1:2,i) = [o; eo];
+                
+                % Absolute true error (only for new orders)
+                if isempty(co) || o ~= co
+                    afxi = deim.evaluate(atd.xi,atd.ti,atd.mui);
+                    hlp = efun(atd.fxi-afxi);
+                    res(3,i) = sumfun(hlp);
+                    % Relative true error 
+                    res(4,i) = sumfun(hlp./fxinorm);
+                    co = o;
+                else
+                    res(3:4,i) = res(3:4,i-1);
+                end
+                % Estimated absolute/rel errors
+                hlp = efun(deim.getEstimatedError(atd.xi,atd.ti,atd.mui));
+                res(5,i) = sumfun(hlp);
+                res(6,i) = sumfun(hlp./fxinorm);
+                
+%                 % Compute actual error between M and M' approximations
+%                 deim.Order = [sum(deim.fOrder) 0];
+%                 % Get order+errorder eval
+%                 hlp = efun(deim.evaluateCoreFun(atd.xi,atd.ti,atd.mui) - afxi);
+%                 res(7,i) = sumfun(hlp);
+%                 res(8,i) = sumfun(hlp./fxinorm);
+                pi.step;
+            end
+            pi.stop;
+            if nargout == 2
+                pm = testing.DEIM.plotDEIMErrs(res);
+            end
+            deim.Order = oldo;
+        end
+        
+        function pm = plotDEIMErrs(res, pm)
+            %% Plotting
+            tri = delaunay(res(1,:),res(2,:));
+            if nargin < 2
+                pm = tools.PlotManager(false,2,3);
+                pm.FilePrefix = 'deim';
+            end
+            h = pm.nextPlot('true_abs','Linf-L2 absolute error','order','error order');
+            doplot(h,tri,res(1,:),res(2,:),res(3,:));
+            h = pm.nextPlot('true_rel','Linf-L2 relative  error','order','error order');
+            doplot(h,tri,res(1,:),res(2,:),res(4,:));
+            
+            h = pm.nextPlot('est_abs','Estimated absolute error','order','error order');
+            doplot(h,tri,res(1,:),res(2,:),res(5,:));
+            h = pm.nextPlot('est_rel','Estimated relative error','order','error order');
+            doplot(h,tri,res(1,:),res(2,:),res(6,:));
+                        
+            h = pm.nextPlot('abs_diff','|true - estimated| absolute error','order','error order');
+            doplot(h,tri,res(1,:),res(2,:),abs(res(5,:)-res(3,:)));
+            view(0,90);
+            h = pm.nextPlot('rel_diff','|true - estimated| relative error','order','error order');
+            doplot(h,tri,res(1,:),res(2,:),abs(res(6,:)-res(4,:)));
+            view(71,52);
+            
+%             h = pm.nextPlot('abs_diff','|true - dir. est.| absolute error','order','error order');
+%             doplot(h,tri,res(1,:),res(2,:),abs(res(7,:)-res(3,:)));
+%             h = pm.nextPlot('rel_diff','|true - dir. est.| relative error','order','error order');
+%             doplot(h,tri,res(1,:),res(2,:),abs(res(8,:)-res(4,:)));
+%             
+%             h = pm.nextPlot('abs_diff','|dir est - ref. est.| absolute error','order','error order');
+%             doplot(h,tri,res(1,:),res(2,:),abs(res(5,:)-res(7,:)));
+%             h = pm.nextPlot('rel_diff','|dir est - ref. est.| relative error','order','error order');
+%             doplot(h,tri,res(1,:),res(2,:),abs(res(6,:)-res(8,:)));
+%             
+%             h = pm.nextPlot('est_abs','Direct estimation of absolute error','order','error order');
+%             doplot(h,tri,res(1,:),res(2,:),res(7,:));
+%             h = pm.nextPlot('est_rel','Direct estimation of relative error','order','error order');
+%             doplot(h,tri,res(1,:),res(2,:),res(8,:));
+            
+            pm.done;
+            
+            function p = doplot(h, tri, x, y, z)
+                p = tools.LogPlot.logtrisurf(h, tri, x, y, z);
+                hold on;
+                [~, hc] = tricontour([x; y]', tri, z', get(h,'ZTick'));
+                set(hc,'EdgeColor','k');
+                hold off;
+                view(0,0);
+            end
+        end
+               
         function [t, nof, nor, o, pm] = jacobian_tests(m, pm)
             % Tis function computes the jacobians of both the full and DEIM
             % approximated system functions.
@@ -97,6 +214,110 @@ classdef DEIM
             legend(h, lbl{:});
            
             pm.done;
+        end
+        
+        function estimator_tests(m)
+            r = m.buildReducedModel;
+            e = tools.EstimatorAnalyzer(r);
+            pm = tools.PlotManager;
+            e.start(.01,[],pm);
+            pm.done;
+%             pm.FilePrefix = class(m);
+%             a = KerMor.App;
+%             pm.savePlots(fullfile(a.DataStoreDirectory,...
+%                 'deim_estimator_tests'),{'fig','jpg'});
+        end
+        
+        function [no,no1,nom,jln,djln,sdjln] = matrix_deim(m, deim, nr)
+            [x, mu] = m.Data.getTrajectoryNr(nr);
+            t = m.scaledTimes;
+            mu = repmat(mu,1,length(t));
+            mo = deim.MaxOrder;
+            VJ = m.Approx.VJ;
+            pi = tools.ProcessIndicator('Computing stuff',mo*length(t));
+            for o = 1:mo
+                deim.Order = o;
+                for i=1:length(t)
+                    xi = x(:,i); 
+                    ti = t(i); 
+                    mui = mu(:,i); 
+                    J = m.System.f.getStateJacobian(xi,ti,mui);
+                    DJ = reshape(deim.evaluate(xi,ti,mui),size(J,1),[]); 
+                    diff = J-DJ;
+                    nz = J ~= 0;
+                    no(o,i) = norm(full(diff)); %#ok<*AGROW>
+                    no1(o,i) = norm(full(diff),1); %#ok<*AGROW>
+                    rel = diff ./ J;
+                    hlp = max(max(abs(rel(nz))));
+                    if isempty(hlp)
+                        hlp = 0;
+                    end
+                    nom(o,i) = hlp;
+                    
+                    jln(o,i) = general.Utils.logNorm(J);
+                    djln(o,i) = general.Utils.logNorm(DJ);
+                    sdjln(o,i) = general.Utils.logNorm(VJ'*DJ*VJ);
+                    pi.step;
+                end
+            end
+            pi.stop;
+        end
+        
+        function pm = matrix_deim_plots(no,no1,nom,jln,djln,sdjln,pm)
+            if nargin < 7
+                pm = tools.PlotManager(false,1,3);
+            end
+            [X,Y] = meshgrid(1:size(no,2),1:size(no,1));
+            h = pm.nextPlot('diff_norm','L2-Norm of difference matrix','trajectory point','DEIM order');
+            tools.LogPlot.logsurf(h,X,Y,no);
+            h = pm.nextPlot('diff_norm_l1','L1-Norm of difference matrix','trajectory point','DEIM order');
+            tools.LogPlot.logsurf(h,X,Y,no1);
+            h = pm.nextPlot('max_rel_diff','Maximum relative difference','trajectory point','DEIM order');
+            tools.LogPlot.logsurf(h,X,Y,nom);
+            
+            h = pm.nextPlot('jac_log_norm',...
+                'Log norm of full jacobian','trajectory point','DEIM order');
+            surf(h,X,Y,jln,'FaceColor','interp','EdgeColor','interp');
+            zlabel('log norm');
+            h = pm.nextPlot('deim_jac_norm',...
+                'Log norm of DEIM approximated jacobian',...
+                'trajectory point','DEIM order');
+            surf(h,X,Y,djln,'FaceColor','interp','EdgeColor','interp');
+            zlabel('log norm');
+            h = pm.nextPlot('st_deim_jac_norm',...
+                sprintf('Log norm of partial similarity transformed\nDEIM approximated jacobian'),...
+                'trajectory point','DEIM order');
+            surf(h,X,Y,sdjln,'FaceColor','interp','EdgeColor','interp');
+            zlabel('log norm');
+            
+            h = pm.nextPlot('jac_deim_diff',...
+                'Log norm differences full<->deim','trajectory point','DEIM order');
+            tools.LogPlot.logsurf(h,X,Y,abs(jln-djln));
+            zlabel('log norm diff');
+            h = pm.nextPlot('jac_st_deim_diff',...
+                'Log norm differences full<->simtrans-deim','trajectory point','DEIM order');
+            tools.LogPlot.logsurf(h,X,Y,abs(jln-sdjln));
+            zlabel('log norm diff');
+            h = pm.nextPlot('rel_diff_full_stdeim',...
+                'Relative log norm differences full<->simtrans-deim','trajectory point','DEIM order');
+            tools.LogPlot.logsurf(h,X,Y,abs((jln-sdjln)./jln));
+            zlabel('rel log norm diff');
+            if nargout < 1
+                pm.done;
+            end
+        end
+        
+        function [m, r] = test_DEIM
+            m = models.pcd.PCDModel(1);
+            m.EnableTrajectoryCaching = false;
+            m.Approx = approx.DEIM;
+            m.Approx.MaxOrder = 40;
+            m.System.Params(1).Desired = 10;
+            m.SpaceReducer = spacereduction.PODGreedy;
+            m.offlineGenerations;
+            m.Approx.Order = [20 4];
+            r = m.buildReducedModel;
+            save approx.test_DEIM m r;
         end
     end    
 end
