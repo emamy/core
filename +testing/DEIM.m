@@ -228,6 +228,8 @@ classdef DEIM
 %                 'deim_estimator_tests'),{'fig','jpg'});
         end
         
+        
+        %% %%%%%%%%%%%%%%%%%%%% MATRIX DEIM STUFF %%%%%%%%%%%%%%%%%%%%
         function [no,no1,nom,jln,djln,sdjln] = matrix_deim(m, deim, nr)
             [x, mu] = m.Data.getTrajectoryNr(nr);
             t = m.scaledTimes;
@@ -302,6 +304,58 @@ classdef DEIM
                 'Relative log norm differences full<->simtrans-deim','trajectory point','DEIM order');
             tools.LogPlot.logsurf(h,X,Y,abs((jln-sdjln)./jln));
             zlabel('rel log norm diff');
+            if nargout < 1
+                pm.done;
+            end
+        end
+        
+        function [ln, aln, s, times] = compareSimTransJac_FullJac(m)
+            md = m.Data;
+            jtd = md.JacobianTrainingData;
+            jstd = md.JacSimTransData;
+            
+            [~,s] = svd(jstd.VFull,'econ');
+            ln = jstd.LogNorms;
+            times = jstd.CompTimes;
+
+            aln = ln;
+            times_st = times;
+            pi = tools.ProcessIndicator('Computing approximated log norms',n*nt);
+            for nr = 1:nt
+                [x, mu] = md.getTrajectoryNr(nr);    
+                for i=1:n
+                    J = m.System.f.getStateJacobian(x(:,i),0,mu);
+                    t = tic;
+                    aln((nr-1)*n+i) = general.Utils.logNorm(v'*J*v);
+                    times_st((nr-1)*n+i) = toc(t);
+                    pi.step;
+                end
+            end
+            pi.stop;
+            times = [times; times_st];
+            tmp = mean(times,2);
+            fprintf('Mean computation times over %d samples: Full jac log norm %gs, SimTrans log norm %gs\n',...
+                n*nt,tmp);
+            if nargout == 0
+                save JacSimTrans ln aln s times v;
+                testing.DEIM.compareSimTransJac_FullJac_plots(ln, aln, s, v);
+            end
+        end
+        
+        function pm = compareSimTransJac_FullJac_plots(ln, aln, s, v, pm)
+            if nargin < 5
+                pm = tools.PlotManager(false,2,2);
+            end
+            pm.nextPlot('correct ln',sprintf('Full logarithmic norms\nJacobian full dimension %dx%d',...
+                size(v,1),size(v,1)));
+            plot(ln);
+            pm.nextPlot('approx ln',sprintf('Approx logarithmic norms\nSimilarity transformed matrix size %dx%d',...
+                size(v,2),size(v,2)));
+            plot(aln);
+            pm.nextPlot('-','Relative error');
+            plot(abs(ln-aln)./ln);
+            pm.nextPlot('sing_vals','Singular values of SVD of eigenvector matrix');
+            semilogy(diag(s));
             if nargout < 1
                 pm.done;
             end

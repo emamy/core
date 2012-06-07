@@ -40,6 +40,12 @@ classdef DEIM < approx.BaseApprox & general.DEIM
             fx = evaluate@general.DEIM(this, x, t, mu);
         end
         
+        function J = getStateJacobian(this, x, t, mu)
+            J = getStateJacobian@general.DEIM(this, x, t, mu);
+            % Finite difference one:
+            %J2 = getStateJacobian@dscomponents.ACoreFun(this, x, t, mu);
+        end
+        
         function fx = evaluateCoreFun(varargin)
             % do nothing as evaluate is overridden directly
             error('Do not call me!');

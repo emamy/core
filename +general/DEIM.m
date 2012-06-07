@@ -150,7 +150,6 @@ classdef DEIM < general.AProjectable
             else
                 J = hlp;
             end
-            %J2 = getStateJacobian@dscomponents.ACoreFun(this, x, t, mu);
         end
         
         function err = getEstimatedError(this, x, t, mu)
