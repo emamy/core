@@ -309,53 +309,234 @@ classdef DEIM
             end
         end
         
-        function [ln, aln, s, times] = compareSimTransJac_FullJac(m)
-            md = m.Data;
-            jtd = md.JacobianTrainingData;
-            jstd = md.JacSimTransData;
+        %% Comparison of similarity transformed jacobian log norms to full log norms
+        function [aln, times, st_sizes] = compareSimTransJac_FullJac(m, st_sizes)
+            % Computes logarithmic norms of similarity transformed
+            % jacobians using the model's offline data, containing `N`
+            % trajectory samples.
+            %
+            % Parameters:
+            % m: A BaseFullModel whos offlineGenerations have been run and
+            % that uses a DEIMEstimator. @type models.BaseFullModel
+            % st_sizes: The sizes `s_1,\ldots,s_n` to use for the
+            % similarity transformation. If left empty, all from one to the
+            % models ErrorEstimator.JacSimTransMaxSize are used
+            % (extensive!) @type rowvec<integer>
+            %
+            % Return values:
+            % aln: A `n \times N` matrix with the approximated logarithmic
+            % norms in rows for each sim. trans. size.
+            % times: A `n \times N` matrix with the computation time for
+            % the logarithmic norm
+            % st_sizes: The effectively used sizes (If st_sizes is given as
+            % parameter, it is looped through)
             
-            [~,s] = svd(jstd.VFull,'econ');
-            ln = jstd.LogNorms;
-            times = jstd.CompTimes;
-
-            aln = ln;
-            times_st = times;
-            pi = tools.ProcessIndicator('Computing approximated log norms',n*nt);
-            for nr = 1:nt
-                [x, mu] = md.getTrajectoryNr(nr);    
-                for i=1:n
-                    J = m.System.f.getStateJacobian(x(:,i),0,mu);
+            % Get required data
+            jtd = m.Data.JacobianTrainData;
+            STFull = m.ErrorEstimator.STFull;
+            f = m.System.f;
+            
+            % Input checks
+            if nargin < 2
+                st_sizes = 1:size(STFull,2);
+            end
+            
+            % Preps
+            stn = length(st_sizes);
+            n = size(jtd.xi,2);
+            aln = zeros(stn,n);
+            times = zeros(stn,n);
+            pi = tools.ProcessIndicator('Computing approximated log norms for %d full jacobians and %d sim. trans. orders',...
+                n*stn,false,n,stn);
+            for nr = 1:n
+                J = f.getStateJacobian(jtd.xi(:,nr),jtd.ti(nr),jtd.mui(:,nr));
+                for snr = 1:stn
+                    ST = STFull(:,1:st_sizes(snr));
                     t = tic;
-                    aln((nr-1)*n+i) = general.Utils.logNorm(v'*J*v);
-                    times_st((nr-1)*n+i) = toc(t);
+                    aln(snr,nr) = general.Utils.logNorm(ST'*J*ST);
+                    times(snr,nr) = toc(t);
                     pi.step;
                 end
             end
             pi.stop;
-            times = [times; times_st];
-            tmp = mean(times,2);
-            fprintf('Mean computation times over %d samples: Full jac log norm %gs, SimTrans log norm %gs\n',...
-                n*nt,tmp);
             if nargout == 0
-                save JacSimTrans ln aln s times v;
-                testing.DEIM.compareSimTransJac_FullJac_plots(ln, aln, s, v);
+                testing.DEIM.compareSimTransJac_FullJac_plots(m, aln, times, st_sizes);
             end
         end
         
-        function pm = compareSimTransJac_FullJac_plots(ln, aln, s, v, pm)
+        function pm = compareSimTransJac_FullJac_plots(m, aln, times, st_sizes, pm)
             if nargin < 5
                 pm = tools.PlotManager(false,2,2);
             end
-            pm.nextPlot('correct ln',sprintf('Full logarithmic norms\nJacobian full dimension %dx%d',...
-                size(v,1),size(v,1)));
-            plot(ln);
-            pm.nextPlot('approx ln',sprintf('Approx logarithmic norms\nSimilarity transformed matrix size %dx%d',...
-                size(v,2),size(v,2)));
-            plot(aln);
-            pm.nextPlot('-','Relative error');
-            plot(abs(ln-aln)./ln);
-            pm.nextPlot('sing_vals','Singular values of SVD of eigenvector matrix');
-            semilogy(diag(s));
+            jstd = m.Data.JacSimTransData;
+            pm.nextPlot('correct_ln',sprintf('Full logarithmic norms\nJacobian full dimension %dx%d',...
+                m.System.f.XDim,m.System.f.XDim));
+            plot(jstd.LogNorms);
+            
+            if size(aln,1) > 1
+                [X,Y] = meshgrid(1:size(aln,2),st_sizes);
+                LN = repmat(jstd.LogNorms,size(aln,1),1);
+            end
+            
+            if size(aln,1) == 1
+                h = pm.nextPlot('approx_ln',...
+                    sprintf('Approx logarithmic norms\nSimilarity transformation size %d',...
+                    st_sizes));
+                plot(h, aln);
+            else
+                h = pm.nextPlot('approx_ln','Approx logarithmic norms',...
+                    'training sample','similarity transform size');
+                tools.LogPlot.nicesurf(h, X, Y, aln);
+            end
+            
+            h = pm.nextPlot('rel_err','Relative error','training sample',...
+                'similarity transform size');
+            tools.LogPlot.logsurf(h,X,Y,abs((LN-aln)./LN));
+            
+            sv = m.ErrorEstimator.STSingVals;
+            s = m.ErrorEstimator.JacSimTransMaxSize;
+            h = pm.nextPlot('sing_vals',...
+                sprintf('Singular values of SVD of eigenvector matrix\nBlack line: Max size of sim. trans., singular value= %g',...
+                sv(s)),'POD Modes','Singular values');
+            semilogy(h,sv);
+            hold on;
+            plot(h,[s s+eps],[min(sv) max(sv)],'k');
+            hold off;
+            
+            h = pm.nextPlot('comp_times',...
+                sprintf('Average computation times (over %d values)\nfor log norms of similarity transformed matrices',...
+                    size(times,2)),'similarity transformation size','mean computation time');
+            me = mean(times,2);
+            semilogy(h,st_sizes,me,'-s');
+            if nargout < 1
+                pm.done;
+            end
+        end
+        
+        %% Comparison of similarity transformed DEIM-approximated jacobian log norms to full log norms
+        function [aln, times, jtimes, deim_orders, st_sizes] = ...
+                compareSimTransDEIMJac_FullJac(m, deim_orders, st_sizes)
+            % Computes logarithmic norms of similarity transformed AND
+            % matrix DEIM approximated jacobians using the model's offline
+            % data, containing `N` trajectory samples.
+            %
+            % Parameters:
+            % m: A BaseFullModel whos offlineGenerations have been run and
+            % that uses a DEIMEstimator. @type models.BaseFullModel
+            % deim_orders: The DEIM orders `d_1,\ldots,d_m` to set for the
+            % matrix DEIM of the jacobian. @type rowvec<integer>
+            % st_sizes: The sizes `s_1,\ldots,s_n` to use for the
+            % similarity transformation. If left empty, all from one to the
+            % models ErrorEstimator.JacSimTransMaxSize are used
+            % (extensive!) @type rowvec<integer>
+            %
+            % Return values:
+            % aln: A `m \times n \times N` matrix with the approximated logarithmic
+            % norms in rows for each sim. trans. size.
+            % times: A `m \times n \times N` matrix with the computation times for
+            % the logarithmic norm
+            % jtimes: A `m \times n \times N` matrix with the computation
+            % times for the sim. trans. DEIM approximated jacobians
+            % deim_orders: The effectively used DEIM orders (If given as
+            % parameter, it is looped through)
+            % st_sizes: The effectively used sizes (If given as
+            % parameter, it is looped through)
+            
+            % Get required data
+            jtd = m.Data.JacobianTrainData;
+            zi = m.Data.W'*jtd.xi;
+            e = m.ErrorEstimator;
+            jd = e.JacMDEIM;
+            
+            % Input checks
+            if nargin < 3
+                st_sizes = 1:e.JacSimTransMaxSize;
+                if nargin < 2
+                    deim_orders = 1:jd.MaxOrder;
+                end
+            end
+            
+            % Preps
+            stn = length(st_sizes);
+            n = size(jtd.xi,2);
+            no = length(deim_orders);
+            
+            aln = zeros(no,stn,n);
+            times = aln;
+            jtimes = aln;
+            pi = tools.ProcessIndicator('Computing approximated log norms over %d DEIM orders and %d sim. trans. sizes on %d training values',...
+                numel(aln),false,no,stn,n);
+            for onr = 1:no
+                jd.Order = deim_orders(onr);
+                for snr = 1:stn
+                    jd.setSimilarityTransform(e.STFull(:,1:st_sizes(snr)));
+                    for nr = 1:n
+                        t = tic;
+                        J = jd.evaluate(zi(:,nr),jtd.ti(nr),jtd.mui(:,nr));
+                        jtimes(onr,snr,nr) = toc(t);
+                        t = tic;
+                        aln(onr,snr,nr) = general.Utils.logNorm(J);
+                        times(onr,snr,nr) = toc(t);
+                        pi.step;
+                    end
+                end
+            end
+            pi.stop;
+            if nargout == 0
+                testing.DEIM.compareSimTransDEIMJac_FullJac_plots(m, aln, times, st_sizes);
+            end
+        end
+        
+        function pm = compareSimTransDEIMJac_FullJac_plots(m, aln, ...
+                times, jtimes, deim_orders, st_sizes, pm)
+            if nargin < 7
+                pm = tools.PlotManager(false,2,2);
+            end
+            
+            jstd = m.Data.JacSimTransData;
+            n = size(aln,3);
+            ln = reshape(jstd.LogNorms,1,1,[]);
+            ln = repmat(ln,[length(deim_orders), length(st_sizes), 1]);
+            
+            abserr = abs(aln-ln);
+            relerr = abs(abserr ./ ln);
+            
+            % Aggregate errors over trajectory sample data
+            %aln = sqrt(sum(aln.^2,3));
+            abserr = mean(abserr,3);
+            relerr = mean(relerr,3);
+            
+            % Mean the times too
+            ttimes = times + jtimes;
+            times = mean(times,3);
+            jtimes = mean(jtimes,3);
+            ttimes = mean(ttimes,3);
+            
+            [X,Y] = meshgrid(deim_orders, st_sizes);
+            
+            h = pm.nextPlot('abs_err',sprintf('Mean absolute approximation error over %d samples',n),...
+                'DEIM order','Similarity transformation size');
+            tools.LogPlot.logsurf(h,X,Y,abserr);
+            
+            h = pm.nextPlot('rel_err',sprintf('Mean relative approximation error over %d samples',n),...
+                'DEIM order','Similarity transformation size');
+            tools.LogPlot.logsurf(h,X,Y,relerr);
+            
+            h = pm.nextPlot('comp_times_j',...
+                sprintf('Average computation times over %d values\nfor matrix DEIM jacobian evaluation',...
+                    n),'DEIM order','Similarity transformation size');
+            tools.LogPlot.logsurf(h,X,Y,jtimes);
+            
+            h = pm.nextPlot('comp_times',...
+                sprintf('Average computation times over %d values\nfor log norm computation of sim.trans. matrix DEIM jacobian',...
+                    n),'DEIM order','Similarity transformation size');
+            tools.LogPlot.logsurf(h,X,Y,times);
+            
+            h = pm.nextPlot('comp_times_total',...
+                sprintf('Average total computation times over %d values\n(jac comp + log norm comp)',...
+                    n),'DEIM order','Similarity transformation size');
+            tools.LogPlot.logsurf(h,X,Y,ttimes);
+            
             if nargout < 1
                 pm.done;
             end

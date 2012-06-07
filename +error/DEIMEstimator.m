@@ -17,10 +17,13 @@ classdef DEIMEstimator < error.BaseEstimator
     properties
         % The maximum size of the similarity transformation.
         %
-        % @type integer
+        % Set to empty if not wanted. The BaseFullModel sets this value at
+        % offline generations phase 
+        %
+        % @type integer @default []
         %
         % See also: JacSimTransSize
-        JacSimTransMaxSize = 60;
+        JacSimTransMaxSize = [];
         
         % The selector that chooses the full model's trajectory points that
         % are used for the MatrixDEIM approximation of the jacobian and the
@@ -39,10 +42,33 @@ classdef DEIMEstimator < error.BaseEstimator
         %
         % @type general.MatrixDEIM
         JacMDEIM;
+        
+        % The POD instance to compute the partial similarity transform
+        % matrix.
+        %
+        % The POD settings default to Mode 'eps' with Value = 1e-7, causing
+        % the JacSimTransMaxSize to be set to the resulting POD size.
+        % If the Mode is set to 'abs', the current value of
+        % JacSimTransMaxSize will be used in offlineGenerations.
+        %
+        % @type general.POD
+        SimTransPOD;
                 
         % The complete similarity transformation matrix of size 
         % `d \times JacSimTransMaxSize`
-        STFull;
+        %
+        % (Debug/testing use)
+        %
+        % @type matrix<double> @default []
+        STFull = [];
+        
+        % The singular values computed by the SimTransPOD in the offline
+        % stage.
+        %
+        % (Debug/testing use)
+        %
+        % @type rowvec<double> @default []
+        STSingVals = [];
         
         M3 = [];
         M4 = [];
@@ -106,6 +132,10 @@ classdef DEIMEstimator < error.BaseEstimator
             this.ExtraODEDims = 1;
             this.JacMDEIM = general.MatrixDEIM;
             this.JacMDEIM.MaxOrder = 50;
+            p = general.POD;
+            p.Mode = 'eps';
+            p.Value = 1e-7;
+            this.SimTransPOD = p;
             this.TrainDataSelector = approx.selection.DefaultSelector;
         end
         
@@ -168,19 +198,25 @@ classdef DEIMEstimator < error.BaseEstimator
             % dimension
             this.JacMDEIM = jd.project(md.V, md.W);
             
-            if this.JacSimTransMaxSize > 0
-                p = general.POD;
-                p.Mode = 'abs';
-                p.Value = this.JacSimTransMaxSize;
-                if KerMor.App.Verbose > 0
-                    fprintf('Computing partial similarity transform (Max size=%d) for matrix DEIM of system jacobian...\n',...
-                        this.JacSimTransMaxSize);
+            if ~isempty(md.JacSimTransData.VFull)
+                p = this.SimTransPOD;
+                if strcmp(p.Mode,'abs')
+                    if isempty(this.JacSimTransMaxSize)
+                        error('When SimTransPOD has mode ''abs'' the property JacSimTransMaxSize must be set.');
+                    end
+                    p.Value = this.JacSimTransMaxSize;
                 end
-                this.STFull = p.computePOD(md.JacSimTransData.VFull);
-%                 o = general.Orthonormalizer;
-%                 this.STFull = o.orthonormalize(this.STFull);
-
+                if KerMor.App.Verbose > 0
+                    fprintf(['Computing partial similarity transform with POD Mode=''%s'' '...
+                        'and Value=%g on %d eigenvectors...\n'],...
+                        p.Mode,p.Value,size(md.JacSimTransData.VFull,2));
+                end
+                [this.STFull, this.STSingVals] = ...
+                    p.computePOD(md.JacSimTransData.VFull);
+                this.JacSimTransMaxSize = size(this.STFull,2);
                 this.JacSimTransSize = ceil(this.JacSimTransMaxSize/2);
+            else
+                fprintf(2,'ModelData.JacSimTransData.VFull is empty. Not computing similarity transform.\n');
             end
             
             % Compute approximation for local logarithmic norm

@@ -14,9 +14,15 @@ classdef LogPlot
 % - \c License @ref licensing
     
     methods(Static)
+        function p = nicesurf(h,X,Y,Z,varargin)
+            p = surf(h,X,Y,Z,'FaceColor','interp','EdgeColor','k',varargin{:});
+        end
+        
         function p = logsurf(h,X,Y,Z,varargin)
+            iszero = Z == 0;
+            Z(iszero) = .5*min(Z(:));
             Z = log10(Z);
-            p = surf(h,X,Y,Z,'FaceColor','interp','EdgeColor','interp',varargin{:});
+            p = tools.LogPlot.nicesurf(h,X,Y,Z,varargin{:});
             tools.LogPlot.postprocess(h);
         end
         
