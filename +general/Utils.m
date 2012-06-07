@@ -478,10 +478,23 @@ classdef Utils
             x = x + bsxfun(@times, farend, r.rand(1,num));
         end
         
-        function ln = logNorm(A, G)
+        function [ln, v] = logNorm(A, G)
             % Computes the logarithmic norm of a matrix, optionally using a
             % positive definite symmetric matrix `G` inducing the matrix
             % norm to use.
+            %
+            % Parameters:
+            % A: The target matrix @type matrix<double>
+            % G: The positive definite, symmetric matrix `G` inducing the
+            % norm and hence matrix norm to use. Defaults to identity
+            % matrix (Euclidean/L2 norm) @type matrix<double>
+            % @default I
+            %
+            % Return values:
+            % ln: The logarithmic norm with respect to the given matrix
+            % norm induced by `G`. @type double
+            % v: The eigenvector of the largest eigenvalue (=log norm) of
+            % the symmetric part of `A`. @type colvec<double>
             if nargin < 2
                 G = 1;
             end
@@ -489,7 +502,7 @@ classdef Utils
                 L = chol(G,'lower');
                 A = L\(A'*L);
             end
-            ln = eigs(.5*(A' + A),1);
+            [v, ln] = eigs(.5*(A' + A),1);
         end
     end
     

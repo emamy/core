@@ -744,6 +744,9 @@ classdef KerMor < handle
                 diary(dfile);
             end
             
+            % Set more narrow format as default
+            format compact;
+            
             disp('<<<<<<<<< Ready to go. >>>>>>>>>>');
             
             function init3rdparty

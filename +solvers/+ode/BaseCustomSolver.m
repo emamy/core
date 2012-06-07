@@ -113,8 +113,8 @@ classdef BaseCustomSolver < solvers.ode.BaseSolver
                     if ~isempty(idx)
                         for i=idx
                             add = times(i):this.MaxStep:times(i+1);
-                            times = [times(1:i-1) add times(i+1:end)];
-                            outputtimes = [outputtimes(1:i) false(1,length(add)-1) outputtimes(i+1:end)];
+                            times = [times(1:i-1) add times(i+2:end)];
+                            outputtimes = [outputtimes(1:i) false(1,length(add)-2) outputtimes(i+1:end)];
                         end
                         tout = times(outputtimes);
                         if numel(tout) ~= numel(t) || any(abs(tout - t) > 100*eps)

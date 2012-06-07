@@ -182,7 +182,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             else
                 for k=1:md.getNumTrajectories
                     x = md.getTrajectoryNr(k);
-                    e = sum(sqrt(sum((x - V*(V'*x)).^2,1)));
+                    e = sum(Norm.L2(x - V*(V'*x)));
                     if maxerr < e
                         maxerr = e;
                         midx = k;

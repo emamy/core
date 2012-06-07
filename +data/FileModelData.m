@@ -63,16 +63,14 @@ classdef FileModelData < data.AModelData
             end
             this.hm = java.util.HashMap;
             this.host = KerMor.getHost;
-            if nargin == 2
-                if isa(storage_root,'char') && exist(storage_root,'dir') == 7
-                    this.DataDirectory = storage_root;
-                else
-                    error('Invalid folder: %s',storage_root);
-                end
-            else
-                this.DataDirectory = KerMor.App.DataStoreDirectory;
+            if nargin < 2
+               storage_root = KerMor.App.DataStoreDirectory;
             end
-            this.DataDirectory = fullfile(this.DataDirectory,['fm_' num2str(model.ID)]);
+            if isa(storage_root,'char') && exist(storage_root,'dir') == 7
+                this.DataDirectory = fullfile(storage_root,['fm_' num2str(model.ID)]);
+            else
+                error('Invalid folder or does not exist: %s',storage_root);
+            end
             this.ensureDir;
             this.clearTrajectories;
         end
