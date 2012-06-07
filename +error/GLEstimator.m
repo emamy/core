@@ -29,18 +29,12 @@ classdef GLEstimator < error.BaseCompLemmaEstimator
     end
     
     methods
-        function this = GLEstimator(rmodel)
-            this = this@error.BaseCompLemmaEstimator;
-            if nargin == 1
-                this.setReducedModel(rmodel);
-            end
-        end
-        
         function copy = clone(this)
             % Creates a deep copy of this estimator instance.
             copy = error.GLEstimator;
             copy = clone@error.BaseCompLemmaEstimator(this, copy);
             copy.cf = this.cf;
+            copy.f = this.f;
         end
         
         function ct = prepareConstants(this, mu, inputidx)%#ok
@@ -91,10 +85,10 @@ classdef GLEstimator < error.BaseCompLemmaEstimator
     end
     
     methods(Static)
-        function errmsg = validModelForEstimator(rmodel)
+        function errmsg = validModelForEstimator(model)
             % Validations
-            errmsg = validModelForEstimator@error.BaseCompLemmaEstimator(rmodel);
-            if isempty(errmsg) && ~isa(rmodel.FullModel.System.f,'dscomponents.IGlobalLipschitz')
+            errmsg = validModelForEstimator@error.BaseCompLemmaEstimator(model);
+            if isempty(errmsg) && ~isa(model.System.f,'dscomponents.IGlobalLipschitz')
                 errmsg = 'The full model''s core function must implement the dscomponents.IGlobalLipschitz interface for this error estimator.';
             end
         end

@@ -364,6 +364,7 @@ classdef BaseModel < KerMorObject
             
             %% Solve ODE
             slv = this.ODESolver;
+            slv.MaxStep = []; slv.InitialStep = [];
             if ~isempty(sys.MaxTimestep)
                 % Remember: When scaling is used, these are the 
                 slv.MaxStep = sys.MaxTimestep;

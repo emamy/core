@@ -33,16 +33,31 @@ classdef AModelData < handle
         %
         % @type data.ApproxTrainData @default []
         ApproxTrainData = [];
+        
+        % Training data for the jacobian approximation.
+        %
+        % So far only used by the DEIM error estimator but placed here as
+        % AModelData is the container for all large model offline data.
+        %
+        % @type data.ApproxTrainData @default []
+        JacobianTrainData = [];
                 
         % The projection matrix `V` for the reduced subspace.
         %
-        % @type matrix @default []
+        % @type matrix<double> @default []
         V = [];
         
         % The V-biorthogonal matrix `W` for the reduced subspace (`W^tV=I_d`)
         %
-        % @type matrix @default []
+        % @type matrix<double> @default []
         W = [];
+        
+        % A struct containing precomputed values regarding the similarity
+        % transform of the jacobians in the context of the
+        % error.DEIMEstimator.
+        %
+        % @type struct @default []
+        JacSimTransData = struct;
     end
     
     properties(Dependent)
@@ -82,6 +97,17 @@ classdef AModelData < handle
                 end
             end
         end
+        
+        function transferFrom(this, source)
+            % @todo write code that copies the trajectories from one
+            % AModelData to another
+            nt = source.getNumTrajectories;
+            this.clearTrajectories;
+            for nr=1:nt
+                [x, mu, inputidx, ctime] = source.getTrajectoryNr(nr);
+                this.addTrajectory(x, mu, inputidx, ctime);
+            end
+        end
     end
     
     methods(Abstract)
@@ -112,9 +138,16 @@ classdef AModelData < handle
              
         function set.ApproxTrainData(this, value)
             if ~isempty(value) && ~isa(value, 'data.ApproxTrainData')
-                error('The property must be a data.ApproxTrainData subclass.');
+                error('The ApproxTrainData must be a data.ApproxTrainData subclass.');
             end
             this.ApproxTrainData = value;
+        end
+        
+        function set.JacobianTrainData(this, value)
+            if ~isempty(value) && ~isa(value, 'data.ApproxTrainData')
+                error('The JacobianTrainData must be a data.ApproxTrainData subclass.');
+            end
+            this.JacobianTrainData = value;
         end
         
         function set.V(this, value)

@@ -18,21 +18,21 @@ classdef AffineParametric < error.initial.Base
     
     properties(Access=private)
         af;
-        rm;
+        m;
     end
     
     methods
-        function this = AffineParametric(rmodel)
+        function this = AffineParametric(model)
             this.af = general.AffParamMatrix;
-            this.rm = rmodel;
-            x0 = rmodel.FullModel.System.x0;
+            this.m = model;
+            x0 = model.System.x0;
             % Operate on affine-parametric matrices, see general.AffParamMatrix
-            this.af = x0 - rmodel.V*(rmodel.W'*x0);
+            this.af = x0 - model.Data.V*(model.Data.W'*x0);
         end
         
         function e0 = getE0(this, mu)
             e0 = this.af.compose(mu);
-            e0 = sqrt(e0'*this.rm.GScaled*e0);
+            e0 = sqrt(e0'*this.m.GScaled*e0);
         end
     end
     

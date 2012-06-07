@@ -87,6 +87,15 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         %
         % See also: data.AModelData
         Data;
+        
+        % Export instance for possible export of this model to JKerMor.
+        %
+        % Leave empty if no export is possible.
+        %
+        % @propclass{data} Only used if model can be exported to JaRMoS
+        %
+        % @type export.JKerMorExport @default []
+        JKerMorExport;
     end
     
     properties(SetObservable)
@@ -180,13 +189,12 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         TrainingInputs;
     end
     
-    properties%(SetAccess=protected)
-        % Export instance for possible export of this model to JKerMor.
+    properties(SetAccess=protected)        
+        % The associated error estimator for this model.
         %
-        % Leave empty if no export is possible.
-        %
-        % @type export.JKerMorExport @default []
-        JKerMorExport;
+        % It is computed automatically, using the order/selection as in
+        % error.BaseEstimator.getEstimator
+        ErrorEstimator = [];
     end
     
     properties(SetAccess=private, Dependent)
@@ -385,18 +393,14 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         
         function time = off3_computeReducedSpace(this)
             % Offline phase 3: Generate state space reduction
-            
             time = tic;
-            
-            % Clear before running, so that in case of errors the matrix
-            % from old reductions is unset.
-            this.Data.V = [];
-            this.Data.W = [];
+            V = []; W = [];
             if ~isempty(this.SpaceReducer)
                 fprintf('Computing reduced space...\n');
-                [this.Data.V this.Data.W] = this.SpaceReducer.generateReducedSpace(this);
+                [V, W] = this.SpaceReducer.generateReducedSpace(this);
             end
-            
+            this.Data.V = V;
+            this.Data.W = W;
             time = toc(time);
         end
         
@@ -407,48 +411,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % @todo
             % - include/check MultiArgumentEvaluations-possibility in parallel execution code
             % - Deactivated due to immense overhead and matlab crashes. investigate further
-            time = tic;
+            t = tic;
             if ~isempty(this.Approx)
-                
-                % Select subset of projection training data
-                atd = this.Approx.TrainDataSelector.selectTrainingData(this);
-                
-                % If projection is used, train approximating function in
-                % centers projected into the subspace.
-                if ~isempty(this.Data.V) && ~isempty(this.Data.W)
-                    atd.xi = this.Data.V*(this.Data.W'*atd.xi);
-                end
+                [atd, time] = computeTrainingData(this,...
+                    this.System.f, this.Approx.TrainDataSelector);
                 this.Data.ApproxTrainData = atd;
-                
-                % Compute f-Values at training data
-                if isempty(atd.mui)
-                    atdmui = double.empty(0,length(atd.ti));
-                else
-                    atdmui = atd.mui;
-                end
-                
-                if this.ComputeParallel
-                    atdxi = atd.xi;
-                    atdti = atd.ti;
-                    fval = zeros(size(atdxi));
-                    if KerMor.App.Verbose > 0
-                        fprintf('Starting parallel f-values computation at %d points on %d workers...\n',size(atd,2),matlabpool('size'));
-                    end
-                    parfor sidx=1:size(atdxi,2)
-                        fval(:,sidx) = ...
-                            this.System.f.evaluateCoreFun(atdxi(:,sidx),... % x
-                            atdti(sidx),... % t
-                            atdmui(:,sidx)); %#ok mu
-                    end
-                    this.Data.ApproxTrainData.fxi = fval;
-                else
-                    if KerMor.App.Verbose > 0
-                        fprintf('Serial computation of f-values at %d points ...\n',size(atd.xi,2));
-                    end
-                    this.Data.ApproxTrainData.fxi = this.System.f.evaluate(atd.xi, atd.ti, atdmui);
-                end
             end
-            time = toc(time);
+            time = time + toc(t);
         end
         
         function time = off5_computeApproximation(this)
@@ -470,7 +439,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     fprintf('Starting approximation process for %d dimensions ...\n',size(this.Data.ApproxTrainData.fxi,1));
                 end
                 
-                
                 warning off MATLAB:nearlySingularMatrix;
                 %% Approximate core function (is parallelizable for its own)
                 % Compile necessary data
@@ -483,6 +451,48 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             end
             
             time = toc(time);
+        end
+        
+        function time = off6_prepareErrorEstimator(this)
+            % Prepares offline data for a possible error estimator.
+            t = tic;
+            e = this.ErrorEstimator;
+            time = 0;
+            if ~isempty(e)
+                if KerMor.App.Verbose > 0
+                    fprintf('Starting error estimator offline computations...\n');
+                end
+                % Precompute large offline data needed for the DEIM error
+                % estimator
+                if isa(e,'error.DEIMEstimator')
+                    [jtd, time] = computeTrainingData(this,...
+                        general.JacCompEvalWrapper(this.System.f),...
+                        e.TrainDataSelector);
+                    this.Data.JacobianTrainData = jtd;
+                    
+                    d = this.System.f.XDim;
+                    n = size(jtd.fxi,2);
+                    v = zeros(d,n);
+                    ln = zeros(1,n);
+                    times = ln;
+                    pi = tools.ProcessIndicator('Computing Jacobian similarity transform data for %d jacobians',n,false,n);
+                    for nr = 1:n
+                        J = reshape(jtd.fxi(:,nr),d,d);
+                        t = tic;
+                        [ln(nr), v(:,nr)] = general.Utils.logNorm(J);
+                        times(nr) = toc(t);
+                        pi.step;
+                    end
+                    pi.stop;
+                    
+                    jstd.VFull = v;
+                    jstd.LogNorms = ln;
+                    jstd.CompTimes = times;
+                    this.Data.JacSimTransData = jstd;
+                end
+                e.offlineComputations(this);
+            end
+            time = time + toc(t);
         end
         
         function times = offlineGenerations(this)
@@ -500,6 +510,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             times(3) = this.off3_computeReducedSpace;
             times(4) = this.off4_genApproximationTrainData;
             times(5) = this.off5_computeApproximation;
+            times(6) = this.off6_prepareErrorEstimator;
             
             % Store the computation times
             this.OfflinePhaseTimes = times;
@@ -594,9 +605,53 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 md = this.Data;
                 if md.getNumTrajectories > 0
                     md.clearTrajectories;
-                    fprintf(2,'Deleted all old trajectories for %s=%f',src.Name,this.ftcold.(src.Name));
+                    fprintf(2,'Deleted all old trajectories for %s=%f\n',src.Name,this.ftcold.(src.Name));
                 end
             end
+        end
+        
+        function [atd, time] = computeTrainingData(this, f, selector)
+            % Internal method that computes training data using a selector
+            % and a function
+            time = tic;
+            
+            % Select subset of projection training data
+            atd = selector.selectTrainingData(this);
+
+            % If projection is used, train approximating function in
+            % centers projected into the subspace.
+            if ~isempty(this.Data.V) && ~isempty(this.Data.W)
+                atd.xi = this.Data.V*(this.Data.W'*atd.xi);
+            end
+
+            % Compute f-Values at training data
+            if isempty(atd.mui)
+                atdmui = double.empty(0,length(atd.ti));
+            else
+                atdmui = atd.mui;
+            end
+
+            if this.ComputeParallel
+                atdxi = atd.xi;
+                atdti = atd.ti;
+                fval = zeros(size(atdxi));
+                if KerMor.App.Verbose > 0
+                    fprintf('Starting parallel f-values computation at %d points on %d workers...\n',size(atd,2),matlabpool('size'));
+                end
+                parfor sidx=1:size(atdxi,2)
+                    fval(:,sidx) = ...
+                        f.evaluateCoreFun(atdxi(:,sidx),... % x
+                        atdti(sidx),... % t
+                        atdmui(:,sidx)); %#ok mu
+                end
+                atd.fxi = fval;
+            else
+                if KerMor.App.Verbose > 0
+                    fprintf('Serial computation of f-values at %d points ...\n',size(atd.xi,2));
+                end
+                atd.fxi = f.evaluate(atd.xi, atd.ti, atdmui);
+            end
+            time = toc(time);
         end
     end
         

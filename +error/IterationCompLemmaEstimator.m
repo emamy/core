@@ -110,13 +110,6 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
     end
     
     methods
-        function this = IterationCompLemmaEstimator(rmodel)
-            this = this@error.BaseCompLemmaEstimator;
-            if nargin == 1
-                this.setReducedModel(rmodel);
-            end
-        end
-        
         function copy = clone(this)
             % Creates a deep copy of this estimator instance.
             copy = error.IterationCompLemmaEstimator;
@@ -140,20 +133,14 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             copy.smallz_flag = this.smallz_flag;
         end
         
-        function setReducedModel(this, rmodel)
+        function offlineComputations(this, fm)
             % Overrides the setReducedModel method from error.BaseEstimator
             % and performs additional offline computations.
             
             % Call superclass method to perform standard estimator
             % computations
-            setReducedModel@error.BaseCompLemmaEstimator(this, rmodel);
+            offlineComputations@error.BaseCompLemmaEstimator(this, fm);
             
-            this.lstPreSolve = addlistener(this.ReducedModel.ODESolver,'PreSolve',@this.cbPreSolve);
-            this.lstPreSolve.Enabled = false;
-            this.lstPostSolve = addlistener(this.ReducedModel.ODESolver,'PostSolve',@this.cbPostSolve);
-            this.lstPostSolve.Enabled = false;
-            
-            fm = this.ReducedModel.FullModel;
             % Obtain the correct snapshots
             f = fm.Approx;
             if isempty(f)
@@ -166,13 +153,15 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             this.c = f.Centers;
             this.Ma_norms = f.Ma_norms;
             
-            this.G = this.ReducedModel.GScaled;
-            if f.Kernel.IsRBF && ~isempty(this.ReducedModel.V)
+            this.G = fm.GScaled;
+            if f.Kernel.IsRBF && ~isempty(fm.Data.V)
                 % Use the projected centers z_i from the reduces system with x_i = Vz_i in this
                 % case.
-                this.c = this.ReducedModel.System.f.Centers;
+                hlp = f.project(fm.Data.V, fm.Data.W);
+                this.c = hlp.Centers;
+                delete hlp;
                 % The norm is then ||Vz - x_i||_G = ||z-z_i||_V'GV
-                this.G = this.ReducedModel.V'*(this.G*this.ReducedModel.V);
+                this.G = fm.Data.V'*(this.G*fm.Data.V);
                 % Set flag for small z state vectors to true
                 this.smallz_flag = true;
             end
@@ -200,7 +189,13 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             ct = prepareConstants@error.BaseCompLemmaEstimator(this, mu, inputidx);
             st = tic;
             % Returns the initial error at `t=0` of the integral part.
+            if isempty(this.lstPreSolve)
+                this.lstPreSolve = addlistener(this.ReducedModel.ODESolver,'PreSolve',@this.cbPreSolve);
+            end
             this.lstPreSolve.Enabled = true;
+            if isempty(this.lstPostSolve)
+                this.lstPostSolve = addlistener(this.ReducedModel.ODESolver,'PostSolve',@this.cbPostSolve);
+            end
             this.lstPostSolve.Enabled = true;
             % Call ISimConstants update function to compute values that are constant during a
             % simulation.
@@ -372,23 +367,23 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
     end
     
     methods(Static)
-        function errmsg = validModelForEstimator(rmodel)
+        function errmsg = validModelForEstimator(model)
             % Validations
-            errmsg = validModelForEstimator@error.BaseCompLemmaEstimator(rmodel);
-            if isempty(errmsg) && ~isa(rmodel.System.f,'kernels.ParamTimeKernelExpansion')
-                errmsg = 'The reduced model''s core function must be a subclass of kernels.ParamTimeKernelExpansion for this error estimator.'; 
+            errmsg = validModelForEstimator@error.BaseCompLemmaEstimator(model);
+            if isempty(errmsg) && ~isa(model.Approx,'kernels.ParamTimeKernelExpansion')
+                errmsg = 'The model''s approximation function must be a subclass of kernels.ParamTimeKernelExpansion for this error estimator.'; 
             end
-            if isempty(errmsg) && ~isa(rmodel.System.f.Kernel,'kernels.BellFunction')
+            if isempty(errmsg) && ~isa(model.System.f.Kernel,'kernels.BellFunction')
                 errmsg = 'The system''s kernel must be a kernels.BellFunction for this error estimator.';
             end
         end
         
         function res = test_IterationCompLemmaEstimator
+            error('not checked yet');
             res = true;
             m = models.synth.KernelTest(10);
             m.offlineGenerations;
             r = m.buildReducedModel;
-            r.ErrorEstimator = error.IterationCompLemmaEstimator(r);
             
             m.ODESolver = solvers.ode.Heun;
             r.ErrorEstimator = error.IterationCompLemmaEstimator(r);
@@ -398,13 +393,13 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
         end
     end
     
-    methods(Static,Access=protected)
-        function s = loadobj(s)
-            s = loadobj@error.BaseCompLemmaEstimator(s);
-            this.lstPreSolve = addlistener(s.ReducedModel.ODESolver,'PreSolve',@s.cbPreSolve);
-            this.lstPreSolve.Enabled = false;
-            this.lstPostSolve = addlistener(s.ReducedModel.ODESolver,'PostSolve',@s.cbPostSolve);
-            this.lstPostSolve.Enabled = false;
-        end
-    end
+%     methods(Static,Access=protected)
+%         function s = loadobj(s)
+%             s = loadobj@error.BaseCompLemmaEstimator(s);
+%             this.lstPreSolve = addlistener(s.ReducedModel.ODESolver,'PreSolve',@s.cbPreSolve);
+%             this.lstPreSolve.Enabled = false;
+%             this.lstPostSolve = addlistener(s.ReducedModel.ODESolver,'PostSolve',@s.cbPostSolve);
+%             this.lstPostSolve.Enabled = false;
+%         end
+%     end
 end

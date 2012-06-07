@@ -47,6 +47,9 @@ classdef EstimatorAnalyzer < handle
         % 8: ILSL TD, Time Discrete Improved Local Secant Lipschitz
         % 9: Expensive best-estimator (with full traj simulation)
         %
+        % Is overridden when DEIM is used in the reduced models, only 1 is
+        % considered then.
+        %
         % @type rowvec
         EstimatorVersions = [1 1 0 0 1 0 0 1 1];
         
@@ -80,6 +83,9 @@ classdef EstimatorAnalyzer < handle
         
         % The number of markers for error and relative errors plots.
         NumMarkers = 5;
+        
+        % The error estimation orders to use for the DEIM approximation.
+        DEIMOrders = [1 10];%[1 2 3 5 10];
     end
     
     properties(SetAccess=private)
@@ -283,7 +289,7 @@ classdef EstimatorAnalyzer < handle
             end
             pt = PrintTable('%s for model "%s"',str,this.Model.Name);
             pt.HasRowHeader = true;
-            pt.addRow('Name',sprintf('$\\Delta(%d)$',this.Model.T),'Time','Overestimation');
+            pt.addRow('Name',sprintf('$\\Delta(%g)$',this.Model.T),'Time','Overestimation');
             for id = 1:length(this.Est)
                 pt.addRow(this.Est(idx(id)).Name,errs(idx(id),end),ctimes(idx(id)),...
                     errs(idx(id),end)/errs(1,end),{'$%1.3e}$','%2.2fs','$%1.3e}$'});
@@ -319,6 +325,10 @@ classdef EstimatorAnalyzer < handle
             
             % Computation ctimes plot
             this.plotCTimes(errs, ctimes, pm);
+            
+            if nargout == 0
+                pm.done;
+            end
             
             % MaxErr data
             this.ModelData(end+1).Name = this.Model.Name;
@@ -409,154 +419,189 @@ classdef EstimatorAnalyzer < handle
             end
         end
         
+        function set.DEIMOrders(this, value)
+            this.DEIMOrders = value;
+            if ~isempty(this.ReducedModel)%#ok
+                this.buildEstimatorStruct(this.ReducedModel);%#ok
+            end
+        end
+        
+        function delete(this)
+%             for i=1:length(this.Est)
+%                 this.Est(i).Estimator.delete;
+%             end
+        end
     end
     
     methods(Access=private)
         function buildEstimatorStruct(this, r)
             % Error estimators
-            if ~isempty(this.Model.Approx)
-                k = this.Model.Approx.Kernel;
-            else
-                k = this.Model.System.f.Kernel;
-            end
             est = struct.empty;
             
             if this.EstimatorVersions(1)
                 est(end+1).Name = 'True error';
-                est(end).Estimator = error.DefaultEstimator(r);
+                est(end).Estimator = error.DefaultEstimator;
                 est(end).Estimator.Enabled = true;
                 est(end).MarkerStyle = 'o';
                 est(end).LineStyle = '-';
             end
             
-            if this.EstimatorVersions(2)
-                msg = error.GLEstimator.validModelForEstimator(r);
-                if isempty(msg)
-                        fprintf('Initializing Global Lipschitz estimator...\n');
-                        est(end+1).Name = 'GLE';
-                        est(end).Estimator = error.GLEstimator(r);
-                        est(end).MarkerStyle = 's';
-                        est(end).LineStyle = '-';
-                else
-                    fprintf('Cannot use the GLEstimator for model %s:\n%s\n',r.Name,msg);
-                end
-            end
-            
-            msg = error.IterationCompLemmaEstimator.validModelForEstimator(r);
-            if isempty(msg)
-                reps = this.EstimatorIterations;
-                fprintf('Using iteration counts: %s\n',num2str(this.EstimatorIterations));
-                
-                if this.EstimatorVersions(3)
-                    fprintf('Initializing LGL estimator...\n');
-                    est(end+1).Name = 'LGL';
-                    est(end).Estimator = error.IterationCompLemmaEstimator(r);
-                    est(end).Estimator.LocalLipschitzFcn = error.lipfun.LocalGradientLipschitz(k);
-                    est(end).Estimator.UseTimeDiscreteC = false;
+            %% DEIM estimator section
+            if isa(r.System.f,'approx.DEIM')
+                dest = r.FullModel.ErrorEstimator;
+                dest.Enabled = true;
+                for i=1:length(this.DEIMOrders)
+                    est(end+1).Name = sprintf('DEIM M''=%d',this.DEIMOrders(i));
+                    est(end).Estimator = dest.clone;
                     est(end).MarkerStyle = 's';
-                    est(end).LineStyle = '-';
-                    for it = reps
-                        orig = est(end).Estimator;%#ok
-                        eval(sprintf(['est(end+1).Name = ''LGL, %d It'';'...
-                            'est(end).Estimator = orig.clone;'...
-                            'est(end).Estimator.Iterations = %d;'...
-                            'est(end).MarkerStyle = ''s'';'...
-                            'est(end).LineStyle = ''-.'';'],it,it));
-                    end
-                end
-                
-                if this.EstimatorVersions(4)
-                    fprintf('Initializing LGLMod (mod secant) estimator...\n');
-                    est(end+1).Name = 'LGLMod';
-                    est(end).Estimator = error.IterationCompLemmaEstimator(r);
-                    est(end).Estimator.LocalLipschitzFcn = error.lipfun.LocalSecantLipschitz(k);
-                    est(end).Estimator.UseTimeDiscreteC = false;
-                    est(end).MarkerStyle = 'h';
-                    est(end).LineStyle = '-';
-                    for it = reps
-                        orig = est(end).Estimator;%#ok
-                        eval(sprintf(['est(end+1).Name = ''LGLMod, %d It'';'...
-                            'est(end).Estimator = orig.clone;'...
-                            'est(end).Estimator.Iterations = %d;'...
-                            'est(end).MarkerStyle = ''h'';'...
-                            'est(end).LineStyle = '':'';'],it,it));
-                    end
-                end
-                
-                if any(this.EstimatorVersions([5 8]))
-                    ilfcn = error.lipfun.ImprovedLocalSecantLipschitz(k);
-                end
-                
-                if this.EstimatorVersions(5)
-                    fprintf('Initializing LSL estimator...\n');
-                    est(end+1).Name = 'LSLE';
-                    est(end).Estimator = error.IterationCompLemmaEstimator(r);
-                    est(end).Estimator.LocalLipschitzFcn = ilfcn.clone;
-                    est(end).Estimator.UseTimeDiscreteC = false;
-                    est(end).MarkerStyle = 'p';
-                    est(end).LineStyle = '-';
-                    for it = reps
-                        orig = est(end).Estimator;%#ok
-                        eval(sprintf(['est(end+1).Name = ''LSLE, %d It'';'...
-                            'est(end).Estimator = orig.clone;'...
-                            'est(end).Estimator.Iterations = %d;'...
-                            'est(end).MarkerStyle = ''p'';'...
-                            'est(end).LineStyle = ''--'';'],it,it));
-                    end
-                end
-                
-                %% TD-Versions
-                if any(this.EstimatorVersions(6:8))
-                    td = error.IterationCompLemmaEstimator(r);
-                    td.Iterations = 0;
-                    td.UseTimeDiscreteC = true;
-                end
-                if this.EstimatorVersions(6)
-                    fprintf('Initializing LSL TD estimators...\n');
-                    est(end+1).Name = 'LGL TD';
-                    est(end).Estimator = td;
-                    est(end).Estimator.LocalLipschitzFcn = error.lipfun.LocalGradientLipschitz(k);
-                    est(end).MarkerStyle = '<';
-                    est(end).LineStyle = '-';
-                end
-                
-                if this.EstimatorVersions(7)
-                    fprintf('Initializing LSL TD estimators...\n');
-                    est(end+1).Name = 'LGL TD';
-                    est(end).Estimator = td.clone;
-                    est(end).Estimator.LocalLipschitzFcn = error.lipfun.LocalSecantLipschitz(k);
-                    est(end).MarkerStyle = '<';
-                    est(end).LineStyle = '-';
-                end
-                
-                if this.EstimatorVersions(8)
-                    est(end+1).Estimator = est(end).Estimator.clone;
-                    est(end).Name = 'LSLE TD';
-                    est(end).Estimator = td.clone;
-                    est(end).Estimator.LocalLipschitzFcn = ilfcn.clone;
-                    est(end).MarkerStyle = '<';
-                    est(end).LineStyle = '-';
+                    est(end).LineStyle = '-.';
+                    est(end).Estimator.ErrorOrder = this.DEIMOrders(i);
                 end
             else
-                fprintf('Cannot use the IterationCompLemmaEstimator for model %s:\n%s\n',r.Name,msg);
-            end
             
-            if this.EstimatorVersions(9)
-                msg = error.ExpensiveBetaEstimator.validModelForEstimator(r);
-                if isempty(msg)
-                        fprintf('Initializing expensive estimators with custom beta ...\n');
-                        est(end+1).Name = 'Lower bound';
-                        est(end).Estimator = error.ExpensiveBetaEstimator(r);
-                        est(end).MarkerStyle = '<';
-                        est(end).LineStyle = '-.';
+                %% Kernel-based systems error estimators
+                if this.EstimatorVersions(2)
+                    msg = error.GLEstimator.validModelForEstimator(r);
+                    e = error.GLEstimator;
+                    e.offlineComputations(r.FullModel);
+                    if isempty(msg)
+                            fprintf('Initializing Global Lipschitz estimator...\n');
+                            est(end+1).Name = 'GLE';
+                            est(end).Estimator = e;
+                            est(end).MarkerStyle = 's';
+                            est(end).LineStyle = '-';
+                    else
+                        fprintf('Cannot use the GLEstimator for model %s:\n%s\n',r.Name,msg);
+                    end
+                end
 
-%                         est(end+1).Estimator = est(end).Estimator.clone;
-%                         est(end).Name = 'TD Jacobian (nonrigor)';
-%                         est(end).Estimator.Version = 2;
-%                         est(end).MarkerStyle = '<';
-%                         est(end).LineStyle = '-.';
+                msg = error.IterationCompLemmaEstimator.validModelForEstimator(r);
+                if isempty(msg)
+
+                    if ~isempty(this.Model.Approx)
+                        k = this.Model.Approx.Kernel;
+                    else
+                        k = this.Model.System.f.Kernel;
+                    end
+
+                    reps = this.EstimatorIterations;
+                    fprintf('Using iteration counts: %s\n',num2str(this.EstimatorIterations));
+                    e = error.IterationCompLemmaEstimator;
+                    e.offlineComputations(f.FullModel);
+                    if this.EstimatorVersions(3)
+                        fprintf('Initializing LGL estimator...\n');
+                        est(end+1).Name = 'LGL';
+                        est(end).Estimator = e;
+                        est(end).Estimator.LocalLipschitzFcn = error.lipfun.LocalGradientLipschitz(k);
+                        est(end).Estimator.UseTimeDiscreteC = false;
+                        est(end).MarkerStyle = 's';
+                        est(end).LineStyle = '-';
+                        for it = reps
+                            orig = est(end).Estimator;%#ok
+                            eval(sprintf(['est(end+1).Name = ''LGL, %d It'';'...
+                                'est(end).Estimator = orig.clone;'...
+                                'est(end).Estimator.Iterations = %d;'...
+                                'est(end).MarkerStyle = ''s'';'...
+                                'est(end).LineStyle = ''-.'';'],it,it));
+                        end
+                    end
+
+                    if this.EstimatorVersions(4)
+                        fprintf('Initializing LGLMod (mod secant) estimator...\n');
+                        est(end+1).Name = 'LGLMod';
+                        est(end).Estimator = e.clone;
+                        est(end).Estimator.LocalLipschitzFcn = error.lipfun.LocalSecantLipschitz(k);
+                        est(end).Estimator.UseTimeDiscreteC = false;
+                        est(end).MarkerStyle = 'h';
+                        est(end).LineStyle = '-';
+                        for it = reps
+                            orig = est(end).Estimator;%#ok
+                            eval(sprintf(['est(end+1).Name = ''LGLMod, %d It'';'...
+                                'est(end).Estimator = orig.clone;'...
+                                'est(end).Estimator.Iterations = %d;'...
+                                'est(end).MarkerStyle = ''h'';'...
+                                'est(end).LineStyle = '':'';'],it,it));
+                        end
+                    end
+
+                    if any(this.EstimatorVersions([5 8]))
+                        ilfcn = error.lipfun.ImprovedLocalSecantLipschitz(k);
+                    end
+
+                    if this.EstimatorVersions(5)
+                        fprintf('Initializing LSL estimator...\n');
+                        est(end+1).Name = 'LSLE';
+                        est(end).Estimator = e.clone;
+                        est(end).Estimator.LocalLipschitzFcn = ilfcn.clone;
+                        est(end).Estimator.UseTimeDiscreteC = false;
+                        est(end).MarkerStyle = 'p';
+                        est(end).LineStyle = '-';
+                        for it = reps
+                            orig = est(end).Estimator;%#ok
+                            eval(sprintf(['est(end+1).Name = ''LSLE, %d It'';'...
+                                'est(end).Estimator = orig.clone;'...
+                                'est(end).Estimator.Iterations = %d;'...
+                                'est(end).MarkerStyle = ''p'';'...
+                                'est(end).LineStyle = ''--'';'],it,it));
+                        end
+                    end
+
+                    %% TD-Versions
+                    if any(this.EstimatorVersions(6:8))
+                        td = error.IterationCompLemmaEstimator;
+                        td.offlineComputations(r.FullModel);
+                        td.Iterations = 0;
+                        td.UseTimeDiscreteC = true;
+                    end
+                    if this.EstimatorVersions(6)
+                        fprintf('Initializing LSL TD estimators...\n');
+                        est(end+1).Name = 'LGL TD';
+                        est(end).Estimator = td;
+                        est(end).Estimator.LocalLipschitzFcn = error.lipfun.LocalGradientLipschitz(k);
+                        est(end).MarkerStyle = '<';
+                        est(end).LineStyle = '-';
+                    end
+
+                    if this.EstimatorVersions(7)
+                        fprintf('Initializing LSL TD estimators...\n');
+                        est(end+1).Name = 'LGL TD';
+                        est(end).Estimator = td.clone;
+                        est(end).Estimator.LocalLipschitzFcn = error.lipfun.LocalSecantLipschitz(k);
+                        est(end).MarkerStyle = '<';
+                        est(end).LineStyle = '-';
+                    end
+
+                    if this.EstimatorVersions(8)
+                        est(end+1).Estimator = est(end).Estimator.clone;
+                        est(end).Name = 'LSLE TD';
+                        est(end).Estimator = td.clone;
+                        est(end).Estimator.LocalLipschitzFcn = ilfcn.clone;
+                        est(end).MarkerStyle = '<';
+                        est(end).LineStyle = '-';
+                    end
                 else
-                    fprintf('Cannot use the ExpensiveBetaEstimator for model %s:\n%s\n',r.Name,msg);
+                    fprintf('Cannot use the IterationCompLemmaEstimator for model %s:\n%s\n',r.Name,msg);
+                end
+
+                if this.EstimatorVersions(9)
+                    msg = error.ExpensiveBetaEstimator.validModelForEstimator(r);
+                    if isempty(msg)
+                            fprintf('Initializing expensive estimators with custom beta ...\n');
+                            est(end+1).Name = 'Lower bound';
+                            e = error.ExpensiveBetaEstimator;
+                            e.offlineComputations(r.FullModel);
+                            est(end).Estimator = e;
+                            est(end).MarkerStyle = '<';
+                            est(end).LineStyle = '-.';
+
+    %                         est(end+1).Estimator = est(end).Estimator.clone;
+    %                         est(end).Name = 'TD Jacobian (nonrigor)';
+    %                         est(end).Estimator.Version = 2;
+    %                         est(end).MarkerStyle = '<';
+    %                         est(end).LineStyle = '-.';
+                    else
+                        fprintf('Cannot use the ExpensiveBetaEstimator for model %s:\n%s\n',r.Name,msg);
+                    end
                 end
             end
             this.Est = est;

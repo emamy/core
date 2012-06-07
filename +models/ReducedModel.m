@@ -111,7 +111,14 @@ classdef ReducedModel < models.BaseModel
             this.T = fullmodel.T;
             this.dt = fullmodel.dt;
             this.tau = fullmodel.tau;
-            this.ODESolver = fullmodel.ODESolver;
+            fms = fullmodel.ODESolver;
+            if isa(fms,'solvers.ode.SemiImplicitEuler')
+                this.ODESolver = solvers.ode.SemiImplicitEuler(this);
+            elseif isa(fms,'solvers.ode.FullyImplEuler')
+                this.ODESolver = solvers.ode.FullyImplEuler(this);
+            else
+                this.ODESolver = fms;
+            end
             this.G = fullmodel.G;
             
             % Copy data that is also needed in the reduced model
@@ -123,10 +130,10 @@ classdef ReducedModel < models.BaseModel
             % Create a new reducedSystem passing this reduced model
             this.System = models.ReducedSystem(this);
             
-            % Obtain an error estimator. The static method looks for a
-            % suitable error estimator or returns the default (=expensive!)
-            % estimator.
-            this.ErrorEstimator = error.BaseEstimator.getEstimator(this);
+            % Use the error estimator that has been precomputed in 
+            % the full model
+            this.ErrorEstimator = fullmodel.ErrorEstimator;
+            this.ErrorEstimator.ReducedModel = this;
         end
         
         function [t, x, ctime] = computeTrajectory(this, mu, inputidx)
@@ -148,7 +155,10 @@ classdef ReducedModel < models.BaseModel
             this.ErrorEstimator.clear;
             
             % Call constat pre-computations
-            cpre = this.ErrorEstimator.prepareConstants(mu, inputidx);
+            cpre = 0;
+            if this.ErrorEstimator.Enabled
+                cpre = this.ErrorEstimator.prepareConstants(mu, inputidx);
+            end
             
             % Call inherited method (actual work)
             [t, xext, ctime] = computeTrajectory@models.BaseModel(this, mu, inputidx);
@@ -239,7 +249,7 @@ classdef ReducedModel < models.BaseModel
                 if ~isa(value,'error.BaseEstimator')
                     error('The ErrorEstimator property must be a subclass of the error.BaseEstimator class.');
                 end
-                msg = value.validModelForEstimator(this);
+                msg = value.validModelForEstimator(this.FullModel);
                 if ~isempty(msg)
                     error(msg);
                 end

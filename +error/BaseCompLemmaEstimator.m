@@ -45,21 +45,18 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
             this.ExtraODEDims = 1;
         end
         
-        function setReducedModel(this, rmodel)
+        function offlineComputations(this, model)
             % Overrides the method from BaseEstimator and performs
             % additional computations.
             
             % Call superclass
-            setReducedModel@error.BaseEstimator(this, rmodel);
+            offlineComputations@error.BaseEstimator(this, model);
             
-            if isa(rmodel.System.B,'dscomponents.AffLinInputConv')
-                this.aComp = error.alpha.AffineParametric(rmodel);
+            if isa(model.System.B,'dscomponents.AffLinInputConv')
+                this.aComp = error.alpha.AffineParametric(model);
             else
-                this.aComp = error.alpha.Constant(rmodel);
+                this.aComp = error.alpha.Constant(model);
             end
-            
-            this.lstPreSolve = addlistener(rmodel.ODESolver,'PreSolve',@this.cbPreSolve);
-            this.lstPreSolve.Enabled = false;
         end
         
         function e = evalODEPart(this, x, t, mu, ut)
@@ -91,6 +88,9 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
         
         function ct = prepareConstants(this, ~, ~)
             st = tic;
+            if isempty(this.lstPreSolve)
+                this.lstPreSolve = addlistener(rmodel.ODESolver,'PreSolve',@this.cbPreSolve);
+            end
             this.lstPreSolve.Enabled = true;
             this.StepNr = 1;
             ct = toc(st);
@@ -115,7 +115,9 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
         function ct = postprocess(this, x, t, mu, inputidx)%#ok
             % Return values:
             % ct: The time needed for postprocessing @type double
-            this.lstPreSolve.Enabled = false;
+            if ~isempty(this.lstPreSolve)
+                this.lstPreSolve.Enabled = false;
+            end
             ct = 0;
         end
     end
@@ -142,38 +144,29 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
     end
     
     methods(Static)
-        function errmsg = validModelForEstimator(rmodel)
+        function errmsg = validModelForEstimator(model)
             % Validations
             errmsg = [];
-            if ~isempty(rmodel.FullModel.Approx) 
-                if ~isa(rmodel.FullModel.Approx,'approx.KernelApprox')
+            if ~isempty(model.Approx) 
+                if ~isa(model.Approx,'approx.KernelApprox')
                     errmsg = 'The full model''s approx function must be a subclass of approx.KernelApprox for this error estimator.'; 
                     return;
                 end
-            elseif ~isa(rmodel.FullModel.System.f,'kernels.ParamTimeKernelExpansion')
+            elseif ~isa(model.System.f,'kernels.ParamTimeKernelExpansion')
                     errmsg = 'If no approximation is used, the full model''s core function must be a subclass of kernels.ParamTimeKernelExpansion for this error estimator.'; 
                     return;
             end
-            if ~isa(rmodel.FullModel.System.C,'dscomponents.LinearOutputConv')
+            if ~isa(model.System.C,'dscomponents.LinearOutputConv')
                 errmsg = 'Local Lipschitz estimators work only for constant linear output conversion.';
                 return;
-            elseif rmodel.FullModel.System.C.TimeDependent
+            elseif model.System.C.TimeDependent
                 errmsg = 'Output error estimation for time dependent output not implemented yet.';
                 return;
             end
-            if ~isa(rmodel.ODESolver,'solvers.ode.BaseCustomSolver');
+            if ~isa(model.ODESolver,'solvers.ode.BaseCustomSolver');
                 errmsg = 'The reduced models ODE solver must be a subclass of BaseCustomSolver.';
             end
         end
     end
-    
-     methods(Static,Access=protected)
-        function s = loadobj(s)
-            s = loadobj@KerMorObject(s);
-            s.lstPreSolve = addlistener(s.ReducedModel.ODESolver,'cbPreSolve',@s.cbPreSolve);
-            s.lstPreSolve.Enabled = false;
-        end
-    end
-    
 end
 

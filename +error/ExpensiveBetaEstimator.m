@@ -27,11 +27,8 @@ classdef ExpensiveBetaEstimator < error.BaseCompLemmaEstimator
     end
     
     methods
-        function this = ExpensiveBetaEstimator(rmodel)
+        function this = ExpensiveBetaEstimator
             this = this@error.BaseCompLemmaEstimator;
-            if nargin == 1
-                this.setReducedModel(rmodel);
-            end
             this.cnt = 1;
         end
         

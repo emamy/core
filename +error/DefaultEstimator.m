@@ -37,22 +37,18 @@ classdef DefaultEstimator < error.BaseEstimator
     end
     
     methods
-        function this = DefaultEstimator(rmodel)
+        function this = DefaultEstimator
             % Creates the default error estimator that works with every
             % model since it computes the full system error.
             %
             % Disabled per default since estimations are expensive.
             this.Enabled = false;
             this.ExtraODEDims = 0;
-            
-            if nargin == 1
-                this.setReducedModel(rmodel);
-            end
         end
                
         function copy = clone(this)
             % Clones this DefaultEstimator
-            copy = error.DefaultEstimator(this.ReducedModel);
+            copy = error.DefaultEstimator;
             copy = clone@error.BaseEstimator(this, copy);
             % No local properties there.
         end
@@ -115,7 +111,7 @@ classdef DefaultEstimator < error.BaseEstimator
     end
     
     methods(Static)
-        function errmsg = validModelForEstimator(rmodel)%#ok
+        function errmsg = validModelForEstimator(varargin)
             errmsg = [];
         end
     end

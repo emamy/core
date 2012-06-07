@@ -61,11 +61,11 @@ classdef BaseEstimator < KerMorObject & ICloneable
         OutputError = [];
     end
     
-    properties(Access=protected)
+    properties
         % The reduced model associated with the error estimator.
         %
         % @type models.ReducedModel
-        ReducedModel;
+        ReducedModel = [];
     end
     
     properties(Access=private)
@@ -75,26 +75,17 @@ classdef BaseEstimator < KerMorObject & ICloneable
     
     methods
         
-        function setReducedModel(this, rmodel)
+        function offlineComputations(this, model)
             % Performs a validity check for the given model and sets up the
             % estimator for use with the specified model.
             %
             % Override in subclasses and call this method first to perform
             % any additional offline computations
             
-            % Calls the static method of the instance (i wonder how long
-            % this will work :-)!)
-            msg = this.validModelForEstimator(rmodel);
-            if ~isempty(msg)
-                builtin('error',msg);
-            end
-            % Assign reduced model to local protected property
-            this.ReducedModel = rmodel;
-            
-            if isa(rmodel.System.x0,'dscomponents.AffineInitialValue')
-                this.e0Comp = error.initial.AffineParametric(rmodel);
+            if isa(model.System.x0,'dscomponents.AffineInitialValue')
+                this.e0Comp = error.initial.AffineParametric(model);
             else
-                this.e0Comp = error.initial.Constant(rmodel);
+                this.e0Comp = error.initial.Constant(model);
             end
         end
         
@@ -250,24 +241,22 @@ classdef BaseEstimator < KerMorObject & ICloneable
             % anyways if going through this in a if then fashion. otherwise, see if reflection may
             % be used here!
             if isempty(error.IterationCompLemmaEstimator.validModelForEstimator(model))
-                est = error.IterationCompLemmaEstimator(model);
+                est = error.IterationCompLemmaEstimator;
 %             elseif isempty(error.TPWLLocalLipEstimator.validModelForEstimator(model))
 %                 est = error.TPWLLocalLipEstimator(model);
-            elseif isempty(error.GLEstimator.validModelForEstimator(model))
-                est = error.GLEstimator(model);
-            elseif isa(model.System.f,'models.synth.KernelTest')
-                est = error.ExperimentalEstimator(model);
             elseif isempty(error.DEIMEstimator.validModelForEstimator(model))
-                est = error.DEIMEstimator(model);
+                est = error.DEIMEstimator;
+            elseif isempty(error.GLEstimator.validModelForEstimator(model))
+                est = error.GLEstimator;
             else
-                est = error.DefaultEstimator(model);
+                est = error.DefaultEstimator;
                 fprintf('BaseEstimator::getEstimator: No suitable error estimator found for given model. Using the default estimator (disabled).\n');
             end
         end
         
         function res = test_ErrorEstimators
             % Quick test for estimators.
-            demo = RandomModeltools.EstimatorAnalyzer;
+            demo = tools.EstimatorAnalyzer;
             demo.Dims = 3;
             demo.start;
             res = true;

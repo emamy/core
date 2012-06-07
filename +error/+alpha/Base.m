@@ -18,9 +18,7 @@ classdef Base < handle
     end
     
     methods
-        function this = Base(rmodel)
-            fm = rmodel.FullModel;
-            
+        function this = Base(fm)
             % Obtain the correct snapshots
             % Standard case: the approx function is a kernel expansion. it
             % can also be that the system's core function is already a
@@ -35,11 +33,11 @@ classdef Base < handle
             
             % Perform any offline computations/preparations
             % Only prepare matrices if projection is used
-            if ~isempty(rmodel.V) && ~isempty(rmodel.W)
+            if ~isempty(fm.Data.V) && ~isempty(fm.Data.W)
                 % Compute projection part matrices, without creating a
                 % d x d matrix (too big!)
-                M = Ma - rmodel.V*(rmodel.W'*Ma);
-                hlp = M'*(rmodel.GScaled*M);
+                M = Ma - fm.Data.V*(fm.Data.W'*Ma);
+                hlp = M'*(fm.GScaled*M);
                 % Check if matrix needs to be made symmetric
                 if any(any(abs(hlp-hlp') > 1e-5))
                     hlp = (hlp + hlp')/2;
@@ -47,7 +45,7 @@ classdef Base < handle
                 end
                 this.M1 = hlp;
                 
-                this.inputOfflineComputations(rmodel, M);
+                this.inputOfflineComputations(fm, M);
                 clear M;
             else
                 % No projection means no projection error!
@@ -75,9 +73,9 @@ classdef Base < handle
         % Template method.
         %
         % Parameters:
-        % rmodel: The reduced model @type models.ReducedModel
+        % model: The full model @type models.BaseFullModel
         % M: The projected coefficient matrix `M_{\alpha} - VW^tM_{\alpha})` @type matrix
-        inputOfflineComputations(this, rmodel, M);
+        inputOfflineComputations(this, model, M);
     end
     
 end
