@@ -56,13 +56,10 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
             % fx: The linearly indexed jacobian of `f`, so `fx =
             % (\d{f_1}{x_1}, \d{f_2}{x_1}, \ldots, \d{f_n}{x_1},
             % \d{f_2}{x_1}, \ldots)`. @type colvec<double>
-            fx = this.f.getStateJacobian(x(:,1),t(1),mu(:,1));
-            fx = fx(:);
-            if size(x,2) > 1
-                for i=2:size(x,2)
-                    J = this.f.getStateJacobian(x(:,i),t(i),mu(:,i));
-                    fx(:,i) = J(:);
-                end
+            fx = zeros(this.f.XDim^2,size(x,2));
+            for i=1:size(x,2)
+                J = this.f.getStateJacobian(x(:,i),t(i),mu(:,i));
+                fx(:,i) = J(:);
             end
         end
         

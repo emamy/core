@@ -43,6 +43,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
         jend = {};
         jself = {};
         deriv = {};
+        dfxsel = {};
         T = {};
     end
 
@@ -78,7 +79,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             
             J = this.evaluateComponentPartialDerivatives(this.PointSets{nr},...
                 this.jend{nr}, this.jrow{nr}, this.deriv{nr}, ...
-                this.jself{nr}, this.S{nr}*x, t, mu);
+                this.jself{nr}, this.S{nr}*x, t, mu, this.dfxsel{nr});
             % The deriv{nr} contains only derivative indices for non-zero
             % jacobian elements (determined in setPointSet using the
             % JSparsityPattern). Thus, the return values of
@@ -124,6 +125,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
                 deri = [];
                 full_mapping = [];
                 requested_len = 0;
+                dfx_sel = sparse(length(pts),0);
             end
             for i=1:length(pts)
                 sprow = SP(pts(i),:);
@@ -158,6 +160,10 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
                     end
                     % Sum up the total length for later transformation
                     requested_len = requested_len + length(des_der);
+                    
+                    % Augment dfx selection matrix (only needed for default
+                    % finite differences implementation)
+                    dfx_sel(i,(end+1):(end+length(inew))) = 1;%#ok
                 end
             end
             this.jrow{nr} = jr;
@@ -190,6 +196,8 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
                 % matrix.
                 this.T{nr} = sparse(at,1:length(at),ones(length(at),1),...
                     requested_len,length(at));
+                % Store convenience dfx selection matrix
+                this.dfxsel{nr} = logical(dfx_sel);
             end
         end
         
@@ -281,14 +289,14 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
                 - this.evaluateComponents(pts, ends, idx, self, X, T, MU))/dt;
         end
         
-        function dfx = evaluateComponentPartialDerivatives(this, pts, ends, idx, deriv, self, x, t, mu)
+        function dfx = evaluateComponentPartialDerivatives(this, pts, ends, idx, deriv, self, x, t, mu, dfxsel)
             dt = sqrt(eps);
             d = length(deriv);
             X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(mu,1,d); %#ok<*PROP>
             I = sparse(deriv,1:d,ones(1,d),size(x,1),d)*dt;
             dfx = (this.evaluateComponents(pts, ends, idx, self, X+I, T, MU) ...
                 - this.evaluateComponents(pts, ends, idx, self, X, T, MU))/dt;
-            dfx = dfx(dfx ~=0);
+            dfx = dfx(dfxsel(:,deriv));
         end
     end
     

@@ -180,7 +180,13 @@ classdef DEIMEstimator < error.BaseEstimator
                 this.M9 = []; this.M10 = []; this.M11 = []; this.M12 = [];
             end
             if ~isempty(A) && ~isempty(B)
-                this.M9 = 2*A'*B;
+                if isa(B,'dscomponents.LinearInputConv')
+                    this.M9 = 2*A'*B.B;
+                else
+                    % Both inherit from AffParamMatrix, so they can be
+                    % multiplied :-)
+                    this.M9 = 2*A'*B;
+                end
             else
                 this.M9 = [];
             end

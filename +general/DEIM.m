@@ -108,8 +108,8 @@ classdef DEIM < general.AProjectable
             % svd instead of svds
             canshrink = false;
             if issparse(fxi)
-                iszero = fxi(:,1) == 0;
-                canshrink = all(all(fxi(iszero,:))) == 0;
+                iszero = sum(fxi,2) == 0;
+                canshrink = any(iszero);
                 % Check if same sparsity pattern holds for each fxi column
                 if canshrink
                     fxi = full(fxi(~iszero,:));

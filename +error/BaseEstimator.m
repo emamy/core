@@ -176,7 +176,7 @@ classdef BaseEstimator < KerMorObject & ICloneable
         end
         
         function set.ReducedModel(this, value)
-            if ~isa(value,'models.ReducedModel')
+            if ~isempty(value) && ~isa(value,'models.ReducedModel')
                 error('The given value has to be a models.ReducedModel instance.');
             end
             this.ReducedModel = value;
