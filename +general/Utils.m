@@ -502,14 +502,34 @@ classdef Utils
                 L = chol(G,'lower');
                 A = L\(A'*L);
             end
-            if issparse(A)
-                A = full(A);
+
+            hlp = .5*(A + A');
+            if size(hlp,1) > 1000
+%                 t = tic;
+                opts.v0 = ones(size(A,1),1);
+                opts.maxit = 1000;
+                [v, ln] = eigs(hlp,1,'la',opts);
+                if ln < 0
+                    [v, ln] = eigs(hlp,1,-ln,opts);
+%                     [v, lnpos] = eigs(hlp - ln*speye(size(A,1)),[],1,opts);
+%                     ln = ln + lnpos;
+                end
+%                 t2 = toc(t);
+            else
+%                 t = tic;
+                [v, d] = eig(full(hlp));
+                [ln, idx] = max(diag(d));
+                v = v(:,idx);
+%                 t1 = toc(t);
             end
-            [v, lam] = eig(.5*(A + A'));
-            lam = diag(lam);
-            [ln, idx] = max(lam);
-            v = v(:,idx);
-            %[v, ln] = eigs(.5*(A + A'),1);
+%             t = tic;
+%             % Get smallest and largest magnitude eigenvalues
+%             [v, ln2] = eigs(hlp,2,'be',opts);
+%             [ln2, idx] = max([ln2(1) ln2(4)]);
+%             v = v(:,idx);
+%             t3 = toc(t);
+%             fprintf('eig-full: %g/%gs, eigs-shift: %g/%gs, eigs-be: %g/%gs\n',...
+%                 ln1,t1,ln,t2,ln2,t3);
         end
     end
     
