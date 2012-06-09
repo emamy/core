@@ -48,7 +48,7 @@ classdef DEIM
         end
         
         function [res, pm] = computeDEIMErrors(deim, atd, orders, errorders)
-            oldo = deim.fOrder;
+            oldo = deim.Order;
             if nargin < 4
                 if nargin < 3
                     orders = 1:deim.MaxOrder-1;
@@ -98,12 +98,6 @@ classdef DEIM
                 res(5,i) = sumfun(hlp);
                 res(6,i) = sumfun(hlp./fxinorm);
                 
-%                 % Compute actual error between M and M' approximations
-%                 deim.Order = [sum(deim.fOrder) 0];
-%                 % Get order+errorder eval
-%                 hlp = efun(deim.evaluateCoreFun(atd.xi,atd.ti,atd.mui) - afxi);
-%                 res(7,i) = sumfun(hlp);
-%                 res(8,i) = sumfun(hlp./fxinorm);
                 pi.step;
             end
             pi.stop;
