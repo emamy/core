@@ -1,4 +1,4 @@
-classdef DEIM < general.AProjectable
+classdef DEIM < KerMorObject & general.AProjectable
 % DEIM: Implements the DEIM-Algorithm from [CS09]
 %
 % [CS09] Chaturantabut, S. & Sorensen, D.
@@ -9,6 +9,13 @@ classdef DEIM < general.AProjectable
 % next `M'` orders of the current DEIM approximation.
 %
 % @author Daniel Wirtz @date 2012-03-26
+%
+% @change{0,6,dw,2012-06-08}
+% - DEIM is now a KerMorObject
+% - Fixed triggering of updateOrderData after computeDEIM calls
+% - Completed clone method
+% - New event "OrderUpdated" to notify any components of changes to the
+% current DEIM orders
 %
 % @new{0,6,dw,2012-05-30} Added a custom implementation of the
 % getStateJacobian method
@@ -64,8 +71,6 @@ classdef DEIM < general.AProjectable
     
     properties(Access=private)
         fOrder = [];
-        pV;
-        pW;
     end
     
     properties(SetAccess=protected)
@@ -133,8 +138,15 @@ classdef DEIM < general.AProjectable
             % Get interpolation points
             this.pts = this.getInterpolationPoints(this.u);
             
-            % Trigger computation of U matrix etc
-            this.Order = round(this.MaxOrder/10);
+            % Trigger computation of U matrix.
+            % If no order has been set yet ("first computation"), use
+            % predefined order. Otherwise, just ensure the order data
+            % corresponds to the current u/pts.
+            if isempty(this.fOrder)
+                this.Order = ceil(this.MaxOrder/10);
+            else
+                this.updateOrderData;
+            end
         end
         
         function fx = evaluate(this, x, t, mu)
@@ -175,18 +187,20 @@ classdef DEIM < general.AProjectable
                 copy = general.DEIM;
             end
             copy = clone@general.AProjectable(this, copy);
+            % Clone associated f as different orders for the cloned object
+            % lead to different PointSets for the component evaluable
+            % function.
+            copy.f = this.f.clone;
             copy.fOrder = this.fOrder;
             copy.u = this.u;
             copy.pts = this.pts;
             copy.U = this.U;
-            copy.f = this.f.clone;
+            copy.U_nonproj = this.U_nonproj;
             copy.MaxOrder = this.MaxOrder;
             copy.Uerr1 = this.Uerr1;
             copy.Uerr2 = this.Uerr2;
             copy.M1 = this.M1;
             copy.M2 = this.M2;
-            copy.pV = this.pV;
-            copy.pW = this.pW;
         end
     end
     
@@ -213,6 +227,11 @@ classdef DEIM < general.AProjectable
     
     methods(Access=protected)
         function updateOrderData(this)
+            
+            if KerMor.App.Verbose > 3
+                fprintf('general.DEIM.updateOrderData: Updating order data of DEIM (%s, #%s) to [%d %d]\n',class(this),this.ID,this.fOrder);
+            end
+            
             o = this.fOrder(1);
             n = size(this.u,1);
             
@@ -255,6 +274,9 @@ classdef DEIM < general.AProjectable
             else
                 this.U = this.U_nonproj;
             end
+            
+            % Fire order updated event
+            notify(this, 'OrderUpdated', event.EventData);
         end
     end
     
@@ -287,5 +309,18 @@ classdef DEIM < general.AProjectable
                 this.updateOrderData;
             end
         end
+        
+        function set.MaxOrder(this, value)
+            if ~isposintscalar(value)
+                error('MaxOrder has to be a positive integer scalar.');
+            end
+            this.MaxOrder = value;
+        end
+    end
+    
+    events
+        % Gets fired whenever this DEIM instance has updated it's order
+        % matrices.
+        OrderUpdated;
     end
 end

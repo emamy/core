@@ -176,7 +176,7 @@ classdef DPCMObject < handle
             % @change{0,6,dw,2012-01-17} Checking if any properties registered in the
             % PropertiesChanged dictionary are not present anymore (due to updates etc) and
             % removing them from the dictionary if that is the case.
-            if isa(obj, 'DPCMObject')
+            if isa(obj, 'DPCMObject') && ~isempty(obj.PropertiesChanged)
                 keys = obj.PropertiesChanged.Keys;
                 for idx = 1:obj.PropertiesChanged.Count
                     ps = obj.PropertiesChanged(keys{idx});

@@ -1,29 +1,52 @@
 classdef DEIMEstimator < error.BaseEstimator
-% DEIMEstimator: A-posteriori error estimation for DEIM reduced models.
-%
-% @author Daniel Wirtz @date 2012-05-10
-%
-% @change{0,6,dw,2012-05-26} Updated the computation to the new structure
-% of systems (A + f components) and replaced the previous (errorneous) one
-%
-% @new{0,6,dw,2012-05-10} Added this class.
-%
-% This class is part of the framework
-% KerMor - Model Order Reduction using Kernels:
-% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
-% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
-% - \c License @ref licensing
+    % DEIMEstimator: A-posteriori error estimation for DEIM reduced models.
+    %
+    % @author Daniel Wirtz @date 2012-05-10
+    %
+    % @new{0,6,dw,2012-06-08}
+    % - Introduced the property JacMatDEIMMaxOrder to control the jacobian
+    % DEIM approximation quality
+    % - Made the JacMDEIM property private
+    % - Introduced flags for more expensive (comparison-purpose)
+    % estimators
+    % - Removed the ErrorOrder setting as the DEIMEstimator directly depends
+    % on the Order setting of the reduced model's DEIM approximation.
+    % Setting the DEIM order "remotely" from the error estimator introduced
+    % more trouble than necessary
+    % - Not re-using the previously computed JacMDEIM approximation upon
+    % new runs of offlineGenerations (mess)
+    % - Giving out a warning if no sufficient reduction by the similarity
+    % transformation is achieved and disabling it for less than 20% reduction. 
+    % - Using an event listener for the DEIM OrderUpdated event to
+    % re-compute local error estimation matrices
+    %
+    % @change{0,6,dw,2012-05-26} Updated the computation to the new structure
+    % of systems (A + f components) and replaced the previous (errorneous) one
+    %
+    % @new{0,6,dw,2012-05-10} Added this class.
+    %
+    % This class is part of the framework
+    % KerMor - Model Order Reduction using Kernels:
+    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % - \c License @ref licensing
     
     properties
         % The maximum size of the similarity transformation.
         %
         % Set to empty if not wanted. The BaseFullModel sets this value at
-        % offline generations phase 
+        % offline generations phase
         %
         % @type integer @default []
         %
         % See also: JacSimTransSize
         JacSimTransMaxSize = [];
+        
+        % Maximum order for the DEIM approximation of the state space
+        % jacobian.
+        %
+        % @type integer @default 50
+        JacMatDEIMMaxOrder = 50;
         
         % The selector that chooses the full model's trajectory points that
         % are used for the MatrixDEIM approximation of the jacobian and the
@@ -32,17 +55,20 @@ classdef DEIMEstimator < error.BaseEstimator
         % @type approx.selection.ASelector @default
         % approx.selection.DefaultSelector
         TrainDataSelector;
+        
+        % "Expensive version": Using the full system's jacobian for
+        % logarithmic norm computation.
+        % Included for easy error estimator comparison.
+        UseFullJacobian = false;
+        
+        % "Even More Expensive version": Precompute the full solution and
+        % use the true logarithmic lipschitz constant of `f` in
+        % computations.
+        % Included for easy error estimator comparison.
+        UseTrueLogLipConst = false;
     end
     
     properties(SetAccess=private)
-        % The MatrixDEIM instance used to approximate the state space
-        % jacobian matrices
-        %
-        % The default MaxOrder setting is 50.
-        %
-        % @type general.MatrixDEIM
-        JacMDEIM;
-        
         % The POD instance to compute the partial similarity transform
         % matrix.
         %
@@ -53,8 +79,8 @@ classdef DEIMEstimator < error.BaseEstimator
         %
         % @type general.POD
         SimTransPOD;
-                
-        % The complete similarity transformation matrix of size 
+        
+        % The complete similarity transformation matrix of size
         % `d \times JacSimTransMaxSize`
         %
         % (Debug/testing use)
@@ -94,14 +120,6 @@ classdef DEIMEstimator < error.BaseEstimator
     end
     
     properties(Dependent)
-        % The DEIM error estimation order to use for simulations.
-        %
-        % Setting to a positive value results in activation of the error
-        % estimator.
-        %
-        % @type integer @default 5
-        ErrorOrder;
-        
         % The size of the partial similarity transform to apply to the
         % matrix DEIM approximated jacobians.
         %
@@ -112,26 +130,39 @@ classdef DEIMEstimator < error.BaseEstimator
         %
         % See also: JacSimTransMaxSize
         JacSimTransSize;
+        
+        % The actual order of the DEIM approximation for the system's
+        % jacobian.
+        %
+        % Upper bounded by JacMatDEIMMaxOrder and defaults to the ceiled
+        % half of the maximum size (set during offlineComputations)
+        %
+        % @type integer @default ceil(JacMatDEIMMaxOrder/2)
+        %
+        % See also: JacMatDEIMMaxOrder
+        JacMatDEIMOrder;
     end
     
     properties(Access=private)
-        eOrder = 5;
-        jstOrder = 0;
+        jstSize = 0;
+        
+        % The MatrixDEIM instance used to approximate the state space
+        % jacobian matrices
+        %
+        % The default MaxOrder setting is 50.
+        %
+        % @type general.MatrixDEIM
+        JacMDEIM;
     end
     
     properties(Access=private, Transient)
         fullsol;
-        
-        % Stores the reduced system's deim instance
-        deim;
     end
     
     methods
         function this = DEIMEstimator
             this = this@error.BaseEstimator;
             this.ExtraODEDims = 1;
-            this.JacMDEIM = general.MatrixDEIM;
-            this.JacMDEIM.MaxOrder = 50;
             p = general.POD;
             p.Mode = 'eps';
             p.Value = 1e-7;
@@ -142,6 +173,10 @@ classdef DEIMEstimator < error.BaseEstimator
         function offlineComputations(this, fm)
             % Overrides the method from BaseEstimator and performs
             % additional computations.
+            
+            if KerMor.App.Verbose > 0
+                fprintf('error.DEIMEstimator: Starting offline computations...\n');
+            end
             
             % Call superclass
             offlineComputations@error.BaseEstimator(this, fm);
@@ -160,12 +195,12 @@ classdef DEIMEstimator < error.BaseEstimator
                 % Precompute logarithmic norm of A(t,\mu)
                 a = general.AffParamMatrix;
                 if isa(fA, 'dscomponents.LinearCoreFun')
-                   a.addMatrix('1',general.Utils.logNorm(fA.A));
+                    a.addMatrix('1',general.Utils.logNorm(fA.A));
                 else
-                   for i=1:fA.N
+                    for i=1:fA.N
                         a.addMatrix(['abs(' fA.funStr{i} ')'],...
                             general.Utils.logNorm(fA.getMatrix(i)));
-                   end
+                    end
                 end
                 this.Aln = a;
             else
@@ -192,17 +227,20 @@ classdef DEIMEstimator < error.BaseEstimator
             end
             
             % LogNorm-related computations
-            jd = this.JacMDEIM;
+            jd = general.MatrixDEIM;
+            jd.MaxOrder = this.JacMatDEIMMaxOrder;
             jd.NumRows = fm.System.f.XDim;
             if KerMor.App.Verbose > 0
                 fprintf('Computing matrix DEIM (MaxOrder=%d) of system jacobian...\n',...
-                    this.JacMDEIM.MaxOrder);
+                    this.JacMatDEIMMaxOrder);
             end
             jd.computeDEIM(general.JacCompEvalWrapper(fm.System.f), ...
                 md.JacobianTrainData.fxi);
             % Project, as arguments that will be passed are in reduced
             % dimension
             this.JacMDEIM = jd.project(md.V, md.W);
+            % Initialize to certain order
+            this.JacMatDEIMOrder = ceil(this.JacMatDEIMMaxOrder/2);
             
             if ~isempty(md.JacSimTransData.VFull)
                 p = this.SimTransPOD;
@@ -212,59 +250,62 @@ classdef DEIMEstimator < error.BaseEstimator
                     end
                     p.Value = this.JacSimTransMaxSize;
                 end
-                if KerMor.App.Verbose > 0
-                    fprintf(['Computing partial similarity transform with POD Mode=''%s'' '...
-                        'and Value=%g on %d eigenvectors...\n'],...
-                        p.Mode,p.Value,size(md.JacSimTransData.VFull,2));
-                end
                 [this.STFull, this.STSingVals] = ...
                     p.computePOD(md.JacSimTransData.VFull);
+                red = 1-size(this.STFull,2)/size(this.STFull,1);
+                if KerMor.App.Verbose > 0
+                    fprintf(['Computed partial similarity transform with POD Mode=''%s'' '...
+                        'and Value=%g on %d eigenvectors.\nResulting reduction %d/%d (%g%%), '...
+                        'JacSimTransMaxSize=%d\n'],...
+                        p.Mode,p.Value,size(md.JacSimTransData.VFull,2),...
+                        size(this.STFull,2),size(this.STFull,1),...
+                        100*red,...
+                        size(this.STFull,2));
+                end
                 this.JacSimTransMaxSize = size(this.STFull,2);
-                this.JacSimTransSize = ceil(this.JacSimTransMaxSize/2);
+                if red < .2
+                    this.JacSimTransSize = [];
+                    fprintf(2,'Achieved reduction under 20%%, disabling similarity transformation.\n');
+                else
+                    this.JacSimTransSize = ceil(this.JacSimTransMaxSize/2);
+                end
             else
                 fprintf(2,'ModelData.JacSimTransData.VFull is empty. Not computing similarity transform.\n');
             end
             
             % Compute approximation for local logarithmic norm
-%             this.computeLogNormApprox;
+            %             this.computeLogNormApprox;
+        end
+        
+        function setReducedModel(this, rmodel)
+            setReducedModel@error.BaseEstimator(this, rmodel);
+            addlistener(rmodel.System.f,'OrderUpdated',@this.handleOrderUpdate);
+            this.updateErrMatrices;
         end
         
         function ct = prepareConstants(this, mu, inputidx)
-            % Experimental part
-            [~, this.fullsol] = this.ReducedModel.FullModel.computeTrajectory(mu,inputidx);
-            
             t = tic;
-            if isempty(this.deim)
-                this.deim = this.ReducedModel.System.f;
+            
+            % True log lip const comparison estimator
+            if this.UseTrueLogLipConst
+                [~, this.fullsol] = this.ReducedModel.FullModel.computeTrajectory(mu,inputidx);
             end
-            neworder = [this.deim.Order(1) this.ErrorOrder];
-            % Only update DEIM error matrices if a new order has been set.
-            if ~isequal(this.deim.Order, neworder)
-                this.deim.Order = neworder;
-                this.updateErrMatrices;
-            end
+            
             ct = toc(t);
         end
         
         function a = getAlpha(this, x, t, mu, ut)
             x = x(1:end-1);
-            v1 = this.deim.f.evaluateComponentSet(1, x, t, mu);
-            v2 = this.deim.f.evaluateComponentSet(2, x, t, mu);
+            f = this.ReducedModel.System.f.f;
+            v1 = f.evaluateComponentSet(1, x, t, mu);
+            v2 = f.evaluateComponentSet(2, x, t, mu);
             
             % NOTE: The factors 2 before some summands are added at offline
             % stage!!
             a = v1'*this.M3*v1 - v1'*this.M4*v2 + v2'*this.M5*v2;
-%             fprintf('a: %g, a_1:%g, a_2:%g, a_3:%g, M3: %dx%d, M4: %dx%d, M5:%dx%d\n',a,...
-%                 v1'*this.M3*v1, - v1'*this.M4*v2, v2'*this.M5*v2,...
-%                 size(this.M3,1),size(this.M3,2),size(this.M4,1),size(this.M4,2),...
-%                 size(this.M5,1),size(this.M5,2));
-            
             if ~isempty(this.M6) % An time/param affine A is set
                 a = a + x'*this.M6.evaluate(x,t,mu) + v1'*this.M7.evaluate(x,t,mu) ...
                     - v2'*this.M8.evaluate(x,t,mu);
-%                 fprintf('a+A-pt: %g, M6:%g, M7:%g, M8:%g\n',a,...
-%                     x'*this.M6.evaluate(x,t,mu), v1'*this.M7.evaluate(x,t,mu), ...
-%                     - v2'*this.M8.evaluate(x,t,mu));
                 if ~isempty(ut)
                     a = a + x'*this.M9.evaluate(ut,t,mu);
                 end
@@ -280,59 +321,67 @@ classdef DEIMEstimator < error.BaseEstimator
 %             fs = this.ReducedModel.FullModel.System;
 %             I = speye(size(V,1));
 %             a1 = (I-V*V')*fs.A.evaluate(V*x,t,mu);
-%             a2 = this.deim.M1 * v1;
-%             a3 = this.deim.M2 * v2;
-%             a2 = norm(a1+a2-a3);
+%             a2 = this.ReducedModel.System.f.M1 * v1;
+%             a3 = this.ReducedModel.System.f.M2 * v2;
+%             a4 = (I-V*V')*fs.B.evaluate(t,mu)*ut;
+%             a2 = norm(a1+a2-a3+a4);
+%             if abs((a-a2)/a2) > 1e-2
+%                 error('alpha computation mismatch.');
+%             end
         end
         
         function b = getBeta(this, x, t, mu)
             x = x(1:end-1);
+            % Old log lip const kernel learning code
             %x = x .* (this.scale(:,2) - this.scale(:,1)) + this.scale(:,1);
-%             x = (x - this.scale(:,1)) ./ (this.scale(:,2) - this.scale(:,1));
-%             eint = this.kexp.evaluate(x, t, mu)*olderr + sqrt(abs(a));
+            %             x = (x - this.scale(:,1)) ./ (this.scale(:,2) - this.scale(:,1));
+            %             b = this.kexp.evaluate(x, t, mu)*olderr + sqrt(abs(a));
             
             % Validation code
-            rm = this.ReducedModel;
-            fm = rm.FullModel;
-            ff = fm.System.f;
-%             tx = this.fullsol(:,find(rm.scaledTimes - t < eps,1));
-            rx = rm.V*x;
-%             d = tx - rx;
-%             tlc = d'*(ff.evaluate(tx,t,mu) - ff.evaluate(rx,t,mu)) ...
-%                 / sum(d.*d);
+            if this.UseTrueLogLipConst
+                rm = this.ReducedModel;
+                f = rm.FullModel.System.f;
+                tx = this.fullsol(:,find(rm.scaledTimes - t < eps,1));
+                rx = rm.V*x;
+                d = tx - rx;
+                diff = sum(d.*d);
+                if diff ~= 0
+                    b = d'*(f.evaluate(tx,t,mu) - f.evaluate(rx,t,mu)) ...
+                    / diff;
+                else
+                    b = 0;
+                end
+            elseif this.UseFullJacobian
+                rm = this.ReducedModel;
+                f = rm.FullModel.System.f;
+                b = general.Utils.logNorm(f.getStateJacobian(rm.V*x, t, mu));
+            else
+                DJ = this.JacMDEIM.evaluate(x,t,mu);
+                b = general.Utils.logNorm(DJ);
+            end
             
-            FJ = ff.getStateJacobian(rx,t,mu);
-%             DFJ = fm.Approx.getStateJacobian(rx,t,mu);
-%             jtlc = (d'*(FJ*d)) / sum(d.*d);
-%             djtlc = (d'*(DFJ*d)) / sum(d.*d);
+            %             DFJ = fm.Approx.getStateJacobian(rx,t,mu);
+            %             jtlc = (d'*(FJ*d)) / sum(d.*d);
+            %             djtlc = (d'*(DFJ*d)) / sum(d.*d);
             
-%             fprintf('True: %g, Jac: %g, diff: %g, rel: %g, DEIMJac: %g, diff: %g, rel: %g\n',...
-%                 tlc,jtlc,abs(tlc-jtlc),abs((tlc-jtlc)/tlc),...
-%                 djtlc,abs(tlc-djtlc),abs((tlc-djtlc)/tlc));
+            %             fprintf('True: %g, Jac: %g, diff: %g, rel: %g, DEIMJac: %g, diff: %g, rel: %g\n',...
+            %                 tlc,jtlc,abs(tlc-jtlc),abs((tlc-jtlc)/tlc),...
+            %                 djtlc,abs(tlc-djtlc),abs((tlc-djtlc)/tlc));
             
-            fjln = general.Utils.logNorm(FJ);
-            ST = this.JacMDEIM.ST;
-            sfjln = general.Utils.logNorm(ST'*(FJ*ST));
+            %             J = this.deim.getStateJacobian(x,t,mu);
+            %             jln = general.Utils.logNorm(J);
             
-            DJ = this.JacMDEIM.evaluate(x,t,mu);
-            dsjln = general.Utils.logNorm(DJ);
-            
-            J = this.deim.getStateJacobian(x,t,mu);
-            jln = general.Utils.logNorm(J);
-            
-            fprintf('Log norms - F: %g, SF: %g, SR: %g, R: %g\n',...
-                fjln,sfjln,dsjln,jln); %, FJN: %g
-
-%             b = tlc;
-            b = fjln;
+            %             fprintf('Log norms - F: %g, SF: %g, SR: %g, R: %g\n',...
+            %                 fjln,sfjln,dsjln,jln); %, FJN: %g
             
             if isnan(b)
+                fprintf(2,'NaN b value occured in error.DEIMEstimator.getBeta!\n');
                 b = 0;
             end
             
             % Take care of the A(t,\mu) part, if existing
             if ~isempty(this.Aln)
-                b = b + this.Aln.compose(t, mu)*this.ReducedModel.dt;
+                b = b + this.Aln.compose(t, mu);
             end
         end
         
@@ -342,16 +391,17 @@ classdef DEIMEstimator < error.BaseEstimator
         end
         
         function copy = clone(this)
-            copy = clone@error.BaseEstimator(this, error.DEIMEstimator(this.ReducedModel));
+            copy = clone@error.BaseEstimator(this, error.DEIMEstimator);
             
-            % Dont copy the DEIM approx function, the're working on the same!
-            copy.deim = this.deim;
-            
+            % DEIM stuff
+            copy.JacMatDEIMMaxOrder = this.JacMatDEIMMaxOrder;
             copy.JacMDEIM = this.JacMDEIM.clone;
+            
+            % Sim Trans stuff
             copy.JacSimTransMaxSize = this.JacSimTransMaxSize;
-            copy.eOrder = this.eOrder;
-            copy.jstOrder = this.jstOrder;
+            copy.jstSize = this.jstSize;
             copy.STFull = this.STFull;
+            
             copy.TrainDataSelector = this.TrainDataSelector.clone;
             
             copy.scale = this.scale;
@@ -391,47 +441,6 @@ classdef DEIMEstimator < error.BaseEstimator
             end
         end
         
-        function value = get.ErrorOrder(this)
-            value = this.eOrder;
-        end
-        
-        function set.ErrorOrder(this, value)
-            if value == 0
-                this.Enabled = false;
-            elseif ~isposintscalar(value)
-                error('The error order has to be an integer scalar.');
-            else
-                this.Enabled = true;
-            end
-            this.eOrder = value;
-        end
-        
-        function value = get.JacSimTransSize(this)
-            value = this.jstOrder;
-        end
-        
-        function set.JacSimTransSize(this, value)
-            if value < this.JacSimTransMaxSize
-                if this.jstOrder ~= value
-                    this.jstOrder = value;
-                    this.JacMDEIM.setSimilarityTransform(...
-                        this.STFull(:,1:this.jstOrder));
-                end
-            end
-        end
-        
-        function set.TrainDataSelector(this, value)
-            this.checkType(value, 'approx.selection.ASelector');
-            this.TrainDataSelector = value;
-        end
-        
-        function set.JacSimTransMaxSize(this, value)
-            if ~isempty(this.JacSimTransMaxSize) && ...
-                    this.JacSimTransMaxSize ~= value
-                fprintf('New maximum size of similarity transform. Re-run of offlineComputations necessary.\n');
-            end
-            this.JacSimTransMaxSize = value;
-        end
     end
     
     methods(Access=protected)
@@ -452,13 +461,19 @@ classdef DEIMEstimator < error.BaseEstimator
     end
     
     methods(Access=private)
+        
+        function handleOrderUpdate(this, ~, ~)
+            this.updateErrMatrices;
+        end
+        
         function updateErrMatrices(this)
             % This methods updates all the offline-computable matrices
             % involved for error estimation that depend on the DEIM
             % approximation order.
-            if this.deim.Order(2) > 0
-                M1 = this.deim.M1;
-                M2 = this.deim.M2;
+            deim = this.ReducedModel.System.f;
+            if deim.Order(2) > 0
+                M1 = deim.M1;
+                M2 = deim.M2;
                 this.M3 = M1'*M1;
                 this.M4 = 2*M1'*M2;
                 this.M5 = M2'*M2;
@@ -470,6 +485,10 @@ classdef DEIMEstimator < error.BaseEstimator
                     this.M10 = 2*M1'*this.Bh;
                     this.M11 = 2*M2'*this.Bh;
                 end
+                if ~this.Enabled
+                    this.Enabled = true;
+                    fprintf('DEIM error estimation order set to %d. Enabling DEIMEstimator.\n',deim.Order(2));
+                end
             else
                 if this.Enabled
                     this.Enabled = false;
@@ -478,34 +497,74 @@ classdef DEIMEstimator < error.BaseEstimator
             end
         end
         
-%         function orderUpdated(this, ~, ~)%sender, data
-%             if KerMor.App.Verbose > 0
-%                 fprintf('Updating DEIM error estimator matrices.. (ID %s)\n',this.ID);
-%             end
-%             if ~this.Enabled && this.deim.Order(2) > 0
-%                 this.Enabled = true;
-%                 fprintf('DEIM error estimation order set. Enabling DEIMEstimator.\n');
-%             end
-%             this.updateErrMatrices;
-%         end
-        
         function computeLogNormApprox(this)
-%             [res, mScale, MScale] = testing.LogNorm(this.ReducedModel.FullModel);
-%             a = approx.algorithms.VectorialKernelOMP;
-%             a.NumGammas = 60;
-%             a.MinGFactor = .5;
-%             a.MaxGFactor = 7;
-%             a.UseOGA = true;
-%             a.UsefScaling = true;
-%             k = kernels.KernelExpansion;
-%             k.Kernel = kernels.GaussKernel;
-%             a.computeApproximation(k, res);
-%             this.kexp = k;
-%             this.scale = [mScale MScale];
-
+            %             [res, mScale, MScale] = testing.LogNorm(this.ReducedModel.FullModel);
+            %             a = approx.algorithms.VectorialKernelOMP;
+            %             a.NumGammas = 60;
+            %             a.MinGFactor = .5;
+            %             a.MaxGFactor = 7;
+            %             a.UseOGA = true;
+            %             a.UsefScaling = true;
+            %             k = kernels.KernelExpansion;
+            %             k.Kernel = kernels.GaussKernel;
+            %             a.computeApproximation(k, res);
+            %             this.kexp = k;
+            %             this.scale = [mScale MScale];
+            
             load(fullfile(KerMor.App.HomeDirectory,'data/lognorm/res_loclognorms_scaled.mat'));
             this.kexp = kexp;%#ok
             this.scale = [ms Ms];
+        end
+    end
+    
+    %% Getter & Setter
+    methods
+        function value = get.JacSimTransSize(this)
+            value = this.jstSize;
+        end
+        
+        function set.JacSimTransSize(this, value)
+            if isempty(value) || (isposintscalar(value) ...
+                    && value <= this.JacSimTransMaxSize)
+                if ~isequal(this.jstSize,value)
+                    this.jstSize = value;
+                    this.JacMDEIM.setSimilarityTransform(...
+                        this.STFull(:,1:this.jstSize));
+                end
+            else
+                error('Value must be empty or a positive int scalar smaller than JacSimTransMaxSize');
+            end
+        end
+        
+        function value = get.JacMatDEIMOrder(this)
+            value = this.JacMDEIM.Order(1);
+        end
+        
+        function set.JacMatDEIMOrder(this, value)
+            if ~isposintscalar(value)
+                error('JacMatDEIMOrder must be a positive integer.');
+            end
+            if value <= this.JacMatDEIMMaxOrder
+                if this.JacMDEIM.Order(1) ~= value
+                    this.JacMDEIM.Order = value;
+                end
+            else
+                error('Cannot set an order higher (%d) than the current JacMatDEIMMaxOrder of %d',...
+                    value,this.JacMatDEIMMaxOrder);
+            end
+        end
+        
+        function set.TrainDataSelector(this, value)
+            this.checkType(value, 'approx.selection.ASelector');
+            this.TrainDataSelector = value;
+        end
+        
+        function set.JacSimTransMaxSize(this, value)
+            if ~isempty(this.JacSimTransMaxSize) && ...
+                    this.JacSimTransMaxSize ~= value
+                fprintf('New maximum size of similarity transform. Re-run of offlineComputations necessary.\n');
+            end
+            this.JacSimTransMaxSize = value;
         end
     end
     
@@ -517,7 +576,7 @@ classdef DEIMEstimator < error.BaseEstimator
             if ~isa(model.Approx,'approx.DEIM')
                 errmsg = 'The reduced models core function must be a DEIM approximation.';
             elseif ~isempty(model.System.B) && ...
-                   ~any(strcmp(class(model.System.B),{'dscomponents.LinearInputConv','dscomponents.AffLinInputConv'}))
+                    ~any(strcmp(class(model.System.B),{'dscomponents.LinearInputConv','dscomponents.AffLinInputConv'}))
                 errmsg = 'The systems input must be either Linear- or AffLinInputConv';
             elseif ~isempty(model.System.A) && ...
                     ~any(strcmp(class(model.System.A),...

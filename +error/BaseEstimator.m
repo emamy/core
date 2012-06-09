@@ -10,6 +10,13 @@ classdef BaseEstimator < KerMorObject & ICloneable
     %
     % @author Daniel Wirtz @date 24.11.2010
     %
+    % @new{0,6,dw,2012-06-08} Split up the former setReducedModel routine
+    % into offlineGenerations and setReducedModel. The first stage is run
+    % together with the BaseFullModels offlineGenerations, and the latter
+    % for every reduced model created from the full one. (Originally the
+    % setReducedModel was to be taken away, but some estimators rely on the
+    % effectively projected reduced components of the reduced models)
+    %
     % @change{0,6,dw,2011-12-14} Changed the interface of the BaseEstimator.postProcess and
     % BaseEstimator.prepareConstants methods so that the effective time needed for computation
     % is returned. This is a consequence of the models.BaseFullModel's simulation cache.
@@ -61,7 +68,7 @@ classdef BaseEstimator < KerMorObject & ICloneable
         OutputError = [];
     end
     
-    properties
+    properties(SetAccess=private)
         % The reduced model associated with the error estimator.
         %
         % @type models.ReducedModel
@@ -87,6 +94,11 @@ classdef BaseEstimator < KerMorObject & ICloneable
             else
                 this.e0Comp = error.initial.Constant(model);
             end
+        end
+        
+        function setReducedModel(this, rmodel)
+            % Sets the reduced model to use with 
+            this.ReducedModel = rmodel;
         end
         
         function ct = postProcess(this, x, t, mu, inputidx)

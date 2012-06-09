@@ -132,8 +132,7 @@ classdef ReducedModel < models.BaseModel
             
             % Use the error estimator that has been precomputed in 
             % the full model
-            this.ErrorEstimator = fullmodel.ErrorEstimator;
-            this.ErrorEstimator.ReducedModel = this;
+            this.ErrorEstimator = fullmodel.ErrorEstimator.clone;
         end
         
         function [t, x, ctime] = computeTrajectory(this, mu, inputidx)
@@ -254,6 +253,10 @@ classdef ReducedModel < models.BaseModel
                     error(msg);
                 end
             end
+            % Trigger the computations that may be needed once the actual
+            % reduced model is known to the error estimator.
+            value.setReducedModel(this);
+            
             this.fErrorEstimator = value;
         end
     end

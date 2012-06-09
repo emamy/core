@@ -3,6 +3,9 @@ classdef Utils
 %
 % @author Daniel Wirtz @date 11.10.2010
 %
+% @change{0,6,dw,2012-06-08} Bugfix: Now the logarithmic norms are computed
+% correctly. ARGH that took a while to detect..
+%
 % @new{0,6,dw,2012-04-13} New method "getTube" that allows to draw random
 % vectors from spaces of arbitrary dimension but restricted to a specified
 % tube.
@@ -495,14 +498,18 @@ classdef Utils
             % norm induced by `G`. @type double
             % v: The eigenvector of the largest eigenvalue (=log norm) of
             % the symmetric part of `A`. @type colvec<double>
-            if nargin < 2
-                G = 1;
-            end
-            if ~isscalar(G)
+            if nargin == 2
                 L = chol(G,'lower');
                 A = L\(A'*L);
             end
-            [v, ln] = eigs(.5*(A' + A),1);
+            if issparse(A)
+                A = full(A);
+            end
+            [v, lam] = eig(.5*(A + A'));
+            lam = diag(lam);
+            [ln, idx] = max(lam);
+            v = v(:,idx);
+            %[v, ln] = eigs(.5*(A + A'),1);
         end
     end
     

@@ -222,6 +222,9 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             copy.jrow = this.jrow;
             copy.jend = this.jend;
             copy.jself = this.jself;
+            copy.deriv = this.deriv;
+            copy.dfxsel = this.dfxsel;
+            copy.T = this.T;
         end
         
         function psets = get.PointSets(this)

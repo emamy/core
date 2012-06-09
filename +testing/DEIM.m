@@ -230,7 +230,8 @@ classdef DEIM
         
         
         %% %%%%%%%%%%%%%%%%%%%% MATRIX DEIM STUFF %%%%%%%%%%%%%%%%%%%%
-        function [no,no1,nom,jln,djln,sdjln] = matrix_deim(m, deim, nr)
+        function [no,no1,nom,jln,djln,sdjln] = matrix_deim(m, nr)
+            deim = m.ErrorEstimator.JacMDEIM;
             [x, mu] = m.Data.getTrajectoryNr(nr);
             t = m.scaledTimes;
             mu = repmat(mu,1,length(t));
@@ -450,7 +451,7 @@ classdef DEIM
             
             % Input checks
             if nargin < 3
-                st_sizes = 1:e.JacSimTransMaxSize;
+                st_sizes = [1:e.JacSimTransMaxSize 0];
                 if nargin < 2
                     deim_orders = 1:jd.MaxOrder;
                 end

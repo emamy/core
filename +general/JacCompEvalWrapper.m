@@ -1,9 +1,13 @@
 classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
-% JacCompEvalWrapper: 
+% JacCompEvalWrapper: Wraps the evaluation of a ACompEvalCoreFun's jacobian
+% into a vectorized function.
 %
-%
+% This class is used to enable matrix DEIM approximation.
 %
 % @author Daniel Wirtz @date 2012-06-01
+%
+% @change{0,6,dw,2012-06-08} Improved the speed of the evaluate-function by
+% separate code for sparse/full matrices.
 %
 % @new{0,6,dw,2012-06-01} Added this class.
 %
@@ -26,25 +30,27 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
         function this = JacCompEvalWrapper(f)
           % Creates a new jacobian matrix wrapper for linear indexing,
           % which implements dscomponents.ACompEvalCoreFun
-          % Checks
-          if ~isa(f,'dscomponents.ACompEvalCoreFun')
-              error('The system''s nonlinearity must be a component wise evaluable function.');
-          end
           
           % Call superclass constructor
           this = this@dscomponents.ACompEvalCoreFun;
           
-          % Get copy of original full system function
-          this.f = f.clone;
-          
-          % ACoreFun settings
-          this.MultiArgumentEvaluations = true;
-          this.XDim = f.XDim;
-          this.JSparsityPattern = [];
-          
-          % Extra: Store original full dimension, as f gets possibly
-          % projected
-          this.fullXDim = f.XDim;
+          if nargin == 1
+              % Checks
+              if ~isa(f,'dscomponents.ACompEvalCoreFun')
+                  error('The system''s nonlinearity must be a component wise evaluable function.');
+              end
+              % Original full system function
+              this.f = f;
+
+              % ACoreFun settings
+              this.MultiArgumentEvaluations = true;
+              this.XDim = f.XDim;
+              this.JSparsityPattern = [];
+
+              % Extra: Store original full dimension, as f gets possibly
+              % projected
+              this.fullXDim = f.XDim;
+          end
         end
         
         function fx = evaluate(this, x, t, mu)
@@ -56,11 +62,27 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
             % fx: The linearly indexed jacobian of `f`, so `fx =
             % (\d{f_1}{x_1}, \d{f_2}{x_1}, \ldots, \d{f_n}{x_1},
             % \d{f_2}{x_1}, \ldots)`. @type colvec<double>
-            fx = zeros(this.f.XDim^2,size(x,2));
-            for i=1:size(x,2)
-                J = this.f.getStateJacobian(x(:,i),t(i),mu(:,i));
-                fx(:,i) = J(:);
+            
+            % 'Hack' for efficient evaluation, as the row-wise indexing for
+            % sparse matrices is slooooow
+            if ~isempty(this.f.JSparsityPattern)
+                sel = find(this.f.JSparsityPattern);
+                fx = zeros(length(sel),size(x,2));
+                for i=1:size(x,2)
+                    J = this.f.getStateJacobian(x(:,i),t(i),mu(:,i));
+                    fx(:,i) = J(sel);
+                end
+                fx2 = sparse(this.f.XDim^2,size(x,2));
+                fx2(sel,:) = fx;
+                fx = fx2;
+            else
+                fx = zeros(this.f.XDim^2,size(x,2));
+                for i=1:size(x,2)
+                    J = this.f.getStateJacobian(x(:,i),t(i),mu(:,i));
+                    fx(:,i) = J(:);
+                end
             end
+            
         end
         
         function evaluateCoreFun(varargin)
@@ -98,33 +120,34 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
             end
             % Can directly set point sets as f instance is clone of
             % original function
-            this.f.setPointSet(nr, ui, deriv);
+            this.f.setPointSet(nr+2, ui, deriv);
             
             l = length(pos);
             this.trafo{nr} = sparse(pos, 1:l, ones(l,1),l,l);
         end
         
         function fx = evaluateComponentSet(this, nr, x, t, mu)
-            dfx = this.f.evaluateJacobianSet(nr, x, t, mu);
+            dfx = this.f.evaluateJacobianSet(nr+2, x, t, mu);
             fx = this.trafo{nr}*dfx;
         end
         
         function varargout = evaluateComponents(varargin)
-                % nothing to do here as this is a wrapper
+            % nothing to do here as this is a wrapper
         end
         
         function copy = clone(this)
-            copy = general.JacCompEvalWrapper(this.f);
+            copy = general.JacCompEvalWrapper;
             copy = clone@dscomponents.ACompEvalCoreFun(this, copy);
-            copy.f = this.f;
+            copy.f = this.f.clone;
             copy.trafo = this.trafo;
             copy.fullXDim = this.fullXDim;
         end
         
         function proj = project(this, V, W)
-            proj = this.clone;
-            proj = project@dscomponents.ACompEvalCoreFun(this, V, W, proj);
-            proj.f = this.f.project(V,W);
+            proj = project@dscomponents.ACompEvalCoreFun(this, V, W, this.clone);
+            % Project the wrapped function, too (ignores the extra copy.f
+            % created in clone as project creates a clone anyways)
+            proj.f = this.f.project(V, W);
         end
     end
 end

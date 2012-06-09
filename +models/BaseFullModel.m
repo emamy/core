@@ -176,6 +176,18 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         %
         % @type logical @default true
         EnableTrajectoryCaching = true;
+        
+        % The associated error estimator for this model.
+        %
+        % It is computed automatically, using the order/selection as in
+        % error.BaseEstimator.getEstimator
+        %
+        % @propclass{optional} Using error estimators with reduced models
+        % can facilitate reduction quality measurement and can also be
+        % needed by some adaptive algorithms.
+        %
+        % @type error.BaseEstimator @default []
+        ErrorEstimator = [];
     end
     
     properties(SetObservable, Dependent)
@@ -187,14 +199,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % @default 1:InputCount
         % @type integer
         TrainingInputs;
-    end
-    
-    properties(SetAccess=protected)        
-        % The associated error estimator for this model.
-        %
-        % It is computed automatically, using the order/selection as in
-        % error.BaseEstimator.getEstimator
-        ErrorEstimator = [];
     end
     
     properties(SetAccess=private, Dependent)
