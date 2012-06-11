@@ -96,6 +96,14 @@ classdef DEIMEstimator < error.BaseEstimator
         % @type rowvec<double> @default []
         STSingVals = [];
         
+        % The MatrixDEIM instance used to approximate the state space
+        % jacobian matrices
+        %
+        % The default MaxOrder setting is 50.
+        %
+        % @type general.MatrixDEIM
+        JacMDEIM;
+        
         M3 = [];
         M4 = [];
         M5 = [];
@@ -145,14 +153,6 @@ classdef DEIMEstimator < error.BaseEstimator
     
     properties(Access=private)
         jstSize = 0;
-        
-        % The MatrixDEIM instance used to approximate the state space
-        % jacobian matrices
-        %
-        % The default MaxOrder setting is 50.
-        %
-        % @type general.MatrixDEIM
-        JacMDEIM;
     end
     
     properties(Access=private, Transient)

@@ -6,6 +6,9 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
 %
 % @author Daniel Wirtz @date 2012-03-26
 %
+% @change{0,6,dw,2012-06-11} The evaluateComponentPartialDerivatives method
+% now supports vectorized inputs.
+%
 % @new{0,6,dw,2012-06-06} Added new methods
 % ACompEvalCoreFun.evaluateJacobianSet and
 % ACompEvalCoreFun.evaluateComponentPartialDerivatives to support jacobian
@@ -295,11 +298,19 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
         function dfx = evaluateComponentPartialDerivatives(this, pts, ends, idx, deriv, self, x, t, mu, dfxsel)
             dt = sqrt(eps);
             d = length(deriv);
-            X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(mu,1,d); %#ok<*PROP>
-            I = sparse(deriv,1:d,ones(1,d),size(x,1),d)*dt;
+            
+            if size(x,2) == 1
+                X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(mu,1,d); %#ok<*PROP>
+                I = sparse(deriv,1:d,ones(1,d),size(x,1),d)*dt;
+            else
+                el = reshape(repmat(1:size(x,2),d,1),1,[]);
+                X = x(:,el); T = t(el); MU = mu(:,el);
+                I = repmat(sparse(deriv,1:d,ones(1,d),size(x,1),d)*dt,1,size(x,2));
+            end
+            
             dfx = (this.evaluateComponents(pts, ends, idx, self, X+I, T, MU) ...
                 - this.evaluateComponents(pts, ends, idx, self, X, T, MU))/dt;
-            dfx = dfx(dfxsel(:,deriv));
+            dfx = dfx(repmat(dfxsel(:,deriv),1,size(x,2)));
         end
     end
     

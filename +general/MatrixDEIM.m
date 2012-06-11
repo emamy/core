@@ -87,8 +87,8 @@ classdef MatrixDEIM < general.DEIM
             % as they are not used (cannot be used?) for matrix DEIMs yet.
             this.M1 = [];
             this.M2 = [];
-            this.Uerr1 = [];
-            this.Uerr2 = [];
+%             this.Uerr1 = [];
+%             this.Uerr2 = [];
         end
     end
 end

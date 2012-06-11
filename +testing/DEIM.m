@@ -72,10 +72,19 @@ classdef DEIM
             sumfun = @(x)Norm.Linf(x');
             fxinorm = efun(atd.fxi);
             
+            if isa(deim,'general.MatrixDEIM')
+                oldst = deim.ST;
+                deim.setSimilarityTransform([]);
+            end
+            
             res = zeros(6,no);
 %             res = zeros(8,no);
             pi = tools.ProcessIndicator(sprintf('Computing DEIM errors and estimates for %d Order/ErrOrder settings',no),no);
             co = [];
+            xi = atd.xi;
+            if ~isempty(deim.V)
+                xi = deim.V'*xi;
+            end
             for i = 1:no
                 o = orders(i);
                 eo = errorders(i);
@@ -84,8 +93,16 @@ classdef DEIM
                 
                 % Absolute true error (only for new orders)
                 if isempty(co) || o ~= co
-                    afxi = deim.evaluate(atd.xi,atd.ti,atd.mui);
-                    hlp = efun(atd.fxi-afxi);
+                    if isa(deim,'general.MatrixDEIM')
+                        for j=1:size(xi,2)
+                            afx = deim.evaluate(xi(:,j),atd.ti(j),atd.mui(:,j));
+                            hlp(j) = efun(atd.fxi(:,j)-afx(:));
+                        end
+                    else
+                        afxi = deim.evaluate(xi,atd.ti,atd.mui);
+                        hlp = efun(atd.fxi-afxi);
+                    end
+                    
                     res(3,i) = sumfun(hlp);
                     % Relative true error 
                     res(4,i) = sumfun(hlp./fxinorm);
@@ -94,7 +111,7 @@ classdef DEIM
                     res(3:4,i) = res(3:4,i-1);
                 end
                 % Estimated absolute/rel errors
-                hlp = efun(deim.getEstimatedError(atd.xi,atd.ti,atd.mui));
+                hlp = efun(deim.getEstimatedError(xi,atd.ti,atd.mui));
                 res(5,i) = sumfun(hlp);
                 res(6,i) = sumfun(hlp./fxinorm);
                 
@@ -105,6 +122,9 @@ classdef DEIM
                 pm = testing.DEIM.plotDEIMErrs(res);
             end
             deim.Order = oldo;
+            if isa(deim,'general.MatrixDEIM')
+                deim.setSimilarityTransform(oldst);
+            end
         end
         
         function pm = plotDEIMErrs(res, pm)
@@ -165,7 +185,7 @@ classdef DEIM
             % The maximum relative error for each DEIM order and
             % jacobian at a certain snapshot vector are computed and
             % displayed.
-            atd = m.Data.ApproxTrainData;
+            atd = m.Data.JacobianTrainData;
             n = min(size(atd.xi,2),500);
             sp = logical(m.System.f.JSparsityPattern);
             M = 3;
@@ -495,6 +515,7 @@ classdef DEIM
             
             abserr = abs(aln-ln);
             relerr = abs(abserr ./ ln);
+            relerr(isnan(relerr)) = 0;
             
             % Aggregate errors over trajectory sample data
             %aln = sqrt(sum(aln.^2,3));
@@ -507,30 +528,30 @@ classdef DEIM
             jtimes = mean(jtimes,3);
             ttimes = mean(ttimes,3);
             
-            [X,Y] = meshgrid(deim_orders, st_sizes);
+            [X,Y] = meshgrid(st_sizes,deim_orders);
             
             h = pm.nextPlot('abs_err',sprintf('Mean absolute approximation error over %d samples',n),...
-                'DEIM order','Similarity transformation size');
+                'Similarity transformation size','DEIM order');
             tools.LogPlot.logsurf(h,X,Y,abserr);
             
             h = pm.nextPlot('rel_err',sprintf('Mean relative approximation error over %d samples',n),...
-                'DEIM order','Similarity transformation size');
+                'Similarity transformation size','DEIM order');
             tools.LogPlot.logsurf(h,X,Y,relerr);
             
             h = pm.nextPlot('comp_times_j',...
                 sprintf('Average computation times over %d values\nfor matrix DEIM jacobian evaluation',...
-                    n),'DEIM order','Similarity transformation size');
-            tools.LogPlot.logsurf(h,X,Y,jtimes);
+                    n),'Similarity transformation size','DEIM order');
+            tools.LogPlot.nicesurf(h,X,Y,jtimes);
             
             h = pm.nextPlot('comp_times',...
                 sprintf('Average computation times over %d values\nfor log norm computation of sim.trans. matrix DEIM jacobian',...
-                    n),'DEIM order','Similarity transformation size');
-            tools.LogPlot.logsurf(h,X,Y,times);
+                    n),'Similarity transformation size','DEIM order');
+            tools.LogPlot.nicesurf(h,X,Y,times);
             
             h = pm.nextPlot('comp_times_total',...
                 sprintf('Average total computation times over %d values\n(jac comp + log norm comp)',...
-                    n),'DEIM order','Similarity transformation size');
-            tools.LogPlot.logsurf(h,X,Y,ttimes);
+                    n),'Similarity transformation size','DEIM order');
+            tools.LogPlot.nicesurf(h,X,Y,ttimes);
             
             if nargout < 1
                 pm.done;
