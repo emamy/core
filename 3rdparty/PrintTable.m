@@ -110,6 +110,9 @@ classdef PrintTable < handle
 % - http://tex.stackexchange.com/questions/22173
 % - http://www.weinelt.de/latex/
 %
+% @change{0,6,dw,2012-06-11} Added a new property NumRows that returns the
+% number of rows (excluding the header if set).
+%
 % @change{0,6,dw,2012-05-04}
 % - Added a property PrintTable.HasRowHeader that allows to use a single
 % format specification for all row entries but the first one. Added a test
@@ -220,6 +223,10 @@ classdef PrintTable < handle
         %
         % @type logical @default true
         TightPDF = true;
+    end
+    
+    properties(Dependent)
+        NumRows;
     end
     
     properties(Access=private)
@@ -429,6 +436,13 @@ classdef PrintTable < handle
                 error('Format must be either ''txt'' or ''tex''.');
             end
             this.Format = value;
+        end
+        
+        function value = get.NumRows(this)
+            value = length(this.data);
+            if this.HasHeader
+                value = max(0,value-1);
+            end
         end
     end
     

@@ -263,7 +263,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
                 err = abs((tmp-fxc)./tmp);
                 err = err(tmp ~= 0);
                 d = max(err);
-                lres = isempty(d) || d < sqrt(eps);
+                lres = isempty(d) || d < 10*sqrt(eps);
                 if ~lres
                     fprintf('Comp eval to full eval max rel difference: %e\n',full(d));
                 end

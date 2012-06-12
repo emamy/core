@@ -124,8 +124,10 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
                     % Explicit
                     %newex = oldex + dt * est.evalODEPart([oldx; oldex], t(idx-1), s.mu, ut);
                     % Implicit
-                    newex = (dt*est.getAlpha([oldx; oldex], t(idx), s.mu, ut)+oldex)...
-                        /(1-dt*est.getBeta([oldx; oldex], t(idx), s.mu));
+                    al = est.getAlpha([oldx; oldex], t(idx), s.mu, ut);
+                    bet = est.getBeta([oldx; oldex], t(idx), s.mu);
+                    newex = (dt*al+oldex)...
+                        /(1-dt*bet);
 %                     fun = @(y)y-dt*est.evalODEPart([oldx; y], t(idx), s.mu, ut)-oldex/dt;
 %                     opts = optimset('Display','off');
 %                     newex = fsolve(fun, oldex, opts);

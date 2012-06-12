@@ -24,11 +24,11 @@ classdef DEIM
 %             pm.savePlots('.',{'fig','jpg','eps'}, true);
             
             d = m.Approx;
-            res = d.computeDEIMErrors(m.Data.ApproxTrainData);
+            res = testing.DEIM.computeDEIMErrors(d, m.Data.ApproxTrainData);
             %pm = tools.PlotManager(true);
             pm = tools.PlotManager(false,1,2);
             pm.FilePrefix = 'DEIM_errors';
-            d.plotDEIMErrs(res, pm);
+            testing.DEIM.plotDEIMErrs(res, pm);
             %pm.savePlots('.',{'fig','jpg','eps'}, true);
             pm.savePlots('.',{'fig','jpg'}, true);
             

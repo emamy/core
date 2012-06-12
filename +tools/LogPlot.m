@@ -28,7 +28,7 @@ classdef LogPlot
         
         function p = logtrisurf(h, tri, x, y, z, varargin)
             z = log10(z);
-            p = trisurf(tri, x, y, z,'Parent',h,'FaceColor','interp','EdgeColor','interp',varargin{:});
+            p = trisurf(tri, x, y, z,'Parent',h,'FaceColor','interp','EdgeColor','k',varargin{:});
             tools.LogPlot.postprocess(h);
             % color log-scaling mess
             %set(h,'zscale','log');

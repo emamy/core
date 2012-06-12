@@ -3,6 +3,9 @@ classdef DEIMEstimator < error.BaseEstimator
     %
     % @author Daniel Wirtz @date 2012-05-10
     %
+    % @change{0,6,dw,2012-06-11} Added support for different norm-inducing
+    % matrices `G`.
+    %
     % @new{0,6,dw,2012-06-08}
     % - Introduced the property JacMatDEIMMaxOrder to control the jacobian
     % DEIM approximation quality
@@ -182,14 +185,12 @@ classdef DEIMEstimator < error.BaseEstimator
             offlineComputations@error.BaseEstimator(this, fm);
             
             fA = fm.System.A;
-            if fm.GScaled ~= 1
-                error('Not yet implemented for non-1 G matrices.');
-            end
+            G = fm.G;
             md = fm.Data;
             A = [];
             if ~isempty(fA)
                 A = (fA - md.V*(md.W'*fA))*md.V;
-                this.M6 = A'*A;
+                this.M6 = A'*(G*A);
                 this.Ah = A;
                 
                 % Precompute logarithmic norm of A(t,\mu)
@@ -209,18 +210,18 @@ classdef DEIMEstimator < error.BaseEstimator
             B = [];
             if ~isempty(fm.System.B)
                 B = fm.System.B - md.V*(md.W'*fm.System.B);
-                this.M12 = B'*B;
+                this.M12 = B'*(G*B);
                 this.Bh = B;
             else
                 this.M9 = []; this.M10 = []; this.M11 = []; this.M12 = [];
             end
             if ~isempty(A) && ~isempty(B)
                 if isa(B,'dscomponents.LinearInputConv')
-                    this.M9 = 2*A'*B.B;
+                    this.M9 = 2*A'*(G*B.B);
                 else
                     % Both inherit from AffParamMatrix, so they can be
                     % multiplied :-)
-                    this.M9 = 2*A'*B;
+                    this.M9 = 2*A'*(G*B);
                 end
             else
                 this.M9 = [];
@@ -280,18 +281,17 @@ classdef DEIMEstimator < error.BaseEstimator
         function setReducedModel(this, rmodel)
             setReducedModel@error.BaseEstimator(this, rmodel);
             addlistener(rmodel.System.f,'OrderUpdated',@this.handleOrderUpdate);
+%             this.JacMDEIM.
             this.updateErrMatrices;
         end
         
         function ct = prepareConstants(this, mu, inputidx)
-            t = tic;
-            
             % True log lip const comparison estimator
             if this.UseTrueLogLipConst
-                [~, this.fullsol] = this.ReducedModel.FullModel.computeTrajectory(mu,inputidx);
+                [~, this.fullsol, ct] = this.ReducedModel.FullModel.computeTrajectory(mu,inputidx);
+            else
+                ct = 0;
             end
-            
-            ct = toc(t);
         end
         
         function a = getAlpha(this, x, t, mu, ut)
@@ -320,12 +320,16 @@ classdef DEIMEstimator < error.BaseEstimator
 %             V = this.ReducedModel.V;
 %             fs = this.ReducedModel.FullModel.System;
 %             I = speye(size(V,1));
-%             a1 = (I-V*V')*fs.A.evaluate(V*x,t,mu);
-%             a2 = this.ReducedModel.System.f.M1 * v1;
-%             a3 = this.ReducedModel.System.f.M2 * v2;
-%             a4 = (I-V*V')*fs.B.evaluate(t,mu)*ut;
-%             a2 = norm(a1+a2-a3+a4);
-%             if abs((a-a2)/a2) > 1e-2
+%             a_1 = (I-V*V')*fs.A.evaluate(V*x,t,mu);
+%             a_2 = this.ReducedModel.System.f.M1 * v1;
+%             a_3 = this.ReducedModel.System.f.M2 * v2;
+%             a_4 = 0;
+%             if ~isempty(fs.B)
+%                 a_4 = (I-V*V')*fs.B.evaluate(t,mu)*ut;
+%             end
+%             a2 = sqrt((a_1+a_2-a_3+a_4)'*this.ReducedModel.FullModel.G...
+%                 *(a_1+a_2-a_3+a_4));
+%             if abs((a-a2)/a2) > 1e-1
 %                 error('alpha computation mismatch.');
 %             end
         end
@@ -395,7 +399,10 @@ classdef DEIMEstimator < error.BaseEstimator
             
             % DEIM stuff
             copy.JacMatDEIMMaxOrder = this.JacMatDEIMMaxOrder;
-            copy.JacMDEIM = this.JacMDEIM.clone;
+            copy.JacMDEIM = [];
+            if ~isempty(this.JacMDEIM)
+                copy.JacMDEIM = this.JacMDEIM.clone;
+            end
             
             % Sim Trans stuff
             copy.JacSimTransMaxSize = this.JacSimTransMaxSize;
@@ -471,19 +478,20 @@ classdef DEIMEstimator < error.BaseEstimator
             % involved for error estimation that depend on the DEIM
             % approximation order.
             deim = this.ReducedModel.System.f;
+            G = this.ReducedModel.FullModel.G;
             if deim.Order(2) > 0
                 M1 = deim.M1;
                 M2 = deim.M2;
-                this.M3 = M1'*M1;
-                this.M4 = 2*M1'*M2;
-                this.M5 = M2'*M2;
+                this.M3 = M1'*(G*M1);
+                this.M4 = 2*M1'*(G*M2);
+                this.M5 = M2'*(G*M2);
                 if ~isempty(this.Ah)
-                    this.M7 = 2*M1'*this.Ah;
-                    this.M8 = 2*M2'*this.Ah;
+                    this.M7 = 2*M1'*(G*this.Ah);
+                    this.M8 = 2*M2'*(G*this.Ah);
                 end
                 if ~isempty(this.Bh)
-                    this.M10 = 2*M1'*this.Bh;
-                    this.M11 = 2*M2'*this.Bh;
+                    this.M10 = 2*M1'*(G*this.Bh);
+                    this.M11 = 2*M2'*(G*this.Bh);
                 end
                 if ~this.Enabled
                     this.Enabled = true;
@@ -537,7 +545,11 @@ classdef DEIMEstimator < error.BaseEstimator
         end
         
         function value = get.JacMatDEIMOrder(this)
-            value = this.JacMDEIM.Order(1);
+            if ~isempty(this.JacMDEIM)
+                value = this.JacMDEIM.Order(1);
+            else
+                value = -1;
+            end
         end
         
         function set.JacMatDEIMOrder(this, value)

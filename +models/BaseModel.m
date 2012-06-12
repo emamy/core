@@ -502,7 +502,7 @@ classdef BaseModel < KerMorObject
                 gs = this.G * ss^2;
             else
                 S = spdiags(ss,0,length(ss),length(ss));
-                gs = S * this.G * S;
+                gs = S * (this.G * S);
             end
         end
         
