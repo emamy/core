@@ -480,7 +480,7 @@ classdef EstimatorAnalyzer < handle
             end
         end
         
-        function est = buildDEIMEstimatorStruct_ErrOrder(~, r)
+        function est = buildDEIMEstimatorStruct_ErrOrder(this, r)
             % Error estimators
             est = struct.empty;
             

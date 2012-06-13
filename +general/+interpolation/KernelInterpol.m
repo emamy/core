@@ -330,16 +330,16 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
         function test_KernelInterpolation()
             % Performs a test of this class
             
-            %x = -5:.05:5;
-            %fx = sinc(x);
+%             x = -5:.05:5;
+%             fx = sinc(x);
             
             x = 0:.05:10;
-            fx = x.^2.*sin(x);
+            fx = x.^2.*sin(2*x);
             
             n = length(x);
             samp = 1:15:n;
             
-            k = kernels.GaussKernel(1);
+            k = kernels.GaussKernel(.5);
             internal_test(x,fx,samp,k,10);
             
             internal_test(x,ones(size(x))*5,samp,k,13);
