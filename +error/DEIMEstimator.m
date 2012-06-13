@@ -3,8 +3,11 @@ classdef DEIMEstimator < error.BaseEstimator
     %
     % @author Daniel Wirtz @date 2012-05-10
     %
-    % @change{0,6,dw,2012-06-11} Added support for different norm-inducing
-    % matrices `G`.
+    % @change{0,6,dw,2012-06-11} 
+    % - Added support for different norm-inducing matrices `G`.
+    % - New property UseTrueDEIMErr to enable use of the actual DEIM
+    % approximation error within the alpha term computation (Experimental
+    % use)
     %
     % @new{0,6,dw,2012-06-08}
     % - Introduced the property JacMatDEIMMaxOrder to control the jacobian
@@ -69,6 +72,11 @@ classdef DEIMEstimator < error.BaseEstimator
         % computations.
         % Included for easy error estimator comparison.
         UseTrueLogLipConst = false;
+        
+        % "Expensive" version that uses the true approximation error
+        % between the DEIM approximation and the full system function
+        % instead of the `M'` variant.
+        UseTrueDEIMErr = false;
     end
     
     properties(SetAccess=private)
@@ -156,10 +164,12 @@ classdef DEIMEstimator < error.BaseEstimator
     
     properties(Access=private)
         jstSize = 0;
+        deim;
     end
     
     properties(Access=private, Transient)
         fullsol;
+        uolst = [];
     end
     
     methods
@@ -279,10 +289,16 @@ classdef DEIMEstimator < error.BaseEstimator
         end
         
         function setReducedModel(this, rmodel)
+            newd = rmodel.System.f;
+            if isempty(this.uolst) || (~isempty(this.deim) && ...
+                    this.deim ~= newd)
+                delete(this.uolst);
+                this.uolst = addlistener(newd,'OrderUpdated',@this.handleOrderUpdate);
+                this.deim = newd;
+                this.updateErrMatrices;
+            end
             setReducedModel@error.BaseEstimator(this, rmodel);
-            addlistener(rmodel.System.f,'OrderUpdated',@this.handleOrderUpdate);
-%             this.JacMDEIM.
-            this.updateErrMatrices;
+            this.deim = newd;
         end
         
         function ct = prepareConstants(this, mu, inputidx)
@@ -296,42 +312,56 @@ classdef DEIMEstimator < error.BaseEstimator
         
         function a = getAlpha(this, x, t, mu, ut)
             x = x(1:end-1);
-            f = this.ReducedModel.System.f.f;
-            v1 = f.evaluateComponentSet(1, x, t, mu);
-            v2 = f.evaluateComponentSet(2, x, t, mu);
-            
-            % NOTE: The factors 2 before some summands are added at offline
-            % stage!!
-            a = v1'*this.M3*v1 - v1'*this.M4*v2 + v2'*this.M5*v2;
-            if ~isempty(this.M6) % An time/param affine A is set
-                a = a + x'*this.M6.evaluate(x,t,mu) + v1'*this.M7.evaluate(x,t,mu) ...
-                    - v2'*this.M8.evaluate(x,t,mu);
-                if ~isempty(ut)
-                    a = a + x'*this.M9.evaluate(ut,t,mu);
+            % More expensive variant, using the true DEIM approximation
+            % error instead of the estimated ones using M,M' technique
+            if this.UseTrueDEIMErr
+                rm = this.ReducedModel;
+                fs = rm.FullModel.System;
+                I = speye(size(rm.V,1));
+                a = (I-rm.V*rm.W')*fs.A.evaluate(rm.V*x,t,mu);
+                a = a + rm.FullModel.System.f.evaluate(rm.V*x,t,mu) ...
+                    - rm.V*rm.System.f.evaluate(x,t,mu);
+                if ~isempty(fs.B)
+                    a = a + (I-rm.V*rm.W')*fs.B.evaluate(t,mu)*ut;
                 end
+                a = sqrt(a'*(rm.FullModel.G*a));
+            else
+                f = this.ReducedModel.System.f.f;
+                v1 = f.evaluateComponentSet(1, x, t, mu);
+                v2 = f.evaluateComponentSet(2, x, t, mu);
+
+                % NOTE: The factors 2 before some summands are added at offline
+                % stage!!
+                a = v1'*this.M3*v1 - v1'*this.M4*v2 + v2'*this.M5*v2;
+                if ~isempty(this.M6) % An time/param affine A is set
+                    a = a + x'*this.M6.evaluate(x,t,mu) + v1'*this.M7.evaluate(x,t,mu) ...
+                        - v2'*this.M8.evaluate(x,t,mu);
+                    if ~isempty(ut)
+                        a = a + x'*this.M9.evaluate(ut,t,mu);
+                    end
+                end
+                if ~isempty(ut) % An input function u is set
+                    a = a + v1'*this.M10.evaluate(t,mu)*ut - v2'*this.M11.evaluate(t,mu)*ut ...
+                        + ut'*this.M12.evaluate(t,mu)*ut;
+                end
+                a = sqrt(a);
+                %% Validation: direct computation (expensive)
+%                 V = this.ReducedModel.V;
+%                 fs = this.ReducedModel.FullModel.System;
+%                 I = speye(size(V,1));
+%                 a_1 = (I-V*V')*fs.A.evaluate(V*x,t,mu);
+%                 a_2 = this.ReducedModel.System.f.M1 * v1;
+%                 a_3 = this.ReducedModel.System.f.M2 * v2;
+%                 a_4 = 0;
+%                 if ~isempty(fs.B)
+%                     a_4 = (I-V*V')*fs.B.evaluate(t,mu)*ut;
+%                 end
+%                 a2 = sqrt((a_1+a_2-a_3+a_4)'*this.ReducedModel.FullModel.G...
+%                     *(a_1+a_2-a_3+a_4));
+%                 if abs((a-a2)/a2) > 1e-1
+%                     error('alpha computation mismatch.');
+%                 end
             end
-            if ~isempty(ut) % An input function u is set
-                a = a + v1'*this.M10.evaluate(t,mu)*ut - v2'*this.M11.evaluate(t,mu)*ut ...
-                    + ut'*this.M12.evaluate(t,mu)*ut;
-            end
-            a = sqrt(abs(a));
-            
-            %% Validation: direct computation (expensive)
-%             V = this.ReducedModel.V;
-%             fs = this.ReducedModel.FullModel.System;
-%             I = speye(size(V,1));
-%             a_1 = (I-V*V')*fs.A.evaluate(V*x,t,mu);
-%             a_2 = this.ReducedModel.System.f.M1 * v1;
-%             a_3 = this.ReducedModel.System.f.M2 * v2;
-%             a_4 = 0;
-%             if ~isempty(fs.B)
-%                 a_4 = (I-V*V')*fs.B.evaluate(t,mu)*ut;
-%             end
-%             a2 = sqrt((a_1+a_2-a_3+a_4)'*this.ReducedModel.FullModel.G...
-%                 *(a_1+a_2-a_3+a_4));
-%             if abs((a-a2)/a2) > 1e-1
-%                 error('alpha computation mismatch.');
-%             end
         end
         
         function b = getBeta(this, x, t, mu)
@@ -409,6 +439,10 @@ classdef DEIMEstimator < error.BaseEstimator
             copy.jstSize = this.jstSize;
             copy.STFull = this.STFull;
             
+            copy.UseTrueLogLipConst = this.UseTrueLogLipConst;
+            copy.UseTrueDEIMErr = this.UseTrueDEIMErr;
+            copy.UseFullJacobian = this.UseFullJacobian;
+            
             copy.TrainDataSelector = this.TrainDataSelector.clone;
             
             copy.scale = this.scale;
@@ -477,11 +511,24 @@ classdef DEIMEstimator < error.BaseEstimator
             % This methods updates all the offline-computable matrices
             % involved for error estimation that depend on the DEIM
             % approximation order.
-            deim = this.ReducedModel.System.f;
+            if isempty(this.deim)
+                if isempty(this.ReducedModel)
+                    error('Cannot update error matrices as no reduced model instance is specified for this estimator.');
+                else
+                    error('Unintended error. No deim instance stored but a reduced model is set.');
+                end
+            end
+            
             G = this.ReducedModel.FullModel.G;
-            if deim.Order(2) > 0
-                M1 = deim.M1;
-                M2 = deim.M2;
+            
+            if KerMor.App.Verbose > 3
+                fprintf('error.DEIMEstimator: Updating error matrices of DEIMEstimator (#%s) to [%d %d]\n',...
+                    this.ID,this.deim.Order);
+            end
+            
+            if this.deim.Order(2) > 0
+                M1 = this.deim.M1;
+                M2 = this.deim.M2;
                 this.M3 = M1'*(G*M1);
                 this.M4 = 2*M1'*(G*M2);
                 this.M5 = M2'*(G*M2);
@@ -580,7 +627,16 @@ classdef DEIMEstimator < error.BaseEstimator
         end
     end
     
+     methods(Static, Access=protected)
+        function obj = loadobj(obj)
+            if ~isempty(obj.deim)
+                obj.uolst = addlistener(obj.deim,'OrderUpdated',@obj.handleOrderUpdate);
+            end
+        end
+     end
+    
     methods(Static)
+        
         % Abstract static method that forces subclasses to specify whether
         % an estimator can be used for a given model or not.
         function errmsg = validModelForEstimator(model)

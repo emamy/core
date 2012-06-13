@@ -94,6 +94,10 @@ classdef EstimatorAnalyzer < handle
         
         % The similarity transform sizes to use.
         SimTransSizes = [1 10];
+        
+        % The error orders to use. Unset if the JacDEIM/SimTranssizes
+        % version should be used.
+        ErrorOrders = [1 2 3 5 10];
     end
     
     properties(SetAccess=private)
@@ -205,10 +209,16 @@ classdef EstimatorAnalyzer < handle
             str = ''; compplot = [];
             try
                 for idx = 1:num
+                    el = this.Est(idx);
                     % Set estimator and run
-                    this.ReducedModel.ErrorEstimator = this.Est(idx).Estimator;
+                    this.ReducedModel.ErrorEstimator = el.Estimator;
                     
-                    fprintf('Performing estimation %d of %d: %s...\n',idx,num,this.Est(idx).Name);
+                    % Optionally run some commands before starting stuff
+                    if isfield(el,'Callback') && ~isempty(el.Callback)
+                        el.Callback(el.Estimator);
+                    end
+                    
+                    fprintf('Performing estimation %d of %d: %s...\n',idx,num,el.Name);
                     [~, ~, ctimes(idx)] = this.ReducedModel.simulate(mu,inidx);
                     if this.UseOutputError
                         errs(idx,:) = this.ReducedModel.ErrorEstimator.OutputError;
@@ -216,8 +226,8 @@ classdef EstimatorAnalyzer < handle
                         errs(idx,:) = this.ReducedModel.ErrorEstimator.StateError;
                     end
                     % Plotting preparations
-                    if ~isa(this.Est(idx).Estimator,'error.ExpensiveBetaEstimator')
-                        str = [str sprintf('errs(%d,end),ctimes(%d),''%s'',',idx,idx,this.Est(idx).MarkerStyle)]; %#ok<*AGROW>
+                    if ~isa(el.Estimator,'error.ExpensiveBetaEstimator')
+                        str = [str sprintf('errs(%d,end),ctimes(%d),''%s'',',idx,idx,el.MarkerStyle)]; %#ok<*AGROW>
                         compplot(end+1) = idx;
                     end
                 end
@@ -269,7 +279,7 @@ classdef EstimatorAnalyzer < handle
             end
             a = cell(1,length(this.Est));
             [a{:}] = this.Est(:).Name;
-            [~,oh] = legend(a,'Location','NorthEast');
+            [~,oh] = legend(a,'Location','NorthWest');
             % Assign markers to legend
             oh = findobj(oh,'Type','line');
             for idx=1:length(this.Est)
@@ -447,20 +457,59 @@ classdef EstimatorAnalyzer < handle
             end
         end
         
-        function delete(this)
-            %             for i=1:length(this.Est)
-            %                 this.Est(i).Estimator.delete;
-            %             end
+        function set.ErrorOrders(this, value)
+            this.ErrorOrders = value;
+            if ~isempty(this.ReducedModel)%#ok
+                this.buildEstimatorStruct(this.ReducedModel);%#ok
+            end
         end
+
     end
     
     methods(Access=private)
         
         function buildEstimatorStruct(this, r)
             if isa(r.ErrorEstimator,'error.DEIMEstimator')
-                this.Est = this.buildDEIMEstimatorStruct(r);
+                if ~isempty(this.ErrorOrders)
+                    this.Est = this.buildDEIMEstimatorStruct_ErrOrder(r);
+                else
+                    this.Est = this.buildDEIMEstimatorStruct(r);
+                end
             else
                 this.Est = this.buildKernelEstimatorStruct(r);
+            end
+        end
+        
+        function est = buildDEIMEstimatorStruct_ErrOrder(~, r)
+            % Error estimators
+            est = struct.empty;
+            
+            est(end+1).Name = 'True error';
+            est(end).Estimator = error.DefaultEstimator;
+            est(end).Estimator.setReducedModel(r);
+            est(end).Estimator.Enabled = true;
+            est(end).MarkerStyle = 'o';
+            est(end).LineStyle = '-';
+            
+            dest = r.ErrorEstimator.clone;
+            dest.UseTrueLogLipConst = true;
+            dest.Enabled = true;
+            
+            % Add best version
+            est(end+1).Name = 'True DEIM err';
+            est(end).Estimator = dest.clone;
+            est(end).Estimator.UseTrueDEIMErr = true;
+            est(end).MarkerStyle = 'p';
+            est(end).LineStyle = '-';
+            
+            m = tools.LineSpecIterator;
+            for j = 1:length(this.ErrorOrders)
+                str = sprintf('e.ReducedModel.System.f.Order = [e.ReducedModel.System.f.Order(1) %d];',this.ErrorOrders(j));
+                est(end+1).Name = sprintf('M''=%d',this.ErrorOrders(j));
+                est(end).Estimator = dest;
+                est(end).Callback = @(e)eval(str);
+                est(end).MarkerStyle = m.nextMarkerStyle;
+                est(end).LineStyle = '-.';
             end
         end
         

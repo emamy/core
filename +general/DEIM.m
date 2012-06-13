@@ -61,6 +61,18 @@ classdef DEIM < KerMorObject & general.AProjectable
         Order;
     end
     
+    properties(SetAccess=private)
+        % The singular values returned by the SVD decomposition to compute
+        % the DEIM POD basis.
+        %
+        % This value is set when general.DEIM.computeDEIM is called.
+        %
+        % @type rowvec<double> @default []
+        %
+        % See also: computeDEIM
+        SingularValues = [];
+    end
+    
     properties(GetAccess=protected, SetAccess=private)
         % The full approximation base
         u;
@@ -109,6 +121,7 @@ classdef DEIM < KerMorObject & general.AProjectable
             p = general.POD;
             p.Mode = 'abs';
             p.Value = this.MaxOrder;
+            
             % Create full matrix out of sparse fxi sets to enable use of
             % svd instead of svds
             canshrink = false;
@@ -120,9 +133,8 @@ classdef DEIM < KerMorObject & general.AProjectable
                     fxi = full(fxi(~iszero,:));
                 end
             end
-            
             %p.UseSVDS = size(fxi,1) > 10000;
-            this.u = p.computePOD(fxi);
+            [this.u, this.SingularValues] = p.computePOD(fxi);
             
             if canshrink
                 tmp(~iszero,:) = this.u;

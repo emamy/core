@@ -110,8 +110,10 @@ classdef PrintTable < handle
 % - http://tex.stackexchange.com/questions/22173
 % - http://www.weinelt.de/latex/
 %
-% @change{0,6,dw,2012-06-11} Added a new property NumRows that returns the
-% number of rows (excluding the header if set).
+% @change{0,6,dw,2012-06-11} 
+% - Added a new property NumRows that returns the number of rows (excluding
+% the header if set).
+%- Made the output a bit nicer and supporting logical values now
 %
 % @change{0,6,dw,2012-05-04}
 % - Added a property PrintTable.HasRowHeader that allows to use a single
@@ -385,7 +387,7 @@ classdef PrintTable < handle
                     newlen = newlen-1;
                 end
                 if length(this.data{1}) ~= newlen 
-                    error('Inconsistent row length. Current length: %d, passed: %d',length(this.data{1}),length(varargin));
+                    error('Inconsistent row length. Current length: %d, passed: %d',length(this.data{1}),newlen);
                 end
                 % Add all values
                 this.data{end+1} = this.stringify(varargin);
@@ -594,21 +596,27 @@ classdef PrintTable < handle
                         str{i} = el;
                     elseif isinteger(el)
                         if numel(el) > 1
-                            str{i} = this.implode(el(:),', ','%d');
+                            str{i} = ['[' this.implode(el(:),', ','%d') ']'];
                         else
                             str{i} = sprintf('%d',el);
                         end
                     elseif isnumeric(el)
                         if numel(el) > 1
-                            str{i} = this.implode(el(:),', ','%e');
+                            str{i} = ['[' this.implode(el(:),', ','%g') ']'];
                         else
-                            str{i} = sprintf('%e',el);
+                            str{i} = sprintf('%g',el);
                         end
                     elseif isa(el,'function_handle')
                         str{i} = func2str(el);
                     elseif isa(el,'handle')
                         mc = metaclass(el);
                         str{i} = mc.Name;
+                    elseif islogical(el)
+                        if numel(el) > 1
+                            str{i} = this.implode(el(:),', ','%d');
+                        else
+                            str{i} = sprintf('%d',el);
+                        end
                     else
                         error('Cannot automatically convert an argument of type %s for PrintTable display.',class(el));
                     end

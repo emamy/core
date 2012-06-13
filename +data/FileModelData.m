@@ -81,7 +81,12 @@ classdef FileModelData < data.AModelData
             % Deletes the DataDirectory if no trajectories are stored in it.
             if this.hm.size == 0
                 if exist(this.DataDirectory,'dir') == 7
-                    rmdir(this.DataDirectory);
+                    try
+                        rmdir(this.DataDirectory);
+                    catch ME%#ok
+                        fprintf(2,'Tried to remove FileModelData directory "%s" but failed.\nThere might be non-associated files/folders contained.\n',...
+                            this.DataDirectory);
+                    end
                 end
             end
         end
