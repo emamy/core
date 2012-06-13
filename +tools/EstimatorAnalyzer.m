@@ -279,7 +279,7 @@ classdef EstimatorAnalyzer < handle
             end
             a = cell(1,length(this.Est));
             [a{:}] = this.Est(:).Name;
-            [~,oh] = legend(a,'Location','NorthWest');
+            [~,oh] = legend(a,'Location','SouthEast');
             % Assign markers to legend
             oh = findobj(oh,'Type','line');
             for idx=1:length(this.Est)
@@ -289,8 +289,7 @@ classdef EstimatorAnalyzer < handle
                 set(oh(2*idx),'Marker',this.Est(idx).MarkerStyle,'MarkerFaceColor',c,'MarkerEdgeColor',c*.7,...
                     'MarkerSize',this.MarkerSize);
             end
-            emin = min(errs(:));
-            axis(ax,[0 this.Model.T emin*.9 max(emin,1e4)]);
+            axis(ax,[0 this.Model.T min(errs(:)) 3*max(errs(:))]);
         end
         
         function plotRelativeErrors(this, relerrs, pm)
@@ -317,8 +316,7 @@ classdef EstimatorAnalyzer < handle
             end
             a = cell(1,length(this.Est));
             [a{:}] = this.Est(:).Name;
-            legend(a,'Location','NorthWest');
-            [~,oh] = legend(a,'Location','NorthEast');
+            [~,oh] = legend(a,'Location','SouthEast');
             % Assign markers to legend
             oh = findobj(oh,'Type','line');
             for idx=1:length(this.Est)
@@ -328,8 +326,9 @@ classdef EstimatorAnalyzer < handle
                 set(oh(2*idx),'Marker',this.Est(idx).MarkerStyle,'MarkerFaceColor',c,...
                     'MarkerEdgeColor',c*.7,'MarkerSize',this.MarkerSize);
             end
-            emin = min(relerrs(:));
-            axis(ax,[0 this.Model.T emin*.9 max(emin,1)]);
+            re = relerrs(:);
+            re(isinf(re)) = -Inf;
+            axis(ax,[0 this.Model.T min(relerrs(:)) 3*max(re)]);
         end
         
         function plotCTimes(this, errs, ctimes, pm)
@@ -355,11 +354,12 @@ classdef EstimatorAnalyzer < handle
             % Add line for minimum error!
             hold(ax, 'on');
             plot(ax,[errs(1,end) errs(1,end)],[min(ctimes(compplot)) max(ctimes(compplot))],'black');
-            hold(ax,'off');
+            hold(ax, 'off');
             
             a = cell(1,length(this.Est));
             [a{:}] = this.Est(:).Name;
             legend(a(compplot));
+            axis([.9*min(errs(:)) 1.1*max(errs(:)) .9*min(ctimes(:)) 1.1*max(ctimes(:))]);
         end
         
         function pt = getResultTable(this, errs, ctimes)

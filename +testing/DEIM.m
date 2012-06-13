@@ -242,6 +242,31 @@ classdef DEIM
 %                 'deim_estimator_tests'),{'fig','jpg'});
         end
         
+        %% Model DEIM reduction quality assessment pics
+        function [errs, relerrs, times, deim_orders] = getDEIMReducedModelErrors(r, mu, inidx, deim_orders)
+            d = r.System.f;
+            if nargin < 4
+                deim_orders = 1:d.MaxOrder;
+            end
+            oldo = d.Order;
+            olde = r.ErrorEstimator.Enabled;
+            no = length(deim_orders);
+            errs = zeros(no,length(r.Times));
+            relerrs = errs;
+            times = zeros(no+1,1);
+            [~, y, ct] = r.FullModel.simulate(mu, inidx);
+            times(end) = ct;
+            r.ErrorEstimator.Enabled = false;
+            for m = 1:no
+                [~, yr, ct] = r.simulate(mu, inidx);
+                errs(m,:) = Norm.L2(y-yr);
+                relerrs(m,:) = errs(m,:)./Norm.L2(y);
+                times(m) = ct;
+            end
+            d.Order = oldo;
+            r.ErrorEstimator.Enabled = olde;
+        end
+        
         
         %% %%%%%%%%%%%%%%%%%%%% MATRIX DEIM STUFF %%%%%%%%%%%%%%%%%%%%
         function [no,no1,nom,jln,djln,sdjln] = matrix_deim(m, nr)

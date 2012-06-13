@@ -289,6 +289,7 @@ classdef DEIMEstimator < error.BaseEstimator
         end
         
         function setReducedModel(this, rmodel)
+            setReducedModel@error.BaseEstimator(this, rmodel);
             newd = rmodel.System.f;
             if isempty(this.uolst) || (~isempty(this.deim) && ...
                     this.deim ~= newd)
@@ -297,7 +298,6 @@ classdef DEIMEstimator < error.BaseEstimator
                 this.deim = newd;
                 this.updateErrMatrices;
             end
-            setReducedModel@error.BaseEstimator(this, rmodel);
             this.deim = newd;
         end
         

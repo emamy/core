@@ -213,6 +213,7 @@ classdef DEIM < KerMorObject & general.AProjectable
             copy.Uerr2 = this.Uerr2;
             copy.M1 = this.M1;
             copy.M2 = this.M2;
+            copy.SingularValues = this.SingularValues;
         end
     end
     

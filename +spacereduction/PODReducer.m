@@ -11,6 +11,13 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD
     %
     % @change{0,5,dw,2011-08-04} Adopted to the new ModelData structure. Now the global POD array is
     % assembled from all the trajectories available.
+    
+    properties(SetAccess=private)
+        % The singular values of the SVD of the used trajectories.
+        %
+        % @type rowvec<double> @default []
+        SingularValues = [];
+    end
         
     methods
         function [V,W] = generateReducedSpace(this, model)
@@ -30,7 +37,7 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD
             end
             
             % Perform POD on state variable part of the snapshots!
-            V = this.computePOD(data);
+            [V, this.SingularValues] = this.computePOD(data);
             
             % Here W=V!
             W = V;
