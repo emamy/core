@@ -87,6 +87,9 @@ classdef EstimatorAnalyzer < handle
         % The number of markers for error and relative errors plots.
         NumMarkers = 5;
         
+        % The line width to use
+        LineWidth = 2;
+        
         %% DEIM estimator related stuff
         
         % The jacobian matrix DEIM approximation orders to use.
@@ -98,14 +101,14 @@ classdef EstimatorAnalyzer < handle
         % The error orders to use. Unset if the JacDEIM/SimTranssizes
         % version should be used.
         ErrorOrders = [1 2 3 5 10];
-    end
-    
-    properties(SetAccess=private)
+        
         % A struct containing information about different error estimators.
         %
         % @type struct
         Est;
-        
+    end
+    
+    properties(SetAccess=private)
         % A struct with fields Name, ErrsT, RelErrsT that contains
         % information about the estimations of the different error
         % estimators.
@@ -135,7 +138,7 @@ classdef EstimatorAnalyzer < handle
             this.buildEstimatorStruct(this.ReducedModel);
         end
         
-        function [ctimes, errs, relerrs] = start(this, mu, inidx, pm)
+        function [t, pm, errs, relerrs, ctimes] = start(this, mu, inidx, pm)
             % Runs the demo with the current settings.
             %
             % Parameters:
@@ -164,7 +167,7 @@ classdef EstimatorAnalyzer < handle
             % Computation ctimes plot
             this.plotCTimes(errs, ctimes, pm);
             
-            if nargout == 0
+            if nargout < 2
                 pm.done;
             end
             
@@ -263,7 +266,8 @@ classdef EstimatorAnalyzer < handle
             else
                 ph = plot(ax,this.Model.Times,errs);
             end
-            set(ph(1),'LineWidth',2);
+            set(ph,'LineWidth',this.LineWidth);
+            set(ph(1),'LineWidth',this.LineWidth+.5);
             hold(ax, 'on');
             % Select extra marker places
             nt = length(this.Model.Times);
@@ -300,7 +304,8 @@ classdef EstimatorAnalyzer < handle
             else
                 ph = plot(ax,this.Model.Times,relerrs);
             end
-            set(ph(1),'LineWidth',2);
+            set(ph,'LineWidth',this.LineWidth);
+            set(ph(1),'LineWidth',this.LineWidth+.5);
             hold on;
             % Select extra marker places
             nt = length(this.Model.Times);
@@ -358,7 +363,7 @@ classdef EstimatorAnalyzer < handle
             
             a = cell(1,length(this.Est));
             [a{:}] = this.Est(:).Name;
-            legend(a(compplot));
+            legend(a(compplot),'Location','SouthEast');
             axis([.9*min(errs(:)) 1.1*max(errs(:)) .9*min(ctimes(:)) 1.1*max(ctimes(:))]);
         end
         
@@ -484,7 +489,7 @@ classdef EstimatorAnalyzer < handle
             % Error estimators
             est = struct.empty;
             
-            est(end+1).Name = 'True error';
+            est(end+1).Name = 'True reduction error';
             est(end).Estimator = error.DefaultEstimator;
             est(end).Estimator.setReducedModel(r);
             est(end).Estimator.Enabled = true;
@@ -492,11 +497,10 @@ classdef EstimatorAnalyzer < handle
             est(end).LineStyle = '-';
             
             dest = r.ErrorEstimator.clone;
-            dest.UseTrueLogLipConst = true;
             dest.Enabled = true;
             
             % Add best version
-            est(end+1).Name = 'True DEIM err';
+            est(end+1).Name = 'Est with true DEIM approx error';
             est(end).Estimator = dest.clone;
             est(end).Estimator.UseTrueDEIMErr = true;
             est(end).MarkerStyle = 'p';
@@ -505,7 +509,7 @@ classdef EstimatorAnalyzer < handle
             m = tools.LineSpecIterator;
             for j = 1:length(this.ErrorOrders)
                 str = sprintf('e.ReducedModel.System.f.Order = [e.ReducedModel.System.f.Order(1) %d];',this.ErrorOrders(j));
-                est(end+1).Name = sprintf('M''=%d',this.ErrorOrders(j));
+                est(end+1).Name = sprintf('m''=%d',this.ErrorOrders(j));
                 est(end).Estimator = dest;
                 est(end).Callback = @(e)eval(str);
                 est(end).MarkerStyle = m.nextMarkerStyle;
@@ -525,6 +529,8 @@ classdef EstimatorAnalyzer < handle
             est(end).LineStyle = '-';
             
             dest = r.ErrorEstimator;
+            dest.UseTrueDEIMErr = false;
+            dest.UseTrueLogLipConst = false;
             dest.Enabled = true;
             
             l = tools.LineSpecIterator;
@@ -546,7 +552,7 @@ classdef EstimatorAnalyzer < handle
             % Expensive versions
             e = dest.clone;
             e.UseFullJacobian = true;
-            est(end+1).Name = '\mu(Jf)';
+            est(end+1).Name = 'L_G(Jf)';
             est(end).Estimator = e;
             est(end).MarkerStyle = 'h';
             est(end).LineStyle = '-';

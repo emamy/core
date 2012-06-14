@@ -302,6 +302,9 @@ classdef DEIMEstimator < error.BaseEstimator
         end
         
         function ct = prepareConstants(this, mu, inputidx)
+            if this.deim.Order(2) == 0 && ~this.UseTrueDEIMErr
+                error('The associated DEIM approximation may not be zero.');
+            end
             % True log lip const comparison estimator
             if this.UseTrueLogLipConst
                 [~, this.fullsol, ct] = this.ReducedModel.FullModel.computeTrajectory(mu,inputidx);
@@ -540,15 +543,14 @@ classdef DEIMEstimator < error.BaseEstimator
                     this.M10 = 2*M1'*(G*this.Bh);
                     this.M11 = 2*M2'*(G*this.Bh);
                 end
-                if ~this.Enabled
-                    this.Enabled = true;
-                    fprintf('DEIM error estimation order set to %d. Enabling DEIMEstimator.\n',deim.Order(2));
-                end
             else
-                if this.Enabled
-                    this.Enabled = false;
-                    fprintf('DEIM error estimation order not set. Disabling DEIMEstimator.\n');
-                end
+                this.M3 = [];
+                this.M4 = [];
+                this.M5 = [];
+                this.M7 = [];
+                this.M8 = [];
+                this.M10 = [];
+                this.M11 = [];
             end
         end
         
