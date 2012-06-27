@@ -38,6 +38,13 @@ classdef PlotManager < handle
 % pm.savePlots('.','fig');
 % pm.savePlots('.','png',true);
 %
+% @new{0,6,dw,2012-06-22} Added a new property NoTitlesOnSave, which
+% enables to suppress any axes titles when savePlots is used.
+%
+% @new{0,6,dw,2012-06-16} Added a new property UseFileTypeFolders that
+% causes the PlotManager to create subfolders for each file type inside the
+% target directory when using savePlots.
+%
 % @change{0,6,dw,2012-05-07} 
 % - PlotManager.savePlots now takes a cell array with file extensions,
 % allowing to call the function once and generate all desired output types.
@@ -92,6 +99,29 @@ classdef PlotManager < handle
         %
         % @type char @default '95'
         JPEGQuality = '95';
+        
+        % Affects the savePlots behaviour.
+        % This flag lets the PlotManager create subfolders in the target
+        % folder according to the specified file extensions and places any
+        % images of that type inside it.
+        %
+        % This is especially useful for use with LaTeX, as during
+        % production simple and fast jpeg-versions of plots can be used and
+        % later a single path change includes pdf or eps files.
+        %
+        % This setting is only used if more than one file type have been
+        % specified.
+        %
+        % @type logical @default true
+        UseFileTypeFolders = true;
+        
+        % Flag that determines if any figures title's are removed when
+        % using savePlots.
+        %
+        % @type logical @default false
+        NoTitlesOnSave = false;
+        
+        SaveFont = struct('FontWeight','bold','FontSize',16);
     end
     
     properties(Access=private)
@@ -100,7 +130,7 @@ classdef PlotManager < handle
     end
     
     properties(SetAccess=private, Transient)
-        % Provides access to all handles (axes or figures) created using
+        % Provides access to all figure handles created using
         % nextPlot.
         %
         % @type rowvec<double>
@@ -115,6 +145,7 @@ classdef PlotManager < handle
         ncap = [];
         nxl = [];
         nyl = [];
+        donelast = false;
     end
     
     methods
@@ -193,6 +224,30 @@ classdef PlotManager < handle
                 h = subplot(this.rows, this.cols, this.cnt, 'Tag', tag);
             end
             this.h = h;
+            this.donelast = false;
+        end
+        
+        function h = copyFigure(this, nr, newtag)
+            % Copies the plot with the given number and returns the handle
+            % to its axis.
+            %
+            if isempty(this.Figures)
+                fprintf(2,'No figures exist yet within the PlotManager. Nothing to copy.\n');
+                return;
+            elseif ~this.Single
+                error('copyFigure works only in single plot mode.');
+            elseif isempty(nr) || ~isposintscalar(nr) || nr > length(this.Figures)
+                error('nr must not be empty and within the range 1 to %d',length(this.Figures));
+            end
+            s = this.Figures(nr);
+            if nargin < 3
+                newtag = [get(s,'Tag') '_copy'];
+            end
+            f = figure('Position',get(s,'Position'),'Tag',newtag);
+            this.Figures(end+1) = f;
+            % Copy stuff over
+            h = copyobj(get(s,'Children'),f);
+            h = findobj(h,'Tag','','Type','axes');
         end
         
         function done(this)
@@ -205,31 +260,44 @@ classdef PlotManager < handle
             this.cnt = 0;
         end
         
-        function savePlots(this, folder, format, close)
+        function savePlots(this, folder, format, selection, close)
             % Saves all plots that have been created thus far to a given
             % folder with given format.
             %
             % Parameters:
-            if nargin < 4
+            if nargin < 5
                 close = false;
-                if nargin < 3
-                    format = {'fig', 'eps'};
-                    if nargin < 2
-                        folder = pwd;
+                if nargin < 4
+                    selection = 1:length(this.Figures);
+                    if nargin < 3
+                        format = {'fig', 'eps'};
+                        if nargin < 2
+                            folder = pwd;
+                        end
                     end
                 end
+            end
+            if isempty(selection)
+                selection = 1:length(this.Figures);
             end
             if ischar(format)
                 format = {format};
             end
-            n = length(this.Figures);
+            
+            % Make sure the last plot has been finished off before saving
+            % it.
+            this.finishCurrent;
+            
+            n = length(selection);
             fmtstr = format{1};
             if length(format) > 1
                 fmtstr = [sprintf('%s, ',format{1:end-1}) format{end}];
             end
             fprintf('Saving %d current figures as "%s"...', n, fmtstr);
+            eff_folder = folder;
+            fmts = length(format);
             for idx=1:n
-                h = this.Figures(idx);%#ok<*PROP>
+                h = this.Figures(selection(idx));%#ok<*PROP>
                 if ishandle(h)
                     fname = get(h,'Tag');
                     % check for empty tags here as people may have changed
@@ -237,10 +305,20 @@ classdef PlotManager < handle
                     if isempty(fname)
                         fname = sprintf('figure_%d',idx);
                     end
-                    fname = fullfile(folder, [this.FilePrefix '_' fname]);
-                    for fmt = 1:length(format)
-                        this.saveFigure(h, fname, format{fmt});
+                    [oldtitles, oldfonts] = this.preSave(h);
+                    for fmt = 1:fmts
+                        % Add format-named folder if enabled
+                        if this.UseFileTypeFolders && fmts > 1
+                            eff_folder = fullfile(folder,format{fmt});
+                        end
+                        this.saveFigure(h, ...
+                            fullfile(eff_folder, [this.FilePrefix '_' fname]), ...
+                            format{fmt});
                     end
+                    this.postSave(h, oldtitles, oldfonts);
+                else
+                    fprintf(2,'Warning: figure handle %d is invalid. Did you close it?',...
+                        selection(idx));
                 end
             end
             fprintf('done!\n');
@@ -265,6 +343,10 @@ classdef PlotManager < handle
             this.Figures = [];
             this.cnt = 0;
         end
+        
+        function delete(this)
+            this.closeAll;
+        end
     end
     
     methods(Access=private)
@@ -272,22 +354,67 @@ classdef PlotManager < handle
         function finishCurrent(this)
             % Finishes processing of the current plot, e.g. sets the labels
             % and tight axis.
-            h = this.h;
-            if ishandle(h)
-                % Set title and labels if given 
-                if ~isempty(this.ncap)
-                    title(h,this.ncap);
+            if ~this.donelast
+                h = this.h;
+                if ishandle(h)
+                    % Set title and labels if given 
+                    if ~isempty(this.ncap)
+                        title(h,this.ncap);
+                    end
+                    if ~isempty(this.nxl)
+                        xlabel(h, this.nxl);
+                    end
+                    if ~isempty(this.nyl)
+                        ylabel(h, this.nyl);
+                    end
+                    % Make axis tight if no manual values have been set
+                    if ~any(strcmp(get(h,{'XLimMode','YLimMode','ZLimMode'}),'manual'))
+                        axis(h,'tight');
+                    end
                 end
-                if ~isempty(this.nxl)
-                    xlabel(h, this.nxl);
+                this.donelast = true;
+            end
+        end
+        
+        function [oldtitles, oldfonts] = preSave(this, h)
+            ax = findobj(get(h,'Children'),'Type','axes');
+            % Get title strings
+            oldtitles = [];
+            childs = {'XLabel','YLabel','ZLabel'};
+            if this.NoTitlesOnSave
+                th = get(ax,'Title');
+                if numel(th) == 1, th = {th}; end
+                oldtitles = cellfun(@(th)get(th,'String'),th,...
+                    'UniformOutput',false);
+                cellfun(@(th)set(th,'String',[]),th);
+            else
+                childs = [childs 'Title'];
+            end
+            if ~isempty(this.SaveFont)
+                items = [ax cell2mat(get(ax,childs))];
+                oldfonts = get(items,fieldnames(this.SaveFont));
+                set(items,fieldnames(this.SaveFont),...
+                    repmat(struct2cell(this.SaveFont)',numel(items),1));
+            end
+        end
+        
+        function postSave(this, h, oldtitles, oldfonts)
+            ax = findobj(get(h,'Children'),'Type','axes');
+            % Restore title strings
+            childs = {'XLabel','YLabel','ZLabel'};
+            if this.NoTitlesOnSave
+                th = get(findobj(get(h,'Children'),...
+                    'Type','axes'),'Title');
+                if numel(th) == 1, th = {th}; end
+                for k=1:length(th)
+                    set(th{k},'String',oldtitles{k});
                 end
-                if ~isempty(this.nyl)
-                    ylabel(h, this.nyl);
-                end
-                % Make axis tight if no manual values have been set
-                if ~any(strcmp(get(h,{'XLimMode','YLimMode','ZLimMode'}),'manual'))
-                    axis(h,'tight');
-                end
+            else
+                childs = [childs 'Title'];
+            end
+            if ~isempty(this.SaveFont)
+                items = [ax cell2mat(get(ax,childs))];
+                set(items,fieldnames(this.SaveFont),oldfonts);
             end
         end
         
