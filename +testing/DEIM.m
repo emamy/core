@@ -591,82 +591,95 @@ classdef DEIM
             end
         end
         
-        %% %%%%%%%%%%%%%%%%%%%% MATRIX DEIM STUFF %%%%%%%%%%%%%%%%%%%%
-        function [no,no1,nom,jln,djln,sdjln] = matrix_deim(m, nr)
+        %% Matrix DEIM approximation analysis
+        function [e, aln, orders] = compareDEIM_Full_Jacobian(m, atd, orders)
             deim = m.ErrorEstimator.JacMDEIM;
-            [x, mu] = m.Data.getTrajectoryNr(nr);
-            z = m.Data.V'*x;
-            t = m.scaledTimes;
-            mu = repmat(mu,1,length(t));
-            mo = deim.MaxOrder;
-            pi = tools.ProcessIndicator('Computing stuff',mo*length(t));
-            for o = 1:mo
-                deim.Order = o;
-                for i=1:length(t)
-                    zi = z(:,i); 
-                    ti = t(i); 
-                    mui = mu(:,i); 
-                    J = m.System.f.getStateJacobian(m.Data.V*zi,ti,mui);
-                    DJ = reshape(deim.evaluate(zi,ti,mui),size(J,1),[]); 
-                    diff = J-DJ;
-                    nz = J ~= 0;
-                    no(o,i) = norm(full(diff)); %#ok<*AGROW>
-                    no1(o,i) = norm(full(diff),1); %#ok<*AGROW>
-                    rel = diff ./ J;
-                    hlp = max(max(abs(rel(nz))));
-                    if isempty(hlp)
-                        hlp = 0;
-                    end
-                    nom(o,i) = hlp;
-                    
-                    jln(o,i) = general.Utils.logNorm(J);
-                    djln(o,i) = general.Utils.logNorm(DJ);
-                    sdjln(o,i) = general.Utils.logNorm(deim.ST'*DJ*deim.ST);
-                    pi.step;
+            if nargin < 3
+                orders = 1:deim.MaxOrder;
+                if nargin < 2
+                    atd = m.Data.JacobianTrainData;
                 end
             end
+            mo = length(orders);
+            n = size(atd.xi,2);
+            e = zeros(mo,n,3);
+            aln = zeros(mo,n);
+            oldo = deim.Order;
+            ST = deim.ST;
+            deim.setSimilarityTransform([]);
+            pi = tools.ProcessIndicator('Computing matrix DEIM approximation error and log norm errors for %d orders',mo,false,mo);
+            JP = logical(m.System.f.JSparsityPattern);
+            for o = 1:mo
+                deim.Order = o;
+                for i=1:n
+                    ti = atd.ti(i);  mui = atd.mui(:,i); 
+                    J = m.System.f.getStateJacobian(atd.xi(:,i),ti,mui);
+                    DJ = reshape(deim.evaluate(m.Data.V'*atd.xi(:,i),ti,mui),...
+                        size(J,1),[]); 
+                    diff = J-DJ;
+                    diff = diff(JP);
+                    e(o,i,1) = max(max(abs(diff)));
+                    e(o,i,2) = Norm.L2(diff);
+                    e(o,i,3) = mean(abs(diff));
+                    e(o,i,4) = var(diff);
+
+                    % Get log norm
+                    aln(o,i) = general.Utils.logNorm(DJ);
+                end
+                pi.step;
+            end
             pi.stop;
+            deim.Order = oldo;
+            deim.setSimilarityTransform(ST);
         end
         
-        function pm = matrix_deim_plots(no,no1,nom,jln,djln,sdjln,pm)
-            if nargin < 7
-                pm = tools.PlotManager(false,1,3);
+        function pm = compareDEIM_Full_Jacobian_plots(m, e, aln, orders, pm, atdsubset)
+            if nargin < 5 || isempty(pm)
+                pm = tools.PlotManager(false,1,2);
             end
-            [X,Y] = meshgrid(1:size(no,2),1:size(no,1));
-            h = pm.nextPlot('diff_norm','L2-Norm of difference matrix','trajectory point','DEIM order');
-            tools.LogPlot.logsurf(h,X,Y,no);
-            h = pm.nextPlot('diff_norm_l1','L1-Norm of difference matrix','trajectory point','DEIM order');
-            tools.LogPlot.logsurf(h,X,Y,no1);
-            h = pm.nextPlot('max_rel_diff','Maximum relative difference','trajectory point','DEIM order');
-            tools.LogPlot.logsurf(h,X,Y,nom);
-            
-            h = pm.nextPlot('jac_log_norm',...
-                'Log norm of full jacobian','trajectory point','DEIM order');
-            surf(h,X,Y,jln,'FaceColor','interp','EdgeColor','interp');
-            zlabel('log norm');
-            h = pm.nextPlot('deim_jac_norm',...
-                'Log norm of DEIM approximated jacobian',...
+            co = 'none';
+            td = 1:size(e,2);
+            [X,Y] = meshgrid(td,orders);
+            e = sort(e,2);
+            h = pm.nextPlot('max_diff','Maximum absolute difference',...
                 'trajectory point','DEIM order');
-            surf(h,X,Y,djln,'FaceColor','interp','EdgeColor','interp');
-            zlabel('log norm');
-            h = pm.nextPlot('st_deim_jac_norm',...
-                sprintf('Log norm of partial similarity transformed\nDEIM approximated jacobian'),...
-                'trajectory point','DEIM order');
-            surf(h,X,Y,sdjln,'FaceColor','interp','EdgeColor','interp');
-            zlabel('log norm');
+            tools.LogPlot.logsurf(h,X,Y,e(:,:,1),'EdgeColor',co);
+            h = pm.nextPlot('max_diff_mean','Mean maximum absolute difference','DEIM order');
+            semilogy(h,orders,mean(e(:,:,1),2));
             
-            h = pm.nextPlot('jac_deim_diff',...
-                'Log norm differences full<->deim','trajectory point','DEIM order');
-            tools.LogPlot.logsurf(h,X,Y,abs(jln-djln));
-            zlabel('log norm diff');
-            h = pm.nextPlot('jac_st_deim_diff',...
-                'Log norm differences full<->simtrans-deim','trajectory point','DEIM order');
-            tools.LogPlot.logsurf(h,X,Y,abs(jln-sdjln));
-            zlabel('log norm diff');
-            h = pm.nextPlot('rel_diff_full_stdeim',...
-                'Relative log norm differences full<->simtrans-deim','trajectory point','DEIM order');
-            tools.LogPlot.logsurf(h,X,Y,abs((jln-sdjln)./jln));
-            zlabel('rel log norm diff');
+            h = pm.nextPlot('l2_diff','L2 vector difference',...
+                'trajectory point','DEIM order');
+            tools.LogPlot.logsurf(h,X,Y,e(:,:,2),'EdgeColor',co);
+            h = pm.nextPlot('l2_diff_mean','Mean L2 vector difference','DEIM order');
+            semilogy(h,orders,mean(e(:,:,2),2));
+            
+            h = pm.nextPlot('mean_diff','Mean difference value',...
+                'trajectory point','DEIM order');
+            tools.LogPlot.logsurf(h,X,Y,e(:,:,3),'EdgeColor',co);
+            h = pm.nextPlot('mean_diff_mean','Mean mean difference value','DEIM order');
+            semilogy(h,orders,mean(e(:,:,3),2));
+            
+            h = pm.nextPlot('var_diff','Variance of difference',...
+                'trajectory point','DEIM order');
+            tools.LogPlot.logsurf(h,X,Y,e(:,:,4),'EdgeColor',co);
+            h = pm.nextPlot('var_diff_mean','Mean variance of difference','DEIM order');
+            semilogy(h,orders,mean(e(:,:,4),2));
+            
+            ln = m.Data.JacSimTransData.LogNorms;
+            if length(ln) ~= size(aln,2)
+                ln = ln(atdsubset);
+            end
+            ln = repmat(ln,length(orders),1);
+            err = sort(abs(ln-aln),2);
+            h = pm.nextPlot('log_norm_diff','Differences of logarithmic norms',...
+                'trajectory point','DEIM order');
+            tools.LogPlot.logsurf(h,X,Y,err,'EdgeColor','none');
+            
+            err = sort(abs((ln-aln) ./ ln),2);
+            h = pm.nextPlot('log_norm_diff','Differences of logarithmic norms',...
+                'trajectory point','DEIM order');
+            tools.LogPlot.logsurf(h,X,Y,err,'EdgeColor','none');
+            
             if nargout < 1
                 pm.done;
             end

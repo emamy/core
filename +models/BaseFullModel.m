@@ -478,12 +478,14 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     n = size(jtd.fxi,2);
                     v = zeros(d,n);
                     ln = zeros(1,n);
+%                     cln = ln;
                     times = ln;
                     pi = tools.ProcessIndicator('Computing Jacobian similarity transform data for %d jacobians',n,false,n);
                     for nr = 1:n
                         J = reshape(jtd.fxi(:,nr),d,d);
                         t = tic;
                         [ln(nr), v(:,nr)] = general.Utils.logNorm(J);
+%                         cln(nr) = general.Utils.complexLogNorm(J);
                         times(nr) = toc(t);
                         pi.step;
                     end
@@ -491,6 +493,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     
                     jstd.VFull = v;
                     jstd.LogNorms = ln;
+%                     jstd.ComplexLogNorms = ln;
                     jstd.CompTimes = times;
                     this.Data.JacSimTransData = jstd;
                 end
