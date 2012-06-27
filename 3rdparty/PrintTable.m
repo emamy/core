@@ -231,7 +231,7 @@ classdef PrintTable < handle
         NumRows;
     end
     
-    properties(Access=private)
+    properties(SetAccess=private)
         % The string cell data
         data;
         
@@ -337,7 +337,7 @@ classdef PrintTable < handle
                     error('Valid file formats are *.txt, *.tex, *.pdf');
                 end
                 % Try to create directory if not existing
-                if ~isempty(path) && exist(pathstr,'dir') ~= 7
+                if ~isempty(path) && exist(path,'dir') ~= 7
                     mkdir(path);
                 end
             end
@@ -401,6 +401,29 @@ classdef PrintTable < handle
             this.data = {};
             this.contlen = [];
             this.Caption = '';
+        end
+        
+        function transposed = ctranspose(this)
+            transposed = this.clone;
+            hlp = reshape([this.data{:}],length(this.data{1}),[]);
+            transposed.data = {};
+            for k=1:size(hlp,1)
+                transposed.data{k} = hlp(k,:);
+            end
+            transposed.contlen = cellfun(@(row)max(cellfun(@(el)length(el),row)),...
+                this.data);
+        end
+        
+        function copy = clone(this)
+            % Returns a new instance of PrintTable with the same content
+            copy = PrintTable(this.Caption);
+            copy.ColSep = this.ColSep;
+            copy.HasHeader = this.HasHeader;
+            copy.HasRowHeader = this.HasRowHeader;
+            copy.Format = this.Format;
+            copy.TightPDF = this.TightPDF;
+            copy.data = this.data;
+            copy.contlen = this.contlen;
         end
         
         function set.ColSep(this, value)
