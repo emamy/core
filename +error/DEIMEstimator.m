@@ -620,13 +620,13 @@ classdef DEIMEstimator < error.BaseEstimator
             this.TrainDataSelector = value;
         end
         
-        function set.JacSimTransMaxSize(this, value)
-            if ~isempty(this.JacSimTransMaxSize) && ...
-                    this.JacSimTransMaxSize ~= value
-                fprintf('New maximum size of similarity transform. Re-run of offlineComputations necessary.\n');
-            end
-            this.JacSimTransMaxSize = value;
-        end
+%         function set.JacSimTransMaxSize(this, value)
+%             if ~isempty(this.JacSimTransMaxSize) && ...
+%                     this.JacSimTransMaxSize ~= value
+%                 fprintf('New maximum size of similarity transform. Re-run of offlineComputations necessary.\n');
+%             end
+%             this.JacSimTransMaxSize = value;
+%         end
     end
     
      methods(Static, Access=protected)
