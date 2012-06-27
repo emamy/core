@@ -149,6 +149,15 @@ classdef ApproxTrainData
                 comb = [comb; this.mui];
             end
         end
+        
+        function satd = subset(this, sel)
+            if isscalar(sel)
+                sel = 1:sel:size(this.xi,2);
+            end
+            satd = data.ApproxTrainData(this.xi(:,sel), ...
+                this.ti(:,sel), this.mui(:,sel));
+            satd.fxi = this.fxi(:,sel);
+        end
     end
     
     methods(Static)
