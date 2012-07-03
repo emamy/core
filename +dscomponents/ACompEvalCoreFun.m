@@ -236,9 +236,10 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
         
         function res = test_ComponentEvalMatch(this, dim, pdim)
             % Tests if the local implementation of
-            x = rand(dim,1);
-            mu = rand(pdim,1);
-            t = rand;
+            siz = 100;
+            x = rand(dim,siz);
+            mu = rand(pdim,siz);
+            t = rand(1,siz);
             fx = this.evaluate(x, t, mu);
             oldpts = [];
             if ~isempty(this.PointSets)
@@ -247,7 +248,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             
             nsets = 3;
             s = RandStream('mt19937ar','Seed',2);
-            setsizes = randi(size(fx,1), nsets, 1);
+            setsizes = s.randi(size(fx,1), nsets, 1);
             sets = cell(nsets,1);
             for i = 1:length(setsizes)
                 sets{i} = unique(s.randi(size(fx,1),1,setsizes(i)));
@@ -259,7 +260,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
                 set = sets{idx};
                 this.setPointSet(1, set);
                 fxc = this.evaluateComponentSet(1, x, t, mu);
-                tmp = fx(set);
+                tmp = fx(set,:);
                 err = abs((tmp-fxc)./tmp);
                 err = err(tmp ~= 0);
                 d = max(err);
