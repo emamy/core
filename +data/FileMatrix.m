@@ -34,6 +34,10 @@ classdef FileMatrix < data.FileData
         idx;
         
         created;
+        
+        issaved = false;
+        
+        MinRelSingularValueSize = 1e-12;
     end
     
     methods
@@ -50,7 +54,7 @@ classdef FileMatrix < data.FileData
             this = this@data.FileData(fullfile(storage_root,['matrix_' num2str(ID)]));
             this.n = n; 
             this.m = m;
-            this.bRows = floor(block_size/(8*m));
+            this.bRows = max(floor(block_size/(8*m)),1);
             this.nBlocks = ceil(n / this.bRows);
             this.created = false(1,this.nBlocks);
             hlp = reshape(repmat(1:this.nBlocks,this.bRows,1),[],1);
@@ -58,7 +62,7 @@ classdef FileMatrix < data.FileData
             this.idx = [hlp(1:n) hlp2(1:n)];
         end
         
-        function [V,S,W] = getSVD(this, k)
+        function [Vs,S,Vl] = getSVD(this, k)
             psize = min(this.n,this.m);
             if nargin < 2
                 k = psize;
@@ -68,14 +72,23 @@ classdef FileMatrix < data.FileData
             colmode = this.n < this.m;
             fprintf('FileMatrix: Computing truncated %d-SVD on %dx%d matrix (%d blocks)...\n',...
                     k,this.n,this.m,this.nBlocks);
+            
+            fun = @rowmode_mult;
             if colmode
-                [V,S] = eigs(@colmode_mult,psize,k,'la',opts);
-                if nargout > 2
-                    W = (this')*(V/S);
+                warning('KerMor:FileMatrix',['Computing SVD on matrix with n < m is very inefficient. '...
+                    'Consider arranging the matrix transposed.']);
+                fun = @colmode_mult;    
+            end
+            [Vs,S] = eigs(fun,psize,k,'la',opts);
+            sel = diag(S)/S(1) >= this.MinRelSingularValueSize;
+            Vs = Vs(:,sel);
+            S = sqrt(S(sel,sel));
+            if nargout > 2
+                if colmode
+                    Vl = this'*(Vs/S);
+                else
+                    Vl = this*(Vs/S);
                 end
-            else
-                [W,S] = eigs(@rowmode_mult,psize,k,'la',opts);
-                V = this*(W/S);
             end
             
             function w = rowmode_mult(v)
@@ -89,11 +102,19 @@ classdef FileMatrix < data.FileData
             function w = colmode_mult(v)
                 w = zeros(size(v));
                 for j = 1:this.nBlocks
-                    B = this.loadBlock(j);
-                    pos = (j-1)*this.bRows + 1 : min(j*this.bRows,size(v,1));
-                    w(pos,:) = B*(B'*v(pos,:));
+                    Bj = this.loadBlock(j);
+                    for i = 1:this.nBlocks
+                        Bi = this.loadBlock(i);
+                        posi = (i-1)*this.bRows + 1 : min(i*this.bRows,size(v,1));
+                        posj = (j-1)*this.bRows + 1 : min(j*this.bRows,size(v,1));
+                        w(posj,:) = w(posj,:) + Bj*(Bi'*v(posi,:));
+                    end
                 end
             end
+        end
+        
+        function n = numel(~)
+            n = 1;
         end
         
         function varargout = subsref(this, key)
@@ -188,29 +209,89 @@ classdef FileMatrix < data.FileData
             for j=1:this.nBlocks
                 B = this.loadBlock(j);
                 pos = (j-1)*this.bRows + 1 : min(j*this.bRows,this.n);
-                % Why EVER this doesnt work.. GRRR
-                %trans(:,pos) = B';
                 trans.subsasgn(struct('type',{'()'},'subs',{{':', pos}}),B');
             end
+        end
+        
+        function delete(this)
+            if ~this.issaved
+                %fprintf('Deleting FileMatrix files in folder "%s"\n',this.DataDirectory);
+                % Remove exactly the files for the matrix
+                for k=1:this.nBlocks
+                    if this.created(k)
+                        delete(fullfile(this.DataDirectory, sprintf('block_%d.mat',k)));
+                    end
+                end
+            end
+            % Superclass delete removes the folder if empty.
+            delete@data.FileData(this);
         end
     end
     
     methods(Access=private)
-        
         function saveBlock(this, nr, A)%#ok
-            file = fullfile(this.DataDirectory, ['block_' num2str(nr) '.mat']);
-            save(file, 'A');
+            save([this.DataDirectory filesep sprintf('block_%d.mat',nr)], 'A');
             this.created(nr) = true;
         end
         
         function A = loadBlock(this, nr)
             if this.created(nr)
-                file = this.getfile(['block_' num2str(nr) '.mat']);
-                s = load(file);
+%                 file = this.getfile(sprintf('block_%d.mat',nr));
+%                 s = load(file);
+                s = load([this.DataDirectory filesep sprintf('block_%d.mat',nr)]);
                 A = s.A;
             else
-                A = zeros(this.bRows,this.m); 
+                A = zeros(this.bRows,this.m);
+                % Shorten the last block to effectively used size
+                if nr == this.nBlocks
+                    A = A(1:(this.n-(this.nBlocks-1)*this.bRows),:);
+                end
             end
+        end
+        
+        function this = saveobj(this)
+            % Set saved flag so that the matrix files do not get deleted on the delete method
+            this.issaved = true;
+        end
+    end
+    
+    methods(Static)
+        function res = test_FileMatrix
+            res = true;
+            B = rand(10,100);
+            A = data.FileMatrix(10,100,KerMor.App.DataStoreDirectory,1600);
+            key = struct('type',{'()'},'subs',[]);
+            for k=1:10
+                key.subs = {k, ':'};
+                A.subsasgn(key,B(k,:));
+            end
+            key.subs = {':', ':'};
+            res = res && all(all(A.subsref(key) == B));
+            
+            % Transpose test
+            At = A';
+            res = res && all(all(At.subsref(key) == B'));
+            
+            % SVD test
+            p = sqrt(eps);
+            [u,s,v] = svd(B,'econ');
+            [U,S,V] = A.getSVD;
+            [U5,S5,V5] = A.getSVD(5);
+            res = res && norm(abs(V)-abs(v),'fro') < p && norm(abs(U)-abs(u),'fro') < p &&...
+                norm(diag(S)-diag(s)) < p;
+            res = res && norm(abs(V5)-abs(v(:,1:5)),'fro') < p ...
+                    && norm(abs(U5)-abs(u(:,1:5)),'fro') < p ...
+                    && norm(diag(S5)-diag(s(1:5,1:5))) < p;
+            
+            [ut,st,vt] = svd(B','econ');
+            % Arguments exchanged here as first one is always the smaller matrix
+            [Vt,St,Ut] = At.getSVD;
+            [Vt5,St5,Ut5] = At.getSVD(5);
+            res = res && norm(abs(Vt)-abs(vt),'fro') < p && norm(abs(Ut)-abs(ut),'fro') < p &&...
+                norm(diag(St)-diag(st)) < p;
+            res = res && norm(abs(Vt5)-abs(vt(:,1:5)),'fro') < p ...
+                    && norm(abs(Ut5)-abs(ut(:,1:5)),'fro') < p ...
+                    && norm(diag(St5)-diag(st(1:5,1:5))) < p;
         end
     end
 end

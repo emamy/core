@@ -32,7 +32,7 @@ classdef FileData < handle
         end
         
         function delete(this)
-            fprintf('Called delete on FileData for folder "%s"\n',this.DataDirectory);
+            %fprintf('Called delete on FileData for folder "%s"\n',this.DataDirectory);
             if length(dir(this.DataDirectory)) == 2
                 rmdir(this.DataDirectory);
             end
