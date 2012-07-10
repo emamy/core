@@ -14,11 +14,30 @@ classdef FileData < handle
 % - \c License @ref licensing
     
     properties(SetAccess=private)
-                
+        % The root folder where the FileData's files are saved.
+        %
+        % @type char @default KerMor.DataStoreDirectory
         DataDirectory;
         
-        % The host machine this file model data is created on
-        Host;
+        % The host machine this file data is created on.
+        %
+        % If the 
+        %
+        % @type char @default ''
+        Host = '';
+    end
+    
+    properties(SetAccess=private, GetAccess=protected)
+        % This flag indicates that this FileData instance has been stored to disk via the save
+        % method somewhere.
+        %
+        % In subclasses, this can be used to clean up any files in the DataDirectory when the
+        % object's delete method is called.
+        %
+        % @type logical @default false
+        %
+        % See also: DataDirectory delete
+        isSaved = false;
     end
     
     methods
@@ -31,10 +50,20 @@ classdef FileData < handle
             this.Host = KerMor.getHost;
         end
         
+        function relocate(this, newDataDirectoryRoot)%#ok
+            % @TODO Implement multiple-host FileData's with different storage_root folders (per
+            % host for example)
+        end
+        
         function delete(this)
-            %fprintf('Called delete on FileData for folder "%s"\n',this.DataDirectory);
-            if length(dir(this.DataDirectory)) == 2
-                rmdir(this.DataDirectory);
+            if ~this.isSaved && exist(this.DataDirectory,'dir') == 7
+                if length(dir(this.DataDirectory)) ~= 2
+                    warning('KerMor:FileData',...
+                        'A FileData instance (%s) should be deleted but the DataDirectory "%s" is not empty. Not deleting.',...
+                        class(this),this.DataDirectory);
+                else
+                    rmdir(this.DataDirectory);
+                end
             end
         end
     end
@@ -52,7 +81,7 @@ classdef FileData < handle
                 try
                     mkdir(this.DataDirectory);
                 catch ME
-                    me = MException('KerMor:data:FileModelData','Could not create dir "%s"',this.DataDirectory);
+                    me = MException('KerMor:FileData','Could not create directory "%s"',this.DataDirectory);
                     me.addCause(ME);
                     me.throw;
                 end
@@ -60,9 +89,16 @@ classdef FileData < handle
         end
     end
     
+    methods(Access=private)
+        function this = saveobj(this)
+            % Set saved flag so that the matrix files do not get deleted on the delete method
+            this.isSaved = true;
+        end
+    end
+    
     methods(Static, Access=protected)
         function this = loadobj(this)
-            % Loads a FileModelData instance.
+            % Loads a FileData instance.
             %
             % Ensures that the directory associated with this FileData is existent.
             if strcmp(this.host,KerMor.getHost)

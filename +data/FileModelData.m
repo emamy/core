@@ -1,4 +1,4 @@
-classdef FileModelData < data.AModelData
+classdef FileModelData < data.AModelData & data.FileData
 % FileModelData: Trajectory datadir in external files.
 %
 % The constructor takes an optional storage_root parameter.
@@ -34,12 +34,7 @@ classdef FileModelData < data.AModelData
         hm;
     end
     
-    properties(SetAccess=private)
-        % The directory where this FileModelData instance writes its files to.
-        DataDirectory;
-    end
-    
-    properties(Access=private)
+    properties%(Access=private)
         % Bounding box minimum
         bbmin = [];
         
@@ -48,6 +43,12 @@ classdef FileModelData < data.AModelData
         
         % The host machine this file model data is created on
         host = '';
+        
+        % Stores the DoFs of the trajectories and parameter sizes
+        sizes = [];
+        
+        % @TODO delete when experiments are finished
+        trajdof;
     end
     
     methods
@@ -61,34 +62,24 @@ classdef FileModelData < data.AModelData
             if ~usejava('jvm')
                 error('FileModelData cannot be used as java is not enabled.');
             end
-            this.hm = java.util.HashMap;
-            this.host = KerMor.getHost;
             if nargin < 2
                storage_root = KerMor.App.DataStoreDirectory;
             end
-            if isa(storage_root,'char') && exist(storage_root,'dir') == 7
-                this.DataDirectory = fullfile(storage_root,['fm_' num2str(model.ID)]);
-            else
-                error('Invalid folder or does not exist: %s',storage_root);
-            end
-            this.ensureDir;
+            this = this@data.FileData(fullfile(storage_root,['fm_' num2str(model.ID)]));
+            this.hm = java.util.HashMap;
             this.clearTrajectories;
         end
         
         function delete(this)
             % Destructor for FileModelData
             %
-            % Deletes the DataDirectory if no trajectories are stored in it.
-            if this.hm.size == 0
-                if exist(this.DataDirectory,'dir') == 7
-                    try
-                        rmdir(this.DataDirectory);
-                    catch ME%#ok
-                        fprintf(2,'Tried to remove FileModelData directory "%s" but failed.\nThere might be non-associated files/folders contained.\n',...
-                            this.DataDirectory);
-                    end
-                end
+            % Deletes the DataDirectory if no trajectories are stored in it or it has not been
+            % saved somewhere.
+            if ~this.isSaved || this.hm.size == 0
+                this.clearTrajectories;
             end
+            % Superclass delete removes the folder if empty.
+            delete@data.FileData(this);
         end
         
         function [x, ctime] = getTrajectory(this, mu, inputidx)
@@ -151,6 +142,15 @@ classdef FileModelData < data.AModelData
                 end
             end
             
+            newd = size(x,1); newmu = length(mu);
+            if isempty(this.sizes)
+                this.sizes = [newd newmu];
+            elseif newd ~= this.sizes(1)
+                error('Invalid trajectory size. Existing: %d, new: %d',this.sizes(1),newd);
+            elseif newmu ~= this.sizes(2)
+                error('Invalid parameter size. Existing: %d, new: %d',this.sizes(2),newmu);
+            end
+            
             key = general.Utils.getHash([mu; inputidx]);
             if this.hm.containsKey(key)
                 warning('KerMor:MemoryModelData','Trajectory already present. Replacing.');
@@ -170,8 +170,9 @@ classdef FileModelData < data.AModelData
         
         function clearTrajectories(this)
             ks = this.hm.values.iterator;
+            fs = filesep;
             while ks.hasNext
-                file = fullfile(this.DataDirectory,ks.next);
+                file = [this.DataDirectory fs ks.next];
                 try
                     if exist(file,'file') == 2
                         delete(file);
@@ -183,6 +184,7 @@ classdef FileModelData < data.AModelData
             this.hm.clear;
             this.bbmin = [];
             this.bbmax = [];
+            this.sizes = [];
         end
         
         function consolidate(this, model, model_ID)
@@ -241,16 +243,24 @@ classdef FileModelData < data.AModelData
             x = this.bbmin;
             X = this.bbmax;
         end
+        
+        function [d, mud] = getTrajectoryDoFs(this)
+            if isempty(this.sizes)
+                if this.getNumTrajectories > 0
+                    [x,mu] = this.getTrajectoryNr(1);
+                    d = size(x,1);
+                    mud = length(mu);
+                else
+                    d = 0; mud = 0;
+                end
+                this.sizes = [d mud]; 
+            end
+            d = this.sizes(1);
+            mud = this.sizes(2);
+        end
     end
     
     methods(Access=private)
-        function file = getfile(this, file)
-            file = fullfile(this.DataDirectory,file);
-            if exist(file,'file') ~= 2
-                error('File not found: "%s". Have you deleted model data files?',file);
-            end
-        end
-        
         function updateBB(this, x)
             % Compute current bounding box
             [m,M] = general.Utils.getBoundingBox(x);
@@ -262,37 +272,24 @@ classdef FileModelData < data.AModelData
                 this.bbmax = max(this.bbmin,M);
             end
         end
-        
-        function ensureDir(this)
+    end
+    
+    methods(Static, Access=protected)
+        function this = loadobj(this)
+            % Loads a FileModelData instance.
+            %
+            % Ensures that the directory associated with this FileModelData is existent.
+            this = loadobj@data.FileData(this);
             if exist(this.DataDirectory,'dir') ~= 7
-                try
-                    mkdir(this.DataDirectory);
-                catch ME
-                    me = MException('KerMor:data:FileModelData','Could not create dir "%s"',this.DataDirectory);
-                    me.addCause(ME);
-                    me.throw;
-                end
+                this.hm.clear;
+                this.bbmin = [];
+                this.bbmax = [];
+                warning('FileModelData:load','This FileModelData instance was created on host "%s" and the DataDirectory cannot be found on the local machine "%s". Clearing FileModelData.',this.host,KerMor.getHost);
             end
         end
     end
     
     methods(Static)
-        function this = loadobj(this)
-            % Loads a FileModelData instance.
-            %
-            % Ensures that the directory associated with this FileModelData is existent.
-            if strcmp(this.host,KerMor.getHost)
-                this.ensureDir;
-            else
-                if exist(this.DataDirectory,'dir') ~= 7
-                    this.hm.clear;
-                    this.bbmin = [];
-                    this.bbmax = [];
-                    warning('FileModelData:load','This FileModelData instance was created on host "%s" and the DataDirectory cannot be found on the local machine "%s". Clearing FileModelData.',this.host,KerMor.getHost);
-                end                
-            end
-        end
-        
         function res = test_FileModelData
             
             model.ID = 'testModelData';

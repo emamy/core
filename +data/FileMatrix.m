@@ -15,29 +15,26 @@ classdef FileMatrix < data.FileData
 
     properties(Constant)
         BLOCK_SIZE = 256*1024^2; % 256MB
-        
-        % The machine format (little/big endian, 32/64bit) to use for binary files.
-        %
-        % @default ieee-be (Big Endian)
-        %
-        % See 'doc fopen' for more details.
-%         MachineFormat = 'ieee-be';
+    end
+    
+    properties
+        % The minimum relative value of singular values that triggers selection of the 
+        % compared to the largest one.
+        MinRelSingularValueSize = 1e-12;
     end
 
-    properties%(Access=private)
+    properties(SetAccess=private)
         n,m;
         
         bRows;
         
         nBlocks;
-        
+    end
+    
+    properties(Access=private)
         idx;
         
         created;
-        
-        issaved = false;
-        
-        MinRelSingularValueSize = 1e-12;
     end
     
     methods
@@ -80,8 +77,12 @@ classdef FileMatrix < data.FileData
                 fun = @colmode_mult;    
             end
             [Vs,S] = eigs(fun,psize,k,'la',opts);
-            sel = diag(S)/S(1) >= this.MinRelSingularValueSize;
+            sel = sqrt(diag(S)/S(1)) >= this.MinRelSingularValueSize;
             Vs = Vs(:,sel);
+            if size(Vs,2) < k
+                warning('KerMor:FileMatrix','Have only %d nonzero singular values instead of %d desired ones.',...
+                    size(Vs,2),k);
+            end
             S = sqrt(S(sel,sel));
             if nargout > 2
                 if colmode
@@ -214,8 +215,7 @@ classdef FileMatrix < data.FileData
         end
         
         function delete(this)
-            if ~this.issaved
-                %fprintf('Deleting FileMatrix files in folder "%s"\n',this.DataDirectory);
+            if ~this.isSaved
                 % Remove exactly the files for the matrix
                 for k=1:this.nBlocks
                     if this.created(k)
@@ -236,8 +236,6 @@ classdef FileMatrix < data.FileData
         
         function A = loadBlock(this, nr)
             if this.created(nr)
-%                 file = this.getfile(sprintf('block_%d.mat',nr));
-%                 s = load(file);
                 s = load([this.DataDirectory filesep sprintf('block_%d.mat',nr)]);
                 A = s.A;
             else
@@ -247,11 +245,6 @@ classdef FileMatrix < data.FileData
                     A = A(1:(this.n-(this.nBlocks-1)*this.bRows),:);
                 end
             end
-        end
-        
-        function this = saveobj(this)
-            % Set saved flag so that the matrix files do not get deleted on the delete method
-            this.issaved = true;
         end
     end
     
