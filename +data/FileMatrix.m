@@ -1,7 +1,11 @@
 classdef FileMatrix < data.FileData
-% FileMatrix: 
+% FileMatrix: File-based matrix which stores sets of rows in separate files.
 %
-%
+% This class features a caching functionality for the last accessed block, so that for
+% subsequent calls to loadBlock with the same number no new hard drive access is necessary.
+% This makes the FileMatrix almost as fast as a normal matrix when one block is used, i.e. the
+% whole matrix fits into one block of the pre-defined size block_size passed at the
+% constructor.
 %
 % @author Daniel Wirtz @date 2012-07-09
 %
@@ -35,20 +39,36 @@ classdef FileMatrix < data.FileData
         idx;
         
         created;
+        
+        lastBlock;
+        lastNr;
+        
+        box;
     end
     
     methods
         function this = FileMatrix(n, m, storage_root, block_size)
             % Parameters:
             % block_size: The maximum block size in Bytes. @default 256MB
+            
+            % Matrix case: Create & assign directly
+            if nargin < 2
+               if ismatrix(n)
+                   A = n;
+                   [n, m] = size(A);
+               else
+                   error('If one argument is passed, it must be a matrix.');
+               end
+            end
             if nargin < 4
                 block_size = min(data.FileMatrix.BLOCK_SIZE,n*m*8);
                 if nargin < 3
                    storage_root = KerMor.App.DataStoreDirectory;
+                          
                 end
             end
-            ID = general.IDGenerator.generateID;
-            this = this@data.FileData(fullfile(storage_root,['matrix_' num2str(ID)]));
+            this = this@data.FileData(fullfile(storage_root,...
+                sprintf('matrix_%s',general.IDGenerator.generateID)));
             this.n = n; 
             this.m = m;
             this.bRows = max(floor(block_size/(8*m)),1);
@@ -57,6 +77,11 @@ classdef FileMatrix < data.FileData
             hlp = reshape(repmat(1:this.nBlocks,this.bRows,1),[],1);
             hlp2 = reshape(repmat(1:this.bRows,this.nBlocks,1)',[],1);
             this.idx = [hlp(1:n) hlp2(1:n)];
+            
+            % Matrix case: Assign value directly
+            if nargin < 2
+                this.subsasgn(struct('type',{'()'},'subs',{{':',':'}}),A);
+            end
         end
         
         function [Vs,S,Vl] = getSVD(this, k)
@@ -116,6 +141,17 @@ classdef FileMatrix < data.FileData
         
         function n = numel(~)
             n = 1;
+        end
+        
+        function value = size(this, dim)
+            value = [this.n this.m];
+            if nargin == 2
+                if dim > 0 && dim < 3
+                    value = value(dim);
+                else
+                    value = 1;
+                end
+            end
         end
         
         function varargout = subsref(this, key)
@@ -226,24 +262,47 @@ classdef FileMatrix < data.FileData
             % Superclass delete removes the folder if empty.
             delete@data.FileData(this);
         end
+        
+        function [rowmin, rowmax] = getRowBoundingBox(this)
+            rowmin = this.box(1,:);
+            rowmax = this.box(2,:);
+        end
     end
     
     methods(Access=private)
-        function saveBlock(this, nr, A)%#ok
+        function saveBlock(this, nr, A)
+            % update bounding box
+            if isempty(this.box)
+                this.box(1,:) = min(A,[],1);
+                this.box(2,:) = max(A,[],1);
+            else
+                this.box(1,:) = min([this.box(1,:); min(A,[],1)],[],1);
+                this.box(2,:) = min([this.box(2,:); max(A,[],1)],[],1);
+            end
             save([this.DataDirectory filesep sprintf('block_%d.mat',nr)], 'A');
+            % Also save changes to lastBlock if number matches
+            if isequal(nr, this.lastNr)
+                this.lastBlock = A;
+            end
             this.created(nr) = true;
         end
         
         function A = loadBlock(this, nr)
-            if this.created(nr)
-                s = load([this.DataDirectory filesep sprintf('block_%d.mat',nr)]);
-                A = s.A;
+            if isequal(nr, this.lastNr)
+                A = this.lastBlock;
             else
-                A = zeros(this.bRows,this.m);
-                % Shorten the last block to effectively used size
-                if nr == this.nBlocks
-                    A = A(1:(this.n-(this.nBlocks-1)*this.bRows),:);
+                if this.created(nr)
+                    s = load([this.DataDirectory filesep sprintf('block_%d.mat',nr)]);
+                    A = s.A;
+                else
+                    A = zeros(this.bRows,this.m);
+                    % Shorten the last block to effectively used size
+                    if nr == this.nBlocks
+                        A = A(1:(this.n-(this.nBlocks-1)*this.bRows),:);
+                    end
                 end
+                this.lastNr = nr;
+                this.lastBlock = A;
             end
         end
     end
