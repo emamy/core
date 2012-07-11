@@ -78,16 +78,15 @@ classdef POD < KerMorObject
             this.registerProps('Mode','Value','UseSVDS');
         end
         
-        function [podvec, s] = computePOD(this, vec)
+        function [podvec, s] = computePOD(this, data)
             % Computes the POD vectors according to the specified settings
             %
             % Parameters:
-            % vec: The set of vectors to perform the POD on. @type
-            % matrix<double>
+            % vec: The set of column-vectors to perform the POD on. @type matrix<double>
             %
             % Return values:
             % podvec: The POD modes computed. @type matrix<double>
-            % s: The singular values of the POD modes. If svds is used,
+            % s: The singular values of the POD modes. If svds or FileMatrix is used,
             % these are only as many as POD modes, otherwise this vector
             % contains ALL singular values. @type rowvec<double>
             %
@@ -98,65 +97,81 @@ classdef POD < KerMorObject
             % is either a fixed value or a fraction of the full dimension.
             target_dim=[];
             if strcmpi(this.Mode,'rel')
-                target_dim = ceil(min(size(vec))*this.Value);
+                target_dim = ceil(min(size(data))*this.Value);
             elseif strcmpi(this.Mode,'abs')
                 target_dim = this.Value;
             end
-            if ~isempty(target_dim) && target_dim > min(size(vec))
+            if ~isempty(target_dim) && target_dim > min(size(data))
                 % Yell boo if no reduction achieved!
-                error('Targeted reduced space dimension (%d) has to be <= the smallest matrix dimension (%d)!',target_dim,min(size(vec)));
+                error('Targeted reduced space dimension (%d) has to be <= the smallest matrix dimension (%d)!',target_dim,min(size(data)));
             end
             
-            %% Reduction for modes 'sign' and 'eps'
-            % For these "dynamic" modes the full singular values have
-            % to be computed in order to determine how many to use.
-            if any(strcmpi(this.Mode,{'sign','eps'}))
-                [u,s] = svd(vec,'econ');
-                s = diag(s);
-                if strcmpi(this.Mode,'sign')
-                    sig = s >= s(1)*this.Value;
-                elseif strcmpi(this.Mode,'eps')
-                    sig = s >= this.Value;
+            if isa(data,'data.FileMatrix')
+                if ~any(strcmpi(this.Mode,{'abs','rel'}))
+                    error('Cannot use POD on data.FileMatrix with setting "%s" (''abs'',''rel'' are allowed)',this.Mode);
                 end
-                
-                err = sum(s(~sig));
-                rerr = 100*err/sum(s);
                 if KerMor.App.Verbose > 2
-                    fprintf('POD mode ''%s'' with value %2.6f: Selecting %d singular values, error %.4e (%.4e%% relative)\n',this.Mode,this.Value,length(find(sig)),err,rerr);
+                    fprintf('Starting POD on %dx%d FileMatrix with mode ''%s'' and value %g\n',...
+                        size(data),this.Mode,this.Value);
                 end
-                % Select wanted subspace
-                u = u(:,sig);
+                [podvec, s] = data.getSVD(target_dim);
             else
-                %% Reduction for modes 'abs' and 'rel'
-                % For cases 'abs' or 'rel': fixed target dimension.
-                % So just let svds extract the wanted components!
-                
-                % As tests showed that the svds method is less reliable
-                % computing correct subspaces, an option is added that
-                % explicitly allows to choose if svds is used rather than
-                % svd.
-                if this.UseSVDS || issparse(vec)
-                    fprintf('POD mode ''%s'' with value %g: Warning, SVDS results are non-reproducable (Arnoldi with random seed)\n',this.Mode,this.Value);
-                    [u, s] = svds(vec, target_dim);
-                    s = diag(s);
-                else
-                    [u,s] = svd(vec,'econ');
-                    s = diag(s);
-                    err = sum(s(target_dim+1:end));
-                    rerr = 100*err/sum(s);
-                    fprintf('POD mode ''%s'' with value %g: Target dimension is %d singular values, error %.4e (%.4e%%)\n',this.Mode,this.Value,target_dim,err,rerr);
-                    u(:,target_dim+1:end) = [];
+                if KerMor.App.Verbose > 2
+                    fprintf('Starting POD on %dx%d matrix with mode ''%s'' and value %g (UseSVDS=%d) ... ',...
+                        size(data),this.Mode,this.Value,this.UseSVDS);
                 end
+                %% Reduction for modes 'sign' and 'eps'
+                % For these "dynamic" modes the full singular values have
+                % to be computed in order to determine how many to use.
+                if any(strcmpi(this.Mode,{'sign','eps'}))
+                    [u,s] = svd(data,'econ');
+                    s = diag(s);
+                    if strcmpi(this.Mode,'sign')
+                        sig = s >= s(1)*this.Value;
+                    elseif strcmpi(this.Mode,'eps')
+                        sig = s >= this.Value;
+                    end
+                    if KerMor.App.Verbose > 2
+                        fprintf('selecting %d singular values ... ',length(find(sig)));
+                    end
+                    % Select wanted subspace
+                    u = u(:,sig);
+
+                    err = sum(s(~sig));
+                    rerr = 100*err/sum(s);
+                else
+                    %% Reduction for modes 'abs' and 'rel'
+                    % For cases 'abs' or 'rel': fixed target dimension.
+                    % So just let svds extract the wanted components!
+
+                    % As tests showed that the svds method is less reliable
+                    % computing correct subspaces, an option is added that
+                    % explicitly allows to choose if svds is used rather than
+                    % svd.
+                    if this.UseSVDS || issparse(data)
+                        [u, s] = svds(data, target_dim);
+                        s = diag(s);
+                    else
+                        [u,s] = svd(data,'econ');
+                        s = diag(s);
+                        err = sum(s(target_dim+1:end));
+                        rerr = 100*err/sum(s);
+                        u(:,target_dim+1:end) = [];
+                    end
+                end
+                if KerMor.App.Verbose > 2
+                    fprintf('error %g (%g%% relative)\n',err,rerr);
+                end
+
+                % Safety for zero singular values.
+                z = find(s(1:size(u,2)) == 0);
+                if ~isempty(z)
+                    warning('KerMor:POD','%d of %d selected singular values are zero. Assuming output size %d',...
+                        length(z),length(s),length(s)-length(z));
+                end
+                u(:,z) = [];
+                podvec = u;
             end
-            
-            % Safety for zero singular values.
-            z = find(s(1:size(u,2)) == 0);
-            if ~isempty(z)
-                warning('KerMor:POD','%d of %d selected singular values are zero. Assuming output size %d',...
-                    length(z),length(s),length(s)-length(z));
-            end
-            u(:,z) = [];
-            podvec = u;
             
             % Security checks
             if any(isinf(podvec(:)))
@@ -204,11 +219,11 @@ classdef POD < KerMorObject
             res = true;
             
             % d << N
-            vec = rand(50,100);
+            vec = rand(50,1000);
             res = res && general.POD.internalPODTest(pod, vec);
             
             % d >> N
-            vec = rand(100,50);
+            vec = rand(1000,50);
             res = res && general.POD.internalPODTest(pod, vec);
         end
         
@@ -219,27 +234,33 @@ classdef POD < KerMorObject
             res = true;
             pod.Mode = 'eps';
             pod.Value = 7;
-            fprintf('eps..');
             V = pod.computePOD(vec);
             res = res && isequal(round(V'*V),eye(size(V,2)));
             
             pod.Mode = 'sign';
             pod.Value = .3;
-            fprintf('sign..');
-            V = pod.computePOD(vec);
-            res = res && isequal(round(V'*V),eye(size(V,2)));
-            
-            pod.Mode = 'rel';
-            pod.Value = .3;
-            fprintf('rel..');
             V = pod.computePOD(vec);
             res = res && isequal(round(V'*V),eye(size(V,2)));
             
             pod.Mode = 'abs';
             pod.Value = 10;
-            fprintf('abs..');
             V = pod.computePOD(vec);
             res = res && isequal(round(V'*V),eye(size(V,2)));
+            
+            pod.Mode = 'abs';
+            pod.Value = 10;
+            Vf = pod.computePOD(data.FileMatrix(vec));
+            res = res && isequal(round(Vf'*Vf),eye(size(Vf,2))) && norm(abs(V)-abs(Vf),'fro') < 1e-10;
+            
+            pod.Mode = 'rel';
+            pod.Value = .3;
+            V = pod.computePOD(vec);
+            res = res && isequal(round(V'*V),eye(size(V,2)));
+            
+            pod.Mode = 'rel';
+            pod.Value = .3;
+            Vf = pod.computePOD(data.FileMatrix(vec));
+            res = res && isequal(round(Vf'*Vf),eye(size(Vf,2))) && norm(abs(V)-abs(Vf),'fro') < 1e-10;
         end
     end
     
