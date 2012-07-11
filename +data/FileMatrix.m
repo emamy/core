@@ -30,12 +30,12 @@ classdef FileMatrix < data.FileData
     properties(SetAccess=private)
         n,m;
         
-        bRows;
+        bCols;
         
         nBlocks;
     end
     
-    properties(Access=private)
+    properties%(Access=private)
         idx;
         
         created;
@@ -71,12 +71,12 @@ classdef FileMatrix < data.FileData
                 sprintf('matrix_%s',general.IDGenerator.generateID)));
             this.n = n; 
             this.m = m;
-            this.bRows = max(floor(block_size/(8*m)),1);
-            this.nBlocks = ceil(n / this.bRows);
+            this.bCols = max(floor(block_size/(8*n)),1);
+            this.nBlocks = ceil(m / this.bCols);
             this.created = false(1,this.nBlocks);
-            hlp = reshape(repmat(1:this.nBlocks,this.bRows,1),[],1);
-            hlp2 = reshape(repmat(1:this.bRows,this.nBlocks,1)',[],1);
-            this.idx = [hlp(1:n) hlp2(1:n)];
+            hlp = reshape(repmat(1:this.nBlocks,this.bCols,1),[],1);
+            hlp2 = reshape(repmat(1:this.bCols,this.nBlocks,1)',[],1);
+            this.idx = [hlp(1:m) hlp2(1:m)];
             
             % Matrix case: Assign value directly
             if nargin < 2
@@ -84,57 +84,57 @@ classdef FileMatrix < data.FileData
             end
         end
         
-        function [Vs,S,Vl] = getSVD(this, k)
+        function [U, S, V] = getSVD(this, k)
             psize = min(this.n,this.m);
             if nargin < 2
                 k = psize;
             end
             
             opts.issym = 1;
-            colmode = this.n < this.m;
+            rowmode = this.m < this.n;
             fprintf('FileMatrix: Computing truncated %d-SVD on %dx%d matrix (%d blocks)...\n',...
                     k,this.n,this.m,this.nBlocks);
             
-            fun = @rowmode_mult;
-            if colmode
-                warning('KerMor:FileMatrix',['Computing SVD on matrix with n < m is very inefficient. '...
+            fun = @colmode_mult;
+            if rowmode
+                warning('KerMor:FileMatrix',['Computing SVD on matrix with m < n is very inefficient. '...
                     'Consider arranging the matrix transposed.']);
-                fun = @colmode_mult;    
+                fun = @rowmode_mult;    
             end
-            [Vs,S] = eigs(fun,psize,k,'la',opts);
+            [U,S] = eigs(fun,psize,k,'la',opts);
             sel = sqrt(diag(S)/S(1)) >= this.MinRelSingularValueSize;
-            Vs = Vs(:,sel);
-            if size(Vs,2) < k
+            U = U(:,sel);
+            if size(U,2) < k
                 warning('KerMor:FileMatrix','Have only %d nonzero singular values instead of %d desired ones.',...
-                    size(Vs,2),k);
+                    size(U,2),k);
             end
             S = sqrt(S(sel,sel));
-            if nargout > 2
-                if colmode
-                    Vl = this'*(Vs/S);
-                else
-                    Vl = this*(Vs/S);
-                end
+            if rowmode
+                hlp = this*(U/S);
+                V = U;
+                U = hlp;
+            elseif nargout > 2
+                V = this'*(U/S);
             end
             
             function w = rowmode_mult(v)
-                w = 0;
-                for j = 1:this.nBlocks
-                    B = this.loadBlock(j);
-                    w = w + B'*(B*v);
-                end
-            end
-            
-            function w = colmode_mult(v)
                 w = zeros(size(v));
                 for j = 1:this.nBlocks
                     Bj = this.loadBlock(j);
                     for i = 1:this.nBlocks
                         Bi = this.loadBlock(i);
-                        posi = (i-1)*this.bRows + 1 : min(i*this.bRows,size(v,1));
-                        posj = (j-1)*this.bRows + 1 : min(j*this.bRows,size(v,1));
-                        w(posj,:) = w(posj,:) + Bj*(Bi'*v(posi,:));
+                        posi = (i-1)*this.bCols + 1 : min(i*this.bCols,this.m);
+                        posj = (j-1)*this.bCols + 1 : min(j*this.bCols,this.m);
+                        w(posj,:) = w(posj,:) + Bj'*(Bi*v(posi,:));
                     end
+                end
+            end
+            
+            function w = colmode_mult(v)
+                w = 0;
+                for j = 1:this.nBlocks
+                    B = this.loadBlock(j);
+                    w = w + B*(B'*v);
                 end
             end
         end
@@ -163,20 +163,20 @@ classdef FileMatrix < data.FileData
                 % Default case: row & column adressing
                 if length(s) == 2
                     % "Select all" mode
-                    if strcmp(s{1},':')
-                        s{1} = 1:this.n;
+                    if strcmp(s{2},':')
+                        s{2} = 1:this.m;
                     end
-                    pos = this.idx(s{1},:);
+                    pos = this.idx(s{2},:);
                     blocks = unique(pos(:,1));
-                    m = this.m;
-                    if ~strcmp(s{2},':')
-                        m = length(s{2});
+                    n = this.n;
+                    if ~strcmp(s{1},':')
+                        n = length(s{1});
                     end
-                    value = zeros(length(s{1}),m);
+                    value = zeros(n,length(s{2}));
                     for bidx = 1:length(blocks)
                         b = blocks(bidx);
                         B = this.loadBlock(b);
-                        value(pos(:,1) == b,:) = B(pos(pos(:,1)==b,2),s{2});
+                        value(:,pos(:,1) == b) = B(s{1},pos(pos(:,1)==b,2));
                     end
                 % Linear addressing
                 elseif length(key.subs) == 1
@@ -199,15 +199,15 @@ classdef FileMatrix < data.FileData
                 % Default case: row & column adressing
                 if length(s) == 2
                     % "Select all" mode
-                    if strcmp(s{1},':')
-                        s{1} = 1:this.n;
+                    if strcmp(s{2},':')
+                        s{2} = 1:this.m;
                     end
-                    pos = this.idx(s{1},:);
+                    pos = this.idx(s{2},:);
                     blocks = unique(pos(:,1));
                     for bidx = 1:length(blocks)
                         b = blocks(bidx);
                         B = this.loadBlock(b);
-                        B(pos(pos(:,1)==b,2),s{2}) = value(pos(:,1) == b,:);
+                        B(s{1},pos(pos(:,1)==b,2)) = value(:,pos(:,1) == b);
                         this.saveBlock(b,B);
                     end
                 % Linear addressing
@@ -232,8 +232,8 @@ classdef FileMatrix < data.FileData
                     B = this.loadBlock(bidx);
                     % Only multiply if nonzero
                     if this.created(bidx)
-                        pos = (bidx-1)*this.bRows + 1 : min(bidx*this.bRows,this.n);
-                        Ax(pos,:) = B*x;
+                        pos = (bidx-1)*this.bCols + 1 : min(bidx*this.bCols,this.m);
+                        Ax = Ax + B*x(pos,:);                        
                     end
                 end
             end
@@ -241,12 +241,12 @@ classdef FileMatrix < data.FileData
         
         function trans = ctranspose(this)
             root = fileparts(this.DataDirectory);
-            bs = 8*this.bRows*this.m;
+            bs = 8*this.bCols*this.n;
             trans = data.FileMatrix(this.m,this.n,root,bs);
             for j=1:this.nBlocks
                 B = this.loadBlock(j);
-                pos = (j-1)*this.bRows + 1 : min(j*this.bRows,this.n);
-                trans.subsasgn(struct('type',{'()'},'subs',{{':', pos}}),B');
+                pos = (j-1)*this.bCols + 1 : min(j*this.bCols,this.m);
+                trans.subsasgn(struct('type',{'()'},'subs',{{pos,':'}}),B');
             end
         end
         
@@ -263,9 +263,9 @@ classdef FileMatrix < data.FileData
             delete@data.FileData(this);
         end
         
-        function [rowmin, rowmax] = getRowBoundingBox(this)
-            rowmin = this.box(1,:);
-            rowmax = this.box(2,:);
+        function [rowmin, rowmax] = getColBoundingBox(this)
+            rowmin = this.box(:,1);
+            rowmax = this.box(:,2);
         end
     end
     
@@ -273,11 +273,11 @@ classdef FileMatrix < data.FileData
         function saveBlock(this, nr, A)
             % update bounding box
             if isempty(this.box)
-                this.box(1,:) = min(A,[],1);
-                this.box(2,:) = max(A,[],1);
+                this.box(:,1) = min(A,[],2);
+                this.box(:,2) = max(A,[],2);
             else
-                this.box(1,:) = min([this.box(1,:); min(A,[],1)],[],1);
-                this.box(2,:) = min([this.box(2,:); max(A,[],1)],[],1);
+                this.box(:,1) = min([this.box(:,1) min(A,[],2)],[],2);
+                this.box(:,2) = min([this.box(:,2) max(A,[],2)],[],2);
             end
             save([this.DataDirectory filesep sprintf('block_%d.mat',nr)], 'A');
             % Also save changes to lastBlock if number matches
@@ -295,10 +295,10 @@ classdef FileMatrix < data.FileData
                     s = load([this.DataDirectory filesep sprintf('block_%d.mat',nr)]);
                     A = s.A;
                 else
-                    A = zeros(this.bRows,this.m);
+                    A = zeros(this.n, this.bCols);
                     % Shorten the last block to effectively used size
                     if nr == this.nBlocks
-                        A = A(1:(this.n-(this.nBlocks-1)*this.bRows),:);
+                        A = A(:,1:(this.m-(this.nBlocks-1)*this.bCols));
                     end
                 end
                 this.lastNr = nr;
@@ -313,16 +313,34 @@ classdef FileMatrix < data.FileData
             B = rand(10,100);
             A = data.FileMatrix(10,100,KerMor.App.DataStoreDirectory,1600);
             key = struct('type',{'()'},'subs',[]);
+            % col-wise setting (fast)
+            for k=1:100
+                key.subs = {':', k};
+                A.subsasgn(key,B(:,k));
+            end
+            key.subs = {':', ':'};
+            res = res && all(all(A.subsref(key) == B));
+            % Row-wise setting
             for k=1:10
-                key.subs = {k, ':'};
+                key.subs = {k,':'};
                 A.subsasgn(key,B(k,:));
             end
             key.subs = {':', ':'};
             res = res && all(all(A.subsref(key) == B));
             
+            % Direct constructor test
+            A = data.FileMatrix(B);
+            res = res && all(all(A.subsref(key) == B));
+            
             % Transpose test
             At = A';
             res = res && all(all(At.subsref(key) == B'));
+            
+            % Multiply test
+            v = rand(size(A,2),1);
+            res = res && isequal(A*v,B*v);
+            v = rand(size(A,2),100);
+            res = res && isequal(A*v,B*v);
             
             % SVD test
             p = sqrt(eps);
@@ -337,13 +355,18 @@ classdef FileMatrix < data.FileData
             
             [ut,st,vt] = svd(B','econ');
             % Arguments exchanged here as first one is always the smaller matrix
-            [Vt,St,Ut] = At.getSVD;
-            [Vt5,St5,Ut5] = At.getSVD(5);
+            [Ut,St,Vt] = At.getSVD;
+            [Ut5,St5,Vt5] = At.getSVD(5);
             res = res && norm(abs(Vt)-abs(vt),'fro') < p && norm(abs(Ut)-abs(ut),'fro') < p &&...
                 norm(diag(St)-diag(st)) < p;
             res = res && norm(abs(Vt5)-abs(vt(:,1:5)),'fro') < p ...
                     && norm(abs(Ut5)-abs(ut(:,1:5)),'fro') < p ...
                     && norm(diag(St5)-diag(st(1:5,1:5))) < p;
+                
+            % Bounding box test
+            [bm, bM] = general.Utils.getBoundingBox(B);
+            [am, aM] = A.getColBoundingBox;
+            res = res && isequal(bm,am) && isequal(bM,aM);
         end
     end
 end
