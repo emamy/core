@@ -12,9 +12,10 @@ classdef LinearCoreFun < dscomponents.ACoreFun
         function this = LinearCoreFun(A)
             if nargin > 0
                 this.A = A;
-                % If not set here, subclasses must take care to set XDim
+                % If not set here, subclasses must take care to set xDim
                 % whenever A changes.
-                this.XDim = size(A,2);
+                this.fDim = size(A,1);
+                this.xDim = size(A,2);
                 % Compute sparsity pattern
                 if issparse(A)
                     this.JSparsityPattern = A ~= 0;

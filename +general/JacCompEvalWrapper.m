@@ -23,7 +23,7 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
     end
     
     properties(SetAccess=private)
-        fullXDim;
+        fullxDim;
     end
     
     methods
@@ -44,12 +44,15 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
 
               % ACoreFun settings
               this.MultiArgumentEvaluations = true;
-              this.XDim = f.XDim;
+              this.xDim = f.xDim;
+              % output dim is size of jacobian
+              this.fDim = f.fDim * f.xDim;
+              % So sparsity pattern for the wrapper
               this.JSparsityPattern = [];
 
               % Extra: Store original full dimension, as f gets possibly
               % projected
-              this.fullXDim = f.XDim;
+              this.fullxDim = f.xDim;
           end
         end
         
@@ -72,11 +75,11 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
                     J = this.f.getStateJacobian(x(:,i),t(i),mu(:,i));
                     fx(:,i) = J(sel);
                 end
-                fx2 = sparse(this.f.XDim^2,size(x,2));
+                fx2 = sparse(this.f.fDim*this.f.xDim,size(x,2));
                 fx2(sel,:) = fx;
                 fx = fx2;
             else
-                fx = zeros(this.f.XDim^2,size(x,2));
+                fx = zeros(this.f.fDim*this.f.xDim,size(x,2));
                 for i=1:size(x,2)
                     J = this.f.getStateJacobian(x(:,i),t(i),mu(:,i));
                     fx(:,i) = J(:);
@@ -105,7 +108,7 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
             end
             
             % Get matrix indexing of the desired points 
-            [i, j] = ind2sub([this.fullXDim this.fullXDim], pts);
+            [i, j] = ind2sub([this.f.fDim this.fullxDim], pts);
             % Only use the i-th effective components of f, the j's
             % correspond to the derivatives of the i-th components with
             % respect to the j-th variable.
@@ -140,7 +143,7 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
             copy = clone@dscomponents.ACompEvalCoreFun(this, copy);
             copy.f = this.f.clone;
             copy.trafo = this.trafo;
-            copy.fullXDim = this.fullXDim;
+            copy.fullxDim = this.fullxDim;
         end
         
         function proj = project(this, V, W)
@@ -148,6 +151,9 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
             % Project the wrapped function, too (ignores the extra copy.f
             % created in clone as project creates a clone anyways)
             proj.f = this.f.project(V, W);
+            proj.xDim = proj.f.xDim;
+            % vec-op leads to product of jacobian size dimension
+            proj.fDim = proj.f.fDim*proj.f.xDim;
         end
     end
 end

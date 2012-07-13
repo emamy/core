@@ -129,7 +129,18 @@ classdef ACoreFun < KerMorObject & general.AProjectable
         % may cause errors in some KerMor algorithms.
         %
         % @type integer @default []
-        XDim = [];
+        xDim = [];
+        
+        % The current output dimension of the function.
+        %
+        % Must be set in inheriting classes on order to ensure
+        % functionality of KerMor classes and algorithms.
+        %
+        % @propclass{critical} Not setting this value in inheriting classes
+        % may cause errors in some KerMor algorithms.
+        %
+        % @type integer @default []
+        fDim = [];
     end
     
     methods
@@ -138,7 +149,7 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             this = this@KerMorObject;
             this.registerProps('CustomProjection',...
                 'MultiArgumentEvaluations','JSparsityPattern',...
-                'TimeDependent','CustomJacobian','XDim');
+                'TimeDependent','CustomJacobian','xDim');
         end
         
         function target = project(this, V, W, target)
@@ -171,7 +182,17 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             end
             target = project@general.AProjectable(this, V, W, target);
             % New state space argument size is the number of columns of V.
-            target.XDim = size(V,2);
+            if isempty(V)
+                target.xDim = this.xDim;
+            else
+                target.xDim = size(V,2);
+            end
+            % New state space output size is the number of columns of W.
+            if isempty(W)
+                target.fDim = this.fDim;
+            else
+                target.fDim = size(W,2);
+            end
         end
         
         function fx = evaluate(this, x, t, mu)
@@ -265,7 +286,8 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             copy.JSparsityPattern = this.JSparsityPattern;
             copy.TimeDependent = this.TimeDependent;
             copy.CustomJacobian = this.CustomJacobian;
-            copy.XDim = this.XDim;
+            copy.xDim = this.xDim;
+            copy.fDim = this.fDim;
         end
     end
         
@@ -303,11 +325,18 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             this.JSparsityPattern = value;
         end
         
-        function set.XDim(this, value)
+        function set.xDim(this, value)
             if ~isempty(value) && ~isposintscalar(value)
-                error('XDim must be a positive integer.');
+                error('xDim must be a positive integer.');
             end
-            this.XDim = value;
+            this.xDim = value;
+        end
+        
+        function set.fDim(this, value)
+            if ~isempty(value) && ~isposintscalar(value)
+                error('fDim must be a positive integer.');
+            end
+            this.fDim = value;
         end
         
         function res = test_MultiArgEval(this, sdim, mudim)

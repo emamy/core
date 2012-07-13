@@ -86,9 +86,12 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
         end
         
         function addMatrix(this, coeff_fcn, mat)
-            % Update the XDim as first matrix is added
-            if isempty(this.XDim)
-                this.XDim = size(mat,2);
+            % Update the xDim as first matrix is added
+            if isempty(this.xDim)
+                this.xDim = size(mat,2);
+            end
+            if isempty(this.fDim)
+                this.fDim = size(mat,1);
             end
             
             addMatrix@general.AffParamMatrix(this, coeff_fcn, mat);
@@ -133,7 +136,7 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
     methods(Access=private)
         function postprocess(this)
             if this.N > 0
-                this.XDim = this.dims(2);
+                this.xDim = this.dims(2);
                 this.JSparsityPattern = [];
             end
         end

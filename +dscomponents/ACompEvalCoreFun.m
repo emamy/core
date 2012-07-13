@@ -179,7 +179,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             if ~isempty(this.V)
                 this.S{nr} = this.V(sel,:);
             else
-                this.S{nr} = sparse(1:len,sel,ones(len,1),len,this.XDim);
+                this.S{nr} = sparse(1:len,sel,ones(len,1),len,this.xDim);
             end
             
             % Extras for jacobian evaluations
@@ -234,12 +234,14 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             psets = this.pts;
         end
         
-        function res = test_ComponentEvalMatch(this, dim, pdim)
+        function res = test_ComponentEvalMatch(this, dim, pdim, xsize)
             % Tests if the local implementation of
-            siz = 100;
-            x = rand(dim,siz);
-            mu = rand(pdim,siz);
-            t = rand(1,siz);
+            if nargin < 4
+                xsize = 1;
+            end
+            x = rand(dim,xsize);
+            mu = rand(pdim,xsize);
+            t = rand(1,xsize);
             fx = this.evaluate(x, t, mu);
             oldpts = [];
             if ~isempty(this.PointSets)
@@ -264,9 +266,9 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
                 err = abs((tmp-fxc)./tmp);
                 err = err(tmp ~= 0);
                 d = max(err);
-                lres = isempty(d) || d < 10*sqrt(eps);
-                if ~lres
-                    fprintf('Comp eval to full eval max rel difference: %e\n',full(d));
+                lres = isempty(d) || d < 1e-4;
+                if ~lres || d > 10*sqrt(eps)
+                    fprintf(2,'Warning! ACompEvalCoreFun evaluation test: Max rel. diff. for component wise vs. full evaluation: %e\n',full(d));
                 end
                 res = res && lres;
             end
@@ -299,19 +301,22 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
         function dfx = evaluateComponentPartialDerivatives(this, pts, ends, idx, deriv, self, x, t, mu, dfxsel)
             dt = sqrt(eps);
             d = length(deriv);
-            
-            if size(x,2) == 1
+            xd = size(x,2);
+            if xd == 1
                 X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(mu,1,d); %#ok<*PROP>
                 I = sparse(deriv,1:d,ones(1,d),size(x,1),d)*dt;
             else
-                el = reshape(repmat(1:size(x,2),d,1),1,[]);
+                el = reshape(repmat(1:xd,d,1),1,[]);
                 X = x(:,el); T = t(el); MU = mu(:,el);
-                I = repmat(sparse(deriv,1:d,ones(1,d),size(x,1),d)*dt,1,size(x,2));
+                I = repmat(sparse(deriv,1:d,ones(1,d),size(x,1),d)*dt,1,xd);
             end
             
             dfx = (this.evaluateComponents(pts, ends, idx, self, X+I, T, MU) ...
                 - this.evaluateComponents(pts, ends, idx, self, X, T, MU))/dt;
-            dfx = dfx(repmat(dfxsel(:,deriv),1,size(x,2)));
+            dfx = dfx(repmat(dfxsel(:,deriv),1,xd));
+            if xd > 1
+                dfx = reshape(dfx,[],xd);
+            end
         end
     end
     

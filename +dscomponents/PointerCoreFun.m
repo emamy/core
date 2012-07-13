@@ -47,7 +47,9 @@ classdef PointerCoreFun < dscomponents.ACoreFun
             this.MultiArgumentEvaluations = multieval;
             this.TimeDependent = timedep;
             this.target = funPtr;
-            this.XDim = xdim;
+            this.xDim = xdim;
+            warning('KerMor:PointerCoreFun','PointerCoreFun not yet tested with fDim setting.');
+            this.fDim = xdim;
         end
         
         function fx = evaluateCoreFun(this, x, t, mu)

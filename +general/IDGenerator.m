@@ -36,8 +36,8 @@ classdef IDGenerator < handle
         end
         
         function id = genID(this)
-            % @todo Use CalcMD5 here once it compiles
-            id = num2str(this.Seed+this.Counter);
+            id = CalcMD5(this.Seed+this.Counter);
+            %id = id(1:10);
             this.Counter = this.Counter+1;
         end
     end

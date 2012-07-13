@@ -20,13 +20,13 @@ classdef MatrixDEIM < general.DEIM
     end
     
     properties(SetAccess=private)
-        % The custom (partial) similarity transform matrix `S` applied to
-        % the approximated matrices via `S^tM(x,t,\mu)S`.
+        % The custom (partial) similarity transform matrix `Q_k` applied to
+        % the approximated matrices via `Q_k^tM(x,t,\mu)Q_k`.
         %
         % The matrix has to be orthonormal if set.
         %
         % @type matrix<double> @default []
-        ST = [];
+        Qk = [];
     end
     
     properties(Access=private)
@@ -39,18 +39,18 @@ classdef MatrixDEIM < general.DEIM
             M = reshape(fx, this.effNumRows, []);
         end
         
-        function setSimilarityTransform(this, ST)
-            this.ST = ST;
+        function setSimilarityTransform(this, Qk)
+            this.Qk = Qk;
             U = this.U_nonproj;
-            if isempty(ST) || isequal(ST,1)
+            if isempty(Qk) || isequal(Qk,1)
                 this.effNumRows = this.NumRows;
                 unew = U;
             else
-                this.effNumRows = size(ST,2);
-                unew = zeros(size(this.ST,2)^2, size(U,2));
+                this.effNumRows = size(Qk,2);
+                unew = zeros(size(this.Qk,2)^2, size(U,2));
                 for i=1:size(U,2)
-                    umat = reshape(U(:,i),size(this.ST,1),[]);
-                    umat = this.ST'*(umat*this.ST);
+                    umat = reshape(U(:,i),size(this.Qk,1),[]);
+                    umat = this.Qk'*(umat*this.Qk);
                     unew(:,i) = umat(:);
                 end    
             end
@@ -59,14 +59,13 @@ classdef MatrixDEIM < general.DEIM
         end
         
         function target = project(this, V, ~)
-            target = this.clone;
-            target = project@general.DEIM(this, V, [], target);
+            target = project@general.DEIM(this, V, [], this.clone);
         end
         
         function copy = clone(this)
             copy = general.MatrixDEIM;
             copy = clone@general.DEIM(this, copy);
-            copy.ST = this.ST;
+            copy.Qk = this.Qk;
             copy.NumRows = this.NumRows;
             copy.effNumRows = this.effNumRows;
         end
@@ -80,8 +79,8 @@ classdef MatrixDEIM < general.DEIM
             
             % Apply partial similarity transform (AFTER original DEIM order
             % update)
-            % Checks for having ST set are done there.
-            this.setSimilarityTransform(this.ST);
+            % Checks for having Qk set are done there.
+            this.setSimilarityTransform(this.Qk);
             
             % For now: unset the auxiliary DEIM error estimation matrices
             % as they are not used (cannot be used?) for matrix DEIMs yet.

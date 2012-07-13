@@ -113,8 +113,16 @@ classdef DEIM < KerMorObject & general.AProjectable
             this.f = f;
             if ~isa(this.f,'dscomponents.ACompEvalCoreFun');
                 error('Cannot use DEIM with non ACompEvalCoreFun-implementing functions.');
-            elseif ~f.test_ComponentEvalMatch(f.XDim, 100)
+            elseif ~f.test_ComponentEvalMatch(f.xDim, 100, 1)
                 error('Component evaluation does not match direct evaluation.');
+            elseif ~f.test_ComponentEvalMatch(f.xDim, 100, 10)
+                error('Component evaluation does not match direct evaluation for multi-arguments.');
+            end
+            
+            if size(fxi,1) < this.MaxOrder
+                fprintf(2,'Warning: MaxOrder %d of DEIM approximation is larger than actual f dimension %d. Setting MaxOrder=%d\n',...
+                    this.MaxOrder,size(fxi,1),size(fxi,1));
+                this.MaxOrder = size(fxi,1);
             end
             
             %% Generate u_1 ... u_m base
@@ -134,7 +142,11 @@ classdef DEIM < KerMorObject & general.AProjectable
                 end
             end
             %p.UseSVDS = size(fxi,1) > 10000;
-            [this.u, this.SingularValues] = p.computePOD(fxi);
+            [Utmp, this.SingularValues] = p.computePOD(fxi);
+            if isa(Utmp,'data.FileMatrix')
+                Utmp = Utmp.toFullMatrix;
+            end
+            this.u = Utmp;
             
             if canshrink
                 tmp(~iszero,:) = this.u;
@@ -142,7 +154,7 @@ classdef DEIM < KerMorObject & general.AProjectable
             end
             
             if size(this.u,2) < this.MaxOrder
-                fprintf('POD returned less (=%d) than MaxOrder (=%d) basis vectors. Setting MaxOrder=%d.',...
+                fprintf('POD returned less (=%d) than MaxOrder (=%d) basis vectors. Setting MaxOrder=%d.\n',...
                     size(this.u,2),this.MaxOrder,size(this.u,2));
                 this.MaxOrder = size(this.u,2);
             end
@@ -169,7 +181,7 @@ classdef DEIM < KerMorObject & general.AProjectable
             hlp = this.U * this.f.evaluateComponentSetGradients(1, x, t, mu);
             if isempty(this.V)
                 p = logical(this.f.JSparsityPattern);
-                J = sparse(this.f.XDim,this.f.XDim);
+                J = sparse(this.f.fDim,this.f.xDim);
                 J(p) = hlp(p);
             else
                 J = hlp;
