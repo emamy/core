@@ -14,7 +14,7 @@ classdef BaseApprox < dscomponents.ACoreFun
     % approximateSystemFunction that now takes only the full model instance instead of
     % `x_i,t_i,\mu_i,f_{x_i}` values.
     % - The new default value for the approx train data selector is the
-    % approx.selection.DefaultSelector.
+    % data.selection.DefaultSelector.
     %
     % @change{0,4,dw,2011-05-19} Disconnected the Approx classes from taking a BaseModel instance at
     % approx computation. This way external tools can use the approximation algorithms, too.
@@ -41,9 +41,9 @@ classdef BaseApprox < dscomponents.ACoreFun
         % @propclass{important} Determines the strategy used to select the approximation training
         % data
         %
-        % @default approx.selection.DefaultSelector
+        % @default data.selection.DefaultSelector
         %
-        % @type approx.selection.ASelector
+        % @type data.selection.ASelector
         %
         % @todo MOVE TO BASEFULLMODEL
         %
@@ -53,12 +53,12 @@ classdef BaseApprox < dscomponents.ACoreFun
     
     methods
         function set.TrainDataSelector(this, value)
-            this.checkType(value, 'approx.selection.ASelector');
+            this.checkType(value, 'data.selection.ASelector');
             this.TrainDataSelector = value;
         end
         
         function this = BaseApprox
-            this.TrainDataSelector = approx.selection.DefaultSelector;
+            this.TrainDataSelector = data.selection.DefaultSelector;
         end
         
         function copy = clone(this, copy)

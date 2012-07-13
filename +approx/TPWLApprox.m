@@ -5,7 +5,7 @@ classdef TPWLApprox < approx.BaseApprox
 % Rewienski, M.: A trajectory piecewise-linear approach to model order reduction of nonlinear
 % dynamical systems. Ph.D. thesis, Citeseer (2003)
 %
-% The implementation is only completely like the proposed one if the approx.selection.EpsSelector is
+% The implementation is only completely like the proposed one if the data.selection.EpsSelector is
 % used in conjunction with this class.
 %
 % @author Daniel Wirtz @date 2011-04-01
@@ -82,7 +82,7 @@ classdef TPWLApprox < approx.BaseApprox
             this.registerProps('Beta','MinWeightValue');
             
             % Set training data selection to epsselector (default strategy for original TPWL)
-            this.TrainDataSelector = approx.selection.EpsSelector;
+            this.TrainDataSelector = data.selection.EpsSelector;
             this.MultiArgumentEvaluations = true;
             this.CustomProjection = true;
         end
