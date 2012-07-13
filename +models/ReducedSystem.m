@@ -88,7 +88,7 @@ classdef ReducedSystem < models.BaseDynSystem
             s = fullmodel.System.StateScaling;
             if s ~= 1
                 if isscalar(s)
-                    dim = fullsys.x0.evaluate(fullsys.getRandomParam);
+                    dim = fullsys.x0.evaluate(fullmodel.getRandomParam);
                     s(1:dim,1) = s;
                 else
                     dim = length(s);

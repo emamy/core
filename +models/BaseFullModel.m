@@ -33,11 +33,11 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 %
 % @change{0,5,dw,2011-10-16} Fixed the parallel computation of
 % BaseFullModel.off2_genTrainingData so that it also works with
-% data.FileModelData (parallel execution did not sync the hashmaps, now
-% running data.FileModelData.consolidate fixes this)
+% data.FileTrajectoryData (parallel execution did not sync the hashmaps, now
+% running data.FileTrajectoryData.consolidate fixes this)
 %
-% @change{0,5,dw,2011-08-04} Adopted the off2_genTrainingData method to the new data.AModelData
-% structure. Now all trajectories are stored either in memory or disk, and the data.AModelData
+% @change{0,5,dw,2011-08-04} Adopted the off2_genTrainingData method to the new data.ATrajectoryData
+% structure. Now all trajectories are stored either in memory or disk, and the data.ATrajectoryData
 % classes take care of storage.
 %
 % @new{0,4,dw,2011-05-31} Added the models.BaseFullModel.OfflinePhaseTimes property.
@@ -83,9 +83,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         %
         % @propclass{data} The model's data container
         %
-        % @default data.MemoryModelData @type data.AModelData
+        % @default data.ModelData @type data.ModelData
         %
-        % See also: data.AModelData
+        % See also: data.ModelData
         Data;
         
         % Export instance for possible export of this model to JKerMor.
@@ -128,7 +128,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % @default approx.KernelApprox
         % @type approx.BaseApprox
         %
-        % See also: approx approx.algorithms approx.selection
+        % See also: approx approx.algorithms data.selection
         Approx;
         
         % Advanced property. 
@@ -223,18 +223,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         fTrainingInputs = [];
         ftcold = struct;
     end
-    
-    properties(SetAccess=private, GetAccess=protected, Transient)
-        simCache;
-    end
            
     methods
         
         function this = BaseFullModel
             % Creates a new instance of a full model.
-            
             this = this@models.BaseModel;
-            
+                       
             % Setup default values for the full model's components
             this.Sampler = sampling.RandomSampler;
             
@@ -242,8 +237,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             
             this.Approx = approx.KernelApprox;
             
-            % ModelData defaults to MemoryData
-            this.Data = data.MemoryModelData;
+            this.Data = data.ModelData(this);
             
             % Set default dynamical system
             this.System = models.BaseDynSystem(this);
@@ -258,17 +252,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.addlistener('dt','PreSet', @this.intTimeChanging);
             this.addlistener('T','PostSet', @this.intTimeChanged);
             this.addlistener('dt','PostSet', @this.intTimeChanged);
-            this.simCache = data.FileModelData(this, KerMor.App.TempDirectory);
-        end
-        
-        function delete(this)
-            % @todo in AModelData: delete datadir if empty on destruction
-            % Clean up the simulation cache
-            
-            % remove all temp files
-            %this.simCache.clearTrajectories;
-            % remove folder
-            %this.simCache.delete;
         end
         
         function time = off1_createParamSamples(this)
@@ -308,7 +291,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             %             end
             
             % Clear old trajectory data.
-            this.Data.clearTrajectories;
+            this.Data.TrajectoryData.clearTrajectories;
             this.RealTimePlotting = false;
             
             %% Parallel - computation
@@ -330,7 +313,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 parfor idx = 1:n
                     % Check for parameters
                     mu = [];
-                    if remote.Data.SampleCount > 0 %#ok<PFBNS>
+                    if remote.Data.SampleCount > 0 %#ok<*PFBNS>
                         mu = remote.Data.getParams(paridx(idx));
                     end
                     % Check for inputs
@@ -343,13 +326,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     [~, x] = remote.computeTrajectory(mu, inputidx);
                     
                     % Assign snapshot values
-                    remote.Data.addTrajectory(x, mu, inputidx);
+                    remote.Data.TrajectoryData.addTrajectory(x, mu, inputidx);
                 end
-                % Build the hash map for the local FileModelData (parfor
-                % add them to remotely instantiated FileModelDatas and does
+                % Build the hash map for the local FileTrajectoryData (parfor
+                % add them to remotely instantiated FileTrajectoryDatas and does
                 % not syn them (not generically possible)
-                if isa(this.Data,'data.FileModelData')
-                    this.Data.consolidate(this);
+                if isa(this.Data.TrajectoryData,'data.FileTrajectoryData')
+                    this.Data.TrajectoryData.consolidate(this);
                 end
                 
                 %% Non-parallel computation
@@ -374,7 +357,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                             inputidx = this.TrainingInputs(inidx);
                         end
                         
-                        % Get trajectory (disable caching as trajectories go to this.Data
+                        % Get trajectory (disable caching as trajectories go to this.Data.TrajectoryData
                         % anyways)
                         oldv = this.EnableTrajectoryCaching;
                         this.EnableTrajectoryCaching = false;
@@ -382,7 +365,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         this.EnableTrajectoryCaching = oldv;
                         
                         % Assign snapshot values
-                        this.Data.addTrajectory(x, mu, inputidx, ctime);
+                        this.Data.TrajectoryData.addTrajectory(x, mu, inputidx, ctime);
                         if KerMor.App.Verbose > 0
                             pi.step;
                         end
@@ -417,8 +400,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % - Deactivated due to immense overhead and matlab crashes. investigate further
             t = tic;
             if ~isempty(this.Approx)
-                [atd, time] = computeTrainingData(this,...
-                    this.System.f, this.Approx.TrainDataSelector);
+                [atd, time] = this.computeTrainingData(this.System.f, ...
+                    this.Approx.TrainDataSelector);
                 this.Data.ApproxTrainData = atd;
             end
             time = time + toc(t);
@@ -474,9 +457,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         e.TrainDataSelector);
                     this.Data.JacobianTrainData = jtd;
                     
-                    d = this.System.f.XDim;
+                    d = this.System.f.xDim;
                     n = size(jtd.fxi,2);
-                    v = zeros(d,n);
+                    v = data.FileMatrix(d,n,this.Data.DataDirectory,512*8*1024^2);
                     ln = zeros(1,n);
 %                     cln = ln;
                     times = ln;
@@ -537,10 +520,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % See also: offlineGenerations
             % @docupdate
             
-            if isempty(this.Data)
-                error('No ModelData class found. Forgot to call offlineGenerations?');
-            end
-            if isempty(this.Data.getNumTrajectories == 0) && ~(this.Data.SampleCount == 0 && this.TrainingInputCount == 0)
+            if isempty(this.Data.TrajectoryData.getNumTrajectories == 0) ...
+                    && ~(this.Data.SampleCount == 0 && this.TrainingInputCount == 0)
                 error('No Snapshot data available. Forgot to call offlineGenerations before?');
             end
             tic;
@@ -562,10 +543,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % t: The times at which the model was evaluated. Will equal
             % the property Times
             % x: The state variables at the corresponding times t.
-            %
-            % @todo check in model data if trajectory is not already present (if FileModelData
-            % is used the trajectories of the offline phase are stored twice in m.Data and
-            % m.simCache)
             
             if ~isempty(mu) && size(mu,2) > 1
                 if size(mu,1) > 1
@@ -581,9 +558,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             end
             
             % Try local model data first
-            [x, time] = this.Data.getTrajectory(mu, inputidx);
+            [x, time] = this.Data.TrajectoryData.getTrajectory(mu, inputidx);
             if isempty(x) && this.EnableTrajectoryCaching
-                [x, time] = this.simCache.getTrajectory([this.T; this.dt; mu], inputidx);
+                [x, time] = this.Data.SimCache.getTrajectory([this.T; this.dt; mu], inputidx);
             end
             if ~isempty(x)
                 t = this.scaledTimes;
@@ -596,7 +573,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 [t, x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
                 time = toc(st);
                 if this.EnableTrajectoryCaching
-                    this.simCache.addTrajectory(x, [this.T; this.dt; mu], inputidx, time);
+                    this.Data.SimCache.addTrajectory(x, [this.T; this.dt; mu], inputidx, time);
                 end
             end
         end
@@ -608,8 +585,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         end
         
         function intTimeChanged(this, src, ~)
-            if ~isempty(this.Data) && this.ftcold.(src.Name) ~= this.(src.Name)
-                md = this.Data;
+            if this.ftcold.(src.Name) ~= this.(src.Name)
+                md = this.Data.TrajectoryData;
                 if md.getNumTrajectories > 0
                     md.clearTrajectories;
                     fprintf(2,'Deleted all old trajectories for %s=%f\n',src.Name,this.ftcold.(src.Name));
@@ -639,6 +616,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             end
 
             if this.ComputeParallel
+                error('Not yet implemented for FileMatrix atd.xi');
                 atdxi = atd.xi;
                 atdti = atd.ti;
                 fval = zeros(size(atdxi));
@@ -649,14 +627,20 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     fval(:,sidx) = ...
                         f.evaluateCoreFun(atdxi(:,sidx),... % x
                         atdti(sidx),... % t
-                        atdmui(:,sidx)); %#ok mu
+                        atdmui(:,sidx)); % mu
                 end
                 atd.fxi = fval;
             else
+                xi = atd.xi;
                 if KerMor.App.Verbose > 0
-                    fprintf('Serial computation of f-values at %d points ...\n',size(atd.xi,2));
+                    fprintf('Serial computation of f-values at %d points (%d xi-blocks) ...\n',size(atd.xi,2),xi.nBlocks);
                 end
-                atd.fxi = f.evaluate(atd.xi, atd.ti, atdmui);
+                fxi = data.FileMatrix(f.fDim,size(xi,2),xi);
+                for i=xi.nBlocks
+                    pos = xi.getBlockPos(i);
+                    fxi(:,pos) = f.evaluate(xi.loadBlock(i), atd.ti(pos), atdmui(:,pos));
+                end
+                atd.fxi = fxi;
             end
             time = toc(time);
         end
@@ -670,8 +654,11 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         end
 
         function set.Data(this, value)
-            this.checkType(value, 'data.AModelData');
-            this.Data = value;
+            this.checkType(value, 'data.ModelData');
+            if ~isequal(this.Data, value)
+                this.Data = [];
+                this.Data = value;
+            end
         end
 
         function set.SpaceReducer(this, value)
@@ -737,8 +724,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.addlistener('dt','PreSet', @this.intTimeChanging);
             this.addlistener('T','PostSet', @this.intTimeChanged);
             this.addlistener('dt','PostSet', @this.intTimeChanged);
-            % Reassign a simulation cache (transient variable)
-            this.simCache = data.FileModelData(this, KerMor.App.TempDirectory);
         end
     end
            
@@ -835,10 +820,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 p = ts.params(idx);
                 s.addParam(p.Name, [p.MinVal p.MaxVal], p.Desired);
             end
-            m.simulate(m.System.getRandomParam);
+            m.simulate(m.getRandomParam);
             m.offlineGenerations;
             r = m.buildReducedModel;
-            r.simulate(r.System.getRandomParam);
+            r.simulate(r.getRandomParam);
             clear s m r;
         end
         
@@ -871,11 +856,11 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 s.addParam(p.Name, [p.MinVal p.MaxVal], p.Desired);
             end
             s.Inputs = ts.Inputs;
-            m.simulate(m.System.getRandomParam, 1);
+            m.simulate(m.getRandomParam, 1);
             m.TrainingInputs = 1:ts.testinputs;
             m.offlineGenerations;
             r = m.buildReducedModel;
-            r.simulate(r.System.getRandomParam, 1);
+            r.simulate(r.getRandomParam, 1);
             clear s m r;
         end
         
@@ -903,10 +888,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 p = ts.params(idx);
                 s.addParam(p.Name, [p.MinVal p.MaxVal], p.Desired);
             end
-            m.simulate(m.System.getRandomParam);
+            m.simulate(m.getRandomParam);
             m.offlineGenerations;
             r = m.buildReducedModel;
-            r.simulate(r.System.getRandomParam);
+            r.simulate(r.getRandomParam);
             clear s m r;
         end
         
@@ -938,10 +923,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 s.addParam(p.Name, [p.MinVal p.MaxVal], p.Desired);
             end
             s.Inputs = ts.Inputs;
-            m.simulate(m.System.getRandomParam,1);
+            m.simulate(m.getRandomParam,1);
             m.offlineGenerations;
             r = m.buildReducedModel;
-            r.simulate(r.System.getRandomParam,1);
+            r.simulate(r.getRandomParam,1);
             clear s m r;
         end
         

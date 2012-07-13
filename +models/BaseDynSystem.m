@@ -293,30 +293,6 @@ classdef BaseDynSystem < KerMorObject
             y = this.A.evaluate(x, t, this.mu) + this.f.evaluate(x, t, this.mu) + this.B.evaluate(t, this.mu)*this.u(t);
         end
         
-        %% Parameter manipulation
-        function mu = getRandomParam(this, num)
-            % Gets a random parameter sample from the system's parameter
-            % domain P
-            %
-            % Parameters:
-            % num: The number of random parameters to return. @type integer
-            % @default 1
-            %
-            % Return values:
-            % mu: A matrix of random parameters within the specified range
-            % for this model. @type matrix<double>
-            if nargin < 2
-                num = 1;
-            end
-            if this.ParamCount > 0
-                pmin = [this.Params(:).MinVal]';
-                pmax = [this.Params(:).MaxVal]';
-                mu = rand(this.ParamCount,num) .* (pmax-pmin) + pmin;
-            else
-                mu = [];
-            end
-        end
-        
         function addParam(this, name, range, desired)
             % Adds a parameter with the given values to the parameter
             % collection of the current dynamical system.

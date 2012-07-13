@@ -388,7 +388,7 @@ classdef BaseModel < KerMorObject
                     if ~isempty(sys.A.JSparsityPattern) && ~isempty(sys.f.JSparsityPattern)
                         [i,j] = find(sys.A.JSparsityPattern + sys.f.JSparsityPattern);
                             slv.JPattern = sparse(i,j,ones(length(i),1),...
-                                sys.A.XDim,sys.A.XDim);
+                                sys.A.fDim,sys.A.xDim);
                     end
                 elseif ~isempty(sys.A)
                     slv.JacFun = @(t, x)sys.A.getStateJacobian(x, t, mu);
@@ -429,22 +429,32 @@ classdef BaseModel < KerMorObject
             ctime = toc(st);
         end
         
-%         function target = clone(this, target)            
-%             % Clones this instance into another instance given by target.
-%             if nargin < 2 || ~isa(target, 'models.BaseModel')
-%                 error('The target argument must be given and a valid BaseModel subclass.');
-%             end
-%             % Clone the system & odesolver, too
-%             target.System = this.System.clone;
-%             target.ODESolver = this.ODESolver.clone;
-%             target.Name = this.Name;
-%             target.Verbose = this.Verbose;
-%             target.T = this.T;
-%             target.dt = this.dt;
-%             target.G = this.G;
-%             target.tau = this.tau;
-%             target.dtscaled = this.dtscaled;
-%         end
+        %% Parameter manipulation
+        function mu = getRandomParam(this, num)
+            % Gets a random parameter sample from the system's parameter
+            % domain P
+            %
+            % Parameters:
+            % num: The number of random parameters to return. @type integer @default 1
+            %
+            % Return values:
+            % mu: A matrix of random parameters within the specified range for this model.
+            % @type matrix<double>
+            %
+            % @change{0,6,dw,2012-07-13} Moved this method from models.BaseDynSystem to here
+            % for more convenience.
+            if nargin < 2
+                num = 1;
+            end
+            s = this.System;
+            if s.ParamCount > 0
+                pmin = [s.Params(:).MinVal]';
+                pmax = [s.Params(:).MaxVal]';
+                mu = rand(s.ParamCount,num) .* (pmax-pmin) + pmin;
+            else
+                mu = [];
+            end
+        end
     end
     
     methods(Access=protected)
