@@ -1,5 +1,5 @@
-classdef FileModelData < data.AModelData & data.FileData
-% FileModelData: Trajectory datadir in external files.
+classdef FileTrajectoryData < data.ATrajectoryData & data.FileData & general.ABlockSVD
+% FileTrajectoryData: Trajectory data stored in external files.
 %
 % The constructor takes an optional storage_root parameter.
 % If given, it must be a valid folder in the file system.
@@ -8,7 +8,7 @@ classdef FileModelData < data.AModelData & data.FileData
 % @author Daniel Wirtz @date 2011-08-04
 %
 % @change{0,6,dw,2012-04-27} Added an internal property 'host' to the class
-% in order to record on which machine the FileModelData instance was
+% in order to record on which machine the FileTrajectoryData instance was
 % created on. When saved and loaded at another machine, the dictionary will
 % be cleared if the same path does not exist anymore on the new machine.
 %
@@ -17,7 +17,7 @@ classdef FileModelData < data.AModelData & data.FileData
 %
 % @new{0,5,dw,2011-10-14} Added a new consolidate method in order to
 % rebuild the internal index hashmap from the files in a directory and the
-% data.AModelData.ParamSamples. This method is called after parallel
+% data.ATrajectoryData.ParamSamples. This method is called after parallel
 % trajectory computation as the remotely constructed hashmaps are not joint
 % back together as one.
 %
@@ -32,46 +32,47 @@ classdef FileModelData < data.AModelData & data.FileData
     properties(Access=private)
         % The HashMap used to store the indices for each trajectory.
         hm;
-    end
-    
-    properties%(Access=private)
+        
+        % Stores the DoFs of the trajectories and parameter sizes
+        sizes = [];
+        
         % Bounding box minimum
         bbmin = [];
         
         % Bounding box maximum
         bbmax = [];
         
-        % The host machine this file model data is created on
-        host = '';
-        
-        % Stores the DoFs of the trajectories and parameter sizes
-        sizes = [];
-        
-        % @TODO delete when experiments are finished
-        trajdof;
+        trajlen = [];
     end
     
     methods
-        function this = FileModelData(model, storage_root)
+        function this = FileTrajectoryData(varargin)
             % Creates a new ModelData instance with trajectory DataDirectory in a file folder.
             %
             % Parameters:
-            % model: The model the data is stored for.
-            % storage_root: [Optional] If given, it must be a valid folder in the file system. If
-            % not given, the value set in KerMor.App.DataStoreDirectory is used. @type char
+            % varargin: Either a data.ModelData instance to infer the storage root from, or a
+            % string containing a valid folder. @default A temporary folder within the
+            % KerMor.TempDirectory
             if ~usejava('jvm')
-                error('FileModelData cannot be used as java is not enabled.');
+                error('FileTrajectoryData cannot be used as java is not enabled.');
             end
-            if nargin < 2
-               storage_root = KerMor.App.DataStoreDirectory;
+            if isempty(varargin)
+                data_dir = fullfile(KerMor.App.TempDirectory,sprintf('temp_ftd_%s',...
+                    general.IDGenerator.generateID));
+            elseif isa(varargin{1},'data.ModelData')
+                data_dir = fullfile(varargin{1}.DataDirectory,'trajectories');
+            elseif ischar(varargin{1})
+                data_dir = varargin{1};
+            else
+                error('Invalid argument: %s',class(varargin{1}));
             end
-            this = this@data.FileData(fullfile(storage_root,['fm_' num2str(model.ID)]));
+            this = this@data.FileData(data_dir);
             this.hm = java.util.HashMap;
             this.clearTrajectories;
         end
         
         function delete(this)
-            % Destructor for FileModelData
+            % Destructor for FileTrajectoryData
             %
             % Deletes the DataDirectory if no trajectories are stored in it or it has not been
             % saved somewhere.
@@ -146,14 +147,20 @@ classdef FileModelData < data.AModelData & data.FileData
             if isempty(this.sizes)
                 this.sizes = [newd newmu];
             elseif newd ~= this.sizes(1)
-                error('Invalid trajectory size. Existing: %d, new: %d',this.sizes(1),newd);
+                error('Invalid trajectory dimension. Existing: %d, new: %d',this.sizes(1),newd);
             elseif newmu ~= this.sizes(2)
-                error('Invalid parameter size. Existing: %d, new: %d',this.sizes(2),newmu);
+                error('Invalid parameter dimension. Existing: %d, new: %d',this.sizes(2),newmu);
+            end
+            
+            if isempty(this.trajlen)
+                this.trajlen = size(x,2);
+            elseif this.trajlen ~= size(x,2)
+                error('Invalid trajectory length. Existing: %d, new: %d',this.trajlen,size(x,2));
             end
             
             key = general.Utils.getHash([mu; inputidx]);
             if this.hm.containsKey(key)
-                warning('KerMor:MemoryModelData','Trajectory already present. Replacing.');
+                warning('KerMor:MemoryTrajectoryData','Trajectory already present. Replacing.');
             end
             file = [key '.mat'];
             this.hm.put(key,file);
@@ -178,7 +185,7 @@ classdef FileModelData < data.AModelData & data.FileData
                         delete(file);
                     end
                 catch ME
-                    warning('KerMor:data:FileModelData','Could not delete file "%s": %s',file,ME.message);
+                    warning('KerMor:data:FileTrajectoryData','Could not delete file "%s": %s',file,ME.message);
                 end
             end
             this.hm.clear;
@@ -191,7 +198,7 @@ classdef FileModelData < data.AModelData & data.FileData
             % Rebuild the hashmap for the current FileData using the current ParamSamples and the models training inputs.
             %
             % This method is used when trajectories are generated within a
-            % parfor loop, as then the FileModelData's are remotely
+            % parfor loop, as then the FileTrajectoryData's are remotely
             % instantiated and their inner hash maps not synced with the
             % local one.
             %
@@ -260,6 +267,26 @@ classdef FileModelData < data.AModelData & data.FileData
         end
     end
     
+    %% general.ABlockSVD implementations
+    methods(Access=protected)
+        function n = getNumBlocks(this)
+            n = this.getNumTrajectories;
+        end
+        
+        function n = getColsPerBlock(this)
+            n = this.trajlen;
+        end
+        
+        function B = getBlock(this, nr)
+            B = this.getTrajectoryNr(nr);
+        end
+        
+        function [n, m] = getTotalSize(this)
+            n = this.getTrajectoryDoFs;
+            m = this.getNumBlocks * this.trajlen;
+        end
+    end
+    
     methods(Access=private)
         function updateBB(this, x)
             % Compute current bounding box
@@ -276,24 +303,24 @@ classdef FileModelData < data.AModelData & data.FileData
     
     methods(Static, Access=protected)
         function this = loadobj(this)
-            % Loads a FileModelData instance.
+            % Loads a FileTrajectoryData instance.
             %
-            % Ensures that the directory associated with this FileModelData is existent.
+            % Ensures that the directory associated with this FileTrajectoryData is existent.
             this = loadobj@data.FileData(this);
             if exist(this.DataDirectory,'dir') ~= 7
                 this.hm.clear;
                 this.bbmin = [];
                 this.bbmax = [];
-                warning('FileModelData:load','This FileModelData instance was created on host "%s" and the DataDirectory cannot be found on the local machine "%s". Clearing FileModelData.',this.host,KerMor.getHost);
+                warning('FileTrajectoryData:load','This FileTrajectoryData instance was created on host "%s" and the DataDirectory cannot be found on the local machine "%s". Clearing FileTrajectoryData.',this.host,KerMor.getHost);
             end
         end
     end
     
     methods(Static)
-        function res = test_FileModelData
+        function res = test_FileTrajectoryData
             
             model.ID = 'testModelData';
-            m = data.FileModelData(model);
+            m = data.FileTrajectoryData(model);
 
             T = 10;
             res = true;

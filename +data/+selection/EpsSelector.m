@@ -1,4 +1,4 @@
-classdef EpsSelector < approx.selection.ASelector
+classdef EpsSelector < data.selection.ASelector
 % EpsSelector: Selects as many points from the data that any trajectory point lies within an epsilon
 % radius of a training point.
 %
@@ -6,7 +6,7 @@ classdef EpsSelector < approx.selection.ASelector
 %
 % @author Daniel Wirtz @date 2011-05-05
 %
-% @change{0,5,dw,2011-08-04} Adopted this selector class to the new data.AModelData structure. For
+% @change{0,5,dw,2011-08-04} Adopted this selector class to the new data.ATrajectoryData structure. For
 % now it only works on models that sample a single trajectory, as originally proposed by the TPWL
 % guys.
 %
@@ -40,14 +40,14 @@ classdef EpsSelector < approx.selection.ASelector
     
     methods
         function this = EpsSelector
-            this = this@approx.selection.ASelector;
+            this = this@data.selection.ASelector;
             this.registerProps('EpsRad','SubspaceProject');
             this.EpsRad = 1;
         end
         
         function copy = clone(this)
-            copy = approx.selection.EpsSelector;
-            copy = clone@approx.selection.ASelector(this, copy);
+            copy = data.selection.EpsSelector;
+            copy = clone@data.selection.ASelector(this, copy);
             copy.EpsRad = this.EpsRad;
             copy.SubspaceProject = this.SubspaceProject;
         end

@@ -1,4 +1,4 @@
-classdef LinspaceSelector < approx.selection.ASelector
+classdef LinspaceSelector < data.selection.ASelector
 % Selects Size equally spaced samples from the training data.
 % 
 % Equally spaced in this context means not spaced in a state space sense.
@@ -8,7 +8,7 @@ classdef LinspaceSelector < approx.selection.ASelector
 %
 % @author Daniel Wirtz @date 2011-04-12
 %
-% @change{0,5,dw,2011-08-4} Changed the behaviour of this class to adopt to the new AModelData
+% @change{0,5,dw,2011-08-4} Changed the behaviour of this class to adopt to the new ATrajectoryData
 % iterface. The sampling is done as before, treating all trajectories as if they were contained in
 % one big array.
 %
@@ -31,6 +31,8 @@ classdef LinspaceSelector < approx.selection.ASelector
         %
         % @default `\infty`
         Size = Inf;
+        
+        MaxMemPerc = .4;
     end
     
     methods
@@ -40,8 +42,8 @@ classdef LinspaceSelector < approx.selection.ASelector
         end
         
         function copy = clone(this)
-            copy = approx.selection.LinspaceSelector;
-            %copy = clone@approx.selection.ASelector(this, copy);
+            copy = data.selection.LinspaceSelector;
+            %copy = clone@data.selection.ASelector(this, copy);
             copy.Size = this.Size;
         end
         
@@ -70,7 +72,9 @@ classdef LinspaceSelector < approx.selection.ASelector
             % mui: The selected parameter samples `\mu_i` with which the states
             % `x_i` have been reached @type matrix
             
-            nt = model.Data.getNumTrajectories;
+            md = model.Data;
+            td = md.TrajectoryData;
+            nt = td.getNumTrajectories;
             
             % The trajectory length
             tl = length(model.Times);
@@ -78,20 +82,40 @@ classdef LinspaceSelector < approx.selection.ASelector
             ts = nt*tl;
             % Get valid size
             s = min(this.Size,ts);
+            
+            tbytes = td.getTrajectoryDoFs*s*8;
+            u = memory;
+            avail = floor(u.MemAvailableAllArrays * this.MaxMemPerc);
+            if avail < tbytes
+                tmp = floor(avail / (8*td.getTrajectoryDoFs));
+                warning('KerMor:TooSmallMemory',['Desired size %d would need %gGB memory, '...
+                    'only have %gGB available.\nUsing new size %d (uses %g%% of available memory)'],...
+                    s,tbytes/1024^3,u.MemAvailableAllArrays/1024^3,tmp,this.MaxMemPerc*100);
+                s = tmp;
+            end
+            
             % Obtain indices for each trajectory
             idx = mod(round(linspace(0,ts-1,s)),tl)+1;
-            pos = [0 find(idx(2:end)-idx(1:end-1) < 0) s];
+            tidx = ceil(linspace(1,ts-1,s)/tl);
+            traj = unique(tidx);
             
-            xi = [];
-            ti = [];
-            mui = [];
-            for k=1:nt
-                [x, mu] = model.Data.getTrajectoryNr(k);
-                sel = pos(k)+1:pos(k+1);
-                xi = [xi x(:,idx(sel))]; %#ok<*AGROW>
-                ti = [ti model.Times(idx(sel))];
-                mui = [mui repmat(mu,1,length(sel))];
+            [xd, mud] = td.getTrajectoryDoFs;
+            xi = data.FileMatrix(xd,s,md.DataDirectory,8*512*1024^2); % Use 512 MB chunks for approx train data
+            ti = zeros(1,s);
+            mui = zeros(mud,s);
+            
+            pi = tools.ProcessIndicator('Selecting approximation training data from %d trajectories',nt,false,nt);
+            atdpos = 0;
+            for k=1:length(traj)
+                [x, mu] = md.TrajectoryData.getTrajectoryNr(traj(k));
+                sel = idx(tidx == traj(k));
+                atdpos = atdpos(end) + (1:length(sel));
+                xi(:,atdpos) = x(:,sel);
+                ti(atdpos) = model.Times(sel);
+                mui(:,atdpos) = repmat(mu,1,length(atdpos));
+                pi.step;
             end
+            pi.stop;
         end
     end
 end

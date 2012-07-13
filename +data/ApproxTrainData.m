@@ -1,4 +1,4 @@
-classdef ApproxTrainData
+classdef ApproxTrainData < handle
 % ApproxTrainData: Data class for approximation training data, containing
 % several useful bounding box properties etc.
 %
@@ -19,9 +19,10 @@ classdef ApproxTrainData
 % - \c License @ref licensing
     
     properties
-        % The state space samples `x_i = x(t_i;\mu_i)`
+        % The state space samples `x_i = x(t_i;\mu_i)`, stored row-wise in a data.FileMatrix
+        % instance.
         %
-        % @type matrix
+        % @type data.FileMatrix
         xi = [];
         
         % The time samples `t_i`
@@ -37,7 +38,7 @@ classdef ApproxTrainData
         
         % The evaluations of `f(x_i,t_i,\mu_i)`
         %
-        % @type matrix
+        % @type data.FileMatrix
         fxi;
     end
     
@@ -93,13 +94,16 @@ classdef ApproxTrainData
     methods
         function this = ApproxTrainData(xi, ti, mui)
             % Assign local variables
+            if ~isa(xi,'data.FileMatrix')
+                xi = data.FileMatrix(xi);
+            end
             this.xi = xi;
             this.ti = ti;
             this.mui = mui;
             
             % Build box values
             box = struct;
-            [box.xmin, box.xmax] = general.Utils.getBoundingBox(xi);
+            [box.xmin, box.xmax] = xi.getColBoundingBox;
             this.Center = (box.xmin+box.xmax)/2;
             % Get bounding box diameters
             this.xiDia = norm(box.xmax - box.xmin);
@@ -134,22 +138,8 @@ classdef ApproxTrainData
             B = [this.xi; this.ti; this.mui];
             [~, idx] = min(sum((A-B).^2,1));
             c = B(:,idx);
-        end
-        
-        function comb = getCombinedData(this)
-            % Returns the training data as matrix, composed as '[xi; ti; mui]'.
-            %
-            % Return values:
-            % comb: The training data matrix. @type matrix
-            comb = this.xi;
-            if this.hasTime
-                comb = [comb; this.ti];
-            end
-            if this.hasParams
-                comb = [comb; this.mui];
-            end
-        end
-        
+        end        
+       
         function satd = subset(this, sel)
             if isscalar(sel)
                 sel = 1:sel:size(this.xi,2);
@@ -158,10 +148,29 @@ classdef ApproxTrainData
                 this.ti(:,sel), this.mui(:,sel));
             satd.fxi = this.fxi(:,sel);
         end
+        
+        function set.xi(this, value)
+            if ~isa(value,'data.FileMatrix') && ismatrix(value)
+                value = data.FileMatrix(value);
+            elseif ~isa(value,'data.FileMatrix')
+                error('The xi property must be a matrix or a data.FileMatrix');
+            end
+            this.xi = value;
+        end
+        
+        function set.fxi(this, value)
+            if ~isa(value,'data.FileMatrix') && ismatrix(value)
+                value = data.FileMatrix(value);
+            elseif ~isa(value,'data.FileMatrix')
+                error('The fxi property must be matrix or a data.FileMatrix');
+            end
+            this.fxi = value;
+        end
     end
     
     methods(Static)
         function atd = makeUniqueXi(atd)
+            error('not yet implemented with handle usage');
             [~, selidx] = unique(atd.xi','rows');
             if length(selidx) ~= size(atd.xi,2)
                 atd.xi = atd.xi(:,selidx);
@@ -182,6 +191,7 @@ classdef ApproxTrainData
         end
         
         function [atd, minScale, maxScale] = scaleXiZeroOne(atd)
+            error('not yet implemented with handle usage');
             minScale = min(atd.xi,[],2);
             maxScale = max(atd.xi,[],2);
             n = size(atd.xi,2);

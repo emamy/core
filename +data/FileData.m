@@ -41,11 +41,11 @@ classdef FileData < handle
     end
     
     methods
-        function this = FileData(folder)
+        function this = FileData(data_dir)
             if nargin < 1
-               folder = KerMor.App.DataStoreDirectory;
+               error('A root folder must be specified.');
             end
-            this.DataDirectory = folder;
+            this.DataDirectory = data_dir;
             this.ensureDir;
             this.Host = KerMor.getHost;
         end
@@ -89,9 +89,9 @@ classdef FileData < handle
         end
     end
     
-    methods(Access=private)
+    methods(Access=protected)
         function this = saveobj(this)
-            % Set saved flag so that the matrix files do not get deleted on the delete method
+            % Set saved flag so that the data files do not get deleted on the delete method
             this.isSaved = true;
         end
     end
@@ -101,7 +101,7 @@ classdef FileData < handle
             % Loads a FileData instance.
             %
             % Ensures that the directory associated with this FileData is existent.
-            if strcmp(this.host,KerMor.getHost)
+            if strcmp(this.Host,KerMor.getHost)
                 this.ensureDir;
             end
         end

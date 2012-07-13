@@ -14,7 +14,7 @@ classdef ASelector < KerMorObject & ICloneable
     % of data.ApproxTrainData (not having the fxi property set yet)
     %
     % @new{0,5,dw,2011-08-04} Removed the LastUsed property as it is incompatible with the new
-    % data.AModelData structure (the approximation training data is not a subset of TrainingData
+    % data.ATrajectoryData structure (the approximation training data is not a subset of TrainingData
     % anymore). Subclasses have been changed in order to adopt to the new structure, too.
     %
     % @new{0,4,dw,2011-05-04} Integrated this class to the property default value changed
@@ -47,7 +47,7 @@ classdef ASelector < KerMorObject & ICloneable
             % atd: The approximation training data @type data.ApproxTrainData
             if ~isa(model,'models.BaseFullModel')
                 error('The model parameter must be a BaseFullModel subclass.');
-            elseif model.Data.getNumTrajectories == 0
+            elseif model.Data.TrajectoryData.getNumTrajectories == 0
                 error('No training data available to select approximation training data from.');
             end
             
@@ -63,7 +63,7 @@ classdef ASelector < KerMorObject & ICloneable
         % model: The full model with the training data @type models.BaseFullModel
         %
         % Return values:
-        % xi: The selected `x_i = x(t_i)` training data @type matrix
+        % xi: The selected `x_i = x(t_i)` training data @type data.FileMatrix
         % ti: The selected training times `t_i` @type rowvec
         % mui: The selected parameter samples `\mu_i` with which the states
         % `x_i` have been reached @type matrix

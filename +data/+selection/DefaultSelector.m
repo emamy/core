@@ -1,4 +1,4 @@
-classdef DefaultSelector < approx.selection.ASelector
+classdef DefaultSelector < data.selection.ASelector
 % Selects all training data.
 % 
 % @author Daniel Wirtz @date 2011-04-12
@@ -16,8 +16,8 @@ classdef DefaultSelector < approx.selection.ASelector
 
     methods
         function copy = clone(this)%#ok
-            copy = approx.selection.DefaultSelector;
-            %copy = clone@approx.selection.ASelector(this, copy);
+            copy = data.selection.DefaultSelector;
+            %copy = clone@data.selection.ASelector(this, copy);
         end
     end
 
@@ -29,18 +29,31 @@ classdef DefaultSelector < approx.selection.ASelector
             % model: The full model with the training data @type models.BaseFullModel
             %
             % Return values:
-            % xi: The selected `x_i = x(t_i)` training data @type matrix
+            % xi: The selected `x_i = x(t_i)` training data @type data.FileMatrix
             % ti: The selected training times `t_i` @type rowvec
             % mui: The selected parameter samples `\mu_i` with which the states
             % `x_i` have been reached @type matrix
+            
+            md = model.Data;
+            td = md.TrajectoryData;
+            nt = td.getNumTrajectories;
             xi = [];
             ti = [];
             mui = [];
-            for k=1:model.Data.getNumTrajectories
-                [x, mu] = model.Data.getTrajectoryNr(k);
-                xi = [xi x]; %#ok
-                ti = [ti model.Times]; %#ok
-                mui = [mui repmat(mu,1,size(x,2))]; %#ok
+            len = length(model.Times);
+            if nt > 0
+                [xdim, mudim] = td.getTrajectoryDoFs;
+                % Use 512 MB chunks for approx train data
+                xi = data.FileMatrix(xdim,nt*len,md.DataDirectory,8*512*1024^2);
+                ti = zeros(1,nt*len);
+                mui = zeros(mudim,nt*len);
+                for k=1:nt
+                    [x, mu] = td.getTrajectoryNr(k);
+                    pos = (k-1)*len+1:k*len;
+                    xi(:,pos) = x;
+                    ti(pos) = model.Times;
+                    mui(:,pos) = repmat(mu,1,size(x,2));
+                end
             end
         end
     end

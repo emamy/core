@@ -1,4 +1,4 @@
-classdef MemoryModelData < data.AModelData
+classdef MemoryTrajectoryData < data.ATrajectoryData
 % Data class that contains a model's large data, purely in system memory.
 %
 % @author Daniel Wirtz @date 2011-08-03
@@ -49,9 +49,9 @@ classdef MemoryModelData < data.AModelData
     
     methods
         
-        function this = MemoryModelData
+        function this = MemoryTrajectoryData
             if ~usejava('jvm')
-                error('MemoryModelData cannot be used as java is not enabled.');
+                error('MemoryTrajectoryData cannot be used as java is not enabled.');
             end
             this.hm = java.util.HashMap;
             this.clearTrajectories;
@@ -112,10 +112,10 @@ classdef MemoryModelData < data.AModelData
             end
             
             if isempty(inputidx) && ~isempty(this.InputIndices)
-                error('MemoryModelData can only hold TrajectoryData of one type. Having InputIndices and not at the same time is not allowed.');
+                error('MemoryTrajectoryData can only hold TrajectoryData of one type. Having InputIndices and not at the same time is not allowed.');
             end
             if isempty(mu) && ~isempty(this.Parameters)
-                error('MemoryModelData can only hold TrajectoryData of one type. Having parameters and not at the same time is not allowed.');
+                error('MemoryTrajectoryData can only hold TrajectoryData of one type. Having parameters and not at the same time is not allowed.');
             end
             if ~isempty(this.TrajectoryData) && (size(x,1) ~= size(this.TrajectoryData,1) || size(x,2) ~= size(this.TrajectoryData,2))
                 error('New trajectory size mismatches the size of already stored TrajectoryData.');
@@ -123,7 +123,7 @@ classdef MemoryModelData < data.AModelData
             
             key = general.Utils.getHash([mu; inputidx]);
             if this.hm.containsKey(key)
-                warning('KerMor:MemoryModelData','Trajectory already present. Replacing');
+                warning('KerMor:MemoryTrajectoryData','Trajectory already present. Replacing');
                 this.TrajectoryData(:,:,this.hm.get(key)) = x;
             else
                 this.TrajectoryData(:,:,end+1) = x;
@@ -150,12 +150,17 @@ classdef MemoryModelData < data.AModelData
         function [x,X] = getBoundingBox(this)
             [x, X] = general.Utils.getBoundingBox(this.TrajectoryData(:,:));
         end
+        
+        function [d, mud] = getTrajectoryDoFs(this)
+            d = size(this.TrajectoryData,1);
+            mud = size(this.Parameters,1);
+        end
     end
     
     methods(Static)
-        function res = test_MemoryModelData
+        function res = test_MemoryTrajectoryData
             
-            m = data.MemoryModelData;
+            m = data.MemoryTrajectoryData;
             
             T = 10;
             res = true;

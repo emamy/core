@@ -1,4 +1,4 @@
-classdef TimeSelector < approx.selection.ASelector
+classdef TimeSelector < data.selection.ASelector
 % TimeSelector: Approximation training data selection utilizing time information
 %
 % This algorithm searches for unique values of times in the training data and determines how many
@@ -11,7 +11,7 @@ classdef TimeSelector < approx.selection.ASelector
 % @change{0,5,dw,2011-11-09} Re-enabled the use of this selector after adopting to new
 % data.ApproxTrainData structure.
 %
-% @change{0,5,dw,2011-08-04} Disabled the use of this selector, as the new data.AModelData structure
+% @change{0,5,dw,2011-08-04} Disabled the use of this selector, as the new data.ATrajectoryData structure
 % does not cater sensefully for this type of approximation training data selection.
 %
 % @new{0,4,dw,2011-05-06} 
@@ -51,13 +51,13 @@ classdef TimeSelector < approx.selection.ASelector
     
     methods
         function this = TimeSelector
-            this = this@approx.selection.ASelector;
+            this = this@data.selection.ASelector;
             this.registerProps('Size','Seed');
         end
         
         function copy = clone(this)
-            copy = approx.selection.TimeSelector;
-            %copy = clone@approx.selection.ASelector(this, copy);
+            copy = data.selection.TimeSelector;
+            %copy = clone@data.selection.ASelector(this, copy);
             copy.Size = this.Size;
             copy.Seed = this.Seed;
         end

@@ -1,21 +1,13 @@
-classdef AModelData < handle
+classdef ModelData < data.FileData
 % Data class that contains a model's large data, including subspace matrices, trajectories and
 % approximation training data.
 %
-% @author Daniel Wirtz @date 2011-08-03
 %
-% @change{0,6,dw,2011-12-14} Now also storing the computation time \c ctime for a trajectory.
-% This comes from the fact that for error estimator comparisons we need the \c ctime for each
-% trajectory for every different error estimator. See the changes in models.BaseModel for more
-% information.
+% @new{0,6,dw,2012-07-10} Created this general class with all detailed data and a root folder
+% where the model's (possible) data resides. The former ATrajectoryData has been split up into this
+% and ATrajectoryData.
 %
-% @new{0,5,dw,2011-10-20} Added the AModelData.getBoundingBox method and
-% implementations in MemoryModelData and FileModelData.
-%
-% @new{0,5,dw,2011-08-03} 
-% - Added this class.
-% - Removed the field ApproxfValues and put it into a struct with
-% ApproxTrainData.
+% @author Daniel Wirtz @date 2012-07-10
 %
 % This class is part of the framework
 % KerMor - Model Order Reduction using Kernels:
@@ -29,6 +21,11 @@ classdef AModelData < handle
         % @type matrix @default []
         ParamSamples = [];
         
+        % The trajectory training data for the full model
+        %
+        % @type data.ATrajectoryData @default data.MemoryTrajectoryData
+        TrajectoryData = [];
+        
         % Training data for the core function approximation.
         %
         % @type data.ApproxTrainData @default []
@@ -37,7 +34,7 @@ classdef AModelData < handle
         % Training data for the jacobian approximation.
         %
         % So far only used by the DEIM error estimator but placed here as
-        % AModelData is the container for all large model offline data.
+        % ATrajectoryData is the container for all large model offline data.
         %
         % @type data.ApproxTrainData @default []
         JacobianTrainData = [];
@@ -60,12 +57,38 @@ classdef AModelData < handle
         JacSimTransData = struct;
     end
     
+    properties(SetAccess=private)
+        SimCache;
+    end
+    
     properties(Dependent)
         % The number of samples contained in the model data
         SampleCount;
     end
     
     methods
+        function this = ModelData(varargin)
+            % Creates a new container for large full model data.
+            %
+            % Parameters:
+            % varargin: Either a models.BaseFullModel instance to infer the data directory
+            % from, or a string containing a valid folder. @default A temporary folder within
+            % the KerMor.TempDirectory
+            if isempty(varargin)
+                data_dir = fullfile(KerMor.App.TempDirectory,sprintf('temp_md_%s',...
+                    general.IDGenerator.generateID));
+            elseif isa(varargin{1},'models.BaseFullModel')
+                data_dir = fullfile(KerMor.App.DataStoreDirectory,sprintf('model_%s',varargin{1}.ID));
+            elseif ischar(varargin{1})
+                data_dir = varargin{1};
+            else
+                error('Invalid argument: %s',class(varargin{1}));
+            end
+            this = this@data.FileData(data_dir);
+            this.TrajectoryData = data.MemoryTrajectoryData;
+            this.SimCache = data.FileTrajectoryData(fullfile(data_dir,'simcache'));
+        end
+        
         function mu = getParams(this, idx)
             % Returns parameters for given indices.
             %
@@ -98,36 +121,13 @@ classdef AModelData < handle
             end
         end
         
-        function transferFrom(this, source)
-            % @todo write code that copies the trajectories from one
-            % AModelData to another
-            nt = source.getNumTrajectories;
-            this.clearTrajectories;
-            for nr=1:nt
-                [x, mu, inputidx, ctime] = source.getTrajectoryNr(nr);
-                this.addTrajectory(x, mu, inputidx, ctime);
-            end
+        function delete(this)
+            this.SimCache = [];
+            this.TrajectoryData = [];
+            this.ApproxTrainData = [];
+            this.JacobianTrainData = [];
+            delete@data.FileData(this);
         end
-    end
-    
-    methods(Abstract)
-        % Gets the traejctory for the given parameter `\mu` and input index.
-        [x, ctime] = getTrajectory(this, mu, inputidx);
-        
-        % Gets the total number of trajectories
-        n = getNumTrajectories(this);
-        
-        % Gets the trajectory with the number nr.
-        [x, mu, inputidx, ctime] = getTrajectoryNr(this, nr);
-        
-        % Adds a trajectory to the ModelData instance.
-        addTrajectory(this, x, mu, inputidx, ctime);
-        
-        % Clears all stored trajectory data.
-        clearTrajectories(this);
-        
-        % Gets the bounding box of the state space of all trajectories.
-        [x,X] = getBoundingBox(this);
     end
     
     %% Getter & Setter
@@ -140,14 +140,32 @@ classdef AModelData < handle
             if ~isempty(value) && ~isa(value, 'data.ApproxTrainData')
                 error('The ApproxTrainData must be a data.ApproxTrainData subclass.');
             end
-            this.ApproxTrainData = value;
+            if ~isequal(this.ApproxTrainData, value)
+                this.ApproxTrainData = [];
+                this.ApproxTrainData = value;
+            end
+        end
+        
+        function set.TrajectoryData(this, value)
+            if ~isempty(value) && ~isa(value, 'data.ATrajectoryData')
+                error('The TrajectoryData must be a data.ATrajectoryData subclass.');
+            end
+            % Precaution: Unset the old traj data as it may trigger deletion of the same folder
+            % that is used by the new one.
+            if ~isequal(this.TrajectoryData,value)
+                this.TrajectoryData = [];
+                this.TrajectoryData = value;
+            end
         end
         
         function set.JacobianTrainData(this, value)
             if ~isempty(value) && ~isa(value, 'data.ApproxTrainData')
                 error('The JacobianTrainData must be a data.ApproxTrainData subclass.');
             end
-            this.JacobianTrainData = value;
+            if ~isequal(this.JacobianTrainData, value)
+                this.JacobianTrainData = [];
+                this.JacobianTrainData = value;
+            end
         end
         
         function set.V(this, value)
