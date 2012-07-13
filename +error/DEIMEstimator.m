@@ -43,10 +43,10 @@ classdef DEIMEstimator < error.BaseEstimator
         % Set to empty if not wanted. The BaseFullModel sets this value at
         % offline generations phase
         %
-        % @type integer @default []
+        % @type integer @default 50
         %
         % See also: JacSimTransSize
-        JacSimTransMaxSize = [];
+        JacSimTransMaxSize = 50;
         
         % Maximum order for the DEIM approximation of the state space
         % jacobian.
@@ -58,8 +58,8 @@ classdef DEIMEstimator < error.BaseEstimator
         % are used for the MatrixDEIM approximation of the jacobian and the
         % partial similarity transformation.
         %
-        % @type approx.selection.ASelector @default
-        % approx.selection.DefaultSelector
+        % @type data.selection.ASelector @default
+        % data.selection.DefaultSelector
         TrainDataSelector;
         
         % "Expensive version": Using the full system's jacobian for
@@ -80,24 +80,13 @@ classdef DEIMEstimator < error.BaseEstimator
     end
     
     properties(SetAccess=private)
-        % The POD instance to compute the partial similarity transform
-        % matrix.
-        %
-        % The POD settings default to Mode 'eps' with Value = 1e-7, causing
-        % the JacSimTransMaxSize to be set to the resulting POD size.
-        % If the Mode is set to 'abs', the current value of
-        % JacSimTransMaxSize will be used in offlineGenerations.
-        %
-        % @type general.POD
-        SimTransPOD;
-        
         % The complete similarity transformation matrix of size
         % `d \times JacSimTransMaxSize`
         %
         % (Debug/testing use)
         %
         % @type matrix<double> @default []
-        STFull = [];
+        QFull = [];
         
         % The singular values computed by the SimTransPOD in the offline
         % stage.
@@ -105,7 +94,7 @@ classdef DEIMEstimator < error.BaseEstimator
         % (Debug/testing use)
         %
         % @type rowvec<double> @default []
-        STSingVals = [];
+        QSingVals = [];
         
         % The MatrixDEIM instance used to approximate the state space
         % jacobian matrices
@@ -176,11 +165,7 @@ classdef DEIMEstimator < error.BaseEstimator
         function this = DEIMEstimator
             this = this@error.BaseEstimator;
             this.ExtraODEDims = 1;
-            p = general.POD;
-            p.Mode = 'eps';
-            p.Value = 1e-7;
-            this.SimTransPOD = p;
-            this.TrainDataSelector = approx.selection.DefaultSelector;
+            this.TrainDataSelector = data.selection.DefaultSelector;
         end
         
         function offlineComputations(this, fm)
@@ -237,10 +222,10 @@ classdef DEIMEstimator < error.BaseEstimator
                 this.M9 = [];
             end
             
-            % LogNorm-related computations
+            %% Matrix DEIM
             jd = general.MatrixDEIM;
             jd.MaxOrder = this.JacMatDEIMMaxOrder;
-            jd.NumRows = fm.System.f.XDim;
+            jd.NumRows = fm.System.f.fDim;
             if KerMor.App.Verbose > 0
                 fprintf('Computing matrix DEIM (MaxOrder=%d) of system jacobian...\n',...
                     this.JacMatDEIMMaxOrder);
@@ -253,35 +238,35 @@ classdef DEIMEstimator < error.BaseEstimator
             % Initialize to certain order
             this.JacMatDEIMOrder = ceil(this.JacMatDEIMMaxOrder/2);
             
-            if ~isempty(md.JacSimTransData.VFull)
-                p = this.SimTransPOD;
-                if strcmp(p.Mode,'abs')
-                    if isempty(this.JacSimTransMaxSize)
-                        error('When SimTransPOD has mode ''abs'' the property JacSimTransMaxSize must be set.');
-                    end
-                    p.Value = this.JacSimTransMaxSize;
+            %% Similarity transformation
+            if ~isempty(this.JacSimTransMaxSize)
+                if isempty(isempty(md.JacSimTransData.VFull))
+                    error('No ModelData.JacSimTransData set. Run the model''s off6_prepareErrorEstimator instead of a direct call.');
                 end
-                [this.STFull, this.STSingVals] = ...
+                p = general.POD;
+                p.Mode = 'abs';
+                p.Value = this.JacSimTransMaxSize;
+                [Q, this.QSingVals] = ...
                     p.computePOD(md.JacSimTransData.VFull);
-                red = 1-size(this.STFull,2)/size(this.STFull,1);
-                if KerMor.App.Verbose > 0
-                    fprintf(['Computed partial similarity transform with POD Mode=''%s'' '...
-                        'and Value=%g on %d eigenvectors.\nResulting reduction %d/%d (%g%%), '...
-                        'JacSimTransMaxSize=%d\n'],...
-                        p.Mode,p.Value,size(md.JacSimTransData.VFull,2),...
-                        size(this.STFull,2),size(this.STFull,1),...
-                        100*red,...
-                        size(this.STFull,2));
+                this.QFull = Q.toFullMatrix;
+                if size(this.QFull,2) < this.JacSimTransMaxSize
+                    this.JacSimTransMaxSize = size(this.QFull,2);
+                    fprintf(2,'Only %d nonzero singular values in difference to %d desired ones. Setting JacSimTransMaxSize=%d\n',...
+                        size(this.QFull,2),this.JacSimTransMaxSize,size(this.QFull,2));
                 end
-                this.JacSimTransMaxSize = size(this.STFull,2);
+                red = 1-size(this.QFull,2)/size(this.QFull,1);
+                if KerMor.App.Verbose > 0
+                    fprintf(['Computed partial similarity transform with target size %d over %d eigenvectors. '...
+                        'Resulting reduction %d/%d (%g%%)\n'],...
+                        p.Value,size(md.JacSimTransData.VFull,2),...
+                        size(this.QFull,2),size(this.QFull,1),100*red);
+                end
                 if red < .2
                     this.JacSimTransSize = [];
                     fprintf(2,'Achieved reduction under 20%%, disabling similarity transformation.\n');
                 else
                     this.JacSimTransSize = ceil(this.JacSimTransMaxSize/2);
                 end
-            else
-                fprintf(2,'ModelData.JacSimTransData.VFull is empty. Not computing similarity transform.\n');
             end
             
             % Compute approximation for local logarithmic norm
@@ -303,7 +288,10 @@ classdef DEIMEstimator < error.BaseEstimator
         
         function ct = prepareConstants(this, mu, inputidx)
             if this.deim.Order(2) == 0 && ~this.UseTrueDEIMErr
-                error('The associated DEIM approximation may not be zero.');
+                warning('KerMor:DEIMEstimator','No DEIM error order set. Disabling error estimator.');
+                this.Enabled = false;
+                ct = 0;
+                return;
             end
             % True log lip const comparison estimator
             if this.UseTrueLogLipConst
@@ -311,6 +299,7 @@ classdef DEIMEstimator < error.BaseEstimator
             else
                 ct = 0;
             end
+            this.kexp = [];
         end
         
         function a = getAlpha(this, x, t, mu, ut)
@@ -417,9 +406,11 @@ classdef DEIMEstimator < error.BaseEstimator
             end
             
             % Take care of the A(t,\mu) part, if existing
+            this.kexp(1,end+1) = b;
             if ~isempty(this.Aln)
                 b = b + this.Aln.compose(t, mu);
             end
+            this.kexp(2,end) = b;
         end
         
         function eint = evalODEPart(this, x, t, mu, ut)
@@ -440,7 +431,7 @@ classdef DEIMEstimator < error.BaseEstimator
             % Sim Trans stuff
             copy.JacSimTransMaxSize = this.JacSimTransMaxSize;
             copy.jstSize = this.jstSize;
-            copy.STFull = this.STFull;
+            copy.QFull = this.QFull;
             
             copy.UseTrueLogLipConst = this.UseTrueLogLipConst;
             copy.UseTrueDEIMErr = this.UseTrueDEIMErr;
@@ -586,7 +577,7 @@ classdef DEIMEstimator < error.BaseEstimator
                 if ~isequal(this.jstSize,value)
                     this.jstSize = value;
                     this.JacMDEIM.setSimilarityTransform(...
-                        this.STFull(:,1:this.jstSize));
+                        this.QFull(:,1:this.jstSize));
                 end
             else
                 error('Value must be empty or a positive int scalar smaller than JacSimTransMaxSize');
@@ -616,17 +607,17 @@ classdef DEIMEstimator < error.BaseEstimator
         end
         
         function set.TrainDataSelector(this, value)
-            this.checkType(value, 'approx.selection.ASelector');
+            this.checkType(value, 'data.selection.ASelector');
             this.TrainDataSelector = value;
         end
         
-%         function set.JacSimTransMaxSize(this, value)
-%             if ~isempty(this.JacSimTransMaxSize) && ...
-%                     this.JacSimTransMaxSize ~= value
-%                 fprintf('New maximum size of similarity transform. Re-run of offlineComputations necessary.\n');
-%             end
-%             this.JacSimTransMaxSize = value;
-%         end
+        function set.JacSimTransMaxSize(this, value)
+            if ~isempty(value) && ~isempty(this.JacSimTransMaxSize) && ...
+                    this.JacSimTransMaxSize ~= value
+                fprintf(2,'New maximum size of similarity transform. Re-run of offlineComputations necessary.\n');
+            end
+            this.JacSimTransMaxSize = value;
+        end
     end
     
      methods(Static, Access=protected)

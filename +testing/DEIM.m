@@ -79,7 +79,7 @@ classdef DEIM
             fxinorm = efun(atd.fxi);
             
             if isa(deim,'general.MatrixDEIM')
-                oldst = deim.ST;
+                oldst = deim.Qk;
                 deim.setSimilarityTransform([]);
             end
             
@@ -605,7 +605,7 @@ classdef DEIM
             e = zeros(mo,n,3);
             aln = zeros(mo,n);
             oldo = deim.Order;
-            ST = deim.ST;
+            Qk = deim.Qk;
             deim.setSimilarityTransform([]);
             pi = tools.ProcessIndicator('Computing matrix DEIM approximation error and log norm errors for %d orders',mo,false,mo);
             JP = logical(m.System.f.JSparsityPattern);
@@ -630,7 +630,7 @@ classdef DEIM
             end
             pi.stop;
             deim.Order = oldo;
-            deim.setSimilarityTransform(ST);
+            deim.setSimilarityTransform(Qk);
         end
         
         function pm = compareDEIM_Full_Jacobian_plots(m, e, aln, orders, pm, atdsubset)
@@ -709,12 +709,12 @@ classdef DEIM
             
             % Get required data
             jtd = m.Data.JacobianTrainData;
-            STFull = m.ErrorEstimator.STFull;
+            QFull = m.ErrorEstimator.QFull;
             f = m.System.f;
             
             % Input checks
             if nargin < 2
-                st_sizes = 1:size(STFull,2);
+                st_sizes = 1:size(QFull,2);
             end
             
             % Preps
@@ -727,9 +727,9 @@ classdef DEIM
             for nr = 1:n
                 J = f.getStateJacobian(jtd.xi(:,nr),jtd.ti(nr),jtd.mui(:,nr));
                 for snr = 1:stn
-                    ST = STFull(:,1:st_sizes(snr));
+                    Qk = QFull(:,1:st_sizes(snr));
                     t = tic;
-                    aln(snr,nr) = general.Utils.logNorm(ST'*J*ST);
+                    aln(snr,nr) = general.Utils.logNorm(Qk'*J*Qk);
                     times(snr,nr) = toc(t);
                     pi.step;
                 end
@@ -746,7 +746,7 @@ classdef DEIM
             end
             jstd = m.Data.JacSimTransData;
             pm.nextPlot('correct_ln',sprintf('Full logarithmic norms\nJacobian full dimension %dx%d',...
-                m.System.f.XDim,m.System.f.XDim));
+                m.System.f.fDim,m.System.f.xDim));
             plot(jstd.LogNorms);
             
             if size(aln,1) > 1
@@ -769,7 +769,7 @@ classdef DEIM
                 'similarity transform size');
             tools.LogPlot.logsurf(h,X,Y,abs((LN-aln)./LN));
             
-            sv = m.ErrorEstimator.STSingVals;
+            sv = m.ErrorEstimator.QSingVals;
             s = m.ErrorEstimator.JacSimTransMaxSize;
             h = pm.nextPlot('sing_vals',...
                 sprintf('Singular values of SVD of eigenvector matrix\nBlack line: Max size of sim. trans., singular value= %g',...
@@ -845,7 +845,7 @@ classdef DEIM
             for onr = 1:no
                 jd.Order = deim_orders(onr);
                 for snr = 1:stn
-                    jd.setSimilarityTransform(e.STFull(:,1:st_sizes(snr)));
+                    jd.setSimilarityTransform(e.QFull(:,1:st_sizes(snr)));
                     for nr = 1:n
                         t = tic;
                         J = jd.evaluate(zi(:,nr),jtd.ti(nr),jtd.mui(:,nr));

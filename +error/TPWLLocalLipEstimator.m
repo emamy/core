@@ -74,7 +74,7 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
                 try
                     fB = fm.System.B.evaluate([],[]);
                 catch ME%#ok
-                    fB = fm.System.B.evaluate(0,rmodel.System.getRandomParam);
+                    fB = fm.System.B.evaluate(0,rmodel.getRandomParam);
                     warning('Some:Id','Error estimator for current system will not work correctly! (B is not linear and mu-independent!');
                 end
             end

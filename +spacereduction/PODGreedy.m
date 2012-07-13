@@ -58,13 +58,17 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
         MaxSubspaceSize = 100;
     end
     
+    properties(SetAccess=private)
+        Errors;
+    end
+    
     methods
         function this = PODGreedy
             this.registerProps('Eps','MinRelImprovement','MaxSubspaceSize');
         end
         
         function [V,W] = generateReducedSpace(this, model)
-            md = model.Data;
+            md = model.Data.TrajectoryData;
             
             if KerMor.App.Verbose > 2
                 fprintf('POD-Greedy: Starting subspace computation using %d trajectories...\n',md.getNumTrajectories);
@@ -97,6 +101,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
                 olderr = err(end);
                 cnt = cnt+1;
             end
+            this.Errors = [err; impr];
             if cnt == this.MaxSubspaceSize
                 fprintf('POD-Greedy: Maximum predefined subspace size %d reached. Aborting.\n',this.MaxSubspaceSize);
             end

@@ -19,3 +19,4 @@
 *.dll
 /data
 /temp
+/datastore

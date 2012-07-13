@@ -389,7 +389,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             r.ErrorEstimator = error.IterationCompLemmaEstimator(r);
             r.ErrorEstimator.Iterations = 4;
             
-            [t,y] = r.simulate(r.System.getRandomParam,[]);%#ok
+            [t,y] = r.simulate(r.getRandomParam,[]);%#ok
         end
     end
     

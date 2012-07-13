@@ -235,7 +235,7 @@ classdef KerMor < handle
     % @todo implement CME model from steffen in KerMor!
     %
     % @todo change TempDirectory and DataDirectory to be dependent-only values (read & write
-    % directly to preferences), and enforce DIFFERENT folders (simCache
+    % directly to preferences), and enforce DIFFERENT folders (ModelData.SimCache
     % uses same prefix etc)
     
     properties(Constant)
@@ -714,7 +714,7 @@ classdef KerMor < handle
                 set(0,'DefaultFigurePosition',this.DefaultFigurePosition);
             end
             
-            init3rdparty;            
+            initextern;            
             initParallelization;
             
             disp('Entering startup path..');
@@ -749,7 +749,7 @@ classdef KerMor < handle
             
             disp('<<<<<<<<< Ready to go. >>>>>>>>>>');
             
-            function init3rdparty
+            function initextern
                 % Checks for 3rd party software availability
                 %
                 % @todo include checks for pardiso once pardiso solver is
@@ -758,44 +758,44 @@ classdef KerMor < handle
                 warning off MATLAB:dispatcher:nameConflict
                 
                 disp('Checking for 3rd party software...')
-                addpath(fullfile(p,'3rdparty'));
-                addpath(fullfile(p,'3rdparty','dpcm'));
-                addpath(fullfile(p,'3rdparty','export_fig'));
-                addpath(fullfile(p,'3rdparty','compat'));
+                addpath(fullfile(p,'extern'));
+                addpath(fullfile(p,'extern','dpcm'));
+                addpath(fullfile(p,'extern','export_fig'));
+                addpath(fullfile(p,'extern','compat'));
                 
                 % md5
-                d = fullfile(p,'3rdparty','calcmd5');
+                d = fullfile(p,'extern','calcmd5');
                 addpath(d);
                 if ~exist(fullfile(d,['CalcMD5.' mexext]),'file')
                     warning('KerMor:init','No compiled CalcMD5 mex file found. Did you run KerMor.setup completely?\nKerMor might not run properly.');
                 end
                 
                 % md5
-                d = fullfile(p,'3rdparty','typecastx');
+                d = fullfile(p,'extern','typecastx');
                 addpath(d);
                 if ~exist(fullfile(d,['typecastx.' mexext]),'file')
                     warning('KerMor:init','No compiled typecastx mex file found. Did you run KerMor.setup completely?\nKerMor might not run properly.');
                 end
                 
                 % ipopt
-                addpath(fullfile(p,'3rdparty','ipopt'));
+                addpath(fullfile(p,'extern','ipopt'));
                 if ~this.HasIPOPT
                     warning('KerMor:init','No IPOPT available!');
-                    %rmpath(fullfile(p,'3rdparty','ipopt'));
+                    %rmpath(fullfile(p,'extern','ipopt'));
                 end
                 
                 % qpoases
-                addpath(fullfile(p,'3rdparty','qpOASES'));
+                addpath(fullfile(p,'extern','qpOASES'));
                 if ~this.HasqpOASES
                     warning('KerMor:init','No qpOASES available!');
-                    %rmpath(fullfile(p,'3rdparty','qpOASES'));
+                    %rmpath(fullfile(p,'extern','qpOASES'));
                 end
                 
                 % mosek
-                addpath(fullfile(p,'3rdparty','mosek'));
+                addpath(fullfile(p,'extern','mosek'));
                 if ~this.HasqpMosek
                     warning('KerMor:init','No mosek available!');
-                    %rmpath(fullfile(p,'3rdparty','mosek'));
+                    %rmpath(fullfile(p,'extern','mosek'));
                 end
                 
                 % rbmatlab
@@ -955,7 +955,7 @@ classdef KerMor < handle
             end
             
             %% 3rd party programs
-            KerMor.setup3rdParty;
+            KerMor.setupextern;
             
             disp('<<<<<<<<<< Setup complete. You can now start KerMor by running "KerMor.start;". >>>>>>>>>>');
         end
@@ -1021,11 +1021,11 @@ classdef KerMor < handle
     
     methods(Static, Access=private)
         
-        function setup3rdParty
+        function setupextern
             a = KerMor.App;
             
             %% Call setup for documentation creation
-            addpath(fullfile(a.HomeDirectory,'3rdparty'));
+            addpath(fullfile(a.HomeDirectory,'extern'));
             MatlabDocMaker.setup;
             
             %% Optional: rbmatlab
@@ -1073,18 +1073,18 @@ classdef KerMor < handle
             olddir = pwd;
             % CalcMD5
             disp('Compliling CalcMD5..');
-            cd(fullfile(a.HomeDirectory,'3rdparty','calcmd5'));
+            cd(fullfile(a.HomeDirectory,'extern','calcmd5'));
             mex CFLAGS="\$CFLAGS -std=c99" CalcMD5.c
             
             % typecast/x
             disp('Compliling typecast/x..');
-            cd(fullfile(a.HomeDirectory,'3rdparty','typecastx'));
+            cd(fullfile(a.HomeDirectory,'extern','typecastx'));
             mex typecast.c
             mex typecastx.c
             
             if isunix
                 disp('Compliling ppid..');
-                cd(fullfile(a.HomeDirectory,'3rdparty'));
+                cd(fullfile(a.HomeDirectory,'extern'));
                 mex ppid.c
             else
                 warning('KerMor:setup','No ppid function available (win32 platform)');

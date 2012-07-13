@@ -500,7 +500,7 @@ classdef EstimatorAnalyzer < handle
             dest.Enabled = true;
             
             % Add best version
-            est(end+1).Name = 'Est with true DEIM approx error';
+            est(end+1).Name = 'Reference estimate';
             est(end).Estimator = dest.clone;
             est(end).Estimator.UseTrueDEIMErr = true;
             est(end).MarkerStyle = 'p';
@@ -541,7 +541,7 @@ classdef EstimatorAnalyzer < handle
                     e = dest.clone;
                     e.JacMDEIM.Order = this.JacDEIMOrders(j);
                     e.JacSimTransSize = this.SimTransSizes(k);
-                    est(end+1).Name = sprintf('JDO:%d, ST:%d',...
+                    est(end+1).Name = sprintf('m_j:%d, k:%d',...
                         e.JacMDEIM.Order(1),e.JacSimTransSize);
                     est(end).Estimator = e;
                     est(end).MarkerStyle = m.nextMarkerStyle;

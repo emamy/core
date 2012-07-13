@@ -218,7 +218,7 @@ else
         if isfield(sec,'murange')
             ranges.murange = sec.murange;
         end
-        if length(varargin) > 2 && isa(varargin{3},'data.AModelData')
+        if length(varargin) > 2 && isa(varargin{3},'data.ATrajectoryData')
             conf.td = varargin{3}.ApproxTrainData;
         end
     elseif isa(sec,'data.ApproxTrainData')

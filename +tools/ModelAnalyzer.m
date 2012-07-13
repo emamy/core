@@ -68,7 +68,7 @@ classdef ModelAnalyzer < handle;
             fm = this.rm.FullModel;
             errs = zeros(4,num);
             for pidx = 1:num
-                mu = fm.System.getRandomParam;
+                mu = fm.getRandomParam;
                 [~, y] = fm.simulate(mu, in);
                 [~, yr] = this.rm.simulate(mu, in);
                 errs(1,pidx) = max(sqrt(sum((yr-y).^2))); %linf l2 err

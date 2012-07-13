@@ -170,7 +170,7 @@ for pidx = 1:m.System.ParamCount
         % increase position counter
         pcnt = pcnt + 1;
     end
-    warning('KerMor:visual','FullData visualization will not work, not yet adopted to the new AModelData structure.');
+    warning('KerMor:visual','FullData visualization will not work, not yet adopted to the new ATrajectoryData structure.');
 end
 
 function updateUserParam(h)

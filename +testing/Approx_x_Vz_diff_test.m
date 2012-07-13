@@ -6,7 +6,7 @@ function Approx_x_Vz_diff_test(r)
 %
 % @author Daniel Wirtz @date 2011-05-16
 %
-% @change{0,5,dw,2011-08-04} Adopted to the new AModelData structure.
+% @change{0,5,dw,2011-08-04} Adopted to the new ATrajectoryData structure.
 %
 % @new{0,4,dw,2011-05-16} Added this function.
 %

@@ -37,7 +37,7 @@ classdef Constant < error.alpha.Base
                 try
                     B = fm.System.B.evaluate([],[]);
                 catch ME%#ok
-                    B = fm.System.B.evaluate(0,fm.System.getRandomParam);
+                    B = fm.System.B.evaluate(0,fm.getRandomParam);
                     warning('Some:Id','Error estimator for current system will not work correctly! (B is not linear and mu-independent!');
                 end
             
