@@ -201,9 +201,9 @@ classdef DPCMObject < handle
             % session.
             persistent cnt;
             if isempty(cnt)
-                cnt = sum(clock)+cputime;
+                cnt = round((sum(clock)+cputime)*1000);
             end
-            id = num2str(cnt);
+            id = sprintf('%d',cnt);
             cnt = cnt+1;
         end
         
