@@ -24,7 +24,6 @@ classdef LinearCoreFun < dscomponents.ACoreFun
             this.CustomProjection = true;
             this.MultiArgumentEvaluations = true;
             this.TimeDependent = false;
-            this.CustomJacobian = true;
         end
         
         function projected = project(this, V, W, projected)

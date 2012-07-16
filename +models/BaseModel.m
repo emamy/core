@@ -375,12 +375,6 @@ classdef BaseModel < KerMorObject
             % implicit
             if isa(slv,'solvers.ode.AImplSolver')
                 % Set jacobian
-%                 if ~sys.f.CustomJacobian
-%                     if KerMor.App.Verbose > 0
-%                         fprintf(2,'Implicit solver: No user jacobian specified. Will use finite difference approximation.\n');
-%                     end
-%                 end
-                
                 slv.JPattern = [];
                 slv.JacFun = [];
                 if ~isempty(sys.A) && ~isempty(sys.f)

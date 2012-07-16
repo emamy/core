@@ -43,7 +43,6 @@ classdef PointerCoreFun < dscomponents.ACoreFun
                 error('funPtr nargin must equal three (= x,t,mu).');
             end
             this.CustomProjection = false;
-            this.CustomJacobian = false;
             this.MultiArgumentEvaluations = multieval;
             this.TimeDependent = timedep;
             this.target = funPtr;

@@ -66,7 +66,6 @@ classdef KernelEI < approx.BaseApprox
             this.CustomProjection = true;
             this.MultiArgumentEvaluations = true;
             this.TimeDependent = true;
-            %this.CustomJacobian = true;
             %this.JSparsityPattern
         end
         

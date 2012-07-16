@@ -27,9 +27,7 @@ classdef DEIM < approx.BaseApprox & general.DEIM
             this = this@approx.BaseApprox;
             
             this.CustomProjection = true;
-            %this.JSparsityPattern
             this.TimeDependent = true;
-            %this.CustomJacobian = true;
         end
         
         function approximateSystemFunction(this, model)

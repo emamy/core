@@ -10,7 +10,10 @@ classdef ACoreFun < KerMorObject & general.AProjectable
 %
 % @author Daniel Wirtz @date 2010-03-17
 %
-% @new{0,6,dw,2012-02-07} 
+% @new{0,6,dw,2012-07-16} Removed the CustomJacobian flag as either the default via finite
+% differences is used or an overridden method.
+%
+% @new{0,6,dw,2012-02-07}
 % - Added a new property dscomponents.ACoreFun.CustomJacobian and
 % implemented the default jacobian via finite differences. 
 % - Removed the IJacobian interface and adopted the affected classes.
@@ -107,19 +110,6 @@ classdef ACoreFun < KerMorObject & general.AProjectable
         % @type logical @default true
         TimeDependent = true;
         
-        % Flag that indicates if the default finite-difference
-        % 'getStateJacobian' method has been overridden by a custom
-        % implementation.
-        %
-        % @propclass{important} Defining an (analytic) jacobian matrix for
-        % the state space argument `x` can significantly improve simulation
-        % performance.
-        %
-        % @type logical @default false
-        %
-        % See also: getStateJacobian
-        CustomJacobian = false;
-        
         % The current state space dimension of the function's argument `x`.
         %
         % Must be set in inheriting classes on order to ensure
@@ -149,7 +139,7 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             this = this@KerMorObject;
             this.registerProps('CustomProjection',...
                 'MultiArgumentEvaluations','JSparsityPattern',...
-                'TimeDependent','CustomJacobian','xDim');
+                'TimeDependent','xDim','fDim');
         end
         
         function target = project(this, V, W, target)
@@ -203,6 +193,11 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             % the original space and evaluates the function there, so via
             % `f = V'f(Vz)`
             %
+            % Attention:
+            % If you override this method directly, you will have to make sure it can handle
+            % matrix-based `x` inputs and causes correct evaluation after projection has been
+            % performed.
+            %
             % Parameters:
             % x: The state variable vector/matrix (with colum state
             % vectors)
@@ -232,9 +227,8 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                     t = double.empty(0,size(x,2));
                 end
                 % Detect output size from first evaluation
-                fx = this.evaluateCoreFun(x(:,1), t(:,1), mu(:,1));
-                fx = [fx zeros(size(fx,1), size(x,2)-1)];
-                for idx = 2:size(x,2)
+                fx = zeros(this.fDim, size(x,2));
+                for idx = 1:size(x,2)
                     fx(:,idx) = this.evaluateCoreFun(x(:,idx), t(:,idx), mu(:,idx));
                 end    
             end
@@ -247,7 +241,8 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             % Default implementation of jacobian matrix evaluation via
             % finite differences.
             %
-            % Override in subclasses for custom (analytic) implementations.
+            % Override in subclasses for custom (analytic) implementations or if the problem
+            % size is too large to fit a full matrix into memory.
             %
             % Parameters:
             % x: The state variable vector/matrix (with colum state
@@ -261,18 +256,16 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             % J: The jacobian matrix at `x,t,\mu`.
             dt = sqrt(eps);
             d = size(x,1);
-            if this.MultiArgumentEvaluations
-                X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(mu,1,d);
-                I = speye(d,d)*dt;
-                J = (this.evaluate(X+I,T,MU) - this.evaluate(X,T,MU))/dt;
-            else
-                J = zeros(d,d);
-                for i=1:d
-                    e = zeros(d,1);
-                    e(i) = dt;
-                    J(:,i) = (this.evaluate(x+e,t,mu) - this.evaluate(x,t,mu))/dt;
-                end
-            end
+            
+            X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(mu,1,d);
+            I = speye(d,d)*dt;
+            % Evaluate makes use of built-in multi-argument evaluation
+            J = (this.evaluate(X+I,T,MU) - this.evaluate(X,T,MU))/dt;
+            % Create sparse matrix if pattern is set
+            if ~isempty(this.JSparsityPattern)
+                [i, j] = find(this.JSparsityPattern);
+                J = sparse(i,j,J(logical(this.JSparsityPattern)),this.fDim,this.xDim);
+            end            
         end
         
         function copy = clone(this, copy)
@@ -285,7 +278,6 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             copy.MultiArgumentEvaluations = this.MultiArgumentEvaluations;
             copy.JSparsityPattern = this.JSparsityPattern;
             copy.TimeDependent = this.TimeDependent;
-            copy.CustomJacobian = this.CustomJacobian;
             copy.xDim = this.xDim;
             copy.fDim = this.fDim;
         end
@@ -366,6 +358,11 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             % Tests the custom provided jacobian matrix against the default
             % finite difference computed one.
             %
+            % Attention:
+            % This method always works, also if you did not overload the
+            % dscomponents.ACoreFun.getStateJacobian method (then it will check the default
+            % implementation against itself)
+            %
             % Parameters:
             % xa: A matrix of `x_i,i=1\ldots n`-values to try each. @type matrix<double>
             % ta: The corresponding `n` times `t_i` @type rowvec<double>
@@ -374,46 +371,43 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             % Return values:
             % res: A flag indicating if each test had a relative error of
             % less than 1e-7 @type logical
-            if this.CustomJacobian
-                reltol = 1e-7;
-                dt = sqrt(eps);
-                res = false(size(xa,2),1);
-                if isempty(ta) || nargin < 3
-                    ta = double.empty(0,size(xa,2));
-                end
-                if isempty(mua) || nargin < 4
-                    mua = double.empty(0,size(xa,2));
-                end
-                d = size(xa,1);
-                I = speye(d,d)*dt;
-                for k = 1:size(xa,2)
-                    x = xa(:,k); t = ta(:,k); mu = mua(:,k);
-                    Jc = this.getStateJacobian(x, t, mu);
-                    %% Numerical jacobian
-                    if this.MultiArgumentEvaluations
-                        X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(mu,1,d);
-                        J = (this.evaluate(X+I,T,MU) - this.evaluate(X,T,MU))/dt;
-                        res(k) = max(max(abs(J-Jc)))/max(max(abs(J))) < reltol;
-                    else
-                        J = sparse(d,d);
-                        for i=1:d
-                            e = zeros(d,1);
-                            e(i) = dt;
-                            J(:,i) = sparse((this.evaluate(x+e,t,mu) - this.evaluate(x,t,mu)))/dt;%#ok
-                            di = max(abs(J(:,i) - Jc(:,i))) / max(abs(J(:,i)));
-                            if di > reltol
-                                fprintf('Relative difference at partial derivative %d/%d: %e (tolerance %e)\n',i,d,di,reltol);
-                                res = false;
-                                return;
-                            end
-                        end
-                        res(k) = true;
+            reltol = 1e-7;
+            dt = sqrt(eps);
+            res = false;
+            if isempty(ta) || nargin < 3
+                ta = double.empty(0,size(xa,2));
+            end
+            if isempty(mua) || nargin < 4
+                mua = double.empty(0,size(xa,2));
+            end
+            d = size(xa,1);
+            I = speye(d,d)*dt;
+            for i = 1:size(xa,2)
+                x = xa(:,i); t = ta(:,i); mu = mua(:,i);
+                Jc = this.getStateJacobian(x, t, mu);
+                
+                %% Numerical jacobian
+                perstep = floor((256*1024^2)/(8*d));
+                X = repmat(x,1,perstep); T = repmat(t,1,perstep); MU = repmat(mu,1,perstep);
+                steps = ceil(d/perstep);
+                pi = tools.ProcessIndicator('Comparing %dx%d jacobian with finite differences over %d blocks of size %d',...
+                    steps,false,this.fDim,this.xDim,steps,perstep);
+                for k = 1:steps
+                    if k == steps
+                        num = d-(k-1)*perstep;
+                        X = repmat(x,1,num); T = repmat(t,1,num); MU = repmat(mu,1,num);
+                    end
+                    pos = (k-1)*perstep+1:min(d,k*perstep);
+                    J = (this.evaluate(X+I(:,pos),T,MU) - this.evaluate(X,T,MU))/dt;
+                    pi.step;
+                    if max(max(abs(J-Jc(:,pos))))/max(max(abs(J))) >= reltol;
+                        pi.stop;
+                        return;
                     end
                 end
-                res = all(res);
-            else
-                error('Jacobian testing only possible if custom implementation of getStateJacobian');
+                pi.stop;
             end
+            res = true;
         end
     end
 end

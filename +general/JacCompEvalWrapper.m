@@ -6,6 +6,9 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
 %
 % @author Daniel Wirtz @date 2012-06-01
 %
+% @change{0,6,dw,2012-07-16} Added fast implementation of evaluate for already sparse
+% jacobians.
+%
 % @change{0,6,dw,2012-06-08} Improved the speed of the evaluate-function by
 % separate code for sparse/full matrices.
 %
@@ -66,18 +69,27 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
             % (\d{f_1}{x_1}, \d{f_2}{x_1}, \ldots, \d{f_n}{x_1},
             % \d{f_2}{x_1}, \ldots)`. @type colvec<double>
             
-            % 'Hack' for efficient evaluation, as the row-wise indexing for
-            % sparse matrices is slooooow
             if ~isempty(this.f.JSparsityPattern)
-                sel = find(this.f.JSparsityPattern);
-                fx = zeros(length(sel),size(x,2));
-                for i=1:size(x,2)
-                    J = this.f.getStateJacobian(x(:,i),t(i),mu(:,i));
-                    fx(:,i) = J(sel);
+                J = this.f.getStateJacobian(x(:,1),t(1),mu(:,1));
+                if issparse(J)
+                    fx = J(:);
+                    for i=2:size(x,2)
+                        J = this.f.getStateJacobian(x(:,i),t(i),mu(:,i));
+                        fx = [fx J(:)];
+                    end
+                else
+                    % 'Hack' for efficient evaluation, as the row-wise indexing for
+                    % sparse matrices is slooooow
+                    sel = find(this.f.JSparsityPattern);
+                    fx = zeros(length(sel),size(x,2));
+                    for i=1:size(x,2)
+                        J = this.f.getStateJacobian(x(:,i),t(i),mu(:,i));
+                        fx(:,i) = J(sel);
+                    end
+                    hlp = sparse(this.f.fDim*this.f.xDim,size(x,2));
+                    hlp(sel,:) = fx;
+                    fx = hlp;
                 end
-                fx2 = sparse(this.f.fDim*this.f.xDim,size(x,2));
-                fx2(sel,:) = fx;
-                fx = fx2;
             else
                 fx = zeros(this.f.fDim*this.f.xDim,size(x,2));
                 for i=1:size(x,2)
@@ -85,7 +97,6 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
                     fx(:,i) = J(:);
                 end
             end
-            
         end
         
         function evaluateCoreFun(varargin)

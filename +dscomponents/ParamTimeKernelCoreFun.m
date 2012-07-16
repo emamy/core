@@ -26,7 +26,6 @@ classdef ParamTimeKernelCoreFun < kernels.ParamTimeKernelExpansion & dscomponent
             this.CustomProjection = true;
             this.MultiArgumentEvaluations = true;
             this.TimeDependent = false;
-            this.CustomJacobian = true;
             this.addlistener('TimeKernel','PostSet',@this.TimeKernelPostSet);
         end
         
