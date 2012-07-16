@@ -1,5 +1,5 @@
 classdef PrintTable < handle
-% PrintTable: Class that allows table-like output spaced by tabs for multiple rows
+% PrintTable: Class that allows table-like output spaced by tabs for multiple rows.
 %
 % Allows to create a table-like output for multiple values and columns.
 % A spacer can be used to distinguish different columns (PrintTable.ColSep) and a flag
@@ -24,13 +24,17 @@ classdef PrintTable < handle
 % # There must be one format string for each columns of the PrintTable
 % # The column contents and the format string must be valid arguments for sprintf.
 %
+% Transposing:
+% An overload for the ctranspose-method of MatLab is available which easily switches rows with
+% columns.
+%
 % Examples:
-% Simply run
-% 'PrintTable.test_PrintTable;'
-% or
-% 'PrintTable.test_PrintTable_RowHeader_Caption;'
-% or
-% 'PrintTable.test_PrintTable_LaTeX_Export;'
+% % Simply run
+% PrintTable.test_PrintTable;
+% % or
+% PrintTable.test_PrintTable_RowHeader_Caption;
+% % or
+% PrintTable.test_PrintTable_LaTeX_Export;
 %
 % % Or copy & paste
 % t = PrintTable;
@@ -52,6 +56,11 @@ classdef PrintTable < handle
 % t.HasHeader = true;
 % % or simply state the variable to print
 % t
+%
+% % Transpose the table:
+% tt = t';
+% tt.Caption = 'This is me, but transposed!';
+% tt.print;
 %
 % % To use a different column separator just set e.g.
 % t.ColSep = ' -@- ';
@@ -110,6 +119,13 @@ classdef PrintTable < handle
 % - http://tex.stackexchange.com/questions/22173
 % - http://www.weinelt.de/latex/
 %
+% @new{0,6,dw,2012-07-16} 
+% - Added an overload for the "ctranspose" method of MatLab; now easy switching of rows and
+% columns is possible. Keeping the HasHeader flag if set.
+% - Fixed a problem with LaTeX export when specifying only a filename without "./" in the path
+% - Made the TabCharLen a public property as MatLab behaves strange with respect to tabs for
+% some reason.
+%
 % @change{0,6,dw,2012-06-11} 
 % - Added a new property NumRows that returns the number of rows (excluding
 % the header if set).
@@ -157,8 +173,8 @@ classdef PrintTable < handle
 % @todo replace fprintf by sprintf and build string that can be returned by this.print and if
 % no output argument is collected directly print it.
     
-    properties(Constant)
-        % Equivalent length of a tab character in single-space characters
+    properties 
+	   % Equivalent length of a tab character in single-space characters
         %
         % The default value is actually read from the local MatLab
         % preferences via
@@ -167,9 +183,7 @@ classdef PrintTable < handle
         %
         % @default 4 @type integer
         TabCharLen = com.mathworks.services.Prefs.getIntegerPref('EditorSpacesPerTab',4);
-    end
-    
-    properties
+	   
         % A char sequence to separate the different columns.
         %
         % @default ' | ' @type char
@@ -228,6 +242,9 @@ classdef PrintTable < handle
     end
     
     properties(Dependent)
+	   % The number of rows in the current table
+	   %
+	   % @type integer
         NumRows;
     end
     
@@ -335,6 +352,9 @@ classdef PrintTable < handle
                     ext = ['.' this.Format];
                 elseif ~any(strcmp(ext,{'.txt','.tex','.pdf'}))
                     error('Valid file formats are *.txt, *.tex, *.pdf');
+                end
+                if isempty(path)
+                    path = '.';
                 end
                 % Try to create directory if not existing
                 if ~isempty(path) && exist(path,'dir') ~= 7
@@ -461,8 +481,16 @@ classdef PrintTable < handle
                 error('Format must be either ''txt'' or ''tex''.');
             end
             this.Format = value;
-        end
-        
+	   end
+	   
+	   function set.TabCharLen(this, value)
+		  if isscalar(value) && value > 0 && round(value) == value
+			 this.TabCharLen = value;
+		  else
+			 error('Invalid argument for TabCharLen. Must be a positive integer scalar.');
+		  end
+	   end
+	   
         function value = get.NumRows(this)
             value = length(this.data);
             if this.HasHeader
@@ -486,9 +514,9 @@ classdef PrintTable < handle
                     % Compute number of tabs
                     ttabs = 0;
                     for i = 1:length(row)
-                        ttabs = ttabs +  ceil((length(this.ColSep)*(i~=1)+this.contlen(i))/PrintTable.TabCharLen);
+                        ttabs = ttabs +  ceil((length(this.ColSep)*(i~=1)+this.contlen(i))/this.TabCharLen);
                     end
-                    fprintf(outfile,'%s\n',repmat('_',1,(ttabs+1)*PrintTable.TabCharLen));
+                    fprintf(outfile,'%s\n',repmat('_',1,(ttabs+1)*this.TabCharLen));
                 end
             end
         end
@@ -580,8 +608,8 @@ classdef PrintTable < handle
             sl = length(sep);
             for i = 1:length(row)-1
                 str = row{i};
-                fillstabs = floor((sl*(i~=1)+length(str))/PrintTable.TabCharLen);
-                tottabs = ceil((sl*(i~=1)+this.contlen(i))/PrintTable.TabCharLen);
+                fillstabs = floor((sl*(i~=1)+length(str))/this.TabCharLen);
+                tottabs = ceil((sl*(i~=1)+this.contlen(i))/this.TabCharLen);
                 fprintf(outfile,'%s%s',[str repmat(char(9),1,tottabs-fillstabs)],sep);
             end
         end
@@ -696,6 +724,9 @@ classdef PrintTable < handle
             t.print;
             t.HasHeader = true;
             t.print;
+            
+            tt = t';
+            tt.print;
         end
         
         function t = test_PrintTable_RowHeader_Caption
