@@ -1,20 +1,51 @@
 function [t, matches, parents] = FindInstance(obj, type, varargin)
-% FindInstance: 
+% FindInstance: Locate instances of certain classes within a class or a struct.
 %
+% Parameters:
+% obj: The object in which to search. @type [handle|struct]
+% type: The type of the instances to find. @type char
+% varargin: Any more arguments are assumed to be character arrays and denote existing
+% properties of the instances to find.
 %
+% Return values:
+% t: A PrintTable instance containing information about the matches and their location within
+% the passed object. @type PrintTable
+% matches: A cell array of all instances that have been found in obj. @type
+% cell<classof(arg:type)>
+% parents: A cell array of all the parent objects/structs whose immediate property is of the
+% specified type.
+%
+% Examples:
+% s.someclass1 = RandStream('mt19937ar','Seed',1);
+% s.foo = 'bar';
+% s.nested.one = RandStream('mt19937ar','Seed',56);
+% s.nested.two = RandStream('mrg32k3a');
+% s.nested.matrix = rand(4,5);
+% FindInstance(s,'RandStream');
+%
+% % You can also automatically select specific properties of the instances as extra parameters:
+% FindInstance(s,'RandStream','Seed')
+% FindInstance(s,'RandStream','Seed','NormalTransform')
+%
+% % If you want to obtain references to the found objects:
+% [t, m] = FindInstance(s,'RandStream','Seed','NormalTransform');
+% disp(m);
 %
 % @author Daniel Wirtz @date 2012-06-11
-%
-% @new{0,6,dw,2012-06-11} Added this function.
-%
-% This class is part of the framework
+% This class has originally been developed as part of the framework
 % KerMor - Model Order Reduction using Kernels:
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
-% - \c License @ref licensing
+%
+% Copyright (c) 2011, Daniel Wirtz
+% All rights reserved.
+%
+% Redistribution and use in source and binary forms, with or without modification, are
+% permitted only in compliance with the BSD license, see
+% http://www.opensource.org/licenses/bsd-license.php
 
-    if ~isa(obj, 'handle')
-        error('boo');
+    if ~isa(obj, 'handle') && ~isstruct(obj) 
+        error('The argument must either be a handle class or a struct.');
     end
     
     matches = {};
