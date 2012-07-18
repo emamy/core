@@ -77,6 +77,14 @@ classdef MatrixDEIM < general.DEIM
             % matrices)
             updateOrderData@general.DEIM(this);
             
+            % "special" for jaccompevalwrappers:
+            % they only evaluate to nonzero entries, which is why the DEIM approximation
+            % U, U_nonproj is of size length(J(J ~= 0)) instead of length(J(:))
+            if isa(this.f,'general.JacCompEvalWrapper') && ~isempty(this.f.f.JSparsityPattern)
+                fsp = this.f.f.JSparsityPattern;
+                this.U_nonproj = general.MatUtils.toSparse(this.U_nonproj, find(fsp), numel(fsp)); %#ok<FNDSB>
+            end
+            
             % Apply partial similarity transform (AFTER original DEIM order
             % update)
             % Checks for having Qk set are done there.

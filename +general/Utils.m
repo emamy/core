@@ -481,7 +481,7 @@ classdef Utils
             x = x + bsxfun(@times, farend, r.rand(1,num));
         end
         
-        function [ln, v] = logNorm(A, G)
+        function [ln, v] = logNorm(A, G, v0)
             % Computes the logarithmic norm of a matrix, optionally using a
             % positive definite symmetric matrix `G` inducing the matrix
             % norm to use.
@@ -492,12 +492,17 @@ classdef Utils
             % norm and hence matrix norm to use. Defaults to identity
             % matrix (Euclidean/L2 norm) @type matrix<double>
             % @default I
+            % v0: An initial vector for eigs to start with. @type colvec<double> @optional
             %
             % Return values:
             % ln: The logarithmic norm with respect to the given matrix
             % norm induced by `G`. @type double
             % v: The eigenvector of the largest eigenvalue (=log norm) of
             % the symmetric part of `A`. @type colvec<double>
+            %
+            % @change{0,6,dw,2012-07-18} Added a re-try with 6 eigenvalues if no convergence
+            % for one eigenvalue takes place. Added an optional v0 parameter as start vector
+            % for eigs.
             if nargin == 2
                 L = chol(G,'lower');
                 A = L\(A'*L);
@@ -506,13 +511,26 @@ classdef Utils
             hlp = .5*(A + A');
             if size(hlp,1) > 1000
 %                 t = tic;
-                opts.v0 = ones(size(A,1),1);
+                if nargin == 3
+                    opts.v0 = v0;
+                end
                 opts.maxit = 1000;
+                lastwarn('');
                 [v, ln] = eigs(hlp,1,'la',opts);
+                [s,id] = lastwarn;
+                if ~isempty(s) && strcmp(id,'MATLAB:eigs:NoEigsConverged')
+                    fprintf('Single eigenvalue not converged. Re-trying with k=6...\n');
+                    [v, ln] = eigs(hlp,6,'la',opts);
+                    v = v(:,1); ln = ln(1);
+                end
                 if ln < 0
                     [v, ln] = eigs(hlp,1,-ln,opts);
-%                     [v, lnpos] = eigs(hlp - ln*speye(size(A,1)),[],1,opts);
-%                     ln = ln + lnpos;
+                    [s,id] = lastwarn;
+                    if ~isempty(s) && strcmp(id,'MATLAB:eigs:NoEigsConverged')
+                        fprintf('Single eigenvalue not converged. Re-trying with k=6...\n');
+                        [v, ln] = eigs(hlp,6,'la',opts);
+                        v = v(:,1); ln = ln(1);
+                    end
                 end
 %                 t2 = toc(t);
             else
