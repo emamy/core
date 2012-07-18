@@ -40,7 +40,7 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
           if nargin == 1
               % Checks
               if ~isa(f,'dscomponents.ACompEvalCoreFun')
-                  error('The system''s nonlinearity must be a component wise evaluable function.');
+                  error('The system''s nonlinearity must be a component-wise evaluable function.');
               end
               % Original full system function
               this.f = f;
@@ -49,7 +49,12 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
               this.MultiArgumentEvaluations = true;
               this.xDim = f.xDim;
               % output dim is size of jacobian
-              this.fDim = f.fDim * f.xDim;
+              if ~isempty(f.JSparsityPattern)
+                  fdim = length(find(f.JSparsityPattern));
+              else
+                  fdim = f.fDim * f.xDim;
+              end
+              this.fDim = fdim;
               % So sparsity pattern for the wrapper
               this.JSparsityPattern = [];
 
@@ -70,32 +75,14 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
             % \d{f_2}{x_1}, \ldots)`. @type colvec<double>
             
             if ~isempty(this.f.JSparsityPattern)
-                J = this.f.getStateJacobian(x(:,1),t(1),mu(:,1));
-                if issparse(J)
-                    fx = J(:);
-                    for i=2:size(x,2)
-                        J = this.f.getStateJacobian(x(:,i),t(i),mu(:,i));
-                        fx = [fx J(:)];
-                    end
-                else
-                    % 'Hack' for efficient evaluation, as the row-wise indexing for
-                    % sparse matrices is slooooow
-                    sel = find(this.f.JSparsityPattern);
-                    fx = zeros(length(sel),size(x,2));
-                    for i=1:size(x,2)
-                        J = this.f.getStateJacobian(x(:,i),t(i),mu(:,i));
-                        fx(:,i) = J(sel);
-                    end
-                    hlp = sparse(this.f.fDim*this.f.xDim,size(x,2));
-                    hlp(sel,:) = fx;
-                    fx = hlp;
-                end
+                nonzero = find(this.f.JSparsityPattern);
             else
-                fx = zeros(this.f.fDim*this.f.xDim,size(x,2));
-                for i=1:size(x,2)
-                    J = this.f.getStateJacobian(x(:,i),t(i),mu(:,i));
-                    fx(:,i) = J(:);
-                end
+                nonzero = 1:this.f.fDim*this.f.xDim;
+            end
+            fx = zeros(length(nonzero),size(x,2));
+            for i=1:size(x,2)
+                J = this.f.getStateJacobian(x(:,i),t(i),mu(:,i));
+                fx(:,i) = J(nonzero);
             end
         end
         
@@ -110,6 +97,13 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
             % dscomponents.ACompEvalCoreFun to allow transformation of the
             % indices from linear to matrix components and derivatives.
             
+            % Transform indices to jacobian matrix indices
+            % (the jac wrapper only "works" on nonzero jacobian entries)
+            if ~isempty(this.f.JSparsityPattern)
+                jidx = find(this.f.JSparsityPattern);
+                pts = jidx(pts)';
+            end
+            
             % Ensure row vectors
             if size(pts,1) > 1
                 pts = reshape(pts,1,[]);
@@ -118,8 +112,10 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
                 error('Points have to be unique.');
             end
             
-            % Get matrix indexing of the desired points 
-            [i, j] = ind2sub([this.f.fDim this.fullxDim], pts);
+            % Get matrix indexing of the desired points
+            % ind2sub direct replacement!
+            i = rem(pts-1, this.f.fDim)+1;
+            j = (pts-i)/this.f.fDim+1;
             % Only use the i-th effective components of f, the j's
             % correspond to the derivatives of the i-th components with
             % respect to the j-th variable.

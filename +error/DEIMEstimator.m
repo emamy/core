@@ -159,6 +159,7 @@ classdef DEIMEstimator < error.BaseEstimator
     properties(Access=private, Transient)
         fullsol;
         uolst = [];
+        silent = false;
     end
     
     methods
@@ -184,7 +185,8 @@ classdef DEIMEstimator < error.BaseEstimator
             md = fm.Data;
             A = [];
             if ~isempty(fA)
-                A = (fA - md.V*(md.W'*fA))*md.V;
+                hlp = fA*md.V;
+                A = hlp - md.V*(md.W'*hlp); % (I-VW^T)AV
                 this.M6 = A'*(G*A);
                 this.Ah = A;
                 
@@ -222,6 +224,39 @@ classdef DEIMEstimator < error.BaseEstimator
                 this.M9 = [];
             end
             
+            %% Large offline data
+            jtd = data.ApproxTrainData.computeFrom(fm, ...
+                general.JacCompEvalWrapper(fm.System.f), this.TrainDataSelector, false);
+            fm.Data.JacobianTrainData = jtd;
+
+            d = fm.System.f.xDim;
+            n = size(jtd.fxi,2);
+            v = data.FileMatrix(d,n,fm.Data.DataDirectory,512*1024^2);
+            ln = zeros(1,n);
+            times = ln;
+            pi = tools.ProcessIndicator('Computing Jacobian similarity transform data for %d jacobians',n,false,n);
+            hassparse = ~isempty(fm.System.f.JSparsityPattern);
+            if hassparse
+                [i,j] = find(fm.System.f.JSparsityPattern);
+            end
+            for nr = 1:n
+                if hassparse
+                    J = sparse(i,j,jtd.fxi(:,nr),d,d);
+                else
+                    J = reshape(jtd.fxi(:,nr),d,d);
+                end
+                t = tic;
+                [ln(nr), v(:,nr)] = general.Utils.logNorm(J);
+                times(nr) = toc(t);
+                pi.step;
+            end
+            pi.stop;
+
+            jstd.VFull = v;
+            jstd.LogNorms = ln;
+            jstd.CompTimes = times;
+            fm.Data.JacSimTransData = jstd;
+            
             %% Matrix DEIM
             jd = general.MatrixDEIM;
             jd.MaxOrder = this.JacMatDEIMMaxOrder;
@@ -248,11 +283,17 @@ classdef DEIMEstimator < error.BaseEstimator
                 p.Value = this.JacSimTransMaxSize;
                 [Q, this.QSingVals] = ...
                     p.computePOD(md.JacSimTransData.VFull);
-                this.QFull = Q.toFullMatrix;
+                if isa(Q,'data.FileMatrix')
+                    this.QFull = Q.toMemoryMatrix;
+                else
+                    this.QFull = Q;
+                end
                 if size(this.QFull,2) < this.JacSimTransMaxSize
-                    this.JacSimTransMaxSize = size(this.QFull,2);
                     fprintf(2,'Only %d nonzero singular values in difference to %d desired ones. Setting JacSimTransMaxSize=%d\n',...
                         size(this.QFull,2),this.JacSimTransMaxSize,size(this.QFull,2));
+                    this.silent = true;
+                    this.JacSimTransMaxSize = size(this.QFull,2);
+                    this.silent = false;
                 end
                 red = 1-size(this.QFull,2)/size(this.QFull,1);
                 if KerMor.App.Verbose > 0
@@ -310,7 +351,8 @@ classdef DEIMEstimator < error.BaseEstimator
                 rm = this.ReducedModel;
                 fs = rm.FullModel.System;
                 I = speye(size(rm.V,1));
-                a = (I-rm.V*rm.W')*fs.A.evaluate(rm.V*x,t,mu);
+                A = fs.A.evaluate(rm.V*x,t,mu);
+                a = A - rm.V*(rm.W'*A);
                 a = a + rm.FullModel.System.f.evaluate(rm.V*x,t,mu) ...
                     - rm.V*rm.System.f.evaluate(x,t,mu);
                 if ~isempty(fs.B)
@@ -420,6 +462,7 @@ classdef DEIMEstimator < error.BaseEstimator
         
         function copy = clone(this)
             copy = clone@error.BaseEstimator(this, error.DEIMEstimator);
+            copy.silent = true;
             
             % DEIM stuff
             copy.JacMatDEIMMaxOrder = this.JacMatDEIMMaxOrder;
@@ -474,6 +517,7 @@ classdef DEIMEstimator < error.BaseEstimator
             if ~isempty(this.Bh)
                 copy.Bh = this.Bh.clone;
             end
+            copy.silent = false;
         end
         
     end
@@ -612,8 +656,8 @@ classdef DEIMEstimator < error.BaseEstimator
         end
         
         function set.JacSimTransMaxSize(this, value)
-            if ~isempty(value) && ~isempty(this.JacSimTransMaxSize) && ...
-                    this.JacSimTransMaxSize ~= value
+            if ~this.silent && ~isempty(value) && ~isempty(this.JacSimTransMaxSize) && ...
+                    this.JacSimTransMaxSize ~= value %#ok<MCSUP>
                 fprintf(2,'New maximum size of similarity transform. Re-run of offlineComputations necessary.\n');
             end
             this.JacSimTransMaxSize = value;

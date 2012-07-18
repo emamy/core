@@ -400,11 +400,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % - Deactivated due to immense overhead and matlab crashes. investigate further
             t = tic;
             if ~isempty(this.Approx)
-                [atd, time] = this.computeTrainingData(this.System.f, ...
-                    this.Approx.TrainDataSelector);
-                this.Data.ApproxTrainData = atd;
+                this.Data.ApproxTrainData = data.ApproxTrainData.computeFrom(this, ...
+                    this.System.f, this.Approx.TrainDataSelector, this.ComputeParallel);
             end
-            time = time + toc(t);
+            time = toc(t);
         end
         
         function time = off5_computeApproximation(this)
@@ -444,45 +443,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % Prepares offline data for a possible error estimator.
             t = tic;
             e = this.ErrorEstimator;
-            time = 0;
             if ~isempty(e)
                 if KerMor.App.Verbose > 0
                     fprintf('Starting error estimator offline computations...\n');
                 end
-                % Precompute large offline data needed for the DEIM error
-                % estimator
-                if isa(e,'error.DEIMEstimator')
-                    [jtd, time] = computeTrainingData(this,...
-                        general.JacCompEvalWrapper(this.System.f),...
-                        e.TrainDataSelector);
-                    this.Data.JacobianTrainData = jtd;
-                    
-                    d = this.System.f.xDim;
-                    n = size(jtd.fxi,2);
-                    v = data.FileMatrix(d,n,this.Data.DataDirectory,512*8*1024^2);
-                    ln = zeros(1,n);
-%                     cln = ln;
-                    times = ln;
-                    pi = tools.ProcessIndicator('Computing Jacobian similarity transform data for %d jacobians',n,false,n);
-                    for nr = 1:n
-                        J = reshape(jtd.fxi(:,nr),d,d);
-                        t = tic;
-                        [ln(nr), v(:,nr)] = general.Utils.logNorm(J);
-%                         cln(nr) = general.Utils.complexLogNorm(J);
-                        times(nr) = toc(t);
-                        pi.step;
-                    end
-                    pi.stop;
-                    
-                    jstd.VFull = v;
-                    jstd.LogNorms = ln;
-%                     jstd.ComplexLogNorms = ln;
-                    jstd.CompTimes = times;
-                    this.Data.JacSimTransData = jstd;
-                end
                 e.offlineComputations(this);
             end
-            time = time + toc(t);
+            time = toc(t);
         end
         
         function times = offlineGenerations(this)
@@ -591,58 +558,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     md.clearTrajectories;
                     fprintf(2,'Deleted all old trajectories for %s=%f\n',src.Name,this.ftcold.(src.Name));
                 end
+                this.Data.SimCache.clearTrajectories;
             end
-        end
-        
-        function [atd, time] = computeTrainingData(this, f, selector)
-            % Internal method that computes training data using a selector
-            % and a function
-            time = tic;
-            
-            % Select subset of projection training data
-            atd = selector.selectTrainingData(this);
-
-            % If projection is used, train approximating function in
-            % centers projected into the subspace.
-            if ~isempty(this.Data.V) && ~isempty(this.Data.W)
-                atd.xi = this.Data.V*(this.Data.W'*atd.xi);
-            end
-
-            % Compute f-Values at training data
-            if isempty(atd.mui)
-                atdmui = double.empty(0,length(atd.ti));
-            else
-                atdmui = atd.mui;
-            end
-
-            if this.ComputeParallel
-                error('Not yet implemented for FileMatrix atd.xi');
-                atdxi = atd.xi;
-                atdti = atd.ti;
-                fval = zeros(size(atdxi));
-                if KerMor.App.Verbose > 0
-                    fprintf('Starting parallel f-values computation at %d points on %d workers...\n',size(atd,2),matlabpool('size'));
-                end
-                parfor sidx=1:size(atdxi,2)
-                    fval(:,sidx) = ...
-                        f.evaluateCoreFun(atdxi(:,sidx),... % x
-                        atdti(sidx),... % t
-                        atdmui(:,sidx)); % mu
-                end
-                atd.fxi = fval;
-            else
-                xi = atd.xi;
-                if KerMor.App.Verbose > 0
-                    fprintf('Serial computation of f-values at %d points (%d xi-blocks) ...\n',size(atd.xi,2),xi.nBlocks);
-                end
-                fxi = data.FileMatrix(f.fDim,size(xi,2),xi);
-                for i=xi.nBlocks
-                    pos = xi.getBlockPos(i);
-                    fxi(:,pos) = f.evaluate(xi.loadBlock(i), atd.ti(pos), atdmui(:,pos));
-                end
-                atd.fxi = fxi;
-            end
-            time = toc(time);
         end
     end
         

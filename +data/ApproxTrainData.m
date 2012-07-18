@@ -4,6 +4,9 @@ classdef ApproxTrainData < handle
 %
 % @author Daniel Wirtz @date 2011-11-02
 %
+% @new{0,6,dw,2012-07-18} Moved computation method for approx train data from
+% models.BaseFullModel to here.
+%
 % @new{0,6,dw,2011-11-16} Added a new method data.ApproxTrainData.getCombinedData which returns
 % the triples `x_i,t_i,\mu_i` as one column matrix.
 %
@@ -169,6 +172,58 @@ classdef ApproxTrainData < handle
     end
     
     methods(Static)
+        function atd = computeFrom(model, f, selector, parallel)
+            % Computes approximation training data for a model, function and selector
+            if nargin < 4
+                parallel = false;
+            end
+            
+            % Select subset of projection training data
+            atd = selector.selectTrainingData(model);
+            
+            % If projection is used, train approximating function in
+            % centers projected into the subspace.
+            if ~isempty(model.Data.V) && ~isempty(model.Data.W)
+                atd.xi = model.Data.V*(model.Data.W'*atd.xi);
+            end
+
+            % Compute f-Values at training data
+            if isempty(atd.mui)
+                atdmui = double.empty(0,length(atd.ti));
+            else
+                atdmui = atd.mui;
+            end
+
+            if parallel
+                error('Not yet implemented for FileMatrix atd.xi');
+                atdxi = atd.xi;
+                atdti = atd.ti;
+                fval = zeros(size(atdxi));
+                if KerMor.App.Verbose > 0
+                    fprintf('Starting parallel f-values computation at %d points on %d workers...\n',size(atd,2),matlabpool('size'));
+                end
+                parfor sidx=1:size(atdxi,2)
+                    fval(:,sidx) = ...
+                        f.evaluateCoreFun(atdxi(:,sidx),... % x
+                        atdti(sidx),... % t
+                        atdmui(:,sidx)); % mu
+                end
+                atd.fxi = fval;
+            else
+                xi = atd.xi; %#ok<*PROP>
+                if KerMor.App.Verbose > 0
+                    fprintf('Serial computation of f-values at %d points (%d xi-blocks) ...\n',size(atd.xi,2),xi.nBlocks);
+                end
+                fxi = data.FileMatrix(f.fDim,size(xi,2),xi);
+                for i=xi.nBlocks
+                    pos = xi.getBlockPos(i);
+                    hlp = f.evaluate(xi.loadBlock(i), atd.ti(pos), atdmui(:,pos));
+                    fxi(:,pos) = hlp;
+                end
+                atd.fxi = fxi;
+            end
+        end
+        
         function atd = makeUniqueXi(atd)
             error('not yet implemented with handle usage');
             [~, selidx] = unique(atd.xi','rows');

@@ -50,7 +50,7 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
         m;
     end
     
-    properties(Access=private)
+    properties(SetAccess=private)
         % An index matrix, storing for each column both the block number and the relative
         % index.
         idx;
@@ -58,13 +58,15 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
         % Indicates if a block has explicitly assigned values so far
         created;
         
+        % The effective block size
+        blocksize;
+    end
+    
+    properties(Access=private, Transient)
         % Cache-related stuff
         cachedBlock = [];
         cachedNr = 0;
         cacheDirty = false;
-        
-        % The effective block size
-        blocksize;
     end
     
     methods
@@ -136,8 +138,17 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             % it is faster to form the transposed once instead of having a nBlocks^2 cost
             % operation in each call to the custom multiplication function in
             % general.ABlockSVD.getSVD.
+            
+            if nargin < 2
+                k = min(this.n,this.m);
+            end
+            
             trans = this.nBlocks > 1 && this.n > this.m;
             if trans
+                if KerMor.App.Verbose > 0
+                    fprintf('FileMatrix.getSVD: Transposing (%dx%d -> %dx%d, %d blocks) for better performance.\n',...
+                        this.n,this.m,this.m,this.n,this.nBlocks);
+                end
                 hlp = this.ctranspose;
             else
                 hlp = this;
@@ -166,7 +177,7 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             end
         end
         
-        function A = toFullMatrix(this)
+        function A = toMemoryMatrix(this)
             % Converts this FileMatrix to a full double matrix.
             A = zeros(this.n,this.m);
             for i=1:this.nBlocks
@@ -180,6 +191,14 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
         function pos = getBlockPos(this, nr)
             % Returns the column indices of the block "nr" within the full matrix.
             pos = (nr-1)*this.bCols + 1 : min(nr*this.bCols,this.m);
+        end
+        
+        function copy = copyWithNewBlockSize(this, block_size)
+            copy = data.FileMatrix(this.n,this.m,fileparts(this.DataDirectory),block_size);
+            for k=1:this.nBlocks
+                pos = this.getBlockPos(k);
+                copy.subsasgn(struct('type',{'()'},'subs',{{':',pos}}),this.loadBlock(k));
+            end
         end
         
         %% Overloaded methods
@@ -317,7 +336,7 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
                 end
                 % Return a matrix if the A argument was a transposed vector
                 if size(A,1) == 1
-                    AB = AB.toFullMatrix;
+                    AB = AB.toMemoryMatrix;
                 end
             end
         end
@@ -400,6 +419,16 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
         function [n, m] = getTotalSize(this)
             n = this.n;
             m = this.m;
+        end
+        
+        function this = saveobj(this)
+            saveobj@data.FileData(this);
+            if this.cacheDirty
+                A = this.cachedBlock;%#ok
+                save([this.DataDirectory filesep sprintf('block_%d.mat',this.cachedNr)], 'A');
+                this.created(this.cachedNr) = true;
+                this.cacheDirty = false;
+            end
         end
     end
     
@@ -493,9 +522,9 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             p = sqrt(eps);
             [u,s,v] = svd(B,'econ');
             [U,S,V] = A.getSVD;
-            V = V.toFullMatrix;
+            V = V.toMemoryMatrix;
             [U5,S5,V5] = A.getSVD(5);
-            V5 = V5.toFullMatrix;
+            V5 = V5.toMemoryMatrix;
             res = res && norm(abs(V)-abs(v),'fro') < p && norm(abs(U)-abs(u),'fro') < p &&...
                 norm(diag(S)-diag(s)) < p;
             res = res && norm(abs(V5)-abs(v(:,1:5)),'fro') < p ...
@@ -504,9 +533,9 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             
             [ut,st,vt] = svd(B','econ');
             [Ut,St,Vt] = At.getSVD;
-            Ut = Ut.toFullMatrix;
+            Ut = Ut.toMemoryMatrix;
             [Ut5,St5,Vt5] = At.getSVD(5);
-            Ut5 = Ut5.toFullMatrix;
+            Ut5 = Ut5.toMemoryMatrix;
             res = res && norm(abs(Vt)-abs(vt),'fro') < p && norm(abs(Ut)-abs(ut),'fro') < p &&...
                 norm(diag(St)-diag(st)) < p;
             res = res && norm(abs(Vt5)-abs(vt(:,1:5)),'fro') < p ...

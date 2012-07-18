@@ -130,28 +130,12 @@ classdef DEIM < KerMorObject & general.AProjectable
             p.Mode = 'abs';
             p.Value = this.MaxOrder;
             
-            % Create full matrix out of sparse fxi sets to enable use of
-            % svd instead of svds
-            canshrink = false;
-            if issparse(fxi)
-                iszero = sum(fxi,2) == 0;
-                canshrink = any(iszero);
-                % Check if same sparsity pattern holds for each fxi column
-                if canshrink
-                    fxi = full(fxi(~iszero,:));
-                end
-            end
             %p.UseSVDS = size(fxi,1) > 10000;
             [Utmp, this.SingularValues] = p.computePOD(fxi);
             if isa(Utmp,'data.FileMatrix')
-                Utmp = Utmp.toFullMatrix;
+                Utmp = Utmp.toMemoryMatrix;
             end
             this.u = Utmp;
-            
-            if canshrink
-                tmp(~iszero,:) = this.u;
-                this.u = sparse(tmp);
-            end
             
             if size(this.u,2) < this.MaxOrder
                 fprintf('POD returned less (=%d) than MaxOrder (=%d) basis vectors. Setting MaxOrder=%d.\n',...
