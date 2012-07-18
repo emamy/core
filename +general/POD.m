@@ -124,6 +124,22 @@ classdef POD < KerMorObject
                 [podvec, s] = data.getSVD(target_dim);
             %% Matrix argument case
             else
+                % Create full matrix out of sparse fxi sets to enable use of
+                % svd instead of svds
+                nonzero = [];
+                if issparse(data)
+                    nonzero = find(sum(abs(data),2) ~= 0);
+                    % Check if same sparsity pattern holds for each fxi column
+                    if ~isempty(nonzero)
+                        if KerMor.App.Verbose > 2
+                            fprintf('Reducing data dimension from %d to %d as sparse matrix is given.',...
+                                size(data,1),length(find(nonzero)));
+                        end
+                        fulldim = size(data,1);
+                        data = full(data(nonzero,:));
+                    end
+                end
+                
                 if KerMor.App.Verbose > 2
                     fprintf('Starting POD on %dx%d matrix with mode ''%s'' and value %g (UseSVDS=%d) ... ',...
                         size(data),this.Mode,this.Value,this.UseSVDS);
@@ -188,6 +204,12 @@ classdef POD < KerMorObject
                     % properly orthonormal
                     o = general.Orthonormalizer;
                     podvec = o.orthonormalize(podvec);
+                end
+                
+                % Re-create the sparse matrix structure after POD computation if input argument
+                % was a sparse matrix
+                if ~isempty(nonzero)
+                    this.u = general.MatUtils.toSparse(this.u, nonzero, fulldim);
                 end
             end
         end

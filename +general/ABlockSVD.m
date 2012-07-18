@@ -54,9 +54,11 @@ classdef ABlockSVD < handle
             
             fun = @colmode_mult;
             if rowmode
-                warning('KerMor:BlockSVD',['Computing SVD on matrix with m < n is very inefficient. '...
-                    'Consider arranging the matrix transposed.']);
                 fun = @rowmode_mult;    
+                if this.getNumBlocks > 1
+                    warning('KerMor:BlockSVD',['Computing SVD on matrix with m < n is very inefficient. '...
+                        'Consider arranging the matrix transposed.']);
+                end
             end
             [U,S] = eigs(fun,psize,k,'la',opts);
             sel = sqrt(diag(S)/S(1)) >= this.MinRelSingularValueSize;

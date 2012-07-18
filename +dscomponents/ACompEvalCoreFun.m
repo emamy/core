@@ -250,13 +250,16 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             
             nsets = 3;
             s = RandStream('mt19937ar','Seed',2);
-            setsizes = s.randi(size(fx,1), nsets, 1);
+            % Limit set sizes to 10000
+            setsizes = s.randi(max(size(fx,1),10000), nsets, 1);
             sets = cell(nsets,1);
             for i = 1:length(setsizes)
                 sets{i} = unique(s.randi(size(fx,1),1,setsizes(i)));
             end
-            % Add an extra set with full size
-            sets{end+1} = 1:size(fx,1);
+            % Add an extra set with full size (only for functions with dim less than 10000)
+            if size(fx,1) <= 10000
+                sets{end+1} = 1:size(fx,1);
+            end
             res = true;
             for idx=1:length(sets)
                 set = sets{idx};

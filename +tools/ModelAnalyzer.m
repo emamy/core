@@ -123,7 +123,7 @@ classdef ModelAnalyzer < handle;
             lil2relyl2 = max(l2relyl2);
             meanrell2 = mean(l2relyl2);
             %fprintf('||y(t_i)||_2: %s',general.Utils.implode(l2,', ','%2.3f'));
-            t = PrintTable('Error comparison for %s:\n',str);
+            t = PrintTable('Error comparison for %s:',str);
             t.addRow('L2 time and space error','L^2(||y(t) - yr(t)||_2,[0,T])',l2l2);
             t.addRow('Linf time and L2 space error','L^inf(||y(t) - yr(t)||_2,[0,T])',lil2);
             t.addRow('Relative L2 time and space error','L^2(||(y(t) - yr(t)) / y(t)||_2,[0,T])',l2l2relyl2);

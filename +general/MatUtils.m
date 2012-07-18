@@ -220,6 +220,20 @@ classdef MatUtils
                 Kinv = tmp - a*b*c;
             end
         end
+        
+        function Asparse = toSparse(A, rowidx, n)
+            % Converts a full matrix A to a sparse matrix, where the entries of A are split up
+            % to the row indices specified by rowidx.
+            %
+            % Parameters:
+            % A: The matrix to "sparsify" @type matrix<double>
+            % rowidx: The row indices of A rows inside the sparse matrix @type rowvec<integer>
+            % n: The row size of the target sparse matrix.
+            o = size(A,2);
+            i = repmat(rowidx,o,1);
+            j = reshape(repmat(1:o,length(rowidx),1),[],1);
+            Asparse = sparse(i,j,A(:),n,o);
+        end
     end
     
     methods(Static)

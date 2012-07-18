@@ -192,6 +192,7 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileData & general.ABl
             this.bbmin = [];
             this.bbmax = [];
             this.sizes = [];
+            this.trajlen = [];
         end
         
         function consolidate(this, model, model_ID)

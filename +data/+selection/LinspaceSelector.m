@@ -83,24 +83,13 @@ classdef LinspaceSelector < data.selection.ASelector
             % Get valid size
             s = min(this.Size,ts);
             
-            tbytes = td.getTrajectoryDoFs*s*8;
-            u = memory;
-            avail = floor(u.MemAvailableAllArrays * this.MaxMemPerc);
-            if avail < tbytes
-                tmp = floor(avail / (8*td.getTrajectoryDoFs));
-                warning('KerMor:TooSmallMemory',['Desired size %d would need %gGB memory, '...
-                    'only have %gGB available.\nUsing new size %d (uses %g%% of available memory)'],...
-                    s,tbytes/1024^3,u.MemAvailableAllArrays/1024^3,tmp,this.MaxMemPerc*100);
-                s = tmp;
-            end
-            
             % Obtain indices for each trajectory
             idx = mod(round(linspace(0,ts-1,s)),tl)+1;
             tidx = ceil(linspace(1,ts-1,s)/tl);
             traj = unique(tidx);
             
             [xd, mud] = td.getTrajectoryDoFs;
-            xi = data.FileMatrix(xd,s,md.DataDirectory,8*512*1024^2); % Use 512 MB chunks for approx train data
+            xi = data.FileMatrix(xd,s,md.DataDirectory,512*1024^2); % Use 512 MB chunks for approx train data
             ti = zeros(1,s);
             mui = zeros(mud,s);
             

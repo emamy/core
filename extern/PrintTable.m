@@ -181,8 +181,8 @@ classdef PrintTable < handle
         % 'com.mathworks.services.Prefs.getIntegerPref('EditorSpacesPerTab')'
         % If no value is found, 4 is used.
         %
-        % @default 4 @type integer
-        TabCharLen = com.mathworks.services.Prefs.getIntegerPref('EditorSpacesPerTab',4);
+        % @default 8 @type integer
+        TabCharLen = 8; %com.mathworks.services.Prefs.getIntegerPref('EditorSpacesPerTab',4);
 	   
         % A char sequence to separate the different columns.
         %

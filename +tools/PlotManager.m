@@ -121,7 +121,14 @@ classdef PlotManager < handle
         % @type logical @default false
         NoTitlesOnSave = false;
         
+        %
         SaveFont = struct('FontWeight','bold','FontSize',16);
+        
+        % Flag indicating if the plots should be left open once the PlotManager is deleted (as
+        % variable)
+        %
+        % @type logical @default false
+        LeaveOpen = false;
     end
     
     properties(Access=private)
@@ -345,7 +352,9 @@ classdef PlotManager < handle
         end
         
         function delete(this)
-            this.closeAll;
+            if ~this.LeaveOpen
+                this.closeAll;
+            end
         end
     end
     
