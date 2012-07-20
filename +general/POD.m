@@ -122,6 +122,7 @@ classdef POD < KerMorObject
                         n,m,class(data),this.Mode,this.Value);
                 end
                 [podvec, s] = data.getSVD(target_dim);
+                s = diag(s);
             %% Matrix argument case
             else
                 % Create full matrix out of sparse fxi sets to enable use of

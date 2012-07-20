@@ -96,7 +96,11 @@ function [t, matches, parents] = FindInstance(obj, type, varargin)
                         end
                         props = cell(1,length(varargin));
                         for k = 1:length(varargin)
-                            props{k} = prop.(varargin{k});
+                            if isprop(prop,varargin{k}) || isfield(prop,varargin{k})
+                                props{k} = prop.(varargin{k});
+                            else
+                                props{k} = 'doesn''t exist';
+                            end
                         end
                         t.addRow(thislvl,class(prop),st,class(obj),props{:});
                     end    

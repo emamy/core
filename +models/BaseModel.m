@@ -283,9 +283,18 @@ classdef BaseModel < KerMorObject
             starttime = tic;
             
             % Re-scale state variable
-            x = bsxfun(@times,x,this.System.StateScaling);
+            % (new variable name here as x is optionally returned!)
+            sx = x;
+            if ~isequal(this.System.StateScaling,1)
+                if isscalar(this.System.StateScaling)
+                    sx = this.System.StateScaling*x;
+                else
+                    sx = bsxfun(@times,x,this.System.StateScaling);
+                end
+            end
+            
             % Convert to output
-            y = this.System.C.computeOutput(t,x,mu);
+            y = this.System.C.computeOutput(t, sx, mu);
             
             % Scale times back to real units
             t = t*this.tau;

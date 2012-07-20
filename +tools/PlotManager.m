@@ -178,8 +178,8 @@ classdef PlotManager < handle
             end
             this.cnt = 0;
             this.Figures = [];
-            s = get(0,'ScreenSize');
-            this.ss = s(3:4);
+            s = get(0,'MonitorPositions');
+            this.ss = s(1,3:4);
         end
         
         function h = nextPlot(this, tag, caption, xlab, ylab)

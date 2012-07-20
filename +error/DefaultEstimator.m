@@ -90,7 +90,10 @@ classdef DefaultEstimator < error.BaseEstimator
     
     methods(Access=protected)
         function ct = postprocess(this, x, t, mu, inputidx)
+            % Overwrites the default postprocess method.
+            
             m = this.ReducedModel.FullModel;
+            
             % Compute full solution
             [~, yf, ct, xf] = m.simulate(mu, inputidx);
             st = tic;
@@ -100,12 +103,11 @@ classdef DefaultEstimator < error.BaseEstimator
             else
                 diff = xf-xr;
             end
+            this.StateError = Norm.LG(diff,this.ReducedModel.G);
             
-            % Re-scale
-            this.StateError = sqrt(sum(diff.*(this.ReducedModel.GScaled*diff),1));
-            
+            % The reduced model's output C contains scaling! 
             yr = this.ReducedModel.System.C.computeOutput(t, xr, mu);
-            this.RealOutputError = sqrt(sum((yf-yr).^2,1));
+            this.RealOutputError = Norm.L2(yf-yr);
             ct = ct + toc(st);
         end
     end

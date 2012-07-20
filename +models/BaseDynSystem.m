@@ -53,7 +53,7 @@ classdef BaseDynSystem < KerMorObject
     % KerMor - Model Order Reduction using Kernels:
     % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
     % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
-    % - \c License @ref licensing  
+    % - \c License @ref licensing
     
     properties(SetObservable)
         % The core f function from the dynamical system.
@@ -458,8 +458,10 @@ classdef BaseDynSystem < KerMorObject
         end
         
         function set.StateScaling(this, value)
-            if ~isvector(value)
-                error('Value must be a vector');
+            if isempty(value)
+                error('StateScaling must not be empty. (Set to 1 if not needed).');
+            elseif ~isvector(value)
+                error('StateScaling must be a vector.');
             end
             this.StateScaling = value(:);
         end

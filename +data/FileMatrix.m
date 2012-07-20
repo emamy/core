@@ -202,6 +202,37 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
         end
         
         %% Overloaded methods
+        function s = sum(this, dim)
+            if nargin < 2
+                dim = 1;
+            end
+            if dim == 1
+                s = zeros(1,this.m);
+                for k=1:this.nBlocks
+                    s(this.getBlockPos(k)) = sum(this.loadBlock(k),1);
+                end
+            elseif dim == 2
+                s = zeros(this.n,1);
+                for k=1:this.nBlocks
+                    s = s + sum(this.loadBlock(k),2);
+                end
+            else
+                error('Invalid sum dimension: %d',dim);
+            end
+        end
+        
+        function value = power(this, expo)
+            if ~isa(this,'data.FileMatrix') && ~isscalar(expo)
+                error('FileMatrix power only defined for scalar values.');
+            end
+            value = data.FileMatrix(this.n,this.m,this);
+            for k=1:this.nBlocks
+                % Make sure its immediately saved
+                value.cacheDirty = true;
+                value.saveBlock(k,this.loadBlock(k).^2);
+            end
+        end
+        
         function n = numel(~)
             n = 1;
         end
@@ -369,7 +400,7 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
                     res = true;
                 end
             elseif isa(B,'data.FileMatrix')
-                res = isequal(B, A);
+                res = eq(B, A);
             end
         end
         
@@ -478,7 +509,7 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
         function res = test_FileMatrix
             res = true;
             B = rand(10,100);
-            A = data.FileMatrix(10,100,KerMor.App.DataStoreDirectory,1600);
+            A = data.FileMatrix(10,100,KerMor.App.TempDirectory,1600);
             key = struct('type',{'()'},'subs',[]);
             % col-wise setting (fast)
             for k=1:100
@@ -546,6 +577,19 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             [bm, bM] = general.Utils.getBoundingBox(B);
             [am, aM] = A.getColBoundingBox;
             res = res && isequal(bm,am) && isequal(bM,aM);
+            
+            B = rand(100,10000)+.1;
+            A = data.FileMatrix(100,10000,KerMor.App.TempDirectory,round(numel(B)*8/40));
+            key.subs = {':', ':'};
+            A.subsasgn(key,B);
+            
+            % Sum test
+            bs = sum(B,2);
+            as = sum(A,2);
+            res = res && isequal(sum(B,1),sum(A,1)) && all(abs((as-bs) ./ bs)) < sqrt(eps);
+            
+            % Power test
+            res = res && A.^2 == B.^2;%#ok
         end
         
         function test_SpeedSVDTransp

@@ -125,7 +125,11 @@ classdef BaseEstimator < KerMorObject & ICloneable
             
             st = tic;
             % Tranform to output error estimation (if used)
-            C = this.ReducedModel.FullModel.System.C;
+            fs = this.ReducedModel.FullModel.System;
+            C = fs.C;
+            if ~isequal(fs.StateScaling,1)
+                C = C*diag(fs.StateScaling);
+            end
             if ~isempty(C)
                 % Get error
                 if C.TimeDependent

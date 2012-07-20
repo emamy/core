@@ -45,5 +45,20 @@ classdef LinearOutputConv < dscomponents.AOutputConv
         end
     end
     
+    %% Overloads
+    methods
+        function prod = mtimes(this, other)
+            if isa(this,'dscomponents.LinearOutputConv')
+                if isa(other,'dscomponents.LinearOutputConv')
+                    prod = dscomponents.LinearOutputConv(this.C * other.C);
+                else
+                    prod = dscomponents.LinearOutputConv(this.C * other);
+                end
+            elseif isa(other,'dscomponents.LinearOutputConv')
+                prod = dscomponents.LinearInputConv(this * other.C);
+            end
+        end
+    end
+    
 end
 
