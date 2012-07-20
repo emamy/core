@@ -234,13 +234,19 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             psets = this.pts;
         end
         
-        function res = test_ComponentEvalMatch(this, dim, pdim, xsize)
-            % Tests if the local implementation of
-            if nargin < 4
+        function res = test_ComponentEvalMatch(this, xsize)
+            % Tests if the local implementation of evaluateComponents matches the full
+            % evaluation
+            
+            if ~isempty(this.V)
+                error('Cannot run test for projected ACompEvalCoreFuns.');
+            end
+            
+            if nargin < 2
                 xsize = 1;
             end
-            x = rand(dim,xsize);
-            mu = rand(pdim,xsize);
+            x = rand(this.xDim,xsize);
+            mu = rand(20,xsize); % simply assume param dim<=20
             t = rand(1,xsize);
             fx = this.evaluate(x, t, mu);
             oldpts = [];
@@ -251,7 +257,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             nsets = 3;
             s = RandStream('mt19937ar','Seed',2);
             % Limit set sizes to 10000
-            setsizes = s.randi(max(size(fx,1),10000), nsets, 1);
+            setsizes = s.randi(min(size(fx,1),5000), nsets, 1);
             sets = cell(nsets,1);
             for i = 1:length(setsizes)
                 sets{i} = unique(s.randi(size(fx,1),1,setsizes(i)));
@@ -269,7 +275,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
                 err = abs((tmp-fxc)./tmp);
                 err = err(tmp ~= 0);
                 d = max(err);
-                lres = isempty(d) || d < 1e-4;
+                lres = isempty(d) || d < 1e-3;
                 if ~lres || d > 10*sqrt(eps)
                     fprintf(2,'Warning! ACompEvalCoreFun evaluation test: Max rel. diff. for component wise vs. full evaluation: %e\n',full(d));
                 end
@@ -302,6 +308,26 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
         end
         
         function dfx = evaluateComponentPartialDerivatives(this, pts, ends, idx, deriv, self, x, t, mu, dfxsel)
+            % Parameters:
+            % pts: The output dimensions of f for which derivatives are required
+            % ends: At the `i`-th entry it contains the last position in the 'x' vector that
+            % indicates an input value relevant for the `i`-th point evaluation, i.e.
+            % 'f_i(x) = f_i(x(ends(i-1):ends(i)));'
+            % idx: The indices of x entries in the global x vector w.r.t the i-th point, e.g.
+            % 'xglobal(i-1:i+1) = x(ends(i-1):ends(i))'
+            % deriv: The indices within x that derivatives are required for.
+            % self: The positions in the x vector that correspond to the i-th output dimension,
+            % if applicable (usually f_i depends on x_i, but not necessarily)
+            % x: The required x values to evaluate all points pts
+            % t: The current time
+            % mu: the current parameter
+            % dfxsel: A derivative selection matrix. Contains the mapping for each row of x to
+            % the output points pts. As deriv might contain less than 'size(x,1)' values, use
+            % 'dfxsel(:,deriv)' to select the mapping for the actually computed derivatives.
+            %
+            % Return values:
+            % dfx: A column vector with 'numel(deriv)' rows containing the derivatives at all
+            % specified pts i with respect to the coordinates given by 'idx(ends(i-1):ends(i))'
             dt = sqrt(eps);
             d = length(deriv);
             xd = size(x,2);
@@ -323,7 +349,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
         end
     end
     
-    methods(Abstract)
+    methods(Abstract, Access=protected)
         % This is the template method that actually evaluates the
         % components at given points and values.
         %

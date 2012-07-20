@@ -141,10 +141,6 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
             fx = this.trafo{nr}*dfx;
         end
         
-        function varargout = evaluateComponents(varargin)
-            % nothing to do here as this is a wrapper
-        end
-        
         function copy = clone(this)
             copy = general.JacCompEvalWrapper;
             copy = clone@dscomponents.ACompEvalCoreFun(this, copy);
@@ -161,6 +157,12 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
             proj.xDim = proj.f.xDim;
             % vec-op leads to product of jacobian size dimension
             proj.fDim = proj.f.fDim*proj.f.xDim;
+        end
+    end
+    
+    methods(Access=protected)
+        function varargout = evaluateComponents(varargin)
+            % nothing to do here as this is a wrapper
         end
     end
 end

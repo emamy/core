@@ -113,9 +113,9 @@ classdef DEIM < KerMorObject & general.AProjectable
             this.f = f;
             if ~isa(this.f,'dscomponents.ACompEvalCoreFun');
                 error('Cannot use DEIM with non ACompEvalCoreFun-implementing functions.');
-            elseif ~f.test_ComponentEvalMatch(f.xDim, 100, 1)
+            elseif ~f.test_ComponentEvalMatch
                 error('Component evaluation does not match direct evaluation.');
-            elseif ~f.test_ComponentEvalMatch(f.xDim, 100, 10)
+            elseif ~f.test_ComponentEvalMatch(10)
                 error('Component evaluation does not match direct evaluation for multi-arguments.');
             end
             
