@@ -92,12 +92,6 @@ classdef EstimatorAnalyzer < handle
         
         %% DEIM estimator related stuff
         
-        % The jacobian matrix DEIM approximation orders to use.
-        JacDEIMOrders = [1 10];
-        
-        % The similarity transform sizes to use.
-        SimTransSizes = [1 10];
-        
         % The error orders to use. Unset if the JacDEIM/SimTranssizes
         % version should be used.
         ErrorOrders = [1 2 3 5 10];
@@ -135,7 +129,10 @@ classdef EstimatorAnalyzer < handle
                 model.offlineGenerations;
                 this.ReducedModel = model.buildReducedModel;
             end
-            this.buildEstimatorStruct(this.ReducedModel);
+            % Only call struct building for old, non-deim estimators
+            if ~isa(this.ReducedModel.ErrorEstimator,'error.DEIMEstimator')
+                this.buildEstimatorStruct(this.ReducedModel);
+            end
         end
         
         function [t, pm, errs, relerrs, ctimes] = start(this, mu, inidx, pm)
@@ -261,76 +258,18 @@ classdef EstimatorAnalyzer < handle
         function plotErrors(this, errs, pm)
             ax = pm.nextPlot('abserr',['Error estimations for model: ' this.Model.Name],...
                 'Time', 'Error estimates');
-            if this.LogarithmicPlot
-                ph = semilogy(ax,this.Model.Times,errs);
-            else
-                ph = plot(ax,this.Model.Times,errs);
-            end
-            set(ph,'LineWidth',this.LineWidth);
-            set(ph(1),'LineWidth',this.LineWidth+.5);
-            hold(ax, 'on');
-            % Select extra marker places
-            nt = length(this.Model.Times);
-            sel = round(1:nt/this.NumMarkers:nt);
-            % Add some markers
-            for idx=1:length(this.Est)
-                set(ph(idx),'LineStyle',this.Est(idx).LineStyle);
-                % Shift marker positions for better visual
-                pos = mod(sel+round(nt/(this.NumMarkers*length(this.Est)))*(idx-1),nt)+1;
-                h = plot(ax,this.Model.Times(pos), errs(idx,pos),this.Est(idx).MarkerStyle,'MarkerSize',this.MarkerSize);
-                c = get(ph(idx),'Color');
-                set(h,'MarkerFaceColor',c,'MarkerEdgeColor',c*.7);
-            end
-            a = cell(1,length(this.Est));
-            [a{:}] = this.Est(:).Name;
-            [~,oh] = legend(a,'Location','SouthEast');
-            % Assign markers to legend
-            oh = findobj(oh,'Type','line');
-            for idx=1:length(this.Est)
-                % Why ever, there are 2*numPlots line handles, and the second one controls the
-                % markers in the center..
-                c = get(oh(2*idx),'Color');
-                set(oh(2*idx),'Marker',this.Est(idx).MarkerStyle,'MarkerFaceColor',c,'MarkerEdgeColor',c*.7,...
-                    'MarkerSize',this.MarkerSize);
-            end
+            
+            this.doPlots(errs, ax);
+
             axis(ax,[0 this.Model.T min(errs(:)) 3*max(errs(:))]);
         end
         
         function plotRelativeErrors(this, relerrs, pm)
             ax = pm.nextPlot('relerr',['Relative error estimations e(t)/||y||, \Delta x(t)/||y|| for model: ' ...
                 this.Model.Name], 'Time', 'Relative error estimates');
-            if this.LogarithmicPlot
-                ph = semilogy(ax,this.Model.Times,relerrs);
-            else
-                ph = plot(ax,this.Model.Times,relerrs);
-            end
-            set(ph,'LineWidth',this.LineWidth);
-            set(ph(1),'LineWidth',this.LineWidth+.5);
-            hold on;
-            % Select extra marker places
-            nt = length(this.Model.Times);
-            sel = round(1:nt/this.NumMarkers:nt);
-            for idx=1:length(this.Est)
-                set(ph(idx),'LineStyle',this.Est(idx).LineStyle);
-                % Shift marker positions for better visual
-                pos = mod(sel+round(nt/(this.NumMarkers*length(this.Est)))*(idx-1),nt)+1;
-                h = plot(ax,this.Model.Times(pos), relerrs(idx,pos),this.Est(idx).MarkerStyle,...
-                    'MarkerSize',this.MarkerSize);
-                c = get(ph(idx),'Color');
-                set(h,'MarkerFaceColor',c,'MarkerEdgeColor',c*.7);
-            end
-            a = cell(1,length(this.Est));
-            [a{:}] = this.Est(:).Name;
-            [~,oh] = legend(a,'Location','SouthEast');
-            % Assign markers to legend
-            oh = findobj(oh,'Type','line');
-            for idx=1:length(this.Est)
-                % Why ever, there are 2*numPlots line handles, and the second one controls the
-                % markers in the center..
-                c = get(oh(2*idx),'Color');
-                set(oh(2*idx),'Marker',this.Est(idx).MarkerStyle,'MarkerFaceColor',c,...
-                    'MarkerEdgeColor',c*.7,'MarkerSize',this.MarkerSize);
-            end
+            
+            this.doPlots(relerrs, ax);
+            
             re = relerrs(:);
             re(isinf(re)) = -Inf;
             axis(ax,[0 this.Model.T min(relerrs(:)) 3*max(re)]);
@@ -338,33 +277,41 @@ classdef EstimatorAnalyzer < handle
         
         function plotCTimes(this, errs, ctimes, pm)
             ax = pm.nextPlot('ctimes',['Error estimator computation times: ' this.Model.Name], '\Delta(T)', 'Comp. time [s]');
-            str = ''; compplot = [];
-            for idx = 1:length(this.Est)
-                % Plotting preparations
-                if ~isa(this.Est(idx).Estimator,'error.ExpensiveBetaEstimator')
-                    str = [str sprintf('errs(%d,end),ctimes(%d),''%s'',',idx,idx,this.Est(idx).MarkerStyle)]; %#ok<*AGROW>
-                    compplot(end+1) = idx;
-                end
-            end
+            hold(ax, 'on');
+            ph = zeros(length(this.Est),1);
+            plotfun = @plot;
             if this.LogarithmicPlot
-                eval(['ph = semilogx(ax, ' str '''MarkerSize'',10);']);
-            else
-                eval(['ph = plot(ax, ' str '''MarkerSize'',10);']);
+                plotfun = @semilogx;
             end
-            % Fill symbols
+            ci = tools.LineSpecIterator;
+            for idx = 1:length(this.Est)
+                e = this.Est(idx);
+                if isfield(e,'Color')
+                    if isempty(e.Color)
+                        error('If a field "Color" exists, all estimators must have assigned a color.');
+                    end
+                    c = e.Color;
+                else
+                    c = ci.nextColor;
+                end
+                ph(idx) = plotfun(ax,errs(idx,end),ctimes(idx),...
+                            'Marker',e.MarkerStyle,'Color',c,...
+                            'MarkerSize',this.MarkerSize*1.5);                
+            end
+            % Fill symbols (later, so char-color specs can be used in estimator structs)
             for i=1:length(ph)
-                set(ph(i),'MarkerFaceColor',get(ph(i),'Color'));
-                set(ph(i),'MarkerEdgeColor',get(ph(i),'Color')*.7);
+                c = get(ph(i),'Color');
+                set(ph(i),'MarkerFaceColor',c);
+                set(ph(i),'MarkerEdgeColor',c*.7);
             end
             % Add line for minimum error!
-            hold(ax, 'on');
-            plot(ax,[errs(1,end) errs(1,end)],[min(ctimes(compplot)) max(ctimes(compplot))],'black');
+            plot(ax,[errs(1,end) errs(1,end)],[min(ctimes) max(ctimes)],'black');
             hold(ax, 'off');
-            
+            % Add legend
             a = cell(1,length(this.Est));
             [a{:}] = this.Est(:).Name;
-            legend(a(compplot),'Location','SouthEast');
-            axis([.9*min(errs(:)) 1.1*max(errs(:)) .9*min(ctimes(:)) 1.1*max(ctimes(:))]);
+            legend(a,'Location','SouthEast');
+            axis([.9*min(errs(:,end)) 1.1*max(errs(:,end)) .9*min(ctimes(:)) 1.1*max(ctimes(:))]);
         end
         
         function pt = getResultTable(this, errs, ctimes)
@@ -433,7 +380,10 @@ classdef EstimatorAnalyzer < handle
             end
             %fclose(fid);
         end
-        
+    end
+    
+    %% Getter & Setter
+    methods
         function set.EstimatorIterations(this, value)
             this.EstimatorIterations = value;
             if ~isempty(this.ReducedModel)%#ok
@@ -447,122 +397,56 @@ classdef EstimatorAnalyzer < handle
                 this.buildEstimatorStruct(this.ReducedModel);%#ok
             end
         end
-        
-        function set.JacDEIMOrders(this, value)
-            this.JacDEIMOrders = value;
-            if ~isempty(this.ReducedModel)%#ok
-                this.buildEstimatorStruct(this.ReducedModel);%#ok
-            end
-        end
-        
-        function set.SimTransSizes(this, value)
-            this.SimTransSizes = value;
-            if ~isempty(this.ReducedModel)%#ok
-                this.buildEstimatorStruct(this.ReducedModel);%#ok
-            end
-        end
-        
-        function set.ErrorOrders(this, value)
-            this.ErrorOrders = value;
-            if ~isempty(this.ReducedModel)%#ok
-                this.buildEstimatorStruct(this.ReducedModel);%#ok
-            end
-        end
-
     end
     
     methods(Access=private)
         
-        function buildEstimatorStruct(this, r)
-            if isa(r.ErrorEstimator,'error.DEIMEstimator')
-                if ~isempty(this.ErrorOrders)
-                    this.Est = this.buildDEIMEstimatorStruct_ErrOrder(r);
-                else
-                    this.Est = this.buildDEIMEstimatorStruct(r);
-                end
+        function doPlots(this, data, ax)
+            if this.LogarithmicPlot
+                ph = semilogy(ax,this.Model.Times,data);
             else
-                this.Est = this.buildKernelEstimatorStruct(r);
+                ph = plot(ax,this.Model.Times,data);
             end
-        end
-        
-        function est = buildDEIMEstimatorStruct_ErrOrder(this, r)
-            % Error estimators
-            est = struct.empty;
-            
-            est(end+1).Name = 'True reduction error';
-            est(end).Estimator = error.DefaultEstimator;
-            est(end).Estimator.setReducedModel(r);
-            est(end).Estimator.Enabled = true;
-            est(end).MarkerStyle = 'o';
-            est(end).LineStyle = '-';
-            
-            dest = r.ErrorEstimator.clone;
-            dest.Enabled = true;
-            
-            % Add best version
-            est(end+1).Name = 'Reference estimate';
-            est(end).Estimator = dest.clone;
-            est(end).Estimator.UseTrueDEIMErr = true;
-            est(end).MarkerStyle = 'p';
-            est(end).LineStyle = '-';
-            
-            m = tools.LineSpecIterator;
-            for j = 1:length(this.ErrorOrders)
-                str = sprintf('e.ReducedModel.System.f.Order = [e.ReducedModel.System.f.Order(1) %d];',this.ErrorOrders(j));
-                est(end+1).Name = sprintf('m''=%d',this.ErrorOrders(j));
-                est(end).Estimator = dest;
-                est(end).Callback = @(e)eval(str);
-                est(end).MarkerStyle = m.nextMarkerStyle;
-                est(end).LineStyle = '-.';
-            end
-        end
-        
-        function est = buildDEIMEstimatorStruct(this, r)
-            % Error estimators
-            est = struct.empty;
-            
-            est(end+1).Name = 'True error';
-            est(end).Estimator = error.DefaultEstimator;
-            est(end).Estimator.setReducedModel(r);
-            est(end).Estimator.Enabled = true;
-            est(end).MarkerStyle = 'o';
-            est(end).LineStyle = '-';
-            
-            dest = r.ErrorEstimator;
-            dest.UseTrueDEIMErr = false;
-            dest.UseTrueLogLipConst = false;
-            dest.Enabled = true;
-            
-            l = tools.LineSpecIterator;
-            for j = 1:length(this.JacDEIMOrders)
-                cl = l.nextLineStyle;
-                m = tools.LineSpecIterator;
-                for k = 1:length(this.SimTransSizes)
-                    e = dest.clone;
-                    e.JacMDEIM.Order = this.JacDEIMOrders(j);
-                    e.JacSimTransSize = this.SimTransSizes(k);
-                    est(end+1).Name = sprintf('m_j:%d, k:%d',...
-                        e.JacMDEIM.Order(1),e.JacSimTransSize);
-                    est(end).Estimator = e;
-                    est(end).MarkerStyle = m.nextMarkerStyle;
-                    est(end).LineStyle = cl;
+            set(ph,'LineWidth',this.LineWidth);
+            set(ph(1),'LineWidth',this.LineWidth+.5);
+            hold on;
+            % Select extra marker places
+            nt = length(this.Model.Times);
+            sel = round(1:nt/this.NumMarkers:nt);
+            ci = tools.LineSpecIterator;
+            for idx=1:length(this.Est)
+                e = this.Est(idx);
+                if isfield(e,'Color')
+                    if isempty(e.Color)
+                        error('If a field "Color" exists, all estimators must have assigned a color.');
+                    end
+                    c = e.Color;
+                else
+                    c = ci.nextColor;
                 end
+                set(ph(idx),'LineStyle',e.LineStyle,'Color',c);
+                % Shift marker positions for better visual
+                pos = mod(sel+round(nt/(this.NumMarkers*length(this.Est)))*(idx-1),nt)+1;
+                h = plot(ax,this.Model.Times(pos), data(idx,pos), e.MarkerStyle,...
+                    'MarkerSize',this.MarkerSize);
+                % Get resulting color, so char-color specs can be used as e.Color above)
+                c = get(ph(idx),'Color');
+                set(h,'MarkerFaceColor',c,'MarkerEdgeColor',c*.7);
             end
-            
-            % Expensive versions
-            e = dest.clone;
-            e.UseFullJacobian = true;
-            est(end+1).Name = 'L_G(Jf)';
-            est(end).Estimator = e;
-            est(end).MarkerStyle = 'h';
-            est(end).LineStyle = '-';
-            
-            e = dest.clone;
-            e.UseTrueLogLipConst = true;
-            est(end+1).Name = 'Loc. log-lip.';
-            est(end).Estimator = e;
-            est(end).MarkerStyle = 'p';
-            est(end).LineStyle = '-';
+            a = cell(1,length(this.Est));
+            [a{:}] = this.Est(:).Name;
+            [~,oh] = legend(a,'Location','SouthEast');
+            % Assign markers to legend
+            oh = findobj(oh,'Type','line');
+            for idx=1:length(this.Est)
+                c = get(ph(idx),'Color');
+                set(oh(2*idx),'Marker',this.Est(idx).MarkerStyle,'MarkerFaceColor',c,...
+                    'MarkerEdgeColor',c*.7,'MarkerSize',this.MarkerSize);
+            end
+        end
+        
+        function buildEstimatorStruct(this, r)
+            this.Est = this.buildKernelEstimatorStruct(r);
         end
         
         function est = buildKernelEstimatorStruct(this, r)

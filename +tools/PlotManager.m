@@ -38,6 +38,13 @@ classdef PlotManager < handle
 % pm.savePlots('.','fig');
 % pm.savePlots('.','png',true);
 %
+% @new{0,6,dw,2012-07-26}
+% - Added a new function 'createZoom' to easily copy a Figure (only in ''Single''-mode) and
+% zoom into a specified area.
+% - Now the savePlots method optionally takes an argument 'separate_legends', that specifies
+% for which selected figure to save the legend should be created as extra file (made for too
+% large legends)
+%
 % @new{0,6,dw,2012-06-22} Added a new property NoTitlesOnSave, which
 % enables to suppress any axes titles when savePlots is used.
 %
@@ -82,7 +89,7 @@ classdef PlotManager < handle
         % Is a two dimensional row vector with width and height
         %
         % @type rowvec<double> @default [600 480]
-        SingleSize = [600 480];
+        SingleSize = [800 600];
         
         % A prefix that has to be put before each file name for exported
         % plots.
@@ -129,6 +136,15 @@ classdef PlotManager < handle
         %
         % @type logical @default false
         LeaveOpen = false;
+        
+%         % Determines how many rows a legend may contain before its split up into multiple
+%         % columns.
+%         %
+%         % Uses the MatLab FileExchange contribution
+%         % http://www.mathworks.com/matlabcentral/fileexchange/27389
+%         %
+%         % @type integer @default 5
+%         MaxLegendRows = 5;
     end
     
     properties(Access=private)
@@ -145,7 +161,7 @@ classdef PlotManager < handle
     end
     
     properties(Access=private, Transient)
-        h = [];
+        curax = [];
         cnt;
         ss;
         % caption/labels for next plots
@@ -182,7 +198,7 @@ classdef PlotManager < handle
             this.ss = s(1,3:4);
         end
         
-        function h = nextPlot(this, tag, caption, xlab, ylab)
+        function ax_handle = nextPlot(this, tag, caption, xlab, ylab)
             % Creates a new axis to plot in. Depending on the property
             % tools.PlotMananger.Single this will either advance to the
             % next subplot or open up a new figure window of size
@@ -195,7 +211,7 @@ classdef PlotManager < handle
             % tag: The tag to use for the axes. @type char @default ''
             %
             % Return values:
-            % h: The handle to the new axes object. @type axes
+            % ax_handle: The handle to the new axes object. @type axes
             if nargin < 5
                 ylab = [];
                 if nargin < 4
@@ -216,21 +232,27 @@ classdef PlotManager < handle
             this.nyl = ylab;
             
             if this.Single
+%                 if ~isempty(this.Figures)
+%                     this.ensureLegendColumns(this.Figures(end));
+%                 end
                 this.Figures(end+1) = figure('Position',[(this.ss - this.SingleSize)/2 this.SingleSize],'Tag',tag);
-                h = gca;
+                ax_handle = gca;
             else
                 this.cnt = this.cnt + 1;
                 if isempty(this.Figures) || this.cnt > this.rows*this.cols
+%                     if ~isempty(this.Figures)
+%                         this.ensureLegendColumns(this.Figures(end));
+%                     end
                     this.Figures(end+1) = figure('Tag',tag);
                     this.cnt = 1;
                 else
                     if gcf ~= this.Figures(end)
-                        figure(this.h);
+                        figure(this.curax);
                     end
                 end
-                h = subplot(this.rows, this.cols, this.cnt, 'Tag', tag);
+                ax_handle = subplot(this.rows, this.cols, this.cnt, 'Tag', tag);
             end
-            this.h = h;
+            this.curax = ax_handle;
             this.donelast = false;
         end
         
@@ -257,6 +279,25 @@ classdef PlotManager < handle
             h = findobj(h,'Tag','','Type','axes');
         end
         
+        function h = createZoom(this, nr, area, withlegend)
+            if nargin < 4
+                withlegend = false;
+            end
+            
+            if ~this.Single
+                error('Zooming only possible for Single mode yet.');
+            elseif isempty(nr) || ~isposintscalar(nr) || nr > length(this.Figures)
+                error('nr must not be empty and within the range 1 to %d',length(this.Figures));
+            end
+            % Creates a new figure and returns the axes handle
+            h = this.copyFigure(nr,[get(nr,'Tag') '_zoom']);
+            % Set to desired area
+            axis(h, area);
+            if ~withlegend
+                delete(findobj(get(this.Figures(end),'Children'),'Tag','legend'));
+            end
+        end
+        
         function done(this)
             % Finishes the current plotting process.
             %
@@ -264,16 +305,17 @@ classdef PlotManager < handle
             % finished off (currently, only "axis tight" is invoked
             % automatically)
             this.finishCurrent;
+%             this.ensureLegendColumns(this.Figures(end));
             this.cnt = 0;
         end
         
-        function savePlots(this, folder, format, selection, close)
+        function savePlots(this, folder, format, selection, closefigs, separate_legends)
             % Saves all plots that have been created thus far to a given
             % folder with given format.
             %
             % Parameters:
             if nargin < 5
-                close = false;
+                closefigs = false;
                 if nargin < 4
                     selection = 1:length(this.Figures);
                     if nargin < 3
@@ -286,6 +328,13 @@ classdef PlotManager < handle
             end
             if isempty(selection)
                 selection = 1:length(this.Figures);
+            end
+            if nargin < 6
+                separate_legends = false(size(selection));
+            elseif isscalar(separate_legends)
+                separate_legends = repmat(separate_legends,1,length(selection));
+            elseif ~all(size(selection) == size(separate_legends))
+                error('If a separate legends parameter is passed, it must match the selection parameter size.');
             end
             if ischar(format)
                 format = {format};
@@ -313,14 +362,43 @@ classdef PlotManager < handle
                         fname = sprintf('figure_%d',idx);
                     end
                     [oldtitles, oldfonts] = this.preSave(h);
+                    % Separate legend saving
+                    legends = [];
+                    if separate_legends(idx)
+                        legends = findobj(h,'tag','legend');
+                        lfh = zeros(1,length(legends));
+                        for lidx = 1:length(legends)
+                            lfh(lidx) = figure('Visible','off','MenuBar','none');
+                            copyobj(legends(lidx),lfh(lidx));
+                            set(legends(lidx),'Visible','off');
+                        end
+                        if isempty(legends)
+                            warning('PlotManager:savePlots',...
+                                'No legends found for Figure %d.',selection(idx));
+                        end
+                    end
+                    % Save with all formats
                     for fmt = 1:fmts
                         % Add format-named folder if enabled
-                        if this.UseFileTypeFolders && fmts > 1
+                        if this.UseFileTypeFolders
                             eff_folder = fullfile(folder,format{fmt});
                         end
+                        % Save actual figure
                         this.saveFigure(h, ...
                             fullfile(eff_folder, [this.FilePrefix '_' fname]), ...
                             format{fmt});
+                        % Save extra legends (if given)
+                        for lidx = 1:length(legends)
+                            this.saveFigure(lfh(lidx), ...
+                                fullfile(eff_folder, ...
+                                    sprintf('%s_%s_legend%d',this.FilePrefix,fname,lidx)), ...
+                                    format{fmt});
+                        end
+                    end
+                    % Restore visibility of perhaps hidden legends and close temporary figures
+                    for lidx = 1:length(legends)
+                        set(legends(lidx),'Visible','on');
+                        close(lfh(lidx));
                     end
                     this.postSave(h, oldtitles, oldfonts);
                 else
@@ -329,7 +407,7 @@ classdef PlotManager < handle
                 end
             end
             fprintf('done!\n');
-            if close
+            if closefigs
                 this.closeAll;
             end
         end
@@ -343,9 +421,9 @@ classdef PlotManager < handle
                     close(h);
                 end
             end
-            if ~isempty(this.h) && ishandle(this.h)
-                close(this.h);
-                this.h = [];
+            if ~isempty(this.curax) && ishandle(this.curax)
+                close(this.curax);
+                this.curax = [];
             end
             this.Figures = [];
             this.cnt = 0;
@@ -356,6 +434,15 @@ classdef PlotManager < handle
                 this.closeAll;
             end
         end
+        
+%         function set.MaxLegendRows(this, value)
+%             if ~isscalar(value)
+%                 error('MaxLegendRows must be a scalar.');
+%             elseif value < 2
+%                 error('MaxLegendRows must have a minimum value of two.');
+%             end
+%             this.MaxLegendRows = value;
+%         end
     end
     
     methods(Access=private)
@@ -364,7 +451,7 @@ classdef PlotManager < handle
             % Finishes processing of the current plot, e.g. sets the labels
             % and tight axis.
             if ~this.donelast
-                h = this.h;
+                h = this.curax;
                 if ishandle(h)
                     % Set title and labels if given 
                     if ~isempty(this.ncap)
@@ -385,8 +472,8 @@ classdef PlotManager < handle
             end
         end
         
-        function [oldtitles, oldfonts] = preSave(this, h)
-            ax = findobj(get(h,'Children'),'Type','axes');
+        function [oldtitles, oldfonts] = preSave(this, fig)
+            ax = findobj(get(fig,'Children'),'Type','axes');
             % Get title strings
             oldtitles = [];
             childs = {'XLabel','YLabel','ZLabel'};
@@ -404,15 +491,16 @@ classdef PlotManager < handle
                 oldfonts = get(items,fieldnames(this.SaveFont));
                 set(items,fieldnames(this.SaveFont),...
                     repmat(struct2cell(this.SaveFont)',numel(items),1));
+%                 this.ensureLegendColumns(fig);
             end
         end
         
-        function postSave(this, h, oldtitles, oldfonts)
-            ax = findobj(get(h,'Children'),'Type','axes');
+        function postSave(this, fig, oldtitles, oldfonts)
+            ax = findobj(get(fig,'Children'),'Type','axes');
             % Restore title strings
             childs = {'XLabel','YLabel','ZLabel'};
             if this.NoTitlesOnSave
-                th = get(findobj(get(h,'Children'),...
+                th = get(findobj(get(fig,'Children'),...
                     'Type','axes'),'Title');
                 if numel(th) == 1, th = {th}; end
                 for k=1:length(th)
@@ -424,13 +512,11 @@ classdef PlotManager < handle
             if ~isempty(this.SaveFont)
                 items = [ax cell2mat(get(ax,childs))];
                 set(items,fieldnames(this.SaveFont),oldfonts);
+%                 this.ensureLegendColumns(fig);
             end
         end
         
         function saveFigure(this, fig, filename, ext)
-            % Opens a matlab save dialog and saves the given figure to the
-            % file selected.
-            %
             % Supported formats: eps, jpg, fig, png, tif, pdf
             %
             % This is a scrap function from a differen class i didnt want
@@ -478,6 +564,110 @@ classdef PlotManager < handle
                 fprintf(2,'No file specified. Aborting\n');
             end
         end
-    end
-    
+        
+%         function ensureLegendColumns(this, fh)
+%             % Ensures that the legends in the current figure do not exceed the specified row
+%             % number.
+%             %
+%             % Original inner code from MatLab FileExchange contribution
+%             % http://www.mathworks.com/matlabcentral/fileexchange/27389
+%             %
+%             % @attention
+%             % The 'get(legend_handle,'Children')' returns the 'text' and 'line'
+%             % objects in a different order than that returned as argument directly to 'legend'.
+%             % Works only if the returned object handles for the legend's children are sorted
+%             % last added first, and in each block the markers "marker -> line -> text".
+%             %
+%             %
+%             axes = get(fh,'Children');
+%             legns = findobj(axes,'Tag','legend');
+%             for lidx = 1:length(legns)
+%                 leg = legns(lidx);
+%                 
+%                 rows = length(get(leg,'String'));
+%                 columns = ceil(rows/this.MaxLegendRows);
+%                 
+%                 % Only fuzz around if more than one column
+%                 if columns > 1
+% 
+%                     location = get(leg,'Location');
+%                     % Set default location
+%                     if strcmpi(location,'none')
+%                         location = 'SouthEast';
+%                         set(leg,'Location',location);
+%                     end
+% 
+%                     % get old width, new width and scale factor
+%                     pos = get(leg, 'position');
+%                     width = columns*pos(3);
+%                     rescale = pos(3)/width;
+% 
+%                     childs = get(leg,'Children');
+%                     % get some old values so we can scale everything later
+%                     xdata = get(childs(2), 'xdata'); % any x line position will do
+%                     % Pick the this.MaxLegendRows' element from top (corresponds to the
+%                     % MaxLegendRows' element from bottom in legend) to get the correct new y
+%                     % height!
+%                     ydata1 = get(childs(3*(this.MaxLegendRows-1)+1), 'ydata');
+%                     % Take the element beneath that (surely exists)
+%                     ydata2 = get(childs(3*(this.MaxLegendRows-1)-2), 'ydata');
+% 
+%                     %we'll use these later to align things appropriately
+%                     sheight = abs(ydata1(1)-ydata2(1));                  % height between data lines
+%                     height = ydata1(1);                             % height of the box. Used to top margin offset
+%                     line_width = (xdata(2)-xdata(1))*rescale;   % rescaled linewidth to match original
+%                     spacer = xdata(1)*rescale;                    % rescaled spacer used for margins
+% 
+%                     % put the legend on the lower left corner to make initial adjustments easier
+%                     loci = get(gca, 'position');
+%                     set(leg, 'position', [loci(1) pos(2) width pos(4)]);
+% 
+%                     col = -1;
+%                     for i=1:rows
+%                         if mod(i,this.MaxLegendRows)==1,
+%                             col = col+1;
+%                         end
+% 
+%                         position = mod(i,this.MaxLegendRows);
+%                         if position == 0,
+%                              position = this.MaxLegendRows;
+%                         end
+% 
+%                         elem = 3*rows-2 - (i-1)*3; % element index (last to first)
+%                         ypos = height-(position-1)*sheight;
+%                         % Marker
+%                         set(childs(elem), 'xdata', col/columns+spacer*3.5,'ydata', ypos);
+% 
+%                         % Lines
+%                         set(childs(elem+1), ...
+%                             'xdata', [col/columns+spacer col/columns+spacer+line_width],...
+%                             'ydata', [ypos ypos]);
+% 
+%                         % Labels
+%                         set(childs(elem+2), 'position', [col/columns+spacer*2+line_width ypos]);
+%                     end
+% 
+%                     %unfortunately, it is not possible to force the box to be smaller than the
+%                     %original height, therefore, turn it off and set background color to none
+%                     %so that it no longer appears
+%                     set(leg, 'Color', 'None', 'Box', 'off');
+% 
+%                     % Get updated position
+%                     pos = get(leg, 'position');
+%                     % Get figure position
+%                     ax_pos = get(gca, 'position');
+%                     switch lower(location),
+%                         case {'northeast'}
+%                             set(leg, 'position', [pos(1)+ax_pos(3)-pos(3) pos(2) pos(3) pos(4)]);
+%                         case {'southeast'}
+%                             set(leg, 'position', [pos(1)+ax_pos(3)-pos(3) ax_pos(2) pos(3) pos(4)]);
+%                         case {'southwest'}
+%                             set(leg, 'position', [ax_pos(1) ax_pos(2)-pos(4)/2+pos(4)/4 pos(3) pos(4)]);
+%                         otherwise
+%                             warning('KerMor:PlotManager','Cannot handle location ''%s'' correctly.',location);
+%                     end
+%                 end
+%             end
+%         end
+    end 
 end
