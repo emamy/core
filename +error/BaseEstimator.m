@@ -128,7 +128,7 @@ classdef BaseEstimator < KerMorObject & ICloneable
             fs = this.ReducedModel.FullModel.System;
             C = fs.C;
             if ~isequal(fs.StateScaling,1)
-                C = C*diag(fs.StateScaling);
+                C = C*spdiags(fs.StateScaling,0,61004,61004);
             end
             if ~isempty(C)
                 % Get error
@@ -138,7 +138,13 @@ classdef BaseEstimator < KerMorObject & ICloneable
                         e(idx) = norm(m.System.C.evaluate(t(idx),mu))*e(idx);
                     end
                 else
-                    this.OutputError = norm(C.evaluate([],mu))*this.StateError;
+                    Ce = C.evaluate([],mu);
+                    if issparse(Ce)
+                        Cn = normest(Ce);
+                    else
+                        Cn = norm(Ce);
+                    end
+                    this.OutputError = Cn*this.StateError;
                 end
             else
                 this.OutputError = this.StateError;

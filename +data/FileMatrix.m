@@ -182,8 +182,7 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             A = zeros(this.n,this.m);
             for i=1:this.nBlocks
                 if this.created(i)
-                    pos = (i-1)*this.bCols + 1 : min(i*this.bCols,this.m);
-                    A(:,pos) = this.loadBlock(i);
+                    A(:,this.getBlockPos(i)) = this.loadBlock(i);
                 end
             end
         end
@@ -228,7 +227,6 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             value = data.FileMatrix(this.n,this.m,this);
             for k=1:this.nBlocks
                 % Make sure its immediately saved
-                value.cacheDirty = true;
                 value.saveBlock(k,this.loadBlock(k).^2);
             end
         end
@@ -376,10 +374,20 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             trans = data.FileMatrix(this.m,this.n,...
                 fileparts(this.DataDirectory),this.blocksize);
             key = struct('type',{'()'},'subs',{{[],':'}});
+            if this.nBlocks > 1
+                pi = tools.ProcessIndicator('Creating transposed of %d-block matrix in %s' ,this.nBlocks,...
+                    false,this.nBlocks,trans.DataDirectory);
+            end
             for j=1:this.nBlocks
                 B = this.loadBlock(j);
                 key.subs{1} = this.getBlockPos(j);
                 trans.subsasgn(key,B');
+                if this.nBlocks > 1
+                    pi.step;
+                end
+            end
+            if this.nBlocks > 1
+                pi.stop;
             end
         end
         
@@ -470,10 +478,8 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
                 this.cachedBlock = A;
                 this.cacheDirty = true;
             else
-                if this.cacheDirty
-                    save([this.DataDirectory filesep sprintf('block_%d.mat',nr)], 'A');
-                    this.cacheDirty = false;
-                end
+                % Save actual block that should be saved
+                save([this.DataDirectory filesep sprintf('block_%d.mat',nr)], 'A');
             end
             this.created(nr) = true;
         end
@@ -487,16 +493,15 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
                     A = this.cachedBlock;%#ok
                     save([this.DataDirectory filesep sprintf('block_%d.mat',this.cachedNr)], 'A');
                     this.created(this.cachedNr) = true;
+                    % cacheDirty is set "false" at end!
                 end
                 if this.created(nr)
                     s = load([this.DataDirectory filesep sprintf('block_%d.mat',nr)]);
                     A = s.A;
                 else
-                    A = zeros(this.n, this.bCols);
-                    % Shorten the last block to effectively used size
-                    if nr == this.nBlocks
-                        A = A(:,1:(this.m-(this.nBlocks-1)*this.bCols));
-                    end
+                    % Ensures correct size for block (even if only one with less than bCols
+                    % columns)
+                    A = zeros(this.n, length(this.getBlockPos(nr)));
                 end
                 this.cachedNr = nr;
                 this.cachedBlock = A;
@@ -524,7 +529,7 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
                 A.subsasgn(key,B(k,:));
             end
             key.subs = {':', ':'};
-            res = res && all(all(A.subsref(key) == B));
+            res = res && all(all(A.toMemoryMatrix == B));
             
             % Direct constructor test
             A = data.FileMatrix(B);
@@ -537,7 +542,7 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             
             % Transpose test
             At = A';
-            res = res && all(all(At.subsref(key) == B'));
+            res = res && all(all(At.toMemoryMatrix == B'));
             
             % Multiply test
             v = rand(size(A,2),1);
@@ -590,6 +595,16 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             
             % Power test
             res = res && A.^2 == B.^2;%#ok
+            
+            % Load/save
+            save Atmp A;
+            clear A;
+            load Atmp;
+            res = res && A == B;
+            
+            d = A.DataDirectory;
+            clear A;
+            rmdir(d,'s');
         end
         
         function test_SpeedSVDTransp

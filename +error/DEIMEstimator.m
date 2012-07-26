@@ -229,33 +229,6 @@ classdef DEIMEstimator < error.BaseEstimator
                 general.JacCompEvalWrapper(fm.System.f), this.TrainDataSelector, false);
             fm.Data.JacobianTrainData = jtd;
 
-            d = fm.System.f.xDim;
-            n = size(jtd.fxi,2);
-            v = data.FileMatrix(d,n,fm.Data.DataDirectory,512*1024^2);
-            ln = zeros(1,n);
-            times = ln;
-            pi = tools.ProcessIndicator('Computing Jacobian similarity transform data for %d jacobians',n,false,n);
-            hassparse = ~isempty(fm.System.f.JSparsityPattern);
-            if hassparse
-                [i,j] = find(fm.System.f.JSparsityPattern);
-            end
-            for nr = 1:n
-                if hassparse
-                    J = sparse(i,j,jtd.fxi(:,nr),d,d);
-                else
-                    J = reshape(jtd.fxi(:,nr),d,d);
-                end
-                t = tic;
-                [ln(nr), v(:,nr)] = general.Utils.logNorm(J);
-                times(nr) = toc(t);
-                pi.step;
-            end
-            pi.stop;
-
-            jstd.VFull = v;
-            jstd.LogNorms = ln;
-            jstd.CompTimes = times;
-            fm.Data.JacSimTransData = jstd;
             
             %% Matrix DEIM
             jd = general.MatrixDEIM;
@@ -275,14 +248,38 @@ classdef DEIMEstimator < error.BaseEstimator
             
             %% Similarity transformation
             if ~isempty(this.JacSimTransMaxSize)
-                if isempty(isempty(md.JacSimTransData.VFull))
-                    error('No ModelData.JacSimTransData set. Run the model''s off6_prepareErrorEstimator instead of a direct call.');
+                d = fm.System.f.xDim;
+                n = size(jtd.fxi,2);
+                v = data.FileMatrix(d,n,fm.Data.DataDirectory,512*1024^2);
+                ln = zeros(1,n);
+                times = ln;
+                pi = tools.ProcessIndicator('Computing Jacobian similarity transform data for %d jacobians',n,false,n);
+                hassparse = ~isempty(fm.System.f.JSparsityPattern);
+                if hassparse
+                    [i,j] = find(fm.System.f.JSparsityPattern);
                 end
+                for nr = 1:n
+                    if hassparse
+                        J = sparse(i,j,jtd.fxi(:,nr),d,d);
+                    else
+                        J = reshape(jtd.fxi(:,nr),d,d);
+                    end
+                    t = tic;
+                    [ln(nr), v(:,nr)] = general.Utils.logNorm(J);
+                    times(nr) = toc(t);
+                    pi.step;
+                end
+                pi.stop;
+
+                jstd.VFull = v;
+                jstd.LogNorms = ln;
+                jstd.CompTimes = times;
+                fm.Data.JacSimTransData = jstd;
+                
                 p = general.POD;
                 p.Mode = 'abs';
                 p.Value = this.JacSimTransMaxSize;
-                [Q, this.QSingVals] = ...
-                    p.computePOD(md.JacSimTransData.VFull);
+                [Q, this.QSingVals] = p.computePOD(jstd.VFull);
                 if isa(Q,'data.FileMatrix')
                     this.QFull = Q.toMemoryMatrix;
                 else
@@ -299,7 +296,7 @@ classdef DEIMEstimator < error.BaseEstimator
                 if KerMor.App.Verbose > 0
                     fprintf(['Computed partial similarity transform with target size %d over %d eigenvectors. '...
                         'Resulting reduction %d/%d (%g%%)\n'],...
-                        p.Value,size(md.JacSimTransData.VFull,2),...
+                        p.Value,size(jstd.VFull,2),...
                         size(this.QFull,2),size(this.QFull,1),100*red);
                 end
                 if red < .2

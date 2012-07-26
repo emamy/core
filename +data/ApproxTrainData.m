@@ -186,6 +186,7 @@ classdef ApproxTrainData < handle
             if ~isempty(model.Data.V) && ~isempty(model.Data.W)
                 atd.xi = model.Data.V*(model.Data.W'*atd.xi);
             end
+%             atd = model.Data.ApproxTrainData;
 
             % Compute f-Values at training data
             if isempty(atd.mui)
@@ -215,10 +216,19 @@ classdef ApproxTrainData < handle
                     fprintf('Serial computation of f-values at %d points (%d xi-blocks) ...\n',size(atd.xi,2),xi.nBlocks);
                 end
                 fxi = data.FileMatrix(f.fDim,size(xi,2),xi);
-                for i=xi.nBlocks
+                if KerMor.App.Verbose > 2
+                    pi = tools.ProcessIndicator('Evaluating f on %d %dx%d-blocks of xi snapshots',xi.nBlocks,false,...
+                        xi.nBlocks,xi.n,xi.bCols);
+                end
+                for i=1:xi.nBlocks
                     pos = xi.getBlockPos(i);
-                    hlp = f.evaluate(xi.loadBlock(i), atd.ti(pos), atdmui(:,pos));
-                    fxi(:,pos) = hlp;
+                    fxi(:,pos) = f.evaluate(xi.loadBlock(i), atd.ti(pos), atdmui(:,pos));
+                    if KerMor.App.Verbose > 2
+                        pi.step;
+                    end
+                end
+                if KerMor.App.Verbose > 2
+                    pi.stop;
                 end
                 atd.fxi = fxi;
             end

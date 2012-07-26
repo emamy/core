@@ -94,10 +94,14 @@ classdef ABlockSVD < handle
             function w = colmode_mult(v)
                 w = 0;
                 nb = this.getNumBlocks;
+                pi = tools.ProcessIndicator('ABlockSVD: Blockwise multiplication for SVD on %d blocks',nb,...
+                    false,nb);
                 for j = 1:nb
                     B = this.getBlock(j);
                     w = w + B*(B'*v);
+                    pi.step;
                 end
+                pi.stop;
             end
         end
     end
