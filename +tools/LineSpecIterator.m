@@ -26,7 +26,12 @@ classdef LineSpecIterator < handle
                     0       0.7500  0.7500;
                     0.7500  0       0.7500;
                     0.7500  0.7500  0;
-                    0.2500  0.2500  0.2500];
+                    0.2500  0.2500  0.2500;
+                    0   1   0;
+                    .75 .75 .75;
+                    .9  .6  0;
+                    .2  1  .2;
+                    .5  .5  1]; % start of custom colors
     end
     
     properties(Access=private)
@@ -37,6 +42,47 @@ classdef LineSpecIterator < handle
     end
     
     methods
+        function this = LineSpecIterator(ncolors, seed)
+            predef = [  0       0       1.0000;
+                        0       0.5000  0;
+                        1.0000  0       0;
+                        0       0.7500  0.7500;
+                        0.7500  0       0.7500;
+                        0.7500  0.7500  0;
+                        0.2500  0.2500  0.2500];
+            if nargin < 2
+                seed = round(100*cputime);
+                if nargin < 1
+                    ncolors = size(predef,1);
+                end
+            end
+            np = size(predef,1);
+            if ncolors > np
+                num = ncolors - np;
+                colors = zeros(ncolors,3);
+                colors(1:np,:) = predef;
+                r = RandStream('mt19937ar','Seed',seed);
+                mindiff = .3;
+                for n=1:num
+                    color = r.rand(1,3);
+                    cnt = 1;
+                    while any(sum(abs(repmat(color,np+n-1,1)-colors(1:np+n-1,:)),2) < mindiff)
+                        color = r.rand(1,3);
+                        cnt = cnt+1;
+                        if cnt > 1000
+                            mindiff = mindiff*.8;
+                            fprintf('LinSpecIterator: Couldn''t find any new sufficiently distant color. Choosing new mindiff=%g\n',mindiff);
+                            cnt = 1;
+                        end
+                    end
+                    colors(np+n,:) = color;
+                end
+                this.Colors = colors;
+            else
+                this.Colors = predef(1:ncolors,:);
+            end
+        end
+        
         function markerstyle = nextMarkerStyle(this)
             markerstyle = this.MarkerStyles{this.curm+1};
             this.curm = mod(this.curm+1,length(this.MarkerStyles));
@@ -51,7 +97,7 @@ classdef LineSpecIterator < handle
             color = this.Colors(this.curc+1,:);
             this.curc = mod(this.curc+1,size(this.Colors,1));
             cnt = 1;
-            while any(sum(abs(repmat(color,size(this.excluded_cols,1),1)-this.excluded_cols),2) == 0)
+            while any(sum(abs(repmat(color,size(this.excluded_cols,1),1)-this.excluded_cols),2) < .3)
                 % Pick next one
                 color = this.Colors(this.curc+1,:);
                 this.curc = mod(this.curc+1,size(this.Colors,1));
@@ -65,6 +111,7 @@ classdef LineSpecIterator < handle
                     break;
                 end
             end
+            %fprintf('New color: [%g %g %g]\n',color);
         end
         
         function excludeColor(this, data)

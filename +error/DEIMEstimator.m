@@ -173,140 +173,20 @@ classdef DEIMEstimator < error.BaseEstimator
             % Overrides the method from BaseEstimator and performs
             % additional computations.
             
-            if KerMor.App.Verbose > 0
-                fprintf('error.DEIMEstimator: Starting offline computations...\n');
-            end
-            
-            % Call superclass
-            offlineComputations@error.BaseEstimator(this, fm);
-            
-            fA = fm.System.A;
-            G = fm.G;
-            md = fm.Data;
-            A = [];
-            if ~isempty(fA)
-                hlp = fA*md.V;
-                A = hlp - md.V*(md.W'*hlp); % (I-VW^T)AV
-                this.M6 = A'*(G*A);
-                this.Ah = A;
-                
-                % Precompute logarithmic norm of A(t,\mu)
-                a = general.AffParamMatrix;
-                if isa(fA, 'dscomponents.LinearCoreFun')
-                    a.addMatrix('1',general.Utils.logNorm(fA.A));
-                else
-                    for i=1:fA.N
-                        a.addMatrix(['abs(' fA.funStr{i} ')'],...
-                            general.Utils.logNorm(fA.getMatrix(i)));
-                    end
-                end
-                this.Aln = a;
-            else
-                this.M6 = []; this.M7 = []; this.M8 = []; this.M9 = [];
-            end
-            B = [];
-            if ~isempty(fm.System.B)
-                B = fm.System.B - md.V*(md.W'*fm.System.B);
-                this.M12 = B'*(G*B);
-                this.Bh = B;
-            else
-                this.M9 = []; this.M10 = []; this.M11 = []; this.M12 = [];
-            end
-            if ~isempty(A) && ~isempty(B)
-                if isa(B,'dscomponents.LinearInputConv')
-                    this.M9 = 2*A'*(G*B.B);
-                else
-                    % Both inherit from AffParamMatrix, so they can be
-                    % multiplied :-)
-                    this.M9 = 2*A'*(G*B);
-                end
-            else
-                this.M9 = [];
-            end
-            
-            %% Large offline data
-            jtd = data.ApproxTrainData.computeFrom(fm, ...
-                general.JacCompEvalWrapper(fm.System.f), this.TrainDataSelector, false);
-            fm.Data.JacobianTrainData = jtd;
-
-            
-            %% Matrix DEIM
-            jd = general.MatrixDEIM;
-            jd.MaxOrder = this.JacMatDEIMMaxOrder;
-            jd.NumRows = fm.System.f.fDim;
-            if KerMor.App.Verbose > 0
-                fprintf('Computing matrix DEIM (MaxOrder=%d) of system jacobian...\n',...
-                    this.JacMatDEIMMaxOrder);
-            end
-            jd.computeDEIM(general.JacCompEvalWrapper(fm.System.f), ...
-                md.JacobianTrainData.fxi);
-            % Project, as arguments that will be passed are in reduced
-            % dimension
-            this.JacMDEIM = jd.project(md.V, md.W);
-            % Initialize to certain order
-            this.JacMatDEIMOrder = ceil(this.JacMatDEIMMaxOrder/2);
+%             if KerMor.App.Verbose > 0
+%                 fprintf('error.DEIMEstimator: Starting offline computations...\n');
+%             end
+%             
+%             % Call superclass
+%             offlineComputations@error.BaseEstimator(this, fm);
+%             
+%             this.off1_matrix_computations(fm);
+%             
+%             this.off2_compute_jacmdeim(fm);
             
             %% Similarity transformation
-            if ~isempty(this.JacSimTransMaxSize)
-                d = fm.System.f.xDim;
-                n = size(jtd.fxi,2);
-                v = data.FileMatrix(d,n,fm.Data.DataDirectory,512*1024^2);
-                ln = zeros(1,n);
-                times = ln;
-                pi = tools.ProcessIndicator('Computing Jacobian similarity transform data for %d jacobians',n,false,n);
-                hassparse = ~isempty(fm.System.f.JSparsityPattern);
-                if hassparse
-                    [i,j] = find(fm.System.f.JSparsityPattern);
-                end
-                for nr = 1:n
-                    if hassparse
-                        J = sparse(i,j,jtd.fxi(:,nr),d,d);
-                    else
-                        J = reshape(jtd.fxi(:,nr),d,d);
-                    end
-                    t = tic;
-                    [ln(nr), v(:,nr)] = general.Utils.logNorm(J);
-                    times(nr) = toc(t);
-                    pi.step;
-                end
-                pi.stop;
+            this.off3_compute_simtrans(fm);
 
-                jstd.VFull = v;
-                jstd.LogNorms = ln;
-                jstd.CompTimes = times;
-                fm.Data.JacSimTransData = jstd;
-                
-                p = general.POD;
-                p.Mode = 'abs';
-                p.Value = this.JacSimTransMaxSize;
-                [Q, this.QSingVals] = p.computePOD(jstd.VFull);
-                if isa(Q,'data.FileMatrix')
-                    this.QFull = Q.toMemoryMatrix;
-                else
-                    this.QFull = Q;
-                end
-                if size(this.QFull,2) < this.JacSimTransMaxSize
-                    fprintf(2,'Only %d nonzero singular values in difference to %d desired ones. Setting JacSimTransMaxSize=%d\n',...
-                        size(this.QFull,2),this.JacSimTransMaxSize,size(this.QFull,2));
-                    this.silent = true;
-                    this.JacSimTransMaxSize = size(this.QFull,2);
-                    this.silent = false;
-                end
-                red = 1-size(this.QFull,2)/size(this.QFull,1);
-                if KerMor.App.Verbose > 0
-                    fprintf(['Computed partial similarity transform with target size %d over %d eigenvectors. '...
-                        'Resulting reduction %d/%d (%g%%)\n'],...
-                        p.Value,size(jstd.VFull,2),...
-                        size(this.QFull,2),size(this.QFull,1),100*red);
-                end
-                if red < .2
-                    this.JacSimTransSize = [];
-                    fprintf(2,'Achieved reduction under 20%%, disabling similarity transformation.\n');
-                else
-                    this.JacSimTransSize = ceil(this.JacSimTransMaxSize/2);
-                end
-            end
-            
             % Compute approximation for local logarithmic norm
             %             this.computeLogNormApprox;
         end
@@ -537,6 +417,140 @@ classdef DEIMEstimator < error.BaseEstimator
     end
     
     methods(Access=private)
+        
+        function off1_matrix_computations(this, fm)
+            fA = fm.System.A;
+            G = fm.G;
+            md = fm.Data;
+            A = [];
+            if ~isempty(fA)
+                hlp = fA*md.V;
+                A = hlp - md.V*(md.W'*hlp); % (I-VW^T)AV
+                this.M6 = A'*(G*A);
+                this.Ah = A;
+                
+                % Precompute logarithmic norm of A(t,\mu)
+                a = general.AffParamMatrix;
+                if isa(fA, 'dscomponents.LinearCoreFun')
+                    a.addMatrix('1',general.Utils.logNorm(fA.A));
+                else
+                    for i=1:fA.N
+                        a.addMatrix(['abs(' fA.funStr{i} ')'],...
+                            general.Utils.logNorm(fA.getMatrix(i)));
+                    end
+                end
+                this.Aln = a;
+            else
+                this.M6 = []; this.M7 = []; this.M8 = []; this.M9 = [];
+            end
+            B = [];
+            if ~isempty(fm.System.B)
+                B = fm.System.B - md.V*(md.W'*fm.System.B);
+                this.M12 = B'*(G*B);
+                this.Bh = B;
+            else
+                this.M9 = []; this.M10 = []; this.M11 = []; this.M12 = [];
+            end
+            if ~isempty(A) && ~isempty(B)
+                if isa(B,'dscomponents.LinearInputConv')
+                    this.M9 = 2*A'*(G*B.B);
+                else
+                    % Both inherit from AffParamMatrix, so they can be
+                    % multiplied :-)
+                    this.M9 = 2*A'*(G*B);
+                end
+            else
+                this.M9 = [];
+            end
+        end
+        
+        function off2_compute_jacmdeim(this, fm)
+            %% Large offline data
+            jtd = data.ApproxTrainData.computeFrom(fm, ...
+                general.JacCompEvalWrapper(fm.System.f), this.TrainDataSelector, false);
+            fm.Data.JacobianTrainData = jtd;
+
+            
+            %% Matrix DEIM
+            jd = general.MatrixDEIM;
+            jd.MaxOrder = this.JacMatDEIMMaxOrder;
+            jd.NumRows = fm.System.f.fDim;
+            if KerMor.App.Verbose > 0
+                fprintf('Computing matrix DEIM (MaxOrder=%d) of system jacobian...\n',...
+                    this.JacMatDEIMMaxOrder);
+            end
+            jd.computeDEIM(general.JacCompEvalWrapper(fm.System.f), ...
+                md.JacobianTrainData.fxi);
+            % Project, as arguments that will be passed are in reduced
+            % dimension
+            this.JacMDEIM = jd.project(md.V, md.W);
+            % Initialize to certain order
+            this.JacMatDEIMOrder = ceil(this.JacMatDEIMMaxOrder/2);
+        end
+        
+        function off3_compute_simtrans(this, fm)
+            if ~isempty(this.JacSimTransMaxSize)
+                jtd = fm.Data.JacobianTrainData;
+
+                d = fm.System.f.xDim;
+                n = size(jtd.fxi,2);
+                v = data.FileMatrix(d,n,fm.Data.DataDirectory,512*1024^2);
+                ln = zeros(1,n);
+                times = ln;
+                pi = tools.ProcessIndicator('Computing Jacobian similarity transform data for %d jacobians',n,false,n);
+                hassparse = ~isempty(fm.System.f.JSparsityPattern);
+                if hassparse
+                    [i,j] = find(fm.System.f.JSparsityPattern);
+                end
+                for nr = 1:n
+                    if hassparse
+                        J = sparse(i,j,jtd.fxi(:,nr),d,d);
+                    else
+                        J = reshape(jtd.fxi(:,nr),d,d);
+                    end
+                    t = tic;
+                    [ln(nr), v(:,nr)] = general.Utils.logNorm(J);
+                    times(nr) = toc(t);
+                    pi.step;
+                end
+                pi.stop;
+
+                jstd.VFull = v;
+                jstd.LogNorms = ln;
+                jstd.CompTimes = times;
+                fm.Data.JacSimTransData = jstd;
+                
+                p = general.POD;
+                p.Mode = 'abs';
+                p.Value = this.JacSimTransMaxSize;
+                [Q, this.QSingVals] = p.computePOD(jstd.VFull);
+                if isa(Q,'data.FileMatrix')
+                    this.QFull = Q.toMemoryMatrix;
+                else
+                    this.QFull = Q;
+                end
+                if size(this.QFull,2) < this.JacSimTransMaxSize
+                    fprintf(2,'Only %d nonzero singular values in difference to %d desired ones. Setting JacSimTransMaxSize=%d\n',...
+                        size(this.QFull,2),this.JacSimTransMaxSize,size(this.QFull,2));
+                    this.silent = true;
+                    this.JacSimTransMaxSize = size(this.QFull,2);
+                    this.silent = false;
+                end
+                red = 1-size(this.QFull,2)/size(this.QFull,1);
+                if KerMor.App.Verbose > 0
+                    fprintf(['Computed partial similarity transform with target size %d over %d eigenvectors. '...
+                        'Resulting reduction %d/%d (%g%%)\n'],...
+                        p.Value,size(jstd.VFull,2),...
+                        size(this.QFull,2),size(this.QFull,1),100*red);
+                end
+                if red < .2
+                    this.JacSimTransSize = [];
+                    fprintf(2,'Achieved reduction under 20%%, disabling similarity transformation.\n');
+                else
+                    this.JacSimTransSize = ceil(this.JacSimTransMaxSize/2);
+                end
+            end
+        end
         
         function handleOrderUpdate(this, ~, ~)
             this.updateErrMatrices;

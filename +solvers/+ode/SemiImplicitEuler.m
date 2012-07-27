@@ -126,11 +126,15 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
                     % Implicit
                     al = est.getAlpha([oldx; oldex], t(idx), s.mu, ut);
                     bet = est.getBeta([oldx; oldex], t(idx), s.mu);
+%                     fprintf('alpha: %g, beta: %g\n',al,bet);
                     newex = (dt*al+oldex)...
                         /(1-dt*bet);
+                    
 %                     fun = @(y)y-dt*est.evalODEPart([oldx; y], t(idx), s.mu, ut)-oldex/dt;
 %                     opts = optimset('Display','off');
-%                     newex = fsolve(fun, oldex, opts);
+%                     newex2 = fsolve(fun, oldex, opts);
+                    
+%                     fff = 5;
                 end
                 
                 % Real time mode: Fire StepPerformed event

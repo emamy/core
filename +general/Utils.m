@@ -509,27 +509,36 @@ classdef Utils
             end
 
             hlp = .5*(A + A');
-            if size(hlp,1) > 1000
+            dim = size(hlp,1);
+            if dim > 1000
 %                 t = tic;
                 if nargin == 3
                     opts.v0 = v0;
                 end
                 opts.maxit = 1000;
+                opts.p = 20+ceil(.1*log(dim)*(dim^.35));
+                if dim > 10000 && KerMor.App.Verbose > 2
+                    fprintf('Starting log norm computaion for %d-dimensional matrix (eigs:maxit=%d, p=%d)\n',...
+                        dim,opts.maxit,opts.p);
+                end
                 lastwarn('');
                 [v, ln] = eigs(hlp,1,'la',opts);
                 [s,id] = lastwarn;
                 if ~isempty(s) && strcmp(id,'MATLAB:eigs:NoEigsConverged')
-                    fprintf('Single eigenvalue not converged. Re-trying with k=6...\n');
-                    [v, ln] = eigs(hlp,6,'la',opts);
-                    v = v(:,1); ln = ln(1);
+                    fprintf('Single eigenvalue not converged with p=%d. Re-trying with p=%d...\n',...
+                        opts.p,opts.p*2);
+                    opts.p = opts.p*2;
+                    [v, ln] = eigs(hlp,1,'la',opts);
                 end
                 if ln < 0
+                    opts.p = .1*log(dim)*(dim^.35);
                     [v, ln] = eigs(hlp,1,-ln,opts);
                     [s,id] = lastwarn;
                     if ~isempty(s) && strcmp(id,'MATLAB:eigs:NoEigsConverged')
-                        fprintf('Single eigenvalue not converged. Re-trying with k=6...\n');
-                        [v, ln] = eigs(hlp,6,'la',opts);
-                        v = v(:,1); ln = ln(1);
+                        fprintf('Single (shifted by %g) eigenvalue not converged with p=%d. Re-trying with p=%d...\n',...
+                        -ln,opts.p,opts.p*2);
+                        opts.p = opts.p*2;
+                        [v, ln] = eigs(hlp,1,'la',opts);
                     end
                 end
 %                 t2 = toc(t);

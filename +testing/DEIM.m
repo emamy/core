@@ -76,7 +76,8 @@ classdef DEIM
             efun = @Norm.L2;
             % Elements error functions
             sumfun = @(x)Norm.Linf(x');
-            fxinorm = efun(atd.fxi);
+            fxi = atd.fxi.toMemoryMatrix;
+            fxinorm = efun(fxi);
             
             if isa(deim,'general.MatrixDEIM')
                 oldst = deim.Qk;
@@ -87,7 +88,7 @@ classdef DEIM
 %             res = zeros(8,no);
             pi = tools.ProcessIndicator(sprintf('Computing DEIM errors and estimates for %d Order/ErrOrder settings',no),no);
             co = [];
-            xi = atd.xi;
+            xi = atd.xi.toMemoryMatrix;
             if ~isempty(deim.V)
                 xi = deim.V'*xi;
             end
@@ -100,13 +101,14 @@ classdef DEIM
                 % Absolute true error (only for new orders)
                 if isempty(co) || o ~= co
                     if isa(deim,'general.MatrixDEIM')
+                        error('not yet tested.');
                         for j=1:size(xi,2)
                             afx = deim.evaluate(xi(:,j),atd.ti(j),atd.mui(:,j));
                             hlp(j) = efun(atd.fxi(:,j)-afx(:));
                         end
                     else
                         afxi = deim.evaluate(xi,atd.ti,atd.mui);
-                        hlp = efun(atd.fxi-afxi);
+                        hlp = efun(fxi-afxi);
                     end
                     
                     res(3,i) = sumfun(hlp);
@@ -140,20 +142,20 @@ classdef DEIM
                 pm = tools.PlotManager(false,2,3);
                 pm.FilePrefix = 'deim';
             end
-            h = pm.nextPlot('true_abs','Linf-L2 absolute error','order','error order');
+            h = pm.nextPlot('true_abs','Linf-L2 absolute error','m','m''');
             doplot(h,tri,res(1,:),res(2,:),res(3,:));
-            h = pm.nextPlot('true_rel','Linf-L2 relative  error','order','error order');
+            h = pm.nextPlot('true_rel','Linf-L2 relative  error','m','m''');
             doplot(h,tri,res(1,:),res(2,:),res(4,:));
             
-            h = pm.nextPlot('est_abs','Estimated absolute error','order','error order');
+            h = pm.nextPlot('est_abs','Estimated absolute error','m','m''');
             doplot(h,tri,res(1,:),res(2,:),res(5,:));
-            h = pm.nextPlot('est_rel','Estimated relative error','order','error order');
+            h = pm.nextPlot('est_rel','Estimated relative error','m','m''');
             doplot(h,tri,res(1,:),res(2,:),res(6,:));
                         
-            h = pm.nextPlot('abs_diff','|true - estimated| absolute error','order','error order');
+            h = pm.nextPlot('abs_diff','|true - estimated| absolute error','m','m''');
             doplot(h,tri,res(1,:),res(2,:),abs(res(5,:)-res(3,:)));
             view(0,90);
-            h = pm.nextPlot('rel_diff','|true - estimated| relative error','order','error order');
+            h = pm.nextPlot('rel_diff','|true - estimated| relative error','m','m''');
             doplot(h,tri,res(1,:),res(2,:),abs(res(6,:)-res(4,:)));
             hold on;
             sh = doplot(h,tri,res(1,:),res(2,:),1e-2*ones(size(res(6,:))),...
@@ -241,18 +243,6 @@ classdef DEIM
             pm.done;
         end
         
-        function estimator_tests(m)
-            r = m.buildReducedModel;
-            e = tools.EstimatorAnalyzer(r);
-            pm = tools.PlotManager;
-            e.start(.01,[],pm);
-            pm.done;
-%             pm.FilePrefix = class(m);
-%             a = KerMor.App;
-%             pm.savePlots(fullfile(a.DataStoreDirectory,...
-%                 'deim_estimator_tests'),{'fig','jpg'});
-        end
-        
         function [etrue, EE, ED, pm] = getTrajApproxErrorDEIMEstimates(r, mu, inputidx)
             % [etrue, EE, ED, pm] = getTrajApproxErrorDEIMEstimates(this, mu, inputidx)
             % Computes the DEIM approximation errors for given mu and input.
@@ -324,7 +314,7 @@ classdef DEIM
             f.Order = [o olde]; % restore old setting
             
             if nargout == 4
-                pm = this.getTrajApproxErrorDEIMEstimates_plots(r, etrue(1,:), EE(:,:,1), ED(:,:,1));
+                pm = testing.DEIM.getTrajApproxErrorDEIMEstimates_plots(r, etrue(1,:), EE(:,:,1), ED(:,:,1));
             end
         end
         
@@ -337,7 +327,7 @@ classdef DEIM
             if nargin < 6
                 pm = tools.PlotManager(false,2,2);
             end
-            t = this.rm.Times;
+            t = r.Times;
             h = pm.nextPlot('true_err','True approximation error on trajectory','time','error');
             semilogy(h,t,etrue);
             h = pm.nextPlot('est_err',sprintf('Estimated approximation errors on trajectory\nDEIM order = %d / max %d',f.Order(1),f.MaxOrder),...
@@ -362,13 +352,14 @@ classdef DEIM
             pm.done;
         end
         
-        function [res, relerrs, orders, t] = getMeanRequiredErrorOrders(r, relerrs, orders, mu, inidx)
+        function [res, relerrs, orders, t] = getMinRequiredErrorOrders(fm, relerrs, orders)
             % [res, relerrs, orders, t] = getMeanRequiredErrorOrders(this, relerrs, orders, mu)
             % This high-level function computes the minimum values of M' in
             % order to have the relative error of true to estimated DEIM
             % error smaller than the specified relerrs.
             %
             % Parameters:
+            % fm: The full model @type models.BaseFullModel
             % relerrs: The relative errors that may occur between true and
             % estimated approximation error, maximized over time of each
             % trajectory, averaged over all trajectories. @type
@@ -376,10 +367,6 @@ classdef DEIM
             % orders: The different orders for which to compute the minimum
             % ErrorOrders @type rowvec<integer> @default One to
             % approx.DEIM.MaxOrder in steps of three
-            % mu: The parameters that determine the desired trajectories.
-            % The minimum needed M' will be averaged over all trajectories.
-            % @type matrix<double> @default All full model's parameter
-            % samples
             %
             % Return values:
             % res: A matrix containing the minimum required M', indexed by
@@ -390,14 +377,10 @@ classdef DEIM
             % t: A PrintTable containing the results. If not specified as a
             % nargout argument, the table will be printed instead. @type
             % PrintTable @optional
-            fm = r.FullModel;
             f = fm.Approx;
-            if nargin < 5
-                inidx = [];
-            end
-            if nargin < 4 || isempty(mu)
-                mu = fm.Data.ParamSamples(:,1:10);
-            end
+            atd = fm.Data.ApproxTrainData;
+            xi = atd.xi.toMemoryMatrix;
+            fxi = atd.fxi.toMemoryMatrix;
             if nargin < 3 || isempty(orders)
                 orders = 1:3:f.MaxOrder;
             end
@@ -407,130 +390,54 @@ classdef DEIM
             
             oldo = f.Order;
             res = zeros(length(orders),length(relerrs));
-            t = PrintTable('Mean required M'', averaged over %d trajectories',size(mu,2));
+            resmean = res;
+            t = PrintTable('Required M'' over %d training samples for min/mean relative error',size(xi,2));
             t.HasHeader = true;
             title = arrayfun(@(e)sprintf('%g',e),relerrs,'Unif',false);
-            t.addRow('DEIM order / rel. error',title{:});
-            pi = tools.ProcessIndicator('Computing mean required error orders for %d DEIM orders and %d relative errors',...
-                length(orders)*length(relerrs),...
-                false,length(orders),length(relerrs));
+            t.addRow('m / rel. error',title{:});
+            pi = tools.ProcessIndicator('Computing min required error orders over %d DEIM orders (%d max order, %d total, %d rel errors)',...
+                sum(f.MaxOrder-orders),false,length(orders),f.MaxOrder,...
+                sum(f.MaxOrder-orders),length(relerrs));
             for i = 1:length(orders)
                 f.Order = orders(i);
-                [etrue, ~, ED] = testing.DEIM.getTrajApproxErrorDEIMEstimates(r, mu, inidx);
-                ET = repmat(etrue',[1 1 size(ED,1)]);
-                ET = shiftdim(ET,2);
-                if size(ET,2) == 1 && size(ET,1) > 1
-                    ET = ET';
-                end
-                if size(ED,1) == 1
-                    ED = squeeze(ED);
-                end
-                rel = max(ED ./ ET,[],2);
-                for j = 1:length(relerrs)
-                    % Trick: find nonzero flags, get first occurrence for each
-                    % column and use their row index as index of the ErrorOrder
-                    % at which the relative error (between estimate and true)
-                    % is smaller than relerrs(i) for all time-steps!
-                    [v, c] = find(rel < relerrs(j));
-                    [~, firstpos] = unique(c,'first');
-                    res(i,j) = mean(v(firstpos));
+                etrue = Norm.L2(fxi - f.evaluate(xi,atd.ti,atd.mui));
+                eos = f.MaxOrder-orders(i);
+                rel = zeros(eos,2);
+                for eo = 1:eos
+                    f.Order = [orders(i) eo];
+                
+                    eest = Norm.L2(f.getEstimatedError(xi, atd.ti, atd.mui));
+                    rerr = abs((eest-etrue) ./ etrue);
+                    rerr(isnan(rerr)) = [];
+                    rel(eo,1) = max(rerr);
+                    rel(eo,2) = mean(rerr);
                     pi.step;
                 end
-                tmp = res(i,:);
-                tmp(isnan(tmp)) = -1;
-                res(i,:) = tmp;
-                hlp = num2cell(res(i,:));
-                t.addRow(orders(i),hlp{:},{'%g'});
+                hlp = cell.empty(0,4);
+                for j = 1:length(relerrs)
+                    % Max rel errs
+                    idx = find(rel(:,1) <= relerrs(j),1,'first');
+                    if isempty(idx)
+                        idx = min(rel(:,1));
+                    end
+                    res(i,j) = idx;
+                    % Mean rel errs
+                    idx = find(rel(:,2) <= relerrs(j),1,'first');
+                    if isempty(idx)
+                        idx = min(rel(:,1));
+                    end
+                    resmean(i,j) = idx;
+                    hlp{j} = sprintf('%g/%g',res(i,j),resmean(i,j));
+                end
+                t.addRow(orders(i),hlp{:});
             end
             pi.stop;
             f.Order = oldo;
-            
+            res = [res resmean];
             if nargout < 4
                 t.display;
             end
         end
-        
-%         function [res, relerrs, orders, t] = getMeanRequiredErrorOrders(r, relerrs, orders)
-%             % [res, relerrs, orders, t] = getMeanRequiredErrorOrders(this, relerrs, orders, mu)
-%             % This high-level function computes the minimum values of M' in
-%             % order to have the relative error of true to estimated DEIM
-%             % error smaller than the specified relerrs.
-%             %
-%             % Parameters:
-%             % relerrs: The relative errors that may occur between true and
-%             % estimated approximation error, maximized over time of each
-%             % trajectory, averaged over all trajectories. @type
-%             % rowvec<double> @default [1e-1 1e-2 1e-3 1e-4]
-%             % orders: The different orders for which to compute the minimum
-%             % ErrorOrders @type rowvec<integer> @default One to
-%             % approx.DEIM.MaxOrder in steps of three
-%             % mu: The parameters that determine the desired trajectories.
-%             % The minimum needed M' will be averaged over all trajectories.
-%             % @type matrix<double> @default All full model's parameter
-%             % samples
-%             %
-%             % Return values:
-%             % res: A matrix containing the minimum required M', indexed by
-%             % orders in rows and relative errors in columns. @type
-%             % matrix<double>
-%             % relerrs: The effectively used relerrs. @type rowvec<double>
-%             % orders: The effectively used orders. @type rowvec<integer>
-%             % t: A PrintTable containing the results. If not specified as a
-%             % nargout argument, the table will be printed instead. @type
-%             % PrintTable @optional
-%             fm = r.FullModel;
-%             f = fm.Approx;
-%             if nargin < 3 || isempty(orders)
-%                 orders = 1:3:f.MaxOrder;
-%             end
-%             if nargin < 2 || isempty(relerrs)
-%                 relerrs = [1e-1 1e-2 1e-3 1e-4];
-%             end
-%             
-%             oldo = f.Order;
-%             res = zeros(length(orders),length(relerrs));
-%             t = PrintTable('Mean required M'', averaged over %d trajectories',size(mu,2));
-%             t.HasHeader = true;
-%             title = arrayfun(@(e)sprintf('%g',e),relerrs,'Unif',false);
-%             t.addRow('DEIM order / rel. error',title{:});
-%             pi = tools.ProcessIndicator('Computing mean required error orders for %d DEIM orders and %d relative errors',...
-%                 length(orders)*length(relerrs),...
-%                 false,length(orders),length(relerrs));
-%             for i = 1:length(orders)
-%                 f.Order = orders(i);
-%                 [etrue, ~, ED] = testing.DEIM.getTrajApproxErrorDEIMEstimates(r, mu, inidx);
-%                 ET = repmat(etrue',[1 1 size(ED,1)]);
-%                 ET = shiftdim(ET,2);
-%                 if size(ET,2) == 1 && size(ET,1) > 1
-%                     ET = ET';
-%                 end
-%                 if size(ED,1) == 1
-%                     ED = squeeze(ED);
-%                 end
-%                 rel = max(ED ./ ET,[],2);
-%                 for j = 1:length(relerrs)
-%                     % Trick: find nonzero flags, get first occurrence for each
-%                     % column and use their row index as index of the ErrorOrder
-%                     % at which the relative error (between estimate and true)
-%                     % is smaller than relerrs(i) for all time-steps!
-%                     [v, c] = find(rel < relerrs(j));
-%                     [~, firstpos] = unique(c,'first');
-%                     res(i,j) = mean(v(firstpos));
-%                     pi.step;
-%                 end
-%                 tmp = res(i,:);
-%                 tmp(isnan(tmp)) = -1;
-%                 res(i,:) = tmp;
-%                 hlp = num2cell(res(i,:));
-%                 t.addRow(orders(i),hlp{:},{'%g'});
-%             end
-%             pi.stop;
-%             f.Order = oldo;
-%             
-%             if nargout < 4
-%                 t.display;
-%             end
-%         end
         
         %% Model DEIM reduction quality assessment pics
         function [errs, relerrs, times, deim_orders] = getDEIMReducedModelErrors(r, mu, inidx, deim_orders)
@@ -919,6 +826,109 @@ classdef DEIM
             end
         end
         
+        %% Error estimator struct compilation
+        function est = getDEIMEstimators_MDEIM_ST(rmodel, jdorders, stsizes)
+            % Returns an estimator struct usable by the EstimatorAnalyzer
+            if nargin < 3
+                stsizes = [1 10];
+                if nargin < 2
+                    jdorders = [1 10];
+                end
+            end
+            li = tools.LineSpecIterator(3+length(jdorders)*length(stsizes),1);
+            
+            % Error estimators
+            est = struct.empty;
+            
+            est(end+1).Name = 'True error';
+            est(end).Estimator = error.DefaultEstimator;
+            est(end).Estimator.setReducedModel(rmodel);
+            est(end).Estimator.Enabled = true;
+            est(end).MarkerStyle = 'o';
+            est(end).LineStyle = '-';
+            est(end).Color = [0 0 1];
+            li.excludeColor(est(end).Color);
+            
+            dest = rmodel.ErrorEstimator;
+            %dest.UseTrueDEIMErr = false;
+            dest.UseTrueLogLipConst = false;
+            dest.Enabled = true;
+            
+            for j = 1:length(jdorders)
+                cl = li.nextLineStyle;
+                li2 = tools.LineSpecIterator;
+                for k = 1:length(stsizes)
+                    e = dest.clone;
+                    e.JacMDEIM.Order = jdorders(j);
+                    e.JacSimTransSize = stsizes(k);
+                    est(end+1).Name = sprintf('m_J:%d, k:%d',...
+                        e.JacMDEIM.Order(1),e.JacSimTransSize);%#ok
+                    est(end).Estimator = e;
+                    est(end).MarkerStyle = li2.nextMarkerStyle;
+                    est(end).LineStyle = cl;
+                    est(end).Color = li.nextColor;
+                end
+            end
+            
+            % Expensive versions
+            e = dest.clone;
+            e.UseFullJacobian = true;
+            est(end+1).Name = 'L_G[J_f]';
+            est(end).Estimator = e;
+            est(end).MarkerStyle = 'h';
+            est(end).LineStyle = '-';
+            est(end).Color = li.nextColor;
+            
+            e = dest.clone;
+            e.UseTrueLogLipConst = true;
+            est(end+1).Name = 'Loc. log-lip.';
+            est(end).Estimator = e;
+            est(end).MarkerStyle = 'p';
+            est(end).LineStyle = '-';
+            est(end).Color = li.nextColor;
+        end
+        
+        function est = getDEIMEstimators_ErrOrders(rmodel, errororders)
+            if nargin < 2
+                errororders = [1 2 5];
+            end
+            m = tools.LineSpecIterator(2+length(errororders));
+            
+            % Error estimators
+            est = struct.empty;
+            est(end+1).Name = 'True reduction error';
+            est(end).Estimator = error.DefaultEstimator;
+            est(end).Estimator.setReducedModel(rmodel);
+            est(end).Estimator.Enabled = true;
+            est(end).MarkerStyle = 'o';
+            est(end).LineStyle = '-';
+            est(end).Color = [0 0 1];
+            m.excludeColor(est(end).Color);
+            
+            dest = rmodel.ErrorEstimator.clone;
+            dest.Enabled = true;
+            
+            % Add best version
+            est(end+1).Name = 'Reference estimate';
+            est(end).Estimator = dest.clone;
+            est(end).Estimator.UseTrueDEIMErr = true;
+            est(end).MarkerStyle = 'p';
+            est(end).LineStyle = '-';
+            est(end).Color = [0 0.5 0];
+            m.excludeColor(est(end).Color);
+            
+            for j = 1:length(errororders)
+                str = sprintf('e.ReducedModel.System.f.Order = [e.ReducedModel.System.f.Order(1) %d];',errororders(j));
+                est(end+1).Name = sprintf('m''=%d',errororders(j));%#ok
+                est(end).Estimator = dest;
+                est(end).Callback = @(e)eval(str);
+                est(end).MarkerStyle = m.nextMarkerStyle;
+                est(end).LineStyle = '-.';
+                est(end).Color = m.nextColor;
+            end
+        end
+        
+        %% General test methods
         function [m, r] = test_DEIM
             m = models.pcd.PCDModel(1);
             m.EnableTrajectoryCaching = false;
