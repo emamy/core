@@ -13,8 +13,8 @@ classdef PlotManager < handle
 % pm = PlotManager(false,2,1);
 % pm.FilePrefix = 'my_pm';
 % % [.. your plot function called with argument pm ..]
-% pm.nextPlot('fig_in_subplot1','Title of subplot 1','xlabel','ylabel');
-% plot(1:10,sin(1:10));
+% pm.nextPlot('fig_in_subplot1','Title of subplot 1','xlabel','ylabel',{'sin','cos'});
+% plot(1:10,[sin(1:10); cos(1:10)]');
 % pm.nextPlot('fig_in_subplot2','Only title given');
 % plot(-10:10,cos(pi*(-10:10)));
 % pm.nextPlot('fig_in_new_subplot1','Yeay! a new figure has popped up.');
@@ -168,6 +168,7 @@ classdef PlotManager < handle
         ncap = [];
         nxl = [];
         nyl = [];
+        nleg = [];
         donelast = false;
     end
     
@@ -198,7 +199,7 @@ classdef PlotManager < handle
             this.ss = s(1,3:4);
         end
         
-        function ax_handle = nextPlot(this, tag, caption, xlab, ylab)
+        function ax_handle = nextPlot(this, tag, caption, xlab, ylab, leg_str)
             % Creates a new axis to plot in. Depending on the property
             % tools.PlotMananger.Single this will either advance to the
             % next subplot or open up a new figure window of size
@@ -209,17 +210,24 @@ classdef PlotManager < handle
             %
             % Parameters:
             % tag: The tag to use for the axes. @type char @default ''
+            % caption: The caption for the axes. @type char @default []
+            % xlab: The xlabel for the axes. @type char @default []
+            % ylab: The ylabel for the axes. @type char @default []
+            % leg_str: The legend entry strings for the axes. @type cell<char> @default {}
             %
             % Return values:
             % ax_handle: The handle to the new axes object. @type axes
-            if nargin < 5
-                ylab = [];
-                if nargin < 4
-                    xlab =[];
-                    if nargin < 3
-                        caption = [];
-                        if nargin < 2
-                            tag = '';
+            if nargin < 6
+                leg_str = {};
+                if nargin < 5
+                    ylab = [];
+                    if nargin < 4
+                        xlab =[];
+                        if nargin < 3
+                            caption = [];
+                            if nargin < 2
+                                tag = '';
+                            end
                         end
                     end
                 end
@@ -230,6 +238,7 @@ classdef PlotManager < handle
             this.ncap = caption;
             this.nxl = xlab;
             this.nyl = ylab;
+            this.nleg = leg_str;
             
             if this.Single
 %                 if ~isempty(this.Figures)
@@ -462,6 +471,9 @@ classdef PlotManager < handle
                     end
                     if ~isempty(this.nyl)
                         ylabel(h, this.nyl);
+                    end
+                    if ~isempty(this.nleg)
+                        legend(h, this.nleg{:});
                     end
                     % Make axis tight if no manual values have been set
                     if ~any(strcmp(get(h,{'XLimMode','YLimMode','ZLimMode'}),'manual'))

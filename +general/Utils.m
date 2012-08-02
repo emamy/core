@@ -518,7 +518,7 @@ classdef Utils
                 opts.maxit = 1000;
                 opts.p = 20+ceil(.1*log(dim)*(dim^.35));
                 if dim > 10000 && KerMor.App.Verbose > 2
-                    fprintf('Starting log norm computaion for %d-dimensional matrix (eigs:maxit=%d, p=%d)\n',...
+                    fprintf('Starting log norm computation for %d-dimensional matrix (eigs:maxit=%d, p=%d)\n',...
                         dim,opts.maxit,opts.p);
                 end
                 lastwarn('');
