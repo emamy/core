@@ -23,6 +23,16 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
         BLOCK_SIZE = 256*1024^2; % 256MB
     end
     
+    properties
+        % Set this flag to true, if only so much space should be required as actually needed
+        % when transposing the matrix (i.e. twice the size of the current matrix).
+        %
+        % If false (default), running ctranspose will create small blocks fitted to the size of
+        % the meshed sizes temporarily. This needs 3 times the space instead of 2 but avoids
+        % reloading the whole block even if no data is changed where it already exists.
+        InPlaceTranspose = false;
+    end
+    
     properties(SetAccess=private)
         % The number of columns for each block.
         %
@@ -313,6 +323,33 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             end
         end
         
+        function diff = minus(A, B)
+            if all(size(A) == size(B))
+                if isa(A,'data.FileMatrix')
+                    if isa(B,'data.FileMatrix')
+                        error('Not yet implemented.');
+%                         diff = data.FileMatrix(A.n, A.m, A);
+%                         key = struct('type',{'()'},'subs',{{':'}});
+%                         for i=1:A.nBlocks
+%                             pos = A.getBlockPos(i);
+%                             key.subs{2} = pos;
+%                             diff.subsasgn(key,A.loadBlock(i) - B(:,pos));
+%                         end
+                    else
+                        diff = zeros(A.n, A.m);
+                        for i=1:A.nBlocks
+                            pos = A.getBlockPos(i);
+                            diff(:,pos) = A.loadBlock(i) - B(:,pos);
+                        end
+                    end
+                else
+                    diff = minus(B, A);
+                end
+            else
+                error('Invalid matrix dimensions.');
+            end
+        end
+        
         function AB = mtimes(A, B)
             if isa(A,'data.FileMatrix')
                 % FileMatrix * FileMatrix case
@@ -334,7 +371,7 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
                         end
                     % FileMatrix * matrix case
                     else
-                        AB = data.FileMatrix(A.n, size(B,2), fileparts(A.DataDirectory),A.blocksize);
+                        AB = data.FileMatrix(A.n, size(B,2), A);
                         ABcols = AB.bCols;
                         key = struct('type',{'()'},'subs',{{':'}});
                         for i=1:A.nBlocks
@@ -371,19 +408,53 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
         end
         
         function trans = ctranspose(this)
-            trans = data.FileMatrix(this.m,this.n,...
-                fileparts(this.DataDirectory),this.blocksize);
-            key = struct('type',{'()'},'subs',{{[],':'}});
-            if this.nBlocks > 1
-                pi = tools.ProcessIndicator('Creating transposed of %d-block matrix in %s' ,this.nBlocks,...
-                    false,this.nBlocks,trans.DataDirectory);
-            end
-            for j=1:this.nBlocks
-                B = this.loadBlock(j);
-                key.subs{1} = this.getBlockPos(j);
-                trans.subsasgn(key,B');
+            trans = data.FileMatrix(this.m,this.n,this);
+            if this.InPlaceTranspose
                 if this.nBlocks > 1
-                    pi.step;
+                    pi = tools.ProcessIndicator('Creating in-place transposed of %d-block matrix in %s' ,this.nBlocks,...
+                        false,this.nBlocks,trans.DataDirectory);
+                end
+                key = struct('type',{'()'},'subs',{{[],':'}});
+                for j=1:this.nBlocks
+                    B = this.loadBlock(j);
+                    key.subs{1} = this.getBlockPos(j);
+                    trans.subsasgn(key,B');
+                    if this.nBlocks > 1
+                        pi.step;
+                    end
+                end
+            else
+                if this.nBlocks > 1
+                    pi = tools.ProcessIndicator('Creating transposed of %d-block matrix in %s',2*this.nBlocks,...
+                        false,this.nBlocks,trans.DataDirectory);
+                end
+                % Write out blocks in small chunks
+                for j=1:this.nBlocks
+                    B = this.loadBlock(j);
+                    for k=1:trans.nBlocks
+                        pos = trans.getBlockPos(k);
+                        chunk = B(pos,:); %#ok
+                        save(fullfile(trans.DataDirectory,sprintf('tmp_%d_%d.mat',j,k)), 'chunk');
+                    end
+                    if this.nBlocks > 1
+                        pi.step;
+                    end
+                end
+                % Read in blocks from respective chunks
+                for k=1:trans.nBlocks
+                    B = trans.loadBlock(k);
+                    for j=1:this.nBlocks
+                        file = fullfile(trans.DataDirectory,sprintf('tmp_%d_%d.mat',j,k));
+                        s = load(file);
+                        pos = this.getBlockPos(j);
+                        B(pos,:) = s.chunk';
+                        % remove temp file
+                        delete(file);
+                    end
+                    trans.saveBlock(k,B);
+                    if this.nBlocks > 1
+                        pi.step;
+                    end
                 end
             end
             if this.nBlocks > 1
@@ -513,8 +584,8 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
     methods(Static)
         function res = test_FileMatrix
             res = true;
-            B = rand(10,100);
-            A = data.FileMatrix(10,100,KerMor.App.TempDirectory,1600);
+            B = rand(99,100);
+            A = data.FileMatrix(99,100,KerMor.App.TempDirectory,99*20*8);
             key = struct('type',{'()'},'subs',[]);
             % col-wise setting (fast)
             for k=1:100
@@ -532,8 +603,8 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             res = res && all(all(A.toMemoryMatrix == B));
             
             % Direct constructor test
-            A = data.FileMatrix(B);
-            res = res && all(all(A.subsref(key) == B));
+            A2 = data.FileMatrix(B);
+            res = res && all(all(A2.subsref(key) == B));
             
             % IsEqual test
             res = res && A == B;
@@ -541,18 +612,22 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             res = res && A ~= B2;
             
             % Transpose test
+            A.InPlaceTranspose = false;
+            At = A';
+            res = res && all(all(At.toMemoryMatrix == B'));
+            A.InPlaceTranspose = true;
             At = A';
             res = res && all(all(At.toMemoryMatrix == B'));
             
             % Multiply test
             v = rand(size(A,2),1);
-            res = res && isequal(A*v,B*v);
+            res = res && norm(A*v-B*v) < 1e-10;
             v = rand(size(A,2),100);
-            res = res && A*v == B*v;
+            res = res && all(Norm.L2(A*v-B*v) < 1e-10);
             v = rand(1,size(A,1));
-            res = res && isequal(v*A,v*B);
+            res = res && norm(v*A-v*B) < 1e-10;
             v = rand(100,size(A,1));
-            res = res && v*A == v*B;
+            res = res && all(Norm.L2(v*A-v*B) < 1e-10);
             
             % SVD test
             p = sqrt(eps);
