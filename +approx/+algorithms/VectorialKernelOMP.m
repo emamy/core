@@ -91,7 +91,7 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
             
             %% Debug/error information inits
             
-            xtmuargs = {atd.xi};
+            xtmuargs = {atd.xi.toMemoryMatrix};
             if ~isempty(atd.ti)
                 xtmuargs{2} = atd.ti;
             end
@@ -102,7 +102,8 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
             this.relerr = this.err;
 
 %             fxinorm = Norm.L2(atd.fxi);
-            fximeans = mean(abs(atd.fxi),2);
+            atdfxi = atd.fxi.toMemoryMatrix;
+            fximeans = mean(abs(atdfxi),2);
             
             if exp_mode
                 % Validation set initializations
@@ -358,12 +359,12 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
             
             function compTrainingError
                 afxi = kexp.evaluate(xtmuargs{:});
-                e = afxi-atd.fxi;
+                e = afxi-atdfxi;
                 this.err(gidx,siz) = max(Norm.L2(e));
                 e = bsxfun(@times,e,1./fximeans);
                 this.relerr(gidx,siz) = max(Norm.L2(e));
                 
-%                 e = Norm.L2(afxi-atd.fxi);
+%                 e = Norm.L2(afxi-atdfxi);
 %                 this.err(gidx,siz) = max(e);
 %                 this.relerr(gidx,siz) = max(e./fxinorm);
                 if this.relerr(gidx,siz) > 1e3
@@ -418,7 +419,8 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
             cafxi = cafxi(yplotdim,:);
 
             subplot(2,3,4);
-            plot(pxifree,fDotPhiSqAll,'r',pxi,atd.fxi(yplotdim,:),'b',...
+            atdfxi = atd.fxi.toMemoryMatrix;
+            plot(pxifree,fDotPhiSqAll,'r',pxi,atdfxi(yplotdim,:),'b',...
                 pxi,afxi(yplotdim,:),'g',pxifree(maxidx),v,'b.',cxi,cafxi,'g.');
             title(sprintf('Extension choice %d',free(maxidx)));
             lbl = '<f,phi>^2';

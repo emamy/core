@@ -214,7 +214,7 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
             end
             
             % Stopping condition preps
-            this.effabs = this.MaxAbsErrFactor * max(abs(atd.fxi(:)));
+            this.effabs = this.MaxAbsErrFactor * max(atd.fxi.MaxValue,-atd.fxi.MinValue);
             this.lasterrs = [];
             
             this.detailedAdaptiveApproximation(kexp, atd);
