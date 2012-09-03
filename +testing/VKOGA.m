@@ -13,42 +13,135 @@ classdef VKOGA
     
     methods(Static)
         function WH12c
-            ap = KerMor.App;
-            oldv = ap.Verbose;
-            ap.Verbose = 1;
+%             ap = KerMor.App;
+%             oldv = ap.Verbose;
+%             ap.Verbose = 1;
             
-            dir = 'C:\Users\CreaByte\Documents\Uni\VKOGA\img\test';
-            [~, ~, ~, a, ao, f, ~] = testing.VKOGA.test_VKOGA_Versions_5dim(1, 1);
-            pm = tools.PlotManager(true);
-            pm.FilePrefix = '5d';
-            testing.VKOGA.plotStatistics(a,ao,f,pm);
-            pm.savePlots(dir, 'fig');
-            pm.savePlots(dir, 'eps', true);
+            dir = '/usr/local/datastore/kermor/VKOGA';
+            types = {'jpg'};
+            pm = tools.PlotManager;
+            pm.SingleSize = [1224 768];
+            pm.LeaveOpen = false;
+            pm.UseFileTypeFolders = true;
+            pm.NoTitlesOnSave = true;
             
-            pm = tools.PlotManager(true);
-            pm.FilePrefix = '5druns';
-            %load 5dim_VKOGA;
-            [res, kexp, kexp_OGA, a, ao, f, atd] = testing.VKOGA.test_VKOGA_Versions_5dim(50, 1);
-            save 5dim_VKOGA res kexp kexp_OGA a ao f atd;
-            testing.VKOGA.plotVKOGARes(res, pm);
-            pm.savePlots(dir, 'fig');
-            pm.savePlots(dir, 'eps', true);
+            pm.FilePrefix = 'selection_illus';
+            testing.VKOGA.selectCritGraphic(pm);
+            %testing.VKOGA.selectCritGraphic(pm,4554);
+            pm.done;
+            pm.savePlots(dir, types, [], true);
             
-            % Different gamma values
-            res = testing.VKOGA.test_VKOGA_Versions_diffgamma(30, 1);
-            save diffgamma res;
-            pm = tools.PlotManager(true);
-            pm.FilePrefix = 'diffgamma';
-            testing.VKOGA.plotVKOGARes(res, pm);
-            pm.savePlots(dir, 'fig');
-            pm.savePlots(dir, 'eps', true);
+            %dir = 'C:\Users\CreaByte\Documents\Uni\VKOGA\img\test';
+%             [~, ~, ~, a, ao, f, ~] = testing.VKOGA.test_VKOGA_Versions_5dim(1, 1);
+%             pm = tools.PlotManager(true);
+%             pm.FilePrefix = '5d';
+%             testing.VKOGA.plotStatistics(a,ao,f,pm);
+%             pm.savePlots(dir, 'fig');
+%             pm.savePlots(dir, 'eps', true);
+%             
+%             pm = tools.PlotManager(true);
+%             pm.FilePrefix = '5druns';
+%             %load 5dim_VKOGA;
+%             [res, kexp, kexp_OGA, a, ao, f, atd] = testing.VKOGA.test_VKOGA_Versions_5dim(50, 1);
+%             save 5dim_VKOGA res kexp kexp_OGA a ao f atd;
+%             testing.VKOGA.plotVKOGARes(res, pm);
+%             pm.savePlots(dir, 'fig');
+%             pm.savePlots(dir, 'eps', true);
+%             
+%             % Different gamma values
+%             res = testing.VKOGA.test_VKOGA_Versions_diffgamma(30, 1);
+%             save diffgamma res;
+%             pm = tools.PlotManager(true);
+%             pm.FilePrefix = 'diffgamma';
+%             testing.VKOGA.plotVKOGARes(res, pm);
+%             pm.savePlots(dir, 'fig');
+%             pm.savePlots(dir, 'eps', true);
             
-            ap.Verbose = oldv;
+%             ap.Verbose = oldv;
+        end
+        
+        function pm = selectCritGraphic(pm, seed)
+            if nargin < 2
+                seed = 6209; %4554, 502197612
+                if nargin < 1
+                    pm = tools.PlotManager;
+                    pm.LeaveOpen = true;
+                end
+            end
+            ms = 16; % marker size
+            lw = 2;
+            fine = .01;
+            x = -10:fine:10;
+            dia = x(end)-x(1);
+            r = RandStream('mt19937ar','Seed',seed);
+            
+            nc = 6;
+            f = kernels.KernelExpansion;
+            f.Kernel = kernels.GaussKernel;
+            % Use same dist aka space
+            f.Kernel.setGammaForDistance(dia/4,1e-5);
+            f.Centers.xi = r.rand(1,nc)*dia+x(1);
+            f.Ma = r.rand(1,nc)*5-2.5;
+            
+            fx = f.evaluate(x);
+            h = pm.nextPlot(sprintf('seed_%d',seed),'Illustration of VKOGA/WSOGA selection criteria','x');
+            plot(h,x,fx,'r-','LineWidth',lw);
+            
+            kexp = kernels.KernelExpansion;
+            kexp.Kernel = f.Kernel;
+            pos = [-7.1   -5.6   -2.1    1.9    5.9    8.4];
+            %pos = [-3 -2];
+            c = round((pos-x(1))/fine);
+            kexp.Centers.xi = x(c);
+            kexp.Ma = (kexp.getKernelMatrix\fx(c)')';
+            
+            afx = kexp.evaluate(x);
+            hold(h,'on');
+            plot(h,x,afx,'b-','LineWidth',lw);
+            
+            % Extension errors
+            free = true(size(x));
+            free(c) = false;
+            xf = x(free);
+            Kbig = kexp.getKernelVector(xf)';
+
+            % Compute kernel fcn projection to H(m-1)
+            A = kexp.getKernelMatrix \ Kbig;
+            F = fx(c);
+            
+            oga_err = abs(fx(free) - F*A);
+            %oga_err = abs(fx-afx);
+            phinormsq = sqrt(1 - sum(A.*Kbig,1));
+            vkoga_err = oga_err ./ phinormsq;
+            
+            g = [0 .5 0];
+            plot(h,xf,oga_err,'Color',g,'LineWidth',lw);
+            plot(h,xf,vkoga_err,'--','Color',g,'LineWidth',lw);
+            
+            off = -3;
+            plot(h,xf,phinormsq+off,'m-.','LineWidth',lw);
+            
+            
+            plot(h,x(c),fx(c),'b.','MarkerSize',ms+8,'LineWidth',lw);
+            [om, oidx] = max(oga_err);
+            [vm, vidx] = max(vkoga_err);
+            plot(h,xf(oidx),om,'rx',xf(vidx),vm,'rx','MarkerSize',ms,'LineWidth',lw);
+            
+            % Lines at maxima
+            plot(h,[xf(oidx) xf(oidx)],[om phinormsq(oidx)+off],'k--');
+            plot(h,[xf(vidx) xf(vidx)],[vm phinormsq(vidx)+off],'k--');
+            % Zero line
+            plot(h,x,0,'k');
+            
+            lh = legend('f(x)','approx','\langle f_j-f_j^{m-1}, \phi(x,\cdot)\rangle_H',...
+                '\langle f_j, \phi^{m-1}_x\rangle_H','||\phi^{m-1}_x||-3');
+            set(lh,'Location','Best');
         end
         
         function [kexp, atd, a, f] = test_VKOGA(oga, seed, pm)
             if nargin < 3
                 pm = tools.PlotManager(false, 1, 2);
+                pm.LeaveOpen = true;
                 if nargin < 2
                     seed = 1;
                     if nargin < 1

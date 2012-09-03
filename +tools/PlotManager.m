@@ -288,9 +288,15 @@ classdef PlotManager < handle
             h = findobj(h,'Tag','','Type','axes');
         end
         
-        function h = createZoom(this, nr, area, withlegend)
-            if nargin < 4
+        function h = createZoom(this, nr, area, tagextra, withlegend)
+            if nargin < 5
                 withlegend = false;
+                if nargin < 4
+                    tagextra = '';
+                end
+            end
+            if ~isempty(tagextra)
+                tagextra = ['_' tagextra];
             end
             
             if ~this.Single
@@ -299,8 +305,12 @@ classdef PlotManager < handle
                 error('nr must not be empty and within the range 1 to %d',length(this.Figures));
             end
             % Creates a new figure and returns the axes handle
-            h = this.copyFigure(nr,[get(nr,'Tag') '_zoom']);
+            h = this.copyFigure(nr,[get(nr,'Tag') '_zoom' tagextra]);
             % Set to desired area
+            useold = isnan(area);
+            area(useold) = 0; % set NaNs to values (otherwise 0*NaN = NaN)
+            oldarea = [get(h,'XLim') get(h,'YLim')];
+            area = useold.*oldarea + (~useold).*area;
             axis(h, area);
             if ~withlegend
                 delete(findobj(get(this.Figures(end),'Children'),'Tag','legend'));

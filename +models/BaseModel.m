@@ -260,7 +260,7 @@ classdef BaseModel < KerMorObject
             %    either returns the full trajectory or the processed output
             %    at times t.
             % sec: the seconds needed for simulation.
-            % x: The state space variables before output conversion.
+            % x: The (scaled, if used) state space variables before output conversion.
             %
             % @todo: fix Input checks (set inidx=1 iff one input is
             % there, otherwise error)
@@ -284,6 +284,12 @@ classdef BaseModel < KerMorObject
             
             % Re-scale state variable
             % (new variable name here as x is optionally returned!)
+            %
+            % NOTE: This is also called for reduced simulations within ReducedModel.simulate.
+            % However, reduced models do not employ state scaling anymore as it has been
+            % included in the x0, C components at build-time for the reduced model,
+            % respectively.
+            % See models.ReducedSystem.setReducedModel
             sx = x;
             if ~isequal(this.System.StateScaling,1)
                 if isscalar(this.System.StateScaling)
@@ -508,9 +514,10 @@ classdef BaseModel < KerMorObject
             end
         end
         
-        function gs = get.GScaled(this)
+        function gs = get.GScaled(this)%#ok
             % @todo move GScaled to BaseDynSystem
-            ss = this.System.StateScaling;
+            error('Using this value is no longer necessary. fix places where occurring and use G');
+            ss = this.System.StateScaling;%#ok
             if isscalar(ss)
                 gs = this.G * ss^2;
             else

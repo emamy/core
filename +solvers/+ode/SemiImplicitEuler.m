@@ -28,6 +28,11 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
         model;
     end
     
+    properties(SetAccess=private)
+        LastAlpha;
+        LastBeta;
+    end
+    
     methods
         function this = SemiImplicitEuler(model)
             this.model = model;
@@ -51,6 +56,8 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
             if ~isempty(find((abs(t(2:end)-t(1:end-1) - dt)) / dt > 1e-6,1)) %any(t(2:end)-t(1:end-1) - dt > 100*eps)
                 error('non-equidistant dt timesteps.');
             end
+            this.LastAlpha = zeros(1,steps-1);
+            this.LastBeta = zeros(1,steps-1);
             
             rtm = this.RealTimeMode;
             if rtm
@@ -115,26 +122,26 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
                     newx = (M - dt * A)\RHS;
                 end
                 
-                % Explicit error estimation computation
+                % Implicit error estimation computation
                 if ~isempty(oldex)
                     ut = [];
                     if ~isempty(s.u)
                         ut = s.u(t(idx));
                     end
-                    % Explicit
-                    %newex = oldex + dt * est.evalODEPart([oldx; oldex], t(idx-1), s.mu, ut);
-                    % Implicit
                     al = est.getAlpha([oldx; oldex], t(idx), s.mu, ut);
                     bet = est.getBeta([oldx; oldex], t(idx), s.mu);
-%                     fprintf('alpha: %g, beta: %g\n',al,bet);
-                    newex = (dt*al+oldex)...
-                        /(1-dt*bet);
+                    this.LastAlpha(idx-1) = al;
+                    this.LastBeta(idx-1) = bet;
+                    
+                    % Explicit
+                    %newex = oldex + dt * est.evalODEPart([oldx; oldex], t(idx-1), s.mu, ut);
+                    
+                    % Implicit
+                    newex = (dt*al+oldex)/(1-dt*bet);
                     
 %                     fun = @(y)y-dt*est.evalODEPart([oldx; y], t(idx), s.mu, ut)-oldex/dt;
 %                     opts = optimset('Display','off');
 %                     newex2 = fsolve(fun, oldex, opts);
-                    
-%                     fff = 5;
                 end
                 
                 % Real time mode: Fire StepPerformed event

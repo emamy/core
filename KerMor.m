@@ -237,6 +237,9 @@ classdef KerMor < handle
     % @todo change TempDirectory and DataDirectory to be dependent-only values (read & write
     % directly to preferences), and enforce DIFFERENT folders (ModelData.SimCache
     % uses same prefix etc)
+    %
+    % @todo KerMor.App.getDir method that saves the last accessed directory if successfully
+    % selected
     
     properties(Constant)
         % The current KerMor main version number
@@ -361,21 +364,7 @@ classdef KerMor < handle
         % @default false
         Hasrbmatlab = false;
     end
-    
-    methods
-        function tag = getPrefTag(this)
-            % Returns the tag used to store the KerMor preferences and settings.
-            %
-            % Note that the tag is machine/host-dependent.
-            % The initialization routine checks for the existence, and if none is found
-            % possible configurations from other hosts are suggested if found.
-            %
-            % Return values:
-            % tag: The host-dependent tag used for KerMor preferences
-            tag = [KerMor.PrefTagPrefix strrep(KerMor.getHost,'.','')];
-        end
-    end
-    
+ 
     % Getter & Setter
     methods
         function set.UseMatlabParallelComputing(this, value)
@@ -466,7 +455,7 @@ classdef KerMor < handle
                 if ~isdir(value)
                     error('Invalid directory: %s',value);
                 end
-                chk = fullfile(value,['kermor' filesep 'java' filesep 'ReducedModel.java']);
+                chk = fullfile(value,['kermor' filesep 'ReducedModel.java']);
                 if ~exist(chk,'file')
                     error('Invalid JKerMor directory (no ReducedModel.java found): %s',value);
                 end
@@ -1015,6 +1004,37 @@ classdef KerMor < handle
             d = MatlabDocMaker.getOutputDirectory;
             if isempty(d) || ~exist(fullfile(d,'index.html'),'file')
                 d = 'http://www.agh.ians.uni-stuttgart.de/documentation/kermor';
+            end
+        end
+        
+        function tag = getPrefTag
+            % Returns the tag used to store the KerMor preferences and settings.
+            %
+            % Note that the tag is machine/host-dependent.
+            % The initialization routine checks for the existence, and if none is found
+            % possible configurations from other hosts are suggested if found.
+            %
+            % Return values:
+            % tag: The host-dependent tag used for KerMor preferences
+            tag = [KerMor.PrefTagPrefix strrep(KerMor.getHost,'.','')];
+        end
+        
+        function d = getDir
+            % Returns a folder selected by a uigetdir command.
+            % Remembers the last selected folder (if successful & existing)
+            t = KerMor.getPrefTag;
+            path = getpref(t,'LASTPATH',KerMor.App.HomeDirectory);
+            if exist(path,'dir') ~= 7
+                path = fileparts(path);
+                if exist(path,'dir') ~= 7
+                    path = pwd;
+                end
+            end
+            d = uigetdir(path,'Select directory');
+            if ~isequal(d, 0) && exist(d,'dir') == 7
+                setpref(t,'LASTPATH',d);
+            else
+                d = false;
             end
         end
     end

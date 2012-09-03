@@ -135,7 +135,20 @@ classdef EstimatorAnalyzer < handle
             end
         end
         
-        function [t, pm, errs, relerrs, ctimes] = start(this, mu, inidx, pm)
+        function est = getDefaultEstStruct(this)
+            % Returns the default structure for the Est property of this class.
+            % Contains only the error.DefaultEstimator class labeled 'True error'.
+            est = struct.empty;
+            est(end+1).Name = 'True error';
+            est(end).Estimator = error.DefaultEstimator;
+            est(end).Estimator.setReducedModel(this.ReducedModel);
+            est(end).Estimator.Enabled = true;
+            est(end).MarkerStyle = 'o';
+            est(end).LineStyle = '-';
+            est(end).Color = [0 0 1];
+        end
+        
+        function [errs, relerrs, ctimes, t, pm] = compute(this, mu, inidx, pm)
             % Runs the demo with the current settings.
             %
             % Parameters:
@@ -143,30 +156,15 @@ classdef EstimatorAnalyzer < handle
             % inidx: The input index `i` of the input function `u_i` to use
             % @type integer
             
-            if nargin < 4
-                pm = tools.PlotManager(false, 2, 2);
-                if nargin < 3
-                    inidx = [];
-                    if nargin < 2
-                        mu = [];
-                    end
+            if nargin < 3
+                inidx = [];
+                if nargin < 2
+                    mu = [];
                 end
             end
             
             [errs, ctimes, relerrs] = this.getErrorEstimates(mu, inidx, true);
             
-            % Absolute error plots
-            this.plotErrors(errs, pm)
-            
-            % Relative error plots
-            this.plotRelativeErrors(relerrs, pm);
-            
-            % Computation ctimes plot
-            this.plotCTimes(errs, ctimes, pm);
-            
-            if nargout < 2
-                pm.done;
-            end
             
             % MaxErr data
             this.ModelData(end+1).Name = this.Model.Name;
@@ -186,11 +184,10 @@ classdef EstimatorAnalyzer < handle
             if ~isempty(this.SaveTexTables)
                 t.Format = 'tex';
                 t.saveToFile(this.SaveTexTables);
-                %                 fid = fopen(this.SaveTexTables,'a+');
-                %                 str = [strrep(strrep(strrep(pt.print,'e+','\\cdot10^{'),'e-',...
-                %                         '\\cdot10^{-'),'{0','{') '\\\\\n'];
-                %                 fprintf(fid,str);
-                %                 fclose(fid);
+            end
+            
+            if nargin == 4
+                this.createPlots(errs, relerrs, ctimes, pm);
             end
         end
         
@@ -239,6 +236,13 @@ classdef EstimatorAnalyzer < handle
             % Restore old estimator
             this.ReducedModel.ErrorEstimator = oldest;
             
+            % Sanity checks
+            if any(abs(errs(1,1) - errs(2:end,1))/errs(1,1) > 1e-4)
+                warning('KerMor:EstimatorAnalyzer',...
+                    'Relative difference in initial errors over 1e-4 detected.');
+                figure; semilogy(errs(:,1));
+            end
+            
             if withrel
                 varargout{1} = this.getRelativeErrorEstimates(errs, mu, inidx);
             end
@@ -255,13 +259,32 @@ classdef EstimatorAnalyzer < handle
             relerrs = errs ./ repmat(yfullnorm,size(errs,1),1);
         end
         
+        function pm = createPlots(this, errs, relerrs, ctimes, pm)
+            if nargin < 5
+                pm = tools.PlotManager(false, 2, 2);
+            end
+            
+            % Absolute error plots
+            this.plotErrors(errs, pm)
+            
+            % Relative error plots
+            this.plotRelativeErrors(relerrs, pm);
+            
+            % Computation ctimes plot
+            this.plotCTimes(errs, ctimes, pm);
+            
+            if nargout < 1
+                pm.done;
+            end
+        end
+        
         function plotErrors(this, errs, pm)
             ax = pm.nextPlot('abserr',['Error estimations for model: ' this.Model.Name],...
                 'Time', 'Error estimates');
             
             this.doPlots(errs, ax);
 
-            axis(ax,[0 this.Model.T min(errs(:)) 3*max(errs(:))]);
+            axis(ax,[0 this.Model.T this.getYMin(errs) 3*max(errs(:))]);
         end
         
         function plotRelativeErrors(this, relerrs, pm)
@@ -272,7 +295,7 @@ classdef EstimatorAnalyzer < handle
             
             re = relerrs(:);
             re(isinf(re)) = -Inf;
-            axis(ax,[0 this.Model.T min(relerrs(:)) 3*max(re)]);
+            axis(ax,[0 this.Model.T this.getYMin(relerrs) 3*max(re)]);
         end
         
         function plotCTimes(this, errs, ctimes, pm)
@@ -310,7 +333,7 @@ classdef EstimatorAnalyzer < handle
             % Add legend
             a = cell(1,length(this.Est));
             [a{:}] = this.Est(:).Name;
-            legend(a,'Location','SouthEast');
+            legend(a,'Location','NorthEast');
             axis([.9*min(errs(:,end)) 1.1*max(errs(:,end)) .9*min(ctimes(:)) 1.1*max(ctimes(:))]);
         end
         
@@ -400,6 +423,16 @@ classdef EstimatorAnalyzer < handle
     end
     
     methods(Access=private)
+        
+        function y = getYMin(~, err)
+            e1 = min(err(:,1));
+            er = min(reshape(err(:,2:end),1,[]));
+            if log10(abs(e1 - er)) < 5
+                y = .5*er;
+            else
+                y = .5*min(err(:));
+            end
+        end
         
         function doPlots(this, data, ax)
             if this.LogarithmicPlot

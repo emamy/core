@@ -47,7 +47,8 @@ classdef DEIM
             save analysis_DEIM_approx;
         end
         
-        function [res, pm] = computeDEIMErrors(deim, atd, orders, errorders)
+        %% DEIM approximation analysis over training data
+        function [res, hlp, pm] = computeDEIMErrors(deim, atd, orders, errorders)
             % Computes the DEIM approximation error over the given training
             % data for specified DEIM orders (M) and DEIM error orders
             % (M').
@@ -68,65 +69,60 @@ classdef DEIM
                     neworders = [neworders orders(i)*ones(1,length(new))];
                 end
                 orders = neworders;
-            elseif length(orders) ~= length(errorders)
+            elseif ~isempty(errorders) && length(orders) ~= length(errorders)
                 error('If both the orders and error orders are given they must have same number of elements');
             end
             no = length(orders);
+            if isempty(errorders)
+                errorders = zeros(1,no);
+            end
             % State space error function
             efun = @Norm.L2;
-            % Elements error functions
-            sumfun = @(x)Norm.Linf(x');
-            fxi = atd.fxi.toMemoryMatrix;
-            fxinorm = efun(fxi);
-            
-            if isa(deim,'general.MatrixDEIM')
-                oldst = deim.Qk;
-                deim.setSimilarityTransform([]);
-            end
             
             res = zeros(6,no);
-%             res = zeros(8,no);
-            pi = tools.ProcessIndicator(sprintf('Computing DEIM errors and estimates for %d Order/ErrOrder settings',no),no);
+            nb = atd.xi.nBlocks;
+            pi = tools.ProcessIndicator(sprintf('Computing DEIM errors and estimates for %d Order/ErrOrder settings over %d xi-Blocks',no,nb),no*nb);
             co = [];
-            xi = atd.xi.toMemoryMatrix;
-            if ~isempty(deim.V)
-                xi = deim.V'*xi;
-            end
             for i = 1:no
-                o = orders(i);
-                eo = errorders(i);
-                deim.Order = [o eo];
-                res(1:2,i) = [o; eo];
-                
-                % Absolute true error (only for new orders)
-                if isempty(co) || o ~= co
-                    if isa(deim,'general.MatrixDEIM')
-                        error('not yet tested.');
-                        for j=1:size(xi,2)
-                            afx = deim.evaluate(xi(:,j),atd.ti(j),atd.mui(:,j));
-                            hlp(j) = efun(atd.fxi(:,j)-afx(:));
-                        end
-                    else
-                        afxi = deim.evaluate(xi,atd.ti,atd.mui);
-                        hlp = efun(fxi-afxi);
-                    end
-                    
-                    res(3,i) = sumfun(hlp);
-                    % Relative true error 
-                    res(4,i) = sumfun(hlp./fxinorm);
-                    co = o;
-                else
-                    res(3:4,i) = res(3:4,i-1);
-                end
-                % Estimated absolute/rel errors
-                hlp = efun(deim.getEstimatedError(xi,atd.ti,atd.mui));
-                res(5,i) = sumfun(hlp);
-                res(6,i) = sumfun(hlp./fxinorm);
-                
-                pi.step;
+                res(1:2,i) = [orders(i); errorders(i)];
             end
+            hlp = zeros(atd.xi.m,no,4);
+            for k = 1:nb
+                pos = atd.xi.getBlockPos(k);
+                xi = atd.xi(:,pos);
+                fxi = atd.fxi(:,pos); % must have same length, but may have different block size.
+                if ~isempty(deim.V)
+                    xi = deim.V'*xi;
+                end
+                fxinorm = efun(fxi)';
+                for i = 1:no
+                    o = orders(i);
+                    eo = errorders(i);
+                    deim.Order = [o eo];
+
+                    % Absolute true error (only for new orders)
+                    if isempty(co) || o ~= co
+                        afxi = deim.evaluate(xi,atd.ti(pos),atd.mui(:,pos));
+                        hlp2 = efun(fxi-afxi)';
+                        hlp(pos,i,1) = hlp2;
+                        hlp(pos,i,2) = hlp2./fxinorm;
+                        co = o;
+                    else
+                        res(3:4,i) = res(3:4,i-1);
+                    end
+                    if eo > 0
+                        % Estimated absolute/rel errors
+                        hlp2 = efun(deim.getEstimatedError(xi,atd.ti(pos),atd.mui(:,pos)))';
+                        hlp(pos,i,3) = hlp2;
+                        hlp(pos,i,4) = hlp2./fxinorm;
+                    end
+                    pi.step;
+                end
+            end
+            % Compute Linf error over all samples
+            res(3:6,:) = squeeze(Norm.Linf(hlp))';
             pi.stop;
-            if nargout == 2
+            if nargout == 3
                 pm = testing.DEIM.plotDEIMErrs(res);
             end
             deim.Order = oldo;
@@ -437,6 +433,48 @@ classdef DEIM
             if nargout < 4
                 t.display;
             end
+        end
+        
+        %% DEIM approximation analysis over parameters for specific state space location
+        function [mui, fxi, afxi] = getDEIMErrorsAtXForParams(m, x, numExtraSamples)
+            % Only t=0 is used
+            mui = m.Data.ParamSamples;
+            s = sampling.RandomSampler;
+            s.Samples = numExtraSamples;
+            mui = [mui s.generateSamples(m)];
+            xi = repmat(x,1,size(mui,2));
+            ti = zeros(1,size(mui,2));
+            fxi = m.System.f.evaluate(xi,ti,mui);
+            afxi = m.Approx.evaluate(xi,ti,mui);
+        end
+        
+        function pm = getDEIMErrorsAtXForParams_plots(m, mui, fxi, afxi, pm)
+            if nargin < 5
+                pm = tools.PlotManager;
+                pm.LeaveOpen = true;
+            end
+
+            tri = delaunay(mui(1,:),mui(2,:));
+            
+            err = Norm.L2(fxi-afxi);
+            h = pm.nextPlot('abserr','Absolute errors over mu range');
+            %trisurf(tri,mui(1,:),mui(2,:),err,'Parent',h);
+            tools.LogPlot.logtrisurf(h,tri,mui(1,:),mui(2,:),err);
+            n = m.Data.SampleCount;
+            hold on;
+            plot3(mui(1,1:n),mui(2,1:n),log10(err(1:n)),'rx','MarkerSize',16);
+            view(-8,-20);
+            hold off;
+            
+            err = Norm.L2(fxi-afxi)./Norm.L2(fxi);
+            h = pm.nextPlot('relerr','Relative errors over mu range');
+            %trisurf(tri,mui(1,:),mui(2,:),err,'Parent',h);
+            tools.LogPlot.logtrisurf(h,tri,mui(1,:),mui(2,:),err);
+            n = m.Data.SampleCount;
+            hold on;
+            plot3(mui(1,1:n),mui(2,1:n),log10(err(1:n)),'rx','MarkerSize',16);
+            hold off;
+            view(0,0);
         end
         
         %% Model DEIM reduction quality assessment pics
@@ -827,7 +865,7 @@ classdef DEIM
         end
         
         %% Error estimator struct compilation
-        function est = getDEIMEstimators_MDEIM_ST(rmodel, jdorders, stsizes)
+        function est = getDEIMEstimators_MDEIM_ST(rmodel, est, jdorders, stsizes)
             % Returns an estimator struct usable by the EstimatorAnalyzer
             if nargin < 3
                 stsizes = [1 10];
@@ -835,30 +873,17 @@ classdef DEIM
                     jdorders = [1 10];
                 end
             end
-            li = tools.LineSpecIterator(3+length(jdorders)*length(stsizes),1);
+            li = tools.LineSpecIterator(length(jdorders)*length(stsizes),1);
+            for i = 1:length(est)
+                li.excludeColor(est(i).Color);
+            end
             
-            % Error estimators
-            est = struct.empty;
-            
-            est(end+1).Name = 'True error';
-            est(end).Estimator = error.DefaultEstimator;
-            est(end).Estimator.setReducedModel(rmodel);
-            est(end).Estimator.Enabled = true;
-            est(end).MarkerStyle = 'o';
-            est(end).LineStyle = '-';
-            est(end).Color = [0 0 1];
-            li.excludeColor(est(end).Color);
-            
-            dest = rmodel.ErrorEstimator;
-            %dest.UseTrueDEIMErr = false;
-            dest.UseTrueLogLipConst = false;
-            dest.Enabled = true;
-            
+            % Different configurations
             for j = 1:length(jdorders)
                 cl = li.nextLineStyle;
                 li2 = tools.LineSpecIterator;
                 for k = 1:length(stsizes)
-                    e = dest.clone;
+                    e = rmodel.ErrorEstimator.clone;
                     e.JacMDEIM.Order = jdorders(j);
                     e.JacSimTransSize = stsizes(k);
                     est(end+1).Name = sprintf('m_J:%d, k:%d',...
@@ -869,58 +894,21 @@ classdef DEIM
                     est(end).Color = li.nextColor;
                 end
             end
-            
-            % Expensive versions
-            e = dest.clone;
-            e.UseFullJacobian = true;
-            est(end+1).Name = 'L_G[J_f]';
-            est(end).Estimator = e;
-            est(end).MarkerStyle = 'h';
-            est(end).LineStyle = '-';
-            est(end).Color = li.nextColor;
-            
-            e = dest.clone;
-            e.UseTrueLogLipConst = true;
-            est(end+1).Name = 'Loc. log-lip.';
-            est(end).Estimator = e;
-            est(end).MarkerStyle = 'p';
-            est(end).LineStyle = '-';
-            est(end).Color = li.nextColor;
         end
         
-        function est = getDEIMEstimators_ErrOrders(rmodel, errororders)
+        function est = getDEIMEstimators_ErrOrders(rmodel, est, errororders)
             if nargin < 2
                 errororders = [1 2 5];
             end
             m = tools.LineSpecIterator(2+length(errororders));
-            
-            % Error estimators
-            est = struct.empty;
-            est(end+1).Name = 'True reduction error';
-            est(end).Estimator = error.DefaultEstimator;
-            est(end).Estimator.setReducedModel(rmodel);
-            est(end).Estimator.Enabled = true;
-            est(end).MarkerStyle = 'o';
-            est(end).LineStyle = '-';
-            est(end).Color = [0 0 1];
-            m.excludeColor(est(end).Color);
-            
-            dest = rmodel.ErrorEstimator.clone;
-            dest.Enabled = true;
-            
-            % Add best version
-            est(end+1).Name = 'Reference estimate';
-            est(end).Estimator = dest.clone;
-            est(end).Estimator.UseTrueDEIMErr = true;
-            est(end).MarkerStyle = 'p';
-            est(end).LineStyle = '-';
-            est(end).Color = [0 0.5 0];
-            m.excludeColor(est(end).Color);
-            
+            for i = 1:length(est)
+                m.excludeColor(est(i).Color);
+            end
+            % Different configurations
             for j = 1:length(errororders)
                 str = sprintf('e.ReducedModel.System.f.Order = [e.ReducedModel.System.f.Order(1) %d];',errororders(j));
                 est(end+1).Name = sprintf('m''=%d',errororders(j));%#ok
-                est(end).Estimator = dest;
+                est(end).Estimator = rmodel.ErrorEstimator.clone;
                 est(end).Callback = @(e)eval(str);
                 est(end).MarkerStyle = m.nextMarkerStyle;
                 est(end).LineStyle = '-.';
