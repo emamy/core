@@ -73,6 +73,12 @@ classdef DEIMEstimator < error.BaseEstimator
         % Included for easy error estimator comparison.
         UseTrueLogLipConst = false;
         
+        % "Even More Expensive version 2": Precompute the full solution and
+        % use the true logarithmic lipschitz constant of the jacobian of `f` in
+        % computations.
+        % Included for easy error estimator comparison.
+        UseJacobianLogLipConst = false;
+        
         % "Expensive" version that uses the true approximation error
         % between the DEIM approximation and the full system function
         % instead of the `M'` variant.
@@ -173,16 +179,16 @@ classdef DEIMEstimator < error.BaseEstimator
             % Overrides the method from BaseEstimator and performs
             % additional computations.
             
-%             if KerMor.App.Verbose > 0
-%                 fprintf('error.DEIMEstimator: Starting offline computations...\n');
-%             end
-%             
-%             % Call superclass
-%             offlineComputations@error.BaseEstimator(this, fm);
-%             
-%             this.off1_matrix_computations(fm);
-%             
-%             this.off2_compute_jacmdeim(fm);
+            if KerMor.App.Verbose > 0
+                fprintf('error.DEIMEstimator: Starting offline computations...\n');
+            end
+            
+            % Call superclass
+            offlineComputations@error.BaseEstimator(this, fm);
+            
+            this.off1_matrix_computations(fm);
+            
+            this.off2_compute_jacmdeim(fm);
             
             %% Similarity transformation
             this.off3_compute_simtrans(fm);
@@ -212,7 +218,7 @@ classdef DEIMEstimator < error.BaseEstimator
                 return;
             end
             % True log lip const comparison estimator
-            if this.UseTrueLogLipConst
+            if this.UseTrueLogLipConst || this.UseJacobianLogLipConst
                 [~, this.fullsol, ct] = this.ReducedModel.FullModel.computeTrajectory(mu,inputidx);
             else
                 ct = 0;
@@ -230,12 +236,12 @@ classdef DEIMEstimator < error.BaseEstimator
                 I = speye(size(rm.V,1));
                 A = fs.A.evaluate(rm.V*x,t,mu);
                 a = A - rm.V*(rm.W'*A);
-                a = a + rm.FullModel.System.f.evaluate(rm.V*x,t,mu) ...
+                a = a + fs.f.evaluate(rm.V*x,t,mu) ...
                     - rm.V*rm.System.f.evaluate(x,t,mu);
                 if ~isempty(fs.B)
                     a = a + (I-rm.V*rm.W')*fs.B.evaluate(t,mu)*ut;
                 end
-                a = sqrt(a'*(rm.FullModel.G*a));
+                a = Norm.LG(a,rm.FullModel.G);
             else
                 f = this.ReducedModel.System.f.f;
                 v1 = f.evaluateComponentSet(1, x, t, mu);
@@ -283,7 +289,7 @@ classdef DEIMEstimator < error.BaseEstimator
             %             b = this.kexp.evaluate(x, t, mu)*olderr + sqrt(abs(a));
             
             % Validation code
-            if this.UseTrueLogLipConst
+            if this.UseTrueLogLipConst || this.UseJacobianLogLipConst
                 rm = this.ReducedModel;
                 f = rm.FullModel.System.f;
                 tx = this.fullsol(:,find(rm.scaledTimes - t < eps,1));
@@ -291,8 +297,13 @@ classdef DEIMEstimator < error.BaseEstimator
                 d = tx - rx;
                 diff = sum(d.*d);
                 if diff ~= 0
-                    b = d'*(f.evaluate(tx,t,mu) - f.evaluate(rx,t,mu)) ...
-                    / diff;
+                    % Use local jacobian matrix log lip const
+                    if this.UseJacobianLogLipConst
+                        b = d'*(f.getStateJacobian(tx,t,mu)*d) / diff;
+                    % Use local function log lip const
+                    else
+                        b = d'*(f.evaluate(tx,t,mu) - f.evaluate(rx,t,mu)) / diff;
+                    end
                 else
                     b = 0;
                 end
@@ -325,11 +336,11 @@ classdef DEIMEstimator < error.BaseEstimator
             end
             
             % Take care of the A(t,\mu) part, if existing
-            this.kexp(1,end+1) = b;
+            %this.kexp(1,end+1) = b;
             if ~isempty(this.Aln)
                 b = b + this.Aln.compose(t, mu);
             end
-            this.kexp(2,end) = b;
+            %this.kexp(2,end) = b;
         end
         
         function eint = evalODEPart(this, x, t, mu, ut)

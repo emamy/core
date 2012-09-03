@@ -128,7 +128,8 @@ classdef BaseEstimator < KerMorObject & ICloneable
             fs = this.ReducedModel.FullModel.System;
             C = fs.C;
             if ~isequal(fs.StateScaling,1)
-                C = C*spdiags(fs.StateScaling,0,61004,61004);
+                fd = size(this.ReducedModel.V,1);
+                C = C*spdiags(fs.StateScaling,0,fd,fd);
             end
             if ~isempty(C)
                 % Get error

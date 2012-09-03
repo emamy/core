@@ -306,16 +306,15 @@ classdef Utils
             if nargin < 3
                 extidx = 1;
                 if nargin < 2
-                    path = getpref('KERMOR','LASTPATH',pwd);
                     choices = cell(length(exts),2);
                     for i = 1:size(choices,1)
                         choices{i,1} = ['*.' exts{i}];
                         choices{i,2} = [extd{i} ' (*.' exts{i} ')'];
                     end
-                    [filename, pathname, extidx] = uiputfile(choices, 'Save figure as', path);
-                    if filename ~= 0 
+                    [filename, pathname, extidx] = uiputfile(choices, 'Save figure as', ...
+                        getpref(KerMor.getPrefTag,'LASTPATH',pwd));
+                    if ~isequal(filename, 0)
                         file = [pathname filename];
-                        setpref('KERMOR','LASTPATH',pathname);
                     end
                 else
                     file = [filename '.' exts{extidx}];
@@ -531,7 +530,7 @@ classdef Utils
                     [v, ln] = eigs(hlp,1,'la',opts);
                 end
                 if ln < 0
-                    opts.p = .1*log(dim)*(dim^.35);
+                    opts.p = 20+ceil(.1*log(dim)*(dim^.35));
                     [v, ln] = eigs(hlp,1,-ln,opts);
                     [s,id] = lastwarn;
                     if ~isempty(s) && strcmp(id,'MATLAB:eigs:NoEigsConverged')

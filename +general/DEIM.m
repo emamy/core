@@ -267,6 +267,9 @@ classdef DEIM < KerMorObject & general.AProjectable
                 F = D - E*B;
                 this.Uerr2 = ((Um/A)*B - Umd) / F;
                 this.Uerr1 = this.Uerr2 * E;
+            else
+                this.Uerr1 = [];
+                this.Uerr2 = [];
             end
             
             if ~isempty(this.W)

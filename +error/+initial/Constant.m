@@ -19,12 +19,12 @@ classdef Constant < error.initial.Base
     
     methods
         function this = Constant(model)
-            x0 = model.System.x0.evaluate([]);
+            x0 = model.System.x0.evaluate([]) ./ model.System.StateScaling;
             % Only project if projection is used
             if ~isempty(model.Data.V)
                 x0 = x0 - model.Data.V*(model.Data.W'*x0);
             end
-            this.e0 = sqrt(x0'*model.GScaled*x0);
+            this.e0 = Norm.LG(x0,model.G);
         end
         
         function e0 = getE0(this, mu)%#ok
