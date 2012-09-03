@@ -58,6 +58,10 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
         %
         % @type integer
         m;
+        
+        MinValue = Inf;
+        
+        MaxValue = -Inf;
     end
     
     properties(SetAccess=private)
@@ -236,8 +240,7 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             end
             value = data.FileMatrix(this.n,this.m,this);
             for k=1:this.nBlocks
-                % Make sure its immediately saved
-                value.saveBlock(k,this.loadBlock(k).^2);
+                value.saveBlock(k,this.loadBlock(k).^expo);
             end
         end
         
@@ -245,14 +248,17 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             n = 1;
         end
         
-        function value = size(this, dim)
-            value = [this.n this.m];
+        function [n, m] = size(this, dim)
+            n = [this.n this.m];
             if nargin == 2
                 if dim > 0 && dim < 3
-                    value = value(dim);
+                    n = n(dim);
                 else
-                    value = 1;
+                    n = 1;
                 end
+            elseif nargout == 2
+                n = this.n;
+                m = this.m;
             end
         end
         
@@ -363,10 +369,10 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
                     if size(B,2) == 1
                         AB = zeros(A.n,1);
                         for bidx = 1:A.nBlocks
-                            Bl = A.loadBlock(bidx);
                             % Only multiply if nonzero
                             if A.created(bidx)
-                                AB = AB + Bl*B(A.getBlockPos(bidx),:);  
+                                ABlock = A.loadBlock(bidx);
+                                AB = AB + ABlock*B(A.getBlockPos(bidx),:);  
                             end
                         end
                     % FileMatrix * matrix case
@@ -389,20 +395,30 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
                         end
                     end
                 end
-                % vec * FileMatrix case
+                % [vec|mat] * FileMatrix case
             elseif isa(B,'data.FileMatrix')
                 AB = data.FileMatrix(size(A,1),B.m, fileparts(B.DataDirectory), B.blocksize);
                 key = struct('type',{'()'},'subs',{{':'}});
-                for i=1:B.nBlocks
-                    if B.created(i)
-                        b = B.loadBlock(i);
-                        key.subs{2} = B.getBlockPos(i);
+                % If AB has more blocks than B, the resulting matrix is larger than B.
+                % Thus, we need A*b to be as most as big as blocksize, which is why slices of B
+                % in the size of ABs blocks are taken.
+                if AB.nBlocks > B.nBlocks
+                    for i=1:AB.nBlocks
+                        key.subs{2} = AB.getBlockPos(i);
+                        b = B.subsref(key);                        
                         AB.subsasgn(key,A*b);
                     end
-                end
-                % Return a matrix if the A argument was a transposed vector
-                if size(A,1) == 1
-                    AB = AB.toMemoryMatrix;
+                else
+                    for i=1:B.nBlocks
+                        if B.created(i)
+                            key.subs{2} = B.getBlockPos(i);
+                            AB.subsasgn(key,A*B.loadBlock(i));
+                        end
+                    end
+                    % Return a matrix if the A argument was a transposed vector
+                    if size(A,1) == 1
+                        AB = AB.toMemoryMatrix;
+                    end
                 end
             end
         end
@@ -499,11 +515,14 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             if ~this.isSaved
                 % Due to caching, no files are written if the entire matrix fits into one
                 % block.
-                if this.nBlocks > 1
+                if this.nBlocks > 1 || this.created(1)
                     % Remove exactly the files for the matrix
                     for k=1:this.nBlocks
                         if this.created(k)
-                            delete(fullfile(this.DataDirectory, sprintf('block_%d.mat',k)));
+                            f = fullfile(this.DataDirectory, sprintf('block_%d.mat',k));
+                            if exist(f,'file')
+                                delete(f);
+                            end
                         end
                     end
                 end
@@ -552,6 +571,7 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
                 % Save actual block that should be saved
                 save([this.DataDirectory filesep sprintf('block_%d.mat',nr)], 'A');
             end
+            this.updateMinMax(A);
             this.created(nr) = true;
         end
         
@@ -561,8 +581,9 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             else
                 % Before loading a new block, save the old one if the cache is dirty!
                 if this.cacheDirty
-                    A = this.cachedBlock;%#ok
+                    A = this.cachedBlock;
                     save([this.DataDirectory filesep sprintf('block_%d.mat',this.cachedNr)], 'A');
+                    this.updateMinMax(A);
                     this.created(this.cachedNr) = true;
                     % cacheDirty is set "false" at end!
                 end
@@ -579,9 +600,72 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
                 this.cacheDirty = false;
             end
         end
+        
+        function updateMinMax(this,A)
+            this.MinValue = min(this.MinValue,min(min(A)));
+            this.MaxValue = max(this.MaxValue,max(max(A)));
+        end
     end
     
     methods(Static)
+        function fm = recoverFrom(directory)
+            % Tries to recover a FileMatrix from a given directory, containing the old block
+            % data files.
+            %
+            % Parameters:
+            % directory: The directory to recover from. If not given, KerMor.getDir is used.
+            % @type char @default KerMor.getDir
+            %
+            % Return values:
+            % fm: The recovered FileMatrix instance. [] if the KerMor.getDir dialog has been
+            % aborted. @type data.FileMatrix
+            if nargin == 0
+                directory = KerMor.getDir;
+                if ~directory
+                    fm = [];
+                    return;
+                end
+            end
+            d = dir(directory);
+            nf = length(d)-2;
+            if nf > 0
+                nb = 0;
+                for k=1:nf
+                    if ~exist(fullfile(directory,sprintf('block_%d.mat',k)),'file')
+                        break;
+                    end
+                    nb = nb + 1;
+                end
+                if nb > 0
+                    s = load(fullfile(directory,'block_1.mat'));
+                    A1 = s.A;
+                    [N, nCols] = size(A1);
+                    if nb > 1
+                        s = load(fullfile(directory,sprintf('block_%d.mat',nb)));
+                    end
+                    M = (nb-1)*nCols + size(s.A,2);
+                    fm = data.FileMatrix(N,M,fileparts(directory),8*nCols*N);
+                    fm.updateMinMax(A1); % first block
+                    if nb > 1
+                        fm.updateMinMax(s.A);
+                        for k=2:nb-1
+                            s2 = load(fullfile(directory,sprintf('block_%d.mat',k)));
+                            fm.updateMinMax(s2.A);
+                        end
+                    end
+                    % Delete & reassign correct directory
+                    rmdir(fm.DataDirectory);
+                    fm.DataDirectory = directory;
+                    fm.created(:) = true;
+                    fm.isSaved = true;
+                else
+                    error('No block_%%.mat files of a FileMatrix found.');
+                end
+            else
+                error('No files found in %s',directory);
+            end
+        end
+        
         function res = test_FileMatrix
             res = true;
             B = rand(99,100);
@@ -676,6 +760,15 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             clear A;
             load Atmp;
             res = res && A == B;
+            delete Atmp.mat;
+            
+            % Multiply for large result matrices
+            A = data.FileMatrix(50,1000,KerMor.App.TempDirectory,50*200*8);
+            a = rand(50,1000);
+            A(:,:) = a;
+            B = rand(2000,50);
+            BA = B*A;
+            res = res && BA == B*a;
             
             d = A.DataDirectory;
             clear A;

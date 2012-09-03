@@ -13,7 +13,7 @@ classdef FileData < handle
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
     
-    properties(SetAccess=private)
+    properties(SetAccess=protected)
         % The root folder where the FileData's files are saved.
         %
         % @type char @default KerMor.DataStoreDirectory
@@ -27,7 +27,7 @@ classdef FileData < handle
         Host = '';
     end
     
-    properties(SetAccess=private, GetAccess=protected)
+    properties(Access=protected)
         % This flag indicates that this FileData instance has been stored to disk via the save
         % method somewhere.
         %

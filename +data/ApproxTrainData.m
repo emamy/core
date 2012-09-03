@@ -215,19 +215,20 @@ classdef ApproxTrainData < handle
                 if KerMor.App.Verbose > 0
                     fprintf('Serial computation of f-values at %d points (%d xi-blocks) ...\n',size(atd.xi,2),xi.nBlocks);
                 end
-                fxi = data.FileMatrix(f.fDim,size(xi,2),xi);
-                if KerMor.App.Verbose > 2
-                    pi = tools.ProcessIndicator('Evaluating f on %d %dx%d-blocks of xi snapshots',xi.nBlocks,false,...
-                        xi.nBlocks,xi.n,xi.bCols);
+                fxi = data.FileMatrix(f.fDim,size(xi,2),fileparts(xi.DataDirectory),128*1024^2);
+                if KerMor.App.Verbose > 1
+                    pi = tools.ProcessIndicator('Computing %d %dx%d-block f evaluations on %d %dx%d-blocks of xi snapshots',...
+                        fxi.nBlocks,false,fxi.nBlocks,fxi.n,fxi.bCols,xi.nBlocks,xi.n,xi.bCols);
                 end
-                for i=1:xi.nBlocks
-                    pos = xi.getBlockPos(i);
-                    fxi(:,pos) = f.evaluate(xi.loadBlock(i), atd.ti(pos), atdmui(:,pos));
-                    if KerMor.App.Verbose > 2
+                for i=1:fxi.nBlocks
+                    pos = fxi.getBlockPos(i);
+                    hlp = f.evaluate(xi(:,pos), atd.ti(pos), atdmui(:,pos));
+                    fxi(:,pos) = hlp;
+                    if KerMor.App.Verbose > 1
                         pi.step;
                     end
                 end
-                if KerMor.App.Verbose > 2
+                if KerMor.App.Verbose > 1
                     pi.stop;
                 end
                 atd.fxi = fxi;
