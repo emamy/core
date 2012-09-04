@@ -280,7 +280,7 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
                     if ~strcmp(s{1},':')
                         the_n = length(s{1});
                     end
-                    value = zeros(the_n,length(s{2}));
+                    value = zeros(the_n,size(pos,1));
                     for bidx = 1:length(blocks)
                         b = blocks(bidx);
                         B = this.loadBlock(b);
@@ -512,7 +512,7 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
         end
         
         function delete(this)
-            if ~this.isSaved
+            if ~isempty(this.created) && ~this.isSaved
                 % Due to caching, no files are written if the entire matrix fits into one
                 % block.
                 if this.nBlocks > 1 || this.created(1)

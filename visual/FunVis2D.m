@@ -263,7 +263,7 @@ fun2 = []; lbl = [];
 if length(varargin) > 3
     fun2 = varargin{4};
     if isa(fun2,'function_handle')
-        fun2 = dscomponents.PointerCoreFun(fun2,true);
+        fun2 = dscomponents.PointerCoreFun(fun2,conf.xdim,true);
     elseif ~isempty(fun2) && ~ismethod(fun2,'evaluate')
         stop(h,'Any second function-class must have an ''evaluate''-method');
     end
@@ -384,7 +384,7 @@ newMesh(h, conf);
 
 function ranges = rangesFromATD(atd)
     ranges = struct('xrange',[],'trange',[],'murange',[]);
-    [x, X] = general.Utils.getBoundingBox(atd.xi);
+    [x, X] = general.Utils.getBoundingBox(atd.xi.toMemoryMatrix);
     ranges.xrange = [x X];
     if isprop(atd,'ti') || isfield(atd,'ti')
         ranges.trange = [min(atd.ti) max(atd.ti)];
@@ -513,7 +513,7 @@ function updateATDPoints(h, c)
 %% Updates the currently displayed approxtraindata points
 if ~isempty(c.td)
     xsel = c.idxmap([c.d1 c.d2]);
-    C = [c.td.xi];
+    C = c.td.xi.toMemoryMatrix;
     if c.isptke || isa(c.fun,'dscomponents.ACoreFun')
         C = [C; c.td.ti; c.td.mui];
     end
@@ -609,7 +609,7 @@ end
 %% Add training data points to plot
 % With kernel expansions: option to include centers into mesh
 if ~isempty(c.td) && get(h.rbErr,'Value') == 0
-    C = [c.td.xi];
+    C = c.td.xi.toMemoryMatrix;
     if c.isptke
         C = [C; c.td.ti; c.td.mui];
     end

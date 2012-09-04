@@ -1,63 +1,90 @@
 classdef VKOGA
-% VKOGA: Tests for the VKOGA algorithm
-%
-% @author Daniel Wirtz @date 2012-04-04
-%
-% @new{0,6,dw,2012-04-04} Added this class.
-%
-% This class is part of the framework
-% KerMor - Model Order Reduction using Kernels:
-% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
-% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
-% - \c License @ref licensing
+    % VKOGA: Tests for the VKOGA algorithm
+    %
+    % @author Daniel Wirtz @date 2012-04-04
+    %
+    % @new{0,6,dw,2012-04-04} Added this class.
+    %
+    % This class is part of the framework
+    % KerMor - Model Order Reduction using Kernels:
+    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % - \c License @ref licensing
+    
+    properties(Constant)
+        LineWidth = 2;
+    end
     
     methods(Static)
-        function WH12c
-%             ap = KerMor.App;
-%             oldv = ap.Verbose;
-%             ap.Verbose = 1;
-            
-            dir = '/usr/local/datastore/kermor/VKOGA';
+        function WH12c(seed)
+            %             ap = KerMor.App;
+            %             oldv = ap.Verbose;
+            %             ap.Verbose = 1;
+            if nargin < 1
+                seed = 1;
+            end
+            %dir = '/usr/local/datastore/kermor/VKOGA';
+            dir = 'C:/Users/CreaByte/Documents/Uni/DWCAA12/img';
             types = {'jpg'};
             pm = tools.PlotManager;
-            pm.SingleSize = [1224 768];
             pm.LeaveOpen = false;
             pm.UseFileTypeFolders = true;
             pm.NoTitlesOnSave = true;
             
-            pm.FilePrefix = 'selection_illus';
-            testing.VKOGA.selectCritGraphic(pm);
-            %testing.VKOGA.selectCritGraphic(pm,4554);
-            pm.done;
-            pm.savePlots(dir, types, [], true);
+            %             pm.SingleSize = [1224 768];
+            %             pm.FilePrefix = 'selection_illus';
+            %             %testing.VKOGA.selectCritGraphic(pm);
+            %             testing.VKOGA.selectCritGraphic(pm,4554);
+            %             pm.done;
+            %             pm.savePlots(dir, types, [], true);
             
-            %dir = 'C:\Users\CreaByte\Documents\Uni\VKOGA\img\test';
-%             [~, ~, ~, a, ao, f, ~] = testing.VKOGA.test_VKOGA_Versions_5dim(1, 1);
-%             pm = tools.PlotManager(true);
+%             [res, kexp, kexp_oga, a, ao, f, ~] = testing.VKOGA.test_VKOGA_Versions_5dim(1, 1);
+%             save tmp res kexp kexp_oga a ao f;
+%             return;
+%             load tmp;
 %             pm.FilePrefix = '5d';
-%             testing.VKOGA.plotStatistics(a,ao,f,pm);
-%             pm.savePlots(dir, 'fig');
-%             pm.savePlots(dir, 'eps', true);
-%             
-%             pm = tools.PlotManager(true);
-%             pm.FilePrefix = '5druns';
-%             %load 5dim_VKOGA;
-%             [res, kexp, kexp_OGA, a, ao, f, atd] = testing.VKOGA.test_VKOGA_Versions_5dim(50, 1);
-%             save 5dim_VKOGA res kexp kexp_OGA a ao f atd;
-%             testing.VKOGA.plotVKOGARes(res, pm);
-%             pm.savePlots(dir, 'fig');
-%             pm.savePlots(dir, 'eps', true);
-%             
+%             pm.SingleSize = [700 800];
+%             testing.VKOGA.plotL2Errors(a,ao,pm);
+%             pm.SingleSize = [1224 768];
+%             testing.VKOGA.plotHerrDecayAndBounds(a,ao,f,pm);
+%             pm.done;
+%             pm.savePlots(dir, types, [], true);
+            
+%             pm.FilePrefix = '1d';
+%             [kexp, kexp_oga, a, ao, f, atd] = testing.VKOGA.test_VKOGA_1D(false, 25);
+%             save tmp2 kexp atd a f kexp_oga ao;
+%             pm.SingleSize = [1224 768];
+%             testing.VKOGA.test_VKOGA_1D_plots(kexp, kexp_oga, a, ao, f, atd, pm);
+%             pm.done;
+%             pm.savePlots(dir, types, [], true);
+
+            % Dat hier läuft EXTREM schlecht für VKOGA..
+            name = 'Franke3D';%'F7';
+            pm.FilePrefix = sprintf('testfun_%s',name);
+            [kexp, kexpo, a, ao, atd] = testing.VKOGA.test_VKOGA_TestFuns(name, 500, seed);
+            %load(sprintf('vkoga_testfun_%s.mat',name));
+            testing.VKOGA.test_VKOGA_TestFuns_plots(a,ao,pm);
+            pm.LeaveOpen = true;
+            
+            %             pm = tools.PlotManager(true);
+            %             pm.FilePrefix = '5druns';
+            %             %load 5dim_VKOGA;
+            %             [res, kexp, kexp_OGA, a, ao, f, atd] = testing.VKOGA.test_VKOGA_Versions_5dim(50, 1);
+            %             save 5dim_VKOGA res kexp kexp_OGA a ao f atd;
+            %             testing.VKOGA.plotVKOGARes(res, pm);
+            %             pm.savePlots(dir, 'fig');
+            %             pm.savePlots(dir, 'eps', true);
+            %
+
 %             % Different gamma values
 %             res = testing.VKOGA.test_VKOGA_Versions_diffgamma(30, 1);
 %             save diffgamma res;
-%             pm = tools.PlotManager(true);
 %             pm.FilePrefix = 'diffgamma';
 %             testing.VKOGA.plotVKOGARes(res, pm);
-%             pm.savePlots(dir, 'fig');
-%             pm.savePlots(dir, 'eps', true);
+%             pm.done;
+%             pm.savePlots(dir, types, [], true);
             
-%             ap.Verbose = oldv;
+            %             ap.Verbose = oldv;
         end
         
         function pm = selectCritGraphic(pm, seed)
@@ -69,7 +96,6 @@ classdef VKOGA
                 end
             end
             ms = 16; % marker size
-            lw = 2;
             fine = .01;
             x = -10:fine:10;
             dia = x(end)-x(1);
@@ -85,7 +111,7 @@ classdef VKOGA
             
             fx = f.evaluate(x);
             h = pm.nextPlot(sprintf('seed_%d',seed),'Illustration of VKOGA/WSOGA selection criteria','x');
-            plot(h,x,fx,'r-','LineWidth',lw);
+            plot(h,x,fx,'r-','LineWidth',testing.VKOGA.LineWidth);
             
             kexp = kernels.KernelExpansion;
             kexp.Kernel = f.Kernel;
@@ -97,14 +123,14 @@ classdef VKOGA
             
             afx = kexp.evaluate(x);
             hold(h,'on');
-            plot(h,x,afx,'b-','LineWidth',lw);
+            plot(h,x,afx,'b-','LineWidth',testing.VKOGA.LineWidth);
             
             % Extension errors
             free = true(size(x));
             free(c) = false;
             xf = x(free);
             Kbig = kexp.getKernelVector(xf)';
-
+            
             % Compute kernel fcn projection to H(m-1)
             A = kexp.getKernelMatrix \ Kbig;
             F = fx(c);
@@ -115,17 +141,17 @@ classdef VKOGA
             vkoga_err = oga_err ./ phinormsq;
             
             g = [0 .5 0];
-            plot(h,xf,oga_err,'Color',g,'LineWidth',lw);
-            plot(h,xf,vkoga_err,'--','Color',g,'LineWidth',lw);
+            plot(h,xf,oga_err,'Color',g,'LineWidth',testing.VKOGA.LineWidth);
+            plot(h,xf,vkoga_err,'--','Color',g,'LineWidth',testing.VKOGA.LineWidth);
             
             off = -3;
-            plot(h,xf,phinormsq+off,'m-.','LineWidth',lw);
+            plot(h,xf,phinormsq+off,'m-.','LineWidth',testing.VKOGA.LineWidth);
             
             
-            plot(h,x(c),fx(c),'b.','MarkerSize',ms+8,'LineWidth',lw);
+            plot(h,x(c),fx(c),'b.','MarkerSize',ms+8,'LineWidth',testing.VKOGA.LineWidth);
             [om, oidx] = max(oga_err);
             [vm, vidx] = max(vkoga_err);
-            plot(h,xf(oidx),om,'rx',xf(vidx),vm,'rx','MarkerSize',ms,'LineWidth',lw);
+            plot(h,xf(oidx),om,'rx',xf(vidx),vm,'rx','MarkerSize',ms,'LineWidth',testing.VKOGA.LineWidth);
             
             % Lines at maxima
             plot(h,[xf(oidx) xf(oidx)],[om phinormsq(oidx)+off],'k--');
@@ -138,28 +164,23 @@ classdef VKOGA
             set(lh,'Location','Best');
         end
         
-        function [kexp, atd, a, f] = test_VKOGA(oga, seed, pm)
-            if nargin < 3
-                pm = tools.PlotManager(false, 1, 2);
-                pm.LeaveOpen = true;
-                if nargin < 2
-                    seed = 1;
-                    if nargin < 1
-                        oga = false;
-                    end
+        function [kexp, kexp_oga, a, ao, f, atd] = test_VKOGA_1D(oga, seed)
+            if nargin < 2
+                seed = 1;
+                if nargin < 1
+                    oga = false;
                 end
             end
             r = RandStream('mt19937ar','Seed',seed);
-            
             dim = 1;
-            x = repmat(-10:.1:10,dim,1);
-            [m,M] = general.Utils.getBoundingBox(x);
-            dia = Norm.L2(M-m)/10;
+            centers = 12;
             
+            x = repmat(-10:.1:10,dim,1);
             a = approx.algorithms.VectorialKernelOMP;
             a.CoeffComp = general.interpolation.KernelInterpol;
             a.NumGammas = 1;
-            a.Dists = dia;
+            a.Dists = sqrt(dim)*20/4;
+            a.gameps = .05;
             a.MaxExpansionSize = 100;
             a.UsefScaling = false;
             a.UseOGA = oga;
@@ -168,10 +189,9 @@ classdef VKOGA
             f = kernels.KernelExpansion;
             f.Kernel = kernels.GaussKernel;
             % Use same dist aka space
-            f.Kernel.setGammaForDistance(a.Dists,a.gameps);
-            f.Centers.xi = r.rand(dim,6)*20-10;
-            f.Ma = r.rand(dim,6)*5;%-2.5;
-            M = f.MBnd;
+            f.Kernel.setGammaForDistance(a.Dists,a.gameps)
+            f.Centers.xi = r.rand(dim,centers)*20-10;
+            f.Ma = (r.rand(dim,centers)-.5)*150;
             
             fx = f.evaluate(x);
             atd = data.ApproxTrainData(x,[],[]);
@@ -186,27 +206,41 @@ classdef VKOGA
             kexp.Kernel = kernels.GaussKernel;
             a.computeApproximation(kexp, atd);
             
-            x = repmat(-15:.01:15,dim,1);
-            fx = f.evaluate(x);
-            afx = kexp.evaluate(x);
-            err2 = Norm.L2((fx-afx)');
-            pm.nextPlot('vkoga_approx');
-            plot(x',fx','r',x',afx','b',...
-                f.Centers.xi, f.evaluate(f.Centers.xi), 'k.',...
-                kexp.Centers.xi,f.evaluate(kexp.Centers.xi),'rx','MarkerSize',10);
-            if dim == 1
-                legend('f(x)','kexp(x)','f(x) Centers','Centers at kexp(x)');
+            ao = a.clone;
+            ao.UseOGA = true;
+            kexp_oga = kernels.KernelExpansion;
+            kexp_oga.Kernel = kernels.GaussKernel;
+            ao.computeApproximation(kexp_oga, atd);
+        end
+        
+        function test_VKOGA_1D_plots(kexp, kexp_oga, a, ~, f, atd, pm)
+            if nargin < 3
+                pm = tools.PlotManager(false, 1, 2);
+                pm.LeaveOpen = true;    
             end
-            title(sprintf('Stopping condition: Max L^2-error on training data: %e\nTotal L^2-error: %e',...
-                a.MaxRelErr, err2));
             
-            pm.nextPlot('vkoga_bounds');
+%             x = repmat(-15:.01:15,1,1);
+%             fx = f.evaluate(x);
+            x = atd.xi.toMemoryMatrix;
+            fx = atd.fxi.toMemoryMatrix;
+            %afx = kexp.evaluate(x);
+            %err2 = Norm.L2((fx-afx)');
+            h = pm.nextPlot('vkoga_approx',sprintf('Max L^2-error on training data: %g. Centers: VKOGA %d, WSOGA2 %d',...
+                a.MaxRelErr,size(kexp.Centers.xi,2),size(kexp_oga.Centers.xi,2)));
+            plot(h,x',fx','k--',...
+                f.Centers.xi, f.evaluate(f.Centers.xi), 'kx',...
+                kexp.Centers.xi,f.evaluate(kexp.Centers.xi),'ro',...
+                kexp_oga.Centers.xi,f.evaluate(kexp_oga.Centers.xi),'bd',...
+                'MarkerSize',12,'LineWidth',testing.VKOGA.LineWidth);
+            legend(h,'f(x)','f(x) Centers','VKOGA Centers','WSOGA2 Centers');
+            
+            h = pm.nextPlot('vkoga_bounds');
             n = a.expsizes(1);
-            %bound = M^2 ./ (1:n);
-            bound = dim*M^2 ./ (1+(1:n)/dim);
-            semilogy(1:n,f.NativeNorm^2 - a.HerrDecay(1:n),'r',1:n, bound,'b');%,1:n, bound2,'b--');
-            legend('H-approximation error at step m','Theoretical upper bound');
-            pm.done;
+            M = f.MBnd;
+            bound = M^2 ./ (1+(1:n));
+            semilogy(h,1:n,f.NativeNorm^2 - a.HerrDecay(1:n),'r',1:n, bound,'b',...
+                'LineWidth',testing.VKOGA.LineWidth);%,1:n, bound2,'b--');
+            legend(h,'H-approximation error at step m','Theoretical upper bound');
         end
         
         function [res, kexp, kexp_OGA, a, ao, f, atd] = test_VKOGA_Versions_diffgamma(runs, seed)
@@ -228,7 +262,7 @@ classdef VKOGA
             dim = 5;
             atdsize = max(dim*500,1000);
             vxsize = max(dim*200,500);
-
+            
             x = r.rand(dim,atdsize)*xrange+xoff;
             if dim == 1
                 x = sort(x);
@@ -239,17 +273,17 @@ classdef VKOGA
                 warning('crap:id','Created nonunique centers!');
             end
             dia = sqrt(dim)*xrange;
-%             % Get realistic training data
-%             m = models.pcd.PCDModel;
-%             mu = 0.0081;%m.System.getRandomParam;
-%             m.T = 20;
-%             [~,x] = m.simulate(mu);
-%             x = x(1:2,:);
-%             dim = size(x,1);
-%             [m, M] = general.Utils.getBoundingBox(x);
-%             xrange = max(M-m); xoff = min(m);
-%             dia = Norm.L2(M-m);
-
+            %             % Get realistic training data
+            %             m = models.pcd.PCDModel;
+            %             mu = 0.0081;%m.System.getRandomParam;
+            %             m.T = 20;
+            %             [~,x] = m.simulate(mu);
+            %             x = x(1:2,:);
+            %             dim = size(x,1);
+            %             [m, M] = general.Utils.getBoundingBox(x);
+            %             xrange = max(M-m); xoff = min(m);
+            %             dia = Norm.L2(M-m);
+            
             dists = linspace(dia/15,dia*2,runs);
             
             a = approx.algorithms.VectorialKernelOMP;
@@ -267,7 +301,7 @@ classdef VKOGA
             ao = a.clone;
             ao.UseOGA = true;
             
-            % Setup test functions            
+            % Setup test functions
             f = kernels.KernelExpansion;
             f.Kernel = kernels.GaussKernel;
             
@@ -352,7 +386,7 @@ classdef VKOGA
             xrange = 30;
             atdsize = 2500;
             vxsize = 200;
-
+            
             spread = .15/3;
             x = general.Utils.getTube(dim, atdsize+vxsize+centers*runs, xrange, spread, 3*seed);
             % Take away the centers
@@ -383,7 +417,7 @@ classdef VKOGA
             ao = a.clone;
             ao.UseOGA = true;
             
-            % Setup test functions            
+            % Setup test functions
             f = kernels.KernelExpansion;
             f.Kernel = kernels.GaussKernel;
             f.Kernel.setGammaForDistance(dia,a.gameps)
@@ -428,7 +462,7 @@ classdef VKOGA
                 res.vrelerr(:,run) = a.vrelerr(:,s);
                 res.cnum(run) = size(kexp.Ma,2);
                 res.vkogabnd(run) = f.MBnd^2 * a.VKOGABound(s);
-
+                
                 pi.step;
                 
                 if runs == 1
@@ -461,7 +495,7 @@ classdef VKOGA
             xrange = 10;
             atdsize = 2500;
             vxsize = 2000;
-
+            
             spread = .15;
             x = general.Utils.getTube(dim, atdsize+vxsize+centers*runs, xrange, spread, 3*seed);
             % Take away the centers
@@ -488,7 +522,7 @@ classdef VKOGA
             ao = a.clone;
             ao.UseOGA = true;
             
-            % Setup test functions            
+            % Setup test functions
             f = kernels.KernelExpansion;
             f.Kernel = kernels.GaussKernel;
             f.Kernel.setGammaForDistance(dia,a.gameps)
@@ -537,7 +571,7 @@ classdef VKOGA
                 res.vrelerr(:,run) = a.vrelerr(:,s);
                 res.cnum(run) = size(kexp.Ma,2);
                 res.vkogabnd(run) = f.MBnd^2 * a.VKOGABound(s);
-
+                
                 pi.step;
                 
                 if runs == 1 || true
@@ -573,7 +607,7 @@ classdef VKOGA
             dim = 5;
             atdsize = max(dim*500,1000);
             vxsize = max(dim*200,500);
-
+            
             x = r.rand(dim,atdsize)*xrange+xoff;
             if dim == 1
                 x = sort(x);
@@ -583,16 +617,14 @@ classdef VKOGA
                 x = xu;
                 warning('crap:id','Created nonunique centers!');
             end
-            %[m,M] = general.Utils.getBoundingBox(x);
-%             dia = Norm.L2(M-m);
-%             dia = sqrt(dim)*xrange;
-            dia = dim*xrange;
+            dia = sqrt(dim)*xrange / 2.5;
             
             a = approx.algorithms.VectorialKernelOMP;
             a.CoeffComp = general.interpolation.KernelInterpol;
             a.UseOGA = false;
             %a.CoeffComp.UseLU = true;
-            a.Dists = sqrt(dia);
+            a.gameps = .4;
+            a.Dists = dia;
             a.NumGammas = 1;
             a.MaxExpansionSize = min(atdsize,200);
             a.UsefScaling = false;
@@ -605,10 +637,10 @@ classdef VKOGA
             ao = a.clone;
             ao.UseOGA = true;
             
-            % Setup test functions            
+            % Setup test functions
             f = kernels.KernelExpansion;
             f.Kernel = kernels.GaussKernel;
-            f.Kernel.setGammaForDistance(sqrt(dia),a.gameps)
+            f.Kernel.setGammaForDistance(dia,a.gameps)
             
             atd = data.ApproxTrainData(x,[],[]);
             kexp = kernels.KernelExpansion;
@@ -651,21 +683,9 @@ classdef VKOGA
                 res.cnum(run) = size(kexp.Ma,2);
                 res.vkogabnd(run) = f.MBnd^2 * a.VKOGABound(s);
                 
-                
                 pi.step(run);
-                
-                if runs == 1 || true
-                    testing.VKOGA.plotStatistics(a,ao,f);
-                    if runs > 1
-                        %pause;
-                    end
-                end
             end
             pi.stop;
-            
-            if nargout == 0
-                testing.VKOGA.plotKompRes(res);
-            end
         end
         
         function [res, kexp, kexp1, a, a1, f, atd] = test_VKOGA_Versions_5dim_2step(runs, seed)
@@ -687,7 +707,7 @@ classdef VKOGA
             dim = 5;
             atdsize = 300;
             vxsize = 500;
-
+            
             x = r.rand(dim,atdsize)*xrange+xoff;
             if dim == 1
                 x = sort(x);
@@ -697,10 +717,10 @@ classdef VKOGA
                 x = xu;
                 warning('crap:id','Created nonunique centers!');
             end
-%             x = repmat(xoff+(0:xrange/10:xrange),dim,1);
+            %             x = repmat(xoff+(0:xrange/10:xrange),dim,1);
             %[m,M] = general.Utils.getBoundingBox(x);
-%             dia = Norm.L2(M-m);
-%             dia = sqrt(dim)*xrange;
+            %             dia = Norm.L2(M-m);
+            %             dia = sqrt(dim)*xrange;
             dist = sqrt(dim*xrange);
             
             a = approx.algorithms.VectorialKernelOMP2Step;
@@ -729,7 +749,7 @@ classdef VKOGA
             a.vxtmuargs{1} = vx;
             a1.vxtmuargs{1} = vx;
             
-            % Setup test functions            
+            % Setup test functions
             f = kernels.KernelExpansion;
             f.Kernel = kernels.GaussKernel;
             f.Kernel.setGammaForDistance(dist,a.gameps)
@@ -775,7 +795,7 @@ classdef VKOGA
                 res.Herr(:,run) = f.NativeNorm^2 - a.HerrDecay(:,s);
                 res.vrelerr(:,run) = a.vrelerr(:,s);
                 res.cnum(run) = size(kexp.Ma,2);
-                res.vkogabnd(run) = f.MBnd^2 * a.VKOGABound(s);                
+                res.vkogabnd(run) = f.MBnd^2 * a.VKOGABound(s);
                 
                 pi.step(run);
                 
@@ -804,11 +824,11 @@ classdef VKOGA
             
             x = r.rand(dim,atdsize)*10-5;
             %if dim > 1
-                x = unique(x','rows')';
+            x = unique(x','rows')';
             %end
-%             [m,M] = general.Utils.getBoundingBox(x);
-%             dia = sqrt(sum((M-m).^2));
-%             dis = sqrt(dia);
+            %             [m,M] = general.Utils.getBoundingBox(x);
+            %             dia = sqrt(sum((M-m).^2));
+            %             dis = sqrt(dia);
             dis = 2;
             
             f = kernels.KernelExpansion;
@@ -839,12 +859,12 @@ classdef VKOGA
                 
                 base = -2*fxi(:,used)*Ma1;
                 base = base + Ma1'*(K*Ma1);
-                      
+                
                 % Compute projections
                 Kbig = kexp.getKernelVector(x(:,free))';
                 A = i.interpolate(Kbig');
                 F = fxi(:,used);
-
+                
                 fDotPhiSqAll = (fxi(:,free) - F*A).^2;
                 phinormsq = 1 - sum(A.*Kbig,1);
                 
@@ -856,9 +876,9 @@ classdef VKOGA
                     kexp.Centers.xi = x(:,usede);
                     K = kexp.getKernelMatrix;
                     i.init(data.MemoryKernelMatrix(K));
-
+                    
                     Ma2 = i.interpolate(fxi(:,usede));
-
+                    
                     hlp = -2*fxi(:,usede)*Ma2;
                     hlp = hlp + Ma2'*(K*Ma2);
                     extparts(cnt) = hlp;
@@ -882,60 +902,61 @@ classdef VKOGA
             end
         end
         
-        function plotStatistics(a, ao, f, pm)
+        function plotL2Errors(a, ao, pm)
             n1 = a.expsizes;
             n2 = ao.expsizes;
             rows = 1;
             if ~isempty(a.vxtmuargs)
                 rows = 2;
             end
-            if nargin < 4
+            if nargin < 3
                 pm = tools.PlotManager(false, rows, 3);
             end
             
-            pm.nextPlot('abs_l2_err_train');
-            semilogy(1:n1,a.err(1:n1),'r',1:n2,ao.err(1:n2),'b');
-            title('Absolute L^2 errors on training set');
-            xlabel('expansion size N'); ylabel('absolute error');
-            legend('VKOGA','WSOGA2');
-
-            pm.nextPlot('rel_l2_err_train');
-            semilogy(1:n1,a.relerr(1:n1),'r',1:n2,ao.relerr(1:n2),'b');
-            %title(sprintf('Max Relative errors on training set\nStopping condition: relerr < %e',a.MaxRelErr));
-            title('Relative L^2 errors on training set');
-            legend('VKOGA','WSOGA2');
-            xlabel('expansion size N'); ylabel('relative error');
-
-            M = f.MBnd;
-            pm.nextPlot('H_err_decay_bounds');
-            fnsq = f.NativeNorm^2;
-            semilogy(0:n1,fnsq-[0 a.HerrDecay(1:n1)],'r',0:n2,fnsq-[0 ao.HerrDecay(1:n2)],'b');
-            hold on;
-            dim = size(f.Ma,1);
-            bound_sq = (dim*M^2) ./ (1 + (0:(max(n1,n2))) / dim);
-            semilogy(0:max(n1,n2),bound_sq(1:max(n1,n2)+1),'b--');
-            bound_cm = M^2 * [dim a.VKOGABound];
-            semilogy(0:n1,bound_cm(1:n1+1),'r--');
-            %title(sprintf('H-norm decay plus upper convergence bound with M=%3.2f', M));
-            title(sprintf('H-norm decay plus upper convergence bound with M=%3.2f', M));
-            legend('VKOGA','WSOGA2','Upper bnd','VKOGA a-post. bnd');
-            hold off;
+            h = pm.nextPlot('abs_l2_err_train','Absolute L^2 errors on training set',...
+                'expansion size N','absolute error');
+            semilogy(h,1:n1,a.err(1:n1),'r',1:n2,ao.err(1:n2),'b','LineWidth',testing.VKOGA.LineWidth);
+            legend(h,'VKOGA','WSOGA2');
+            
+            h = pm.nextPlot('rel_l2_err_train','Relative L^2 errors on training set',...
+                'expansion size N','relative error');
+            semilogy(h,1:n1,a.relerr(1:n1),'r',1:n2,ao.relerr(1:n2),'b','LineWidth',testing.VKOGA.LineWidth);
+            legend(h,'VKOGA','WSOGA2');
             
             if ~isempty(a.vxtmuargs)
                 %vsiz = size(a.vfx,2);
-                pm.nextPlot('abs_l2_err_val');
-                semilogy(1:n1,a.verr(1:n1),'r',1:n2,ao.verr(1:n2),'b');
-                title('Absolute L^2 errors on validation set');
-                xlabel('expansion size N'); ylabel('absolute errors');
+                h = pm.nextPlot('abs_l2_err_val','Absolute L^2 errors on validation set',...
+                    'expansion size N','absolute errors');
+                semilogy(h,1:n1,a.verr(1:n1),'r',1:n2,ao.verr(1:n2),'b','LineWidth',testing.VKOGA.LineWidth);
                 legend('VKOGA','WSOGA2');
-
-                pm.nextPlot('rel_l2_err_val');
-                semilogy(1:n1,a.vrelerr(1:n1),'r',1:n2,ao.vrelerr(1:n2),'b');      
-                title('Relative L^2 errors on validation set');
+                
+                h = pm.nextPlot('rel_l2_err_val','Relative L^2 errors on validation set',...
+                    'expansion size N','relative errors');
+                semilogy(h,1:n1,a.vrelerr(1:n1),'r',1:n2,ao.vrelerr(1:n2),'b','LineWidth',testing.VKOGA.LineWidth);
                 legend('VKOGA','WSOGA2');
-                xlabel('expansion size N'); ylabel('relative errors');
             end
-            pm.done;
+        end
+        
+        function plotHerrDecayAndBounds(a, ao, f, pm)
+            n1 = a.expsizes;
+            n2 = ao.expsizes;
+            if nargin < 4
+                pm = tools.PlotManager;
+            end
+            
+            M = f.MBnd;
+            h = pm.nextPlot('H_err_decay_bounds',sprintf('H-norm decay plus upper convergence bound with M=%3.2f', M),...
+                'expansion size N');
+            fnsq = f.NativeNorm^2;
+            semilogy(h,0:n1,fnsq-[0 a.HerrDecay(1:n1)],'r',0:n2,fnsq-[0 ao.HerrDecay(1:n2)],'b','LineWidth',testing.VKOGA.LineWidth);
+            hold on;
+            dim = size(f.Ma,1);
+            bound_sq = (dim*M^2) ./ (1 + (0:(max(n1,n2))) / dim);
+            semilogy(h,0:max(n1,n2),bound_sq(1:max(n1,n2)+1),'b--','LineWidth',testing.VKOGA.LineWidth);
+            bound_cm = M^2 * [dim a.VKOGABound];
+            semilogy(h,0:n1,bound_cm(1:n1+1),'r--','LineWidth',testing.VKOGA.LineWidth);
+            legend('VKOGA','WSOGA2','Upper bnd','VKOGA a-post. bnd');
+            hold off;
         end
         
         function plotVKOGARes(res, pm)
@@ -947,7 +968,7 @@ classdef VKOGA
             runx = 1:runs;
             pm.nextPlot('errcomp');
             plot(runx, [res.terr; res.terro; res.verr; res.verro]);
-            VKOGA_b = res.verr <= res.verro; 
+            VKOGA_b = res.verr <= res.verro;
             hold on;
             legend('VKOGA','WSOGA2','VKOGA (val)','WSOGA2 (val)');
             title(sprintf('Maximum L^2-errors on training/validation set\nVKOGA <= WSOGA2 on validation set: %2.2f%%',...
@@ -1005,7 +1026,7 @@ classdef VKOGA
             end
         end
         
-        function [kexp, kexpo, a, ao, atd, pm] = test_VKOGA_TestFuns(name, atdsize, seed)
+        function [kexp, kexpo, a, ao, atd] = test_VKOGA_TestFuns(name, atdsize, seed)
             if nargin < 3
                 seed = 1;
                 if nargin < 2
@@ -1019,7 +1040,7 @@ classdef VKOGA
             [fun, dom] = eval(sprintf('testing.TestFunctions.%s',name));
             dim = size(dom,1);
             vxsize = atdsize/2;
-
+            
             x = repmat(dom(:,1),1,atdsize+vxsize) + r.rand(dim,atdsize+vxsize).*repmat(dom(:,2)-dom(:,1),1,atdsize+vxsize);
             if dim == 1
                 x = sort(x);
@@ -1028,9 +1049,9 @@ classdef VKOGA
             a = eval(['testing.VKOGA.getAlg' name]);
             a.f = fun;
             
-%             vx = x(:,1:vxsize);
-%             x(:,1:vxsize) = [];
-%             a.vxtmuargs{1} = vx;
+            %             vx = x(:,1:vxsize);
+            %             x(:,1:vxsize) = [];
+            %             a.vxtmuargs{1} = vx;
             
             ao = a.clone;
             ao.UseOGA = true;
@@ -1041,9 +1062,6 @@ classdef VKOGA
             kexp.Kernel = kernels.GaussKernel;
             
             atd.fxi = fun(x);
-            %                 a.vfx = fun(vx);
-            %                 ao.vfx = a.vfx;
-            
             % Original greedy version
             ao.computeApproximation(kexp, atd);
             kexpo = kexp.clone;
@@ -1051,9 +1069,9 @@ classdef VKOGA
             a.computeApproximation(kexp, atd);
             
             save(sprintf('vkoga_testfun_%s',name),'a','ao','kexp','kexpo','atd');
-            
-            pm = tools.PlotManager(false,2,2);
-            pm.FilePrefix = sprintf('testfun_%s',name);
+        end
+        
+        function test_VKOGA_TestFuns_plots(a, ao, pm)
             pm.nextPlot('VKOGA_abserr','VKOGA absolute error','expansion size','absolute error');
             semilogy(a.err');
             pm.nextPlot('WSOGA2_abserr','WSOGA2 absolute error','expansion size','absolute error');
@@ -1075,8 +1093,6 @@ classdef VKOGA
             semilogy(a.HerrDecay');
             pm.nextPlot('WSOGA2_herrdecay','WSOGA2 H-error decay','iteration nr','decay');
             semilogy(ao.HerrDecay');
-            
-            pm.done;
         end
     end
     
@@ -1088,11 +1104,27 @@ classdef VKOGA
             %a.CoeffComp.UseLU = true;
             %a.Dists = sqrt(dia);
             a.gameps = 1e-3;
-            a.NumGammas = 20;
+            a.NumGammas = 5;
             a.MaxExpansionSize = 200;
             a.UsefScaling = false;
-            a.MaxRelErr = 1e-3;
-            a.PhiNormMin = 1e-3;%sqrt(eps);
+            a.MaxRelErr = 1e-2;
+            a.PhiNormMin = sqrt(eps);%1e-3;
+            a.MinGFactor = .1;
+            a.MaxGFactor = 2;
+        end
+        
+        function a = getAlgFranke3D
+            a = approx.algorithms.VectorialKernelOMP;
+            a.CoeffComp = general.interpolation.KernelInterpol;
+            a.UseOGA = false;
+            %a.CoeffComp.UseLU = true;
+            %a.Dists = sqrt(dia);
+            a.gameps = 1e-3;
+            a.NumGammas = 10;
+            a.MaxExpansionSize = 250;
+            a.UsefScaling = false;
+            a.MaxRelErr = 1e-2;
+            a.PhiNormMin = sqrt(eps);%1e-3;
             a.MinGFactor = .1;
             a.MaxGFactor = 1;
         end
