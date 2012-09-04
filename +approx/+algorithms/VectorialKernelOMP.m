@@ -71,7 +71,7 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
     methods(Access=protected, Sealed)
         function detailedAdaptiveApproximation(this, kexp, atd)
             % Flag for experimental mode
-            exp_mode = true;
+            exp_mode = false;
             
             i = general.interpolation.KernelInterpol;
             total = 1:size(atd.xi,2);
@@ -83,6 +83,12 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                 d = this.Dists;
             end
             
+            if isa(kexp.Kernel,'kernels.PolyKernel')
+                fhKernelConf = @this.setPolyKernelDegs;
+            else
+                fhKernelConf = @this.setDistKernelConfig;
+            end
+            
             this.Gain = zeros(this.NumGammas,this.MaxExpansionSize);
             this.HerrDecay = this.Gain;
             this.VKOGABound = this.Gain;
@@ -90,7 +96,6 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
             effabs = this.MaxAbsErrFactor * max(Norm.L2(atd.fxi));
             
             %% Debug/error information inits
-            
             xtmuargs = {atd.xi.toMemoryMatrix};
             if ~isempty(atd.ti)
                 xtmuargs{2} = atd.ti;
@@ -105,14 +110,13 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
             atdfxi = atd.fxi.toMemoryMatrix;
             fximeans = mean(abs(atdfxi),2);
             
+            % Validation set initializations
+            if ~isempty(this.vxtmuargs)
+                this.verr = this.err;
+                this.vrelerr = this.err;
+                vfxnorm = Norm.L2(this.vfx);
+            end
             if exp_mode
-                % Validation set initializations
-                if ~isempty(this.vxtmuargs)
-                    this.verr = this.err;
-                    this.vrelerr = this.err;
-                    vfxnorm = Norm.L2(this.vfx);
-                end
-            
                 if ~this.UseOGA && ~isempty(this.f) && isa(this.f, 'kernels.KernelExpansion')
                     hlp1 = this.f.NativeNorm^2;
                     hlp2 = size(this.f.Ma,1)*this.f.MBnd^2;
@@ -131,7 +135,7 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                 % Clear kexp
                 kexp.clear;
                 % Set current hyperconfiguration
-                this.setDistKernelConfig(kexp, d(:,gidx));
+                fhKernelConf(kexp, d(:,gidx));
                 
                 if exp_mode
                     projpart_old = 0;
@@ -273,6 +277,8 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                     compTrainingError;
                     
                     %% Debug - change later to better stopping criteria not using the kernel expansion
+                    % Compute errors
+                    compValidationError;
                     if exp_mode
                         if siz > 1 %&& KerMor.App.Verbose > 1
                             if KerMor.App.Verbose > 3
@@ -284,9 +290,6 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                                 pause;
                             end
                         end
-
-                        % Compute errors
-                        compValidationError;
 
                         projpart = -sum(sum(kexp.Ma .* atd.fxi(:,used),2));
 
@@ -327,8 +330,7 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
             end
             
             % Restore best configuration
-            g = this.setDistKernelConfig(kexp, bestDist);
-%             g = kexp.ParamKernel.setGammaForDistance(bestDist(3),this.gameps);
+            g = fhKernelConf(kexp, bestDist);
             kexp.Ma = bestMa;
             kexp.Centers.xi = atd.xi(:,bestused);
             if this.pte
@@ -351,7 +353,7 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                 if this.UseOGA
                     og = 'on';
                 end
-                fprintf('VKOMP best gamma index:%d (value:%e) for VKOMP with OGA=%s, exp-size:%d\n',...
+                fprintf('VKOMP best kernel config index:%d (value:%e) for VKOMP with OGA=%s, exp-size:%d\n',...
                     bestgidx,g,og,size(bestMa,2));
             end
             

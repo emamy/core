@@ -49,6 +49,25 @@ classdef PolyKernel < kernels.BaseKernel
                 end
             end
             K = (x'*(this.fG*y)).^this.Degree;
+%             sx = this.fG*x;
+%             n1sq = sum(x.*sx,1);
+%             n1 = size(x,2);
+%             if nargin == 2 || isempty(y)
+%                 y = x;
+%                 n2sq = n1sq;
+%                 n2 = n1;
+%             else
+%                 if ~isempty(this.fP)
+%                     y = y(this.fP,:);
+%                 end
+%                 n2sq = sum(y.*(this.fG*y),1);
+%                 n2 = size(y,2);
+%             end
+%             no = sqrt(repmat(n1sq',1,n2) .* repmat(n2sq,n1,1));
+%             a = (sx'*y);
+%             b = a ./ no;
+%             K = b.^this.Degree;
+%             %K = ((sx'*y) ./ no).^this.Degree;
         end
     end
     

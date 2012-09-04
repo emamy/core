@@ -369,7 +369,7 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
             end
         end
         
-        function g = setDistKernelConfig(this, kexp, dists)
+        function g = setDistKernelConfig(this, kexp, value)
             % Sets the configuration of the kernel expansion 'kexp' using
             % the 'dists' values and the algorithm configuration.
             %
@@ -383,21 +383,19 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
             % state, time and parameter kernels.
             %
             % See also: gameps setKernelConfig
-            g(1) = kexp.Kernel.setGammaForDistance(dists(1),this.gameps);
+            g(1) = kexp.Kernel.setGammaForDistance(value(1),this.gameps);
             if KerMor.App.Verbose > 2
-                %fprintf('Kernels - Sys:%10f => gamma=%f',d(1),gx);
                 fprintf('Kernel config: xg:%.5e',g(1));
             end
             if this.pte
                 if ~isa(kexp.TimeKernel,'kernels.NoKernel')
-                    g(2) = kexp.TimeKernel.setGammaForDistance(dists(2),this.gameps);
+                    g(2) = kexp.TimeKernel.setGammaForDistance(value(2),this.gameps);
                     if KerMor.App.Verbose > 2
-                        %fprintf(', Time:%10f => gamma=%10f',d(2),gt);
                         fprintf(', tg:%.5e',g(2));
                     end
                 end
                 if ~isa(kexp.ParamKernel,'kernels.NoKernel')
-                    g(3) = kexp.ParamKernel.setGammaForDistance(dists(3),this.gameps);
+                    g(3) = kexp.ParamKernel.setGammaForDistance(value(3),this.gameps);
                     if KerMor.App.Verbose > 2
                         fprintf(', pg=%.5e',g(3));
                     end
@@ -406,6 +404,26 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
             if KerMor.App.Verbose > 2
                 fprintf('\n');
             end
+        end
+        
+        function dummy = setPolyKernelDegs(this, kexp, value)
+            % Sets the configuration of the kernel expansion 'kexp' using
+            % the 'value' values and the algorithm configuration.
+            %
+            % Parameters:
+            % kexp: The kernel expansion @type kernels.KernelExpansion
+            % dists: A vector of dimension 3 containing the degrees for
+            % the state, time and parameter kernels. @type colvec
+            kexp.Kernel.Degree = value(1);
+            if this.pte
+                if isa(kexp.TimeKernel,'kernels.PolyKernel')
+                    kexp.TimeKernel.Degree = value(2);
+                end
+                if isa(kexp.ParamKernel,'kernels.PolyKernel')
+                    kexp.ParamKernel.Degree = value(3);
+                end
+            end
+            dummy = 0;
         end
         
         function setKernelConfig(this, kexp, g)

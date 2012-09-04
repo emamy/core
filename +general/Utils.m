@@ -442,7 +442,7 @@ classdef Utils
             %h = sprintf('%d',typecast(vec,'uint8'));
         end
         
-        function x = getTube(dim, num, length, spread, seed)
+        function [x, farend] = getTube(dim, num, length, spread, seed)
             % Computes `n=`'num' random vectors inside a tube of length
             % `l=`'length' inside a `d=`'dim' dimensional space.
             % The tube starts at zero and ends at a random point `x_e\in\R^d`
@@ -463,6 +463,7 @@ classdef Utils
             % Return values:
             % x: An `d\times n` matrix with random vectors from a random
             % tube. @type matrix<double>
+            % farend: The vector from the far end away from zero. @type colvec<double>
             if nargin < 5
                 seed = cputime*10;
                 if nargin < 4
