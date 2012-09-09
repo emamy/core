@@ -49,6 +49,20 @@ classdef VKOGA
 %             testing.VKOGA.plotHerrDecayAndBounds(a,ao,f,pm);
 %             pm.done;
 %             pm.savePlots(dir, types, [], true);
+
+            runs = 50;
+            [res, kexp, kexp_oga, a, ao, f, ~] = testing.VKOGA.test_VKOGA_Versions_5dim(runs, seed);
+            save(sprintf('5dim_%druns_%dseed',runs,seed), 'res', 'kexp', 'kexp_oga', 'a', 'ao', 'f');
+%             return;
+%             load 5dim_runs;
+            pm.FilePrefix = '5d_runs';
+            pm.SingleSize = [1224 768];
+            %pm.SingleSize = [700 800];
+            testing.VKOGA.plotVKOGARes(res,pm);
+            %testing.VKOGA.plotL2Errors(a,ao,pm);
+            %testing.VKOGA.plotHerrDecayAndBounds(a,ao,f,pm);
+            pm.done;
+            pm.savePlots(dir, types, [], true);
             
 %             pm.FilePrefix = '1d';
 %             [kexp, kexp_oga, a, ao, f, atd] = testing.VKOGA.test_VKOGA_1D(false, 25);
@@ -59,12 +73,12 @@ classdef VKOGA
 %             pm.savePlots(dir, types, [], true);
 
             % Dat hier läuft EXTREM schlecht für VKOGA..
-            name = 'Franke3D';%'F7';
-            pm.FilePrefix = sprintf('testfun_%s',name);
-            [kexp, kexpo, a, ao, atd] = testing.VKOGA.test_VKOGA_TestFuns(name, 500, seed);
-            %load(sprintf('vkoga_testfun_%s.mat',name));
-            testing.VKOGA.test_VKOGA_TestFuns_plots(a,ao,pm);
-            pm.LeaveOpen = true;
+%             name = 'Franke3D';%'F7';
+%             pm.FilePrefix = sprintf('testfun_%s',name);
+%             [kexp, kexpo, a, ao, atd] = testing.VKOGA.test_VKOGA_TestFuns(name, 500, seed);
+%             %load(sprintf('vkoga_testfun_%s.mat',name));
+%             testing.VKOGA.test_VKOGA_TestFuns_plots(a,ao,pm);
+%             pm.LeaveOpen = true;
             
             %             pm = tools.PlotManager(true);
             %             pm.FilePrefix = '5druns';
@@ -147,7 +161,6 @@ classdef VKOGA
             off = -3;
             plot(h,xf,phinormsq+off,'m-.','LineWidth',testing.VKOGA.LineWidth);
             
-            
             plot(h,x(c),fx(c),'b.','MarkerSize',ms+8,'LineWidth',testing.VKOGA.LineWidth);
             [om, oidx] = max(oga_err);
             [vm, vidx] = max(vkoga_err);
@@ -162,6 +175,132 @@ classdef VKOGA
             lh = legend('f(x)','approx','\langle f_j-f_j^{m-1}, \phi(x,\cdot)\rangle_H',...
                 '\langle f_j, \phi^{m-1}_x\rangle_H','||\phi^{m-1}_x||-3');
             set(lh,'Location','Best');
+        end
+        
+        function pm = selectCritGraphic_Diffgamma(pm, seed)
+            if nargin < 2
+                seed = 6209; %4554, 502197612
+                if nargin < 1
+                    pm = tools.PlotManager;
+                    pm.LeaveOpen = true;
+                end
+            end
+            ms = 16; % marker size
+            fine = .01;
+            x = -10:fine:10;
+            dia = x(end)-x(1);
+            r = RandStream('mt19937ar','Seed',seed);
+            numgammas = 10;
+            gammas = logspace(log10(.01*dia),log10(.1*dia),numgammas);
+            truegidx = floor(numgammas/2);
+            
+            nc = 6;
+            f = kernels.KernelExpansion;
+            f.Kernel = kernels.GaussKernel;
+            % Use same dist aka space
+            f.Kernel.setGammaForDistance(gammas(truegidx),1e-5);
+            f.Centers.xi = r.rand(1,nc)*dia+x(1);
+            f.Ma = r.rand(1,nc)*5-2.5;
+            
+            fx = f.evaluate(x);
+            h = pm.nextPlot(sprintf('seed_%d',seed),'Illustration of VKOGA/WSOGA selection criteria','x');
+            
+            kexp = kernels.KernelExpansion;
+            kexp.Kernel = f.Kernel;
+            pos = [-7.1   -5.6   -2.1    1.9    5.9    8.4];
+            %pos = [-3 -2];
+            c = round((pos-x(1))/fine);
+            kexp.Centers.xi = x(c);
+            
+            % Preps
+            free = true(size(x));
+            free(c) = false;
+            xf = x(free);
+            
+            %% Compute stuff for "true" approx and choices
+            kexp.Kernel.Gamma = gammas(truegidx);
+            kexp.Ma = (kexp.getKernelMatrix\fx(c)')';
+            tafx = kexp.evaluate(x);
+            Kbig = kexp.getKernelVector(xf)';
+            A = kexp.getKernelMatrix \ Kbig;
+            F = fx(c);
+            toga_err = abs(fx(free) - F*A);
+            tphinormsq = sqrt(1 - sum(A.*Kbig,1));
+            tvkoga_err = toga_err ./ tphinormsq;
+            [tom, toidx] = max(toga_err);
+            [tvm, tvidx] = max(tvkoga_err);
+            
+            for k=1:numgammas
+                hold(h,'off');
+                
+                % Full function
+                plot(h,x,fx,'r-','LineWidth',testing.VKOGA.LineWidth);
+                
+                %% Current computation
+                kexp.Kernel.Gamma = gammas(k);
+                title(h,sprintf('Current Gamma: %g',gammas(k)));
+                kexp.Ma = (kexp.getKernelMatrix\fx(c)')';
+                afx = kexp.evaluate(x);
+                hold(h,'on');
+                plot(h,x,afx,'b-','LineWidth',testing.VKOGA.LineWidth);
+
+                % Extension errors
+                free = true(size(x));
+                free(c) = false;
+                xf = x(free);
+                Kbig = kexp.getKernelVector(xf)';
+
+                % Compute kernel fcn projection to H(m-1)
+                A = kexp.getKernelMatrix \ Kbig;
+                F = fx(c);
+
+                oga_err = abs(fx(free) - F*A);
+                %oga_err = abs(fx-afx);
+                phinormsq = sqrt(1 - sum(A.*Kbig,1));
+                vkoga_err = oga_err ./ phinormsq;
+
+                g = [0 .5 0];
+                plot(h,xf,oga_err,'Color',g,'LineWidth',testing.VKOGA.LineWidth);
+                plot(h,xf,vkoga_err,'--','Color',g,'LineWidth',testing.VKOGA.LineWidth);
+
+                off = -3;
+                plot(h,xf,phinormsq+off,'m-.','LineWidth',testing.VKOGA.LineWidth);
+
+                plot(h,x(c),fx(c),'b.','MarkerSize',ms+8,'LineWidth',testing.VKOGA.LineWidth);
+                [om, oidx] = max(oga_err);
+                [vm, vidx] = max(vkoga_err);
+                plot(h,xf(oidx),om,'rx',xf(vidx),vm,'rx','MarkerSize',ms,'LineWidth',testing.VKOGA.LineWidth);
+
+                % Lines at maxima
+                plot(h,[xf(oidx) xf(oidx)],[om phinormsq(oidx)+off],'k--');
+                plot(h,[xf(vidx) xf(vidx)],[vm phinormsq(vidx)+off],'k--');
+
+                % Zero line
+                plot(h,x,0,'k');
+                lh = legend('f(x)','approx','\langle f_j-f_j^{m-1}, \phi(x,\cdot)\rangle_H',...
+                    '\langle f_j, \phi^{m-1}_x\rangle_H','||\phi^{m-1}_x||-3');
+                
+                %% "True" space plots
+                hold(h,'on');
+                plot(h,x,tafx,'-','Color',[.7 .7 1],...
+                    'LineWidth',testing.VKOGA.LineWidth);
+                tg = [.6 1 .6];
+                plot(h,xf,toga_err,'Color',tg,'LineWidth',testing.VKOGA.LineWidth);
+                plot(h,xf,tvkoga_err,'--','Color',tg,'LineWidth',testing.VKOGA.LineWidth);
+                off = -3;
+                plot(h,xf,tphinormsq+off,'-.','Color',[1 .7 1],...
+                    'LineWidth',testing.VKOGA.LineWidth);
+                plot(h,xf(toidx),tom,'x',xf(tvidx),tvm,'x',...
+                    'Color',[1 .7 .7],...
+                    'MarkerSize',ms,'LineWidth',testing.VKOGA.LineWidth);
+
+                % Lines at maxima
+                %plot(h,[xf(toidx) xf(toidx)],[tom tphinormsq(toidx)+off],'k--');
+                %plot(h,[xf(tvidx) xf(tvidx)],[tvm tphinormsq(tvidx)+off],'k--');
+                
+                set(lh,'Location','Best');
+                pause;
+            end
         end
         
         function [kexp, kexp_oga, a, ao, f, atd] = test_VKOGA_1D(oga, seed)
@@ -617,18 +756,24 @@ classdef VKOGA
                 x = xu;
                 warning('crap:id','Created nonunique centers!');
             end
-            dia = sqrt(dim)*xrange / 2.5;
             
             a = approx.algorithms.VectorialKernelOMP;
             a.CoeffComp = general.interpolation.KernelInterpol;
             a.UseOGA = false;
-            %a.CoeffComp.UseLU = true;
-            a.gameps = .4;
+            if runs == 1
+                dia = sqrt(dim)*xrange / 2.5;
+                a.gameps = .4;
+                a.MaxRelErr = 1e-3;
+            else
+                % "Old" settings for multiple runs
+                a.gameps = .6;
+                a.MaxRelErr = 1e-4;
+                dia = sqrt(dim*xrange);
+            end
             a.Dists = dia;
             a.NumGammas = 1;
             a.MaxExpansionSize = min(atdsize,200);
             a.UsefScaling = false;
-            a.MaxRelErr = 1e-3;
             a.PhiNormMin = sqrt(eps);
             
             vx = unique(r.rand(vxsize,dim)*xrange+xoff,'rows')';
@@ -683,7 +828,7 @@ classdef VKOGA
                 res.cnum(run) = size(kexp.Ma,2);
                 res.vkogabnd(run) = f.MBnd^2 * a.VKOGABound(s);
                 
-                pi.step(run);
+                pi.step;
             end
             pi.stop;
         end
@@ -964,58 +1109,47 @@ classdef VKOGA
                 pm = tools.PlotManager(false, 2, 3);
                 pm.FilePrefix = 'plotVKOGARes';
             end
+            lw = testing.VKOGA.LineWidth;
             runs = length(res.terr);
             runx = 1:runs;
-            pm.nextPlot('errcomp');
-            plot(runx, [res.terr; res.terro; res.verr; res.verro]);
             VKOGA_b = res.verr <= res.verro;
-            hold on;
+            h = pm.nextPlot('errcomp',sprintf('Maximum L^2-errors on training/validation set\nVKOGA <= WSOGA2 on validation set: %2.2f%%',...
+                100*sum(VKOGA_b)/runs),'test run','absolute L2 errors');
+            plot(h, runx, [res.terr; res.terro; res.verr; res.verro],'LineWidth',lw);
             legend('VKOGA','WSOGA2','VKOGA (val)','WSOGA2 (val)');
-            title(sprintf('Maximum L^2-errors on training/validation set\nVKOGA <= WSOGA2 on validation set: %2.2f%%',...
-                100*sum(VKOGA_b)/runs));
-            xlabel('test run'); ylabel('absolute L2 errors');
             
-            pm.nextPlot('relerrcomp');
-            plot(runx, [res.vrelerr; res.vrelerro]);
             VKOGA_b = res.vrelerr <= res.vrelerro;
-            hold on;
+            pm.nextPlot('relerrcomp',sprintf('Maximum relative L^2-errors on validation set\nVKOGA <= WSOGA2: %2.2f%%',...
+                100*sum(VKOGA_b)/runs),'test run','relative L2 errors');
+            plot(runx, [res.vrelerr; res.vrelerro],'LineWidth',lw);
             legend('VKOGA (val)','WSOGA2 (val)');
-            title(sprintf('Maximum relative L^2-errors on validation set\nVKOGA <= WSOGA2: %2.2f%%',...
-                100*sum(VKOGA_b)/runs));
-            xlabel('test run'); ylabel('relative L2 errors');
             
-            pm.nextPlot('expsizes');
-            plot(runx, [res.cnum; res.cnumo]);
             VKOGA_b = res.cnum <= res.cnumo;
-            hold on;
-            plot(runx(VKOGA_b),res.cnum(VKOGA_b),'g.','MarkerSize',20);
-            plot(runx(~VKOGA_b),res.cnumo(~VKOGA_b),'r.','MarkerSize',20);
-            title(sprintf('Expansion sizes at MaxRelErr=%e\nVKOGA better than WSOGA2: %2.2f%%',...
-                res.a.MaxRelErr,100*sum(VKOGA_b)/runs));
+            h = pm.nextPlot('expsizes',sprintf('Expansion sizes at MaxRelErr=%e\nVKOGA better than WSOGA2: %2.2f%%',...
+                res.a.MaxRelErr,100*sum(VKOGA_b)/runs),'test run','expansion sizes');
+            plot(h,runx, [res.cnum; res.cnumo],'LineWidth',lw); 
+%             hold on;
+%             plot(h,runx(VKOGA_b),res.cnum(VKOGA_b),'g.','MarkerSize',20);
+%             plot(h,runx(~VKOGA_b),res.cnumo(~VKOGA_b),'r.','MarkerSize',20);
             legend('VKOGA','WSOGA2');
-            xlabel('test run'); ylabel('expansion sizes');
             
-            pm.nextPlot('Herr_and_bounds');
-            semilogy(runx, res.ogabnd, 'b--', runx, res.vkogabnd, 'r--');
-            hold on;
-            semilogy(runx, res.Herro, 'b', runx, res.Herr, 'r');
             VKOGA_b = res.Herr <= res.Herro;
+            h = pm.nextPlot('Herr_and_bounds',sprintf('H-errors and bounds at MaxRelErr=%e\nVKOGA better than WSOGA2: %2.2f%%',...
+                res.a.MaxRelErr,100*sum(VKOGA_b)/runs),'test run','H-errors');
+            semilogy(h,runx, res.ogabnd, 'b--', runx, res.vkogabnd, 'r--');
             hold on;
-            semilogy(runx(VKOGA_b),res.Herr(VKOGA_b),'g.','MarkerSize',20);
-            semilogy(runx(~VKOGA_b),res.Herro(~VKOGA_b),'r.','MarkerSize',20);
-            title(sprintf('H-errors and bounds at MaxRelErr=%e\nVKOGA better than WSOGA2: %2.2f%%',...
-                res.a.MaxRelErr,100*sum(VKOGA_b)/runs));
+            semilogy(h,runx, res.Herro, 'b', runx, res.Herr, 'r');
+            semilogy(h,runx(VKOGA_b),res.Herr(VKOGA_b),'g.','MarkerSize',20);
+            semilogy(h,runx(~VKOGA_b),res.Herro(~VKOGA_b),'r.','MarkerSize',20);
             legend('VOGA bound (a-pri)','VKOGA bound (a-post)','H-err WSOGA2','H-err VKOGA');
-            xlabel('test run'); ylabel('H-errors');
             
-            pm.nextPlot('errbnd_ratios');
+            h = pm.nextPlot('errbnd_ratios','WSOGA2 to VKOGA ratios');
             hlp = res.ogabnd ./ res.vkogabnd;
-            plot(runx, hlp, 'r', runx, repmat(mean(hlp),1,runs), 'r--');
+            plot(h,runx, hlp, 'r', runx, repmat(mean(hlp),1,runs), 'r--');
             hold on;
             hlp = res.Herro ./ res.Herr;
-            plot(runx, hlp, 'b', runx, repmat(mean(hlp),1,runs), 'b--');
+            plot(h,runx, hlp, 'b', runx, repmat(mean(hlp),1,runs), 'b--');
             legend('WSOGA2 to VKOGA bound ratio','average','WSOGA2 to VKOGA Herr ratio','average');
-            title('WSOGA2 to VKOGA ratios');
             
             if isfield(res,'gammas')
                 pm.nextPlot('gammas');
@@ -1023,6 +1157,22 @@ classdef VKOGA
                 legend('gamma values');
                 xlabel('run');
                 ylabel('gamma value');
+            end
+        end
+        
+        function plotErrorComp(vkoga, oga, pm)
+            if nargin < 3
+                pm = tools.PlotManager(false,1,2);
+            end
+            h1 = pm.nextPlot('abs_err','Absolute errors','expansion size','error');
+            h2 = pm.nextPlot('rel_err','Relative errors','expansion size','error');
+            pm.done;
+            for k=1:size(vkoga.err,1)
+                semilogy(h1,[vkoga.err(k,:); oga.err(k,:)]');
+                semilogy(h2,[vkoga.relerr(k,:); oga.relerr(k,:)]');
+                title(h1,sprintf('Gammacomp-dist: %g',vkoga.Dists(k)));
+                legend(h1,'VKOGA','WSOGA2');
+                pause;
             end
         end
         

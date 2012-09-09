@@ -90,7 +90,6 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
             effabs = this.MaxAbsErrFactor * max(Norm.L2(atd.fxi));
             
             %% Debug/error information inits
-            
             xtmuargs = {atd.xi.toMemoryMatrix};
             if ~isempty(atd.ti)
                 xtmuargs{2} = atd.ti;
@@ -132,6 +131,7 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                 kexp.clear;
                 % Set current hyperconfiguration
                 this.setDistKernelConfig(kexp, d(:,gidx));
+                lastwarn(''); warncnt = 0;
                 
                 if exp_mode
                     projpart_old = 0;
@@ -179,7 +179,7 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                         fDotPhiSqAll = sum(fDotPhiSqAll_comp,1) ./ phinormsq;
                     end
                     
-                    if exp_mode && ~this.UseOGA && ~isempty(this.f)
+                    if exp_mode && ~this.UseOGA && ~isempty(this.f) && KerMor.App.Verbose > 1
                         if siz > 0 && isa(this.f,'kernels.KernelExpansion')
                             M = this.f.MBnd;
                             % M-estimation verification stuff
@@ -276,11 +276,11 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                     if exp_mode
                         if siz > 1 %&& KerMor.App.Verbose > 1
                             if KerMor.App.Verbose > 3
-%                                 this.doplots(Kbig, A, kexp, afxi, phinormsq, atd, ...
-%                                     free, fDotPhiSqAll, maxidx, v, gidx, siz);
-                                if isa(this.f,'function_handle')
-                                    FunVis2D(kexp, atd, [], this.f);
-                                end
+                                this.doplots(Kbig, A, kexp, afxi, phinormsq, atd, ...
+                                    free, fDotPhiSqAll, maxidx, v, gidx, siz);
+%                                 if isa(this.f,'function_handle')
+%                                     FunVis2D(kexp, atd, [], this.f);
+%                                 end
                                 pause;
                             end
                         end
@@ -298,8 +298,14 @@ classdef VectorialKernelOMP < approx.algorithms.BaseAdaptiveCWKA
                         end
                         projpart_old = projpart;
                     end
+                    
+                    [~,id] = lastwarn;
+                    if strcmp(id,'MATLAB:nearlySingularMatrix')
+                        warncnt = warncnt + 1;
+                        lastwarn('');
+                    end
                     % Check stopping conditions - experimental mode
-                    if siz >= this.MaxExpansionSize || ...
+                    if warncnt > 2 || siz >= this.MaxExpansionSize || ...
                             this.relerr(gidx,siz) <= this.MaxRelErr || ...
                             this.err(gidx,siz) <= effabs
 %                         this.HerrDecay(gidx, siz+1:end) = this.HerrDecay(gidx, siz);
