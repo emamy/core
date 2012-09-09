@@ -34,6 +34,10 @@ classdef ATrajectoryData < handle
                 this.addTrajectory(x, mu, inputidx, ctime);
             end
         end
+        
+        function [t, dia, m, M] = computeManifoldDiameters(this)
+            % @todo implement!
+        end
     end
     
     methods(Abstract)
