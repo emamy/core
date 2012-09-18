@@ -19,6 +19,10 @@ classdef LogPlot
         end
         
         function p = logsurf(h,X,Y,Z,varargin)
+            % Create meshgrid if not already existing
+            if isvector(X) && isvector(Y)
+                [X,Y] = meshgrid(X,Y);
+            end
             iszero = Z == 0;
             Z(iszero) = .5*min(Z(:));
             Z = log10(Z);

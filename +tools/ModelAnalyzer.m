@@ -32,50 +32,87 @@ classdef ModelAnalyzer < handle;
            this.rm = rmodel; 
         end
         
-        function errs = getRedErrForParamSamples(this, in)
-            % Computes the reduction error for all parameter samples in the full model's
-            % ModelData.
-            if nargin < 2
-                in = [];
-            end
-            fm = this.rm.FullModel;
-            errs = zeros(2,fm.Data.SampleCount);
-            for pidx = 1:fm.Data.SampleCount
-                mu = fm.Data.ParamSamples(:,pidx);
-                y = fm.Data.getTrajectory(mu,in);
-                [~, yr] = this.rm.simulate(mu,in);
-                errs(1,pidx) = max(Norm.L2(yr-y)); %linf l2 err
-                errs(2,pidx) = max(Norm.Linf(yr-y)); %linf linf err
-            end
-        end
-        
-        function errs = getRedErrForRandomParamSamples(this, num, in)
+        function [params, errs, details] = getRedErrForRandomParamSamples(this, num, seed, in)
             % Computes the simulation errors (output) for 'num' random model parameters.
             %
             % Parameters:
-            % num: The number `n` of random parameters to sample and compute
-            % the error for. @type integer
+            % num: The number of random parameters to get the error for. @type integer @default
+            % 50
+            % seed: The seed for the random number generator. @type integer @default
+            % 'round(cputime*100)'
+            % in: The number of the input to use. Leave unset for no model inputs.
+            %
+            % Return values:
+            % params: The parameters generated. @type matrix<double>
+            % errs: A `4\times num` matrix containing the Linf-L2 absolute and relative error
+            % in rows 1,2 and Linf-Linf absolute and relative errors in rows 3-4.
+            %
+            % See also:
+            % tools.ModelAnalyzer.getRedErrForParamSamples
+            if nargin < 4
+                in = [];
+                if nargin < 3
+                    seed = round(cputime*100);
+                    if nargin < 2
+                        num = 50;
+                    end
+                end
+            end
+            params = this.rm.FullModel.getRandomParam(num, seed);
+            [errs, details] = getRedErrForParamSamples(this, params, in);
+        end
+        
+        function [errs, details] = getRedErrForParamSamples(this, params, in)
+            % Computes the simulation errors (output) for the given model parameters.
+            %
+            % Parameters:
+            % params: The parameters to sample and compute
+            % the error for. If not given, the param samples for reduced model computation are
+            % used.  @type integer @default FullModel.Data.ParamSamples
             % in: The input index to use for the simulations. @type integer
             % @default []
             %
             % Return values:
-            % errs: A `4\times n` matrix containing the Linf-L2 absolute
-            % and relative error in rows 1,2 and Linf-Linf absolute and
-            % relative errors in rows 3-4.
+            % errs: A `4\times n` matrix containing the Linf-L2 absolute and relative error in
+            % rows 1,2 and Linf-Linf absolute and relative errors in rows 3-4.
+            fm = this.rm.FullModel;
             if nargin < 3
                 in = [];
+                if nargin < 2
+                    params = fm.Data.ParamSamples;
+                end
             end
-            fm = this.rm.FullModel;
+            num = size(params,2);
             errs = zeros(4,num);
+            en = this.rm.ErrorEstimator.Enabled;
+            this.rm.ErrorEstimator.Enabled = false;
+            details = struct;
+            details.L2errs = zeros(num,length(fm.Times));
+            details.L2truesolnorm = zeros(num,length(fm.Times));
+            details.Linferrs = details.L2errs;
+            details.Linftruesolnorm = details.L2truesolnorm;
+            pi = tools.ProcessIndicator('Computing reduction error on %d param samples',...
+                num,false,num);
             for pidx = 1:num
-                mu = fm.getRandomParam;
+                mu = params(:,pidx);
                 [~, y] = fm.simulate(mu, in);
                 [~, yr] = this.rm.simulate(mu, in);
-                errs(1,pidx) = max(sqrt(sum((yr-y).^2))); %linf l2 err
-                errs(2,pidx) = errs(1,pidx) / max(sqrt(sum(y.^2))); % rel
-                errs(3,pidx) = max(max(abs(yr-y),[],1)); %linf linf err
-                errs(4,pidx) = errs(3,pidx) / max(max(abs(y),[],1)); % rel
+                details.L2errs(pidx,:) = Norm.L2(y-yr);
+                details.L2truesolnorm(pidx,:) = Norm.L2(y);
+                details.Linferrs(pidx,:) = Norm.Linf(y-yr);
+                details.Linftruesolnorm(pidx,:) = Norm.Linf(y);
+                errs(1,pidx) = max(details.L2errs(pidx,:)); %linf l2 err
+                errs(2,pidx) = errs(1,pidx) ./ details.L2truesolnorm(pidx,:); % rel
+                errs(3,pidx) = max(details.Linferrs(pidx,:)); %linf linf err
+                errs(4,pidx) = errs(3,pidx) ./ details.Linftruesolnorm(pidx,:); % rel
+                pi.step;
             end
+            pi.stop;
+            this.rm.ErrorEstimator.Enabled = en;
+        end
+        
+        function plotRedErrForParamSamples(this, errs, pm)
+           % @TODO implement, so far only plotting in DEIM testing with multiple DEIM m Orders.
         end
         
         function [t, pm] = compareRedFull(this, mu, inputidx)
