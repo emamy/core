@@ -14,6 +14,15 @@ classdef RandomSampler < sampling.BaseSampler
         %
         % @default 30
         Samples = 30;
+        
+        % The seed for the random number generator.
+        %
+        % If empty, a seed computed from the cputime is used.
+        % 
+        % @propclass{optional} Set to empty for new choices on every run.
+        %
+        % @type integer @default []
+        Seed = [];
     end
     
     methods
@@ -35,7 +44,13 @@ classdef RandomSampler < sampling.BaseSampler
             %
             % @ingroup s_rand
             sys = model.System;
-            factor = rand(sys.ParamCount,this.Samples);
+            if isempty(this.Seed)
+                seed = round(cputime*100);
+            else
+                seed = this.Seed;
+            end
+            r = RandStream('mt19937ar','Seed',seed);
+            factor = r.rand(sys.ParamCount,this.Samples);
             miv = repmat([sys.Params(:).MinVal]',1,this.Samples);
             mav = repmat([sys.Params(:).MaxVal]',1,this.Samples);
             samples = miv + factor.*(mav-miv);

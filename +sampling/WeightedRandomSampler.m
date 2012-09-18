@@ -1,4 +1,4 @@
-classdef WeightedRandomSampler < sampling.BaseSampler
+classdef WeightedRandomSampler < sampling.RandomSampler
     %WeightedRandomSampler: Computes random samples using the Desired
     %fields of the parameters.
     %
@@ -16,28 +16,7 @@ classdef WeightedRandomSampler < sampling.BaseSampler
     % extended constructor registering any user-relevant properties using
     % KerMorObject.registerProps.
     
-    properties(SetObservable)
-        % The number of samples to take.
-        %
-        % @propclass{critical} Determines how many parameter samples are taken and thus directly
-        % the offline computation time and model approximation quality.
-        %
-        % @default 30
-        Samples = 30;
-    end
-    
     methods
-        
-        function this = WeightedRandomSampler
-            this.registerProps('Samples');
-        end
-        
-        function set.Samples(this, value)
-            if ~isposintscalar(value)
-                error('Value must be a positive integer scalar');
-            end
-            this.Samples = value;
-        end
         
         function samples = performSampling(this, model)
             % Randomly generates input samples by choosing params and

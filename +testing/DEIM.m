@@ -440,6 +440,7 @@ classdef DEIM
             % Only t=0 is used
             mui = m.Data.ParamSamples;
             s = sampling.RandomSampler;
+            s.Seed = 1;
             s.Samples = numExtraSamples;
             mui = [mui s.generateSamples(m)];
             xi = repmat(x,1,size(mui,2));
