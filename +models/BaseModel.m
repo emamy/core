@@ -438,13 +438,14 @@ classdef BaseModel < KerMorObject
             ctime = toc(st);
         end
         
-        %% Parameter manipulation
-        function mu = getRandomParam(this, num)
+        function mu = getRandomParam(this, num, seed)
             % Gets a random parameter sample from the system's parameter
             % domain P
             %
             % Parameters:
             % num: The number of random parameters to return. @type integer @default 1
+            % seed: The seed for the number generator. Leave empty for cputime initialization.
+            % @type integer @default 'round(cputime*100)'
             %
             % Return values:
             % mu: A matrix of random parameters within the specified range for this model.
@@ -452,14 +453,18 @@ classdef BaseModel < KerMorObject
             %
             % @change{0,6,dw,2012-07-13} Moved this method from models.BaseDynSystem to here
             % for more convenience.
-            if nargin < 2
-                num = 1;
+            if nargin < 3
+                seed = round(cputime*100);
+                if nargin < 2
+                    num = 1;
+                end
             end
             s = this.System;
+            r = RandStream('mt19937ar','Seed',seed);
             if s.ParamCount > 0
                 pmin = [s.Params(:).MinVal]';
                 pmax = [s.Params(:).MaxVal]';
-                mu = rand(s.ParamCount,num) .* (pmax-pmin) + pmin;
+                mu = r.rand(s.ParamCount,num) .* repmat(pmax-pmin,1,num) + repmat(pmin,1,num);
             else
                 mu = [];
             end
@@ -516,14 +521,7 @@ classdef BaseModel < KerMorObject
         
         function gs = get.GScaled(this)%#ok
             % @todo move GScaled to BaseDynSystem
-            error('Using this value is no longer necessary. fix places where occurring and use G');
-            ss = this.System.StateScaling;%#ok
-            if isscalar(ss)
-                gs = this.G * ss^2;
-            else
-                S = spdiags(ss,0,length(ss),length(ss));
-                gs = S * (this.G * S);
-            end
+            gs = 'Using this value is no longer necessary. fix places where occurring and use G';
         end
         
         function dt = get.dt(this)
