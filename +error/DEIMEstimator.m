@@ -85,7 +85,7 @@ classdef DEIMEstimator < error.BaseEstimator
         UseTrueDEIMErr = false;
     end
     
-    properties(SetAccess=private)
+    properties%(SetAccess=private)
         % The complete similarity transformation matrix of size
         % `d \times JacSimTransMaxSize`
         %
@@ -186,12 +186,28 @@ classdef DEIMEstimator < error.BaseEstimator
             % Call superclass
             offlineComputations@error.BaseEstimator(this, fm);
             
-            this.off1_matrix_computations(fm);
+            % Precompute log norm of A component if existing
+            this.Aln = [];
+            fA = fm.System.A;
+            if ~isempty(fA)
+                % Precompute logarithmic norm of A(t,\mu)
+                a = general.AffParamMatrix;
+                if isa(fA, 'dscomponents.LinearCoreFun')
+                    a.addMatrix('1',general.Utils.logNorm(fA.A));
+                else
+                    for i=1:fA.N
+                        a.addMatrix(['abs(' fA.funStr{i} ')'],...
+                            general.Utils.logNorm(fA.getMatrix(i)));
+                    end
+                end
+                this.Aln = a;
+            end
             
-            this.off2_compute_jacmdeim(fm);
+            % Jacobian matrix DEIM approx
+            this.compute_jacmdeim(fm);
             
-            %% Similarity transformation
-            this.off3_compute_simtrans(fm);
+            % Similarity transformation
+            %this.compute_simtrans(fm);
 
             % Compute approximation for local logarithmic norm
             %             this.computeLogNormApprox;
@@ -200,6 +216,47 @@ classdef DEIMEstimator < error.BaseEstimator
         function setReducedModel(this, rmodel)
             setReducedModel@error.BaseEstimator(this, rmodel);
             newd = rmodel.System.f;
+            
+            % Perform projection of JacMDeim instance
+            if ~isempty(rmodel.V)
+                this.JacMDEIM = this.JacMDEIM.project(rmodel.V, rmodel.W);
+            end
+            
+            % Precompute all the projected quantities that are independent of the DEIM error
+            % orders
+            fm = rmodel.FullModel;
+            md = fm.Data;
+            fA = fm.System.A;
+            G = fm.G;
+            A = [];
+            if ~isempty(fA)
+                hlp = fA*md.V;
+                A = hlp - md.V*(md.W'*hlp); % (I-VW^T)AV
+                this.M6 = A'*(G*A);
+                this.Ah = A;
+            else
+                this.M6 = []; this.M7 = []; this.M8 = []; this.M9 = [];
+            end
+            B = [];
+            if ~isempty(fm.System.B)
+                B = fm.System.B - md.V*(md.W'*fm.System.B);
+                this.M12 = B'*(G*B);
+                this.Bh = B;
+            else
+                this.M9 = []; this.M10 = []; this.M11 = []; this.M12 = [];
+            end
+            if ~isempty(A) && ~isempty(B)
+                if isa(B,'dscomponents.LinearInputConv')
+                    this.M9 = 2*A'*(G*B.B);
+                else
+                    % Both inherit from AffParamMatrix, so they can be
+                    % multiplied :-)
+                    this.M9 = 2*A'*(G*B);
+                end
+            else
+                this.M9 = [];
+            end
+            
             if isempty(this.uolst) || (~isempty(this.deim) && ...
                     this.deim ~= newd)
                 delete(this.uolst);
@@ -262,11 +319,12 @@ classdef DEIMEstimator < error.BaseEstimator
                         + ut'*this.M12.evaluate(t,mu)*ut;
                 end
                 a = sqrt(a);
-                %% Validation: direct computation (expensive)
+%                 %% Validation: direct computation (expensive)
 %                 V = this.ReducedModel.V;
 %                 fs = this.ReducedModel.FullModel.System;
 %                 I = speye(size(V,1));
-%                 a_1 = (I-V*V')*fs.A.evaluate(V*x,t,mu);
+%                 hlp = fs.A.evaluate(V*x,t,mu);
+%                 a_1 = hlp - V*(V'*hlp);
 %                 a_2 = this.ReducedModel.System.f.M1 * v1;
 %                 a_3 = this.ReducedModel.System.f.M2 * v2;
 %                 a_4 = 0;
@@ -428,59 +486,12 @@ classdef DEIMEstimator < error.BaseEstimator
     end
     
     methods(Access=private)
-        
-        function off1_matrix_computations(this, fm)
-            fA = fm.System.A;
-            G = fm.G;
-            md = fm.Data;
-            A = [];
-            if ~isempty(fA)
-                hlp = fA*md.V;
-                A = hlp - md.V*(md.W'*hlp); % (I-VW^T)AV
-                this.M6 = A'*(G*A);
-                this.Ah = A;
-                
-                % Precompute logarithmic norm of A(t,\mu)
-                a = general.AffParamMatrix;
-                if isa(fA, 'dscomponents.LinearCoreFun')
-                    a.addMatrix('1',general.Utils.logNorm(fA.A));
-                else
-                    for i=1:fA.N
-                        a.addMatrix(['abs(' fA.funStr{i} ')'],...
-                            general.Utils.logNorm(fA.getMatrix(i)));
-                    end
-                end
-                this.Aln = a;
-            else
-                this.M6 = []; this.M7 = []; this.M8 = []; this.M9 = [];
-            end
-            B = [];
-            if ~isempty(fm.System.B)
-                B = fm.System.B - md.V*(md.W'*fm.System.B);
-                this.M12 = B'*(G*B);
-                this.Bh = B;
-            else
-                this.M9 = []; this.M10 = []; this.M11 = []; this.M12 = [];
-            end
-            if ~isempty(A) && ~isempty(B)
-                if isa(B,'dscomponents.LinearInputConv')
-                    this.M9 = 2*A'*(G*B.B);
-                else
-                    % Both inherit from AffParamMatrix, so they can be
-                    % multiplied :-)
-                    this.M9 = 2*A'*(G*B);
-                end
-            else
-                this.M9 = [];
-            end
-        end
-        
-        function off2_compute_jacmdeim(this, fm)
+        function compute_jacmdeim(this, fm)
             %% Large offline data
             jtd = data.ApproxTrainData.computeFrom(fm, ...
                 general.JacCompEvalWrapper(fm.System.f), this.TrainDataSelector, false);
-            fm.Data.JacobianTrainData = jtd;
-
+            md = fm.Data;
+            md.JacobianTrainData = jtd;
             
             %% Matrix DEIM
             jd = general.MatrixDEIM;
@@ -494,12 +505,12 @@ classdef DEIMEstimator < error.BaseEstimator
                 md.JacobianTrainData.fxi);
             % Project, as arguments that will be passed are in reduced
             % dimension
-            this.JacMDEIM = jd.project(md.V, md.W);
+            this.JacMDEIM = jd;
             % Initialize to certain order
             this.JacMatDEIMOrder = ceil(this.JacMatDEIMMaxOrder/2);
         end
         
-        function off3_compute_simtrans(this, fm)
+        function compute_simtrans(this, fm)
             if ~isempty(this.JacSimTransMaxSize)
                 jtd = fm.Data.JacobianTrainData;
 
