@@ -640,7 +640,7 @@ classdef PrintTable < handle
                    str{i} = sprintf(data{end}{i},data{i});
                end
             else % convert to strings if no specific format is given
-               str = cell(1,length(data));
+                str = cell(1,length(data));
                 for i=1:length(data)
                     el = data{i};
                     if isa(el,'char')
@@ -653,9 +653,17 @@ classdef PrintTable < handle
                         end
                     elseif isnumeric(el)
                         if numel(el) > 1
-                            str{i} = ['[' this.implode(el(:),', ','%g') ']'];
+                            if isvector(el) && length(el) < 100
+                                str{i} = ['[' this.implode(el(:),', ','%g') ']'];
+                            else
+                                str{i} = ['[' this.implode(size(el),'x','%d') ' ' class(el) ']'];
+                            end
                         else
-                            str{i} = sprintf('%g',el);
+                            if isempty(el)
+                                str{i} = '[]';
+                            else
+                                str{i} = sprintf('%g',el);
+                            end
                         end
                     elseif isa(el,'function_handle')
                         str{i} = func2str(el);
@@ -671,7 +679,7 @@ classdef PrintTable < handle
                     else
                         error('Cannot automatically convert an argument of type %s for PrintTable display.',class(el));
                     end
-                end 
+                end
             end
         end
         

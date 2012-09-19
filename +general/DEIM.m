@@ -312,7 +312,10 @@ classdef DEIM < KerMorObject & general.AProjectable
             if any(value) > size(this.u,2) || any(value) < 1
                 error('Invalid Order/ErrOrder value. Allowed are integers in [1, %d]',size(this.u,2));
             elseif sum(value) > this.MaxOrder
-                error('Order (%d) and ErrOrder (%d) values may not exceed MaxOrder (%d)',value,this.MaxOrder);
+                warning('KerMor:DEIM',sprintf(...
+                    'Order (%d) and ErrOrder (%d) values may not exceed MaxOrder (%d). Using [%d 0]',...
+                    value,this.MaxOrder,this.MaxOrder));%#ok
+                value = [this.MaxOrder 0];
             end
             % Only re-compute error order matrices if an actual change
             % happenend

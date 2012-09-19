@@ -73,8 +73,9 @@ classdef ModelAnalyzer < handle;
             % @default []
             %
             % Return values:
-            % errs: A `4\times n` matrix containing the Linf-L2 absolute and relative error in
-            % rows 1,2 and Linf-Linf absolute and relative errors in rows 3-4.
+            % errs: A `5\times n` matrix containing the Linf-L2 absolute and relative error in
+            % rows 1,2 and Linf-Linf absolute and relative errors in rows 3-4. Row 5 contains
+            % the error estimator efficiency if enabled.
             fm = this.rm.FullModel;
             if nargin < 3
                 in = [];
@@ -83,32 +84,53 @@ classdef ModelAnalyzer < handle;
                 end
             end
             num = size(params,2);
-            errs = zeros(4,num);
-            en = this.rm.ErrorEstimator.Enabled;
-            this.rm.ErrorEstimator.Enabled = false;
             details = struct;
-            details.L2errs = zeros(num,length(fm.Times));
-            details.L2truesolnorm = zeros(num,length(fm.Times));
-            details.Linferrs = details.L2errs;
-            details.Linftruesolnorm = details.L2truesolnorm;
-            pi = tools.ProcessIndicator('Computing reduction error on %d param samples',...
+            details.params = params;
+            details.L2Errs = zeros(num,length(fm.Times));
+            details.L2Fullsol = details.L2Errs;
+            details.L2OutErrs = details.L2Errs;
+            details.L2OutFullsol = details.L2Errs;
+            details.Linferrs = details.L2Errs;
+            details.Linftruesolnorm = details.L2Errs;
+            details.Times = zeros(num,2); % computation times full/reduced
+            if this.rm.ErrorEstimator.Enabled
+                details.Estimates = details.L2Errs;
+                details.OutEstimates = details.L2Errs;
+                errs = zeros(8,num);
+            else
+                errs = zeros(6,num);
+            end
+            pi = tools.ProcessIndicator('Computing reduction error details for %d param samples',...
                 num,false,num);
             for pidx = 1:num
                 mu = params(:,pidx);
-                [~, y] = fm.simulate(mu, in);
-                [~, yr] = this.rm.simulate(mu, in);
-                details.L2errs(pidx,:) = Norm.L2(y-yr);
-                details.L2truesolnorm(pidx,:) = Norm.L2(y);
-                details.Linferrs(pidx,:) = Norm.Linf(y-yr);
-                details.Linftruesolnorm(pidx,:) = Norm.Linf(y);
-                errs(1,pidx) = max(details.L2errs(pidx,:)); %linf l2 err
-                errs(2,pidx) = errs(1,pidx) ./ details.L2truesolnorm(pidx,:); % rel
-                errs(3,pidx) = max(details.Linferrs(pidx,:)); %linf linf err
-                errs(4,pidx) = errs(3,pidx) ./ details.Linftruesolnorm(pidx,:); % rel
+                [~, y, tf, x] = fm.simulate(mu, in);
+                [~, yr, tr, xr] = this.rm.simulate(mu, in);
+                details.Times(pidx,:) = [tf tr];
+                details.L2Errs(pidx,:) = Norm.L2(x-this.rm.V*xr);
+                details.L2Fullsol(pidx,:) = Norm.L2(x);
+                details.L2OutErrs(pidx,:) = Norm.L2(y-yr);
+                details.L2OutFullsol(pidx,:) = Norm.L2(y);
+                details.Linferrs(pidx,:) = Norm.Linf(x-this.rm.V*xr);
+                details.Linftruesolnorm(pidx,:) = Norm.Linf(x);
+                errs(1,pidx) = max(details.L2Errs(pidx,:)); %linf l2 err
+                errs(2,pidx) = errs(1,pidx) ./ max(details.L2Fullsol(pidx,:)); % rel
+                errs(3,pidx) = max(details.L2OutErrs(pidx,:)); %linf l2 err - output
+                errs(4,pidx) = errs(3,pidx) ./ max(details.L2OutFullsol(pidx,:)); % rel - output
+                errs(5,pidx) = max(details.Linferrs(pidx,:)); %linf linf err
+                errs(6,pidx) = errs(5,pidx) ./ max(details.Linftruesolnorm(pidx,:)); % rel
+                if this.rm.ErrorEstimator.Enabled
+                    % Effectivity (w.r.t. L2 error)
+                    % State space
+                    details.Estimates(pidx,:) = this.rm.ErrorEstimator.StateError;
+                    errs(5,pidx) = details.Estimates(pidx,end)/details.L2Errs(pidx,end);
+                    % Output
+                    details.OutEstimates(pidx,:) = this.rm.ErrorEstimator.OutputError;
+                    errs(6,pidx) = details.OutEstimates(pidx,end)/details.L2OutErrs(pidx,end);
+                end
                 pi.step;
             end
             pi.stop;
-            this.rm.ErrorEstimator.Enabled = en;
         end
         
         function plotRedErrForParamSamples(this, errs, pm)

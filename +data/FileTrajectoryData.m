@@ -105,10 +105,22 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileData & general.ABl
                     s = load(this.getfile(file),'x','ctime');
                     ctime = s.ctime;
                 catch%#ok
+                    warning('KerMor:FileTrajectoryData',...
+                        'Dealing with old trajectory format, consider re-generating data.');
                     s = load(this.getfile(file),'x');
                     ctime = Inf;
                 end
                 x = s.x;
+            else
+                % "Backup" function. In case some trajectories are created and then the model
+                % is not saved, the existing trajectory files are recognized and loaded.
+                file = fullfile(this.DataDirectory,[key '.mat']);
+                if exist(file,'file') == 2
+                    s = load(file,'x','ctime');
+                    ctime = s.ctime;
+                    x = s.x;
+                    this.hm.put(key,file);
+                end
             end
         end
         
