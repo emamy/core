@@ -1,4 +1,4 @@
-classdef FileTrajectoryData < data.ATrajectoryData & data.FileData & general.ABlockSVD
+classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection & general.ABlockSVD
 % FileTrajectoryData: Trajectory data stored in external files.
 %
 % The constructor takes an optional storage_root parameter.
@@ -30,9 +30,6 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileData & general.ABl
 % - \c License @ref licensing
     
     properties(Access=private)
-        % The HashMap used to store the indices for each trajectory.
-        hm;
-        
         % Stores the DoFs of the trajectories and parameter sizes
         sizes = [];
         
@@ -66,21 +63,8 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileData & general.ABl
             else
                 error('Invalid argument: %s',class(varargin{1}));
             end
-            this = this@data.FileData(data_dir);
-            this.hm = java.util.HashMap;
+            this = this@data.FileDataCollection(data_dir);
             this.clearTrajectories;
-        end
-        
-        function delete(this)
-            % Destructor for FileTrajectoryData
-            %
-            % Deletes the DataDirectory if no trajectories are stored in it or it has not been
-            % saved somewhere.
-            if ~this.isSaved || this.hm.size == 0
-                this.clearTrajectories;
-            end
-            % Superclass delete removes the folder if empty.
-            delete@data.FileData(this);
         end
         
         function [x, ctime] = getTrajectory(this, mu, inputidx)
@@ -96,56 +80,28 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileData & general.ABl
                     mu = [];
                 end
             end
-            
             x = []; ctime = Inf;
-            key = general.Utils.getHash([mu; inputidx]);
-            if this.hm.containsKey(key)
-                file = this.hm.get(key);
-                try
-                    s = load(this.getfile(file),'x','ctime');
-                    ctime = s.ctime;
-                catch%#ok
-                    warning('KerMor:FileTrajectoryData',...
-                        'Dealing with old trajectory format, consider re-generating data.');
-                    s = load(this.getfile(file),'x');
-                    ctime = Inf;
-                end
+            s = this.getData([mu; inputidx],'x','ctime');
+            if ~isempty(s)
+                ctime = s.ctime;
                 x = s.x;
-            else
-                % "Backup" function. In case some trajectories are created and then the model
-                % is not saved, the existing trajectory files are recognized and loaded.
-                file = fullfile(this.DataDirectory,[key '.mat']);
-                if exist(file,'file') == 2
-                    s = load(file,'x','ctime');
-                    ctime = s.ctime;
-                    x = s.x;
-                    this.hm.put(key,file);
-                end
             end
         end
         
         function n = getNumTrajectories(this)
-           n = this.hm.size;
+           n = this.getCollectionSize;
         end
         
         function [x, mu, inputidx, ctime] = getTrajectoryNr(this, nr)
             % Gets the trajectory with the number nr.
-            if nr > this.hm.size || nr < 1
-                error('Invalid trajectory number: %d',nr);
-            end
-            keys = this.hm.keySet.toArray(java_array('java.lang.String',1));
-            try
-                s = load(this.getfile(this.hm.get(keys(nr))),'x','mu','inputidx','ctime');
-                ctime = s.ctime;
-                % Workaround for backwards compatibility
-            catch%#ok
-                s = load(this.getfile(this.hm.get(keys(nr))),'x','mu','inputidx');
-                ctime = Inf;
-            end
-            x = s.x; mu = s.mu; inputidx = s.inputidx;
+            s = this.getDataNr(nr,'x','mu','inputidx','ctime');
+            x = s.x;
+            mu = s.mu;
+            inputidx = s.inputidx;
+            ctime = s.ctime;
         end
         
-        function addTrajectory(this, x, mu, inputidx, ctime)%#ok
+        function addTrajectory(this, x, mu, inputidx, ctime)
             % Adds a trajectory to the ModelData instance.
             
             if nargin < 4
@@ -170,44 +126,26 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileData & general.ABl
                 error('Invalid trajectory length. Existing: %d, new: %d',this.trajlen,size(x,2));
             end
             
-            key = general.Utils.getHash([mu; inputidx]);
-            if this.hm.containsKey(key)
+            if this.hasData([mu; inputidx])
                 warning('KerMor:MemoryTrajectoryData','Trajectory already present. Replacing.');
             end
-            file = [key '.mat'];
-            this.hm.put(key,file);
-            
-            file = fullfile(this.DataDirectory,file);
-            try
-                save(file,'x','mu','inputidx','ctime');
-            catch ME
-                this.hm.remove(key);
-                rethrow(ME);
-            end
+            traj.x = x;
+            traj.ctime = ctime;
+            traj.inputidx = inputidx;
+            traj.mu = mu;
+            this.addData([mu; inputidx], traj);
             this.updateBB(x);
         end
         
         function clearTrajectories(this)
-            ks = this.hm.values.iterator;
-            fs = filesep;
-            while ks.hasNext
-                file = [this.DataDirectory fs ks.next];
-                try
-                    if exist(file,'file') == 2
-                        delete(file);
-                    end
-                catch ME
-                    warning('KerMor:data:FileTrajectoryData','Could not delete file "%s": %s',file,ME.message);
-                end
-            end
-            this.hm.clear;
+            this.clear;
             this.bbmin = [];
             this.bbmax = [];
             this.sizes = [];
             this.trajlen = [];
         end
         
-        function consolidate(this, model, model_ID)
+        function consolidate(this, model, model_ID)%#ok
             % Rebuild the hashmap for the current FileData using the current ParamSamples and the models training inputs.
             %
             % This method is used when trajectories are generated within a
@@ -227,6 +165,7 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileData & general.ABl
             % performed for a different model ID, for which the model data
             % files have been created. If given, the directory is renamed
             % according to the current model ID.
+            error('proper functionality not guaranteed since introduction of FileDataCollection');
             if nargin == 3
                 olddir = fullfile(KerMor.App.DataStoreDirectory,['rm_' num2str(model_ID)]);
                 newdir = fullfile(KerMor.App.DataStoreDirectory,['rm_' num2str(model.ID)]);
@@ -319,12 +258,10 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileData & general.ABl
             % Loads a FileTrajectoryData instance.
             %
             % Ensures that the directory associated with this FileTrajectoryData is existent.
-            this = loadobj@data.FileData(this);
+            this = loadobj@data.FileDataCollection(this);
             if exist(this.DataDirectory,'dir') ~= 7
-                this.hm.clear;
                 this.bbmin = [];
                 this.bbmax = [];
-                warning('FileTrajectoryData:load','This FileTrajectoryData instance was created on host "%s" and the DataDirectory cannot be found on the local machine "%s". Clearing FileTrajectoryData.',this.host,KerMor.getHost);
             end
         end
     end
@@ -332,8 +269,7 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileData & general.ABl
     methods(Static)
         function res = test_FileTrajectoryData
             
-            model.ID = 'testModelData';
-            m = data.FileTrajectoryData(model);
+            m = data.FileTrajectoryData;
 
             T = 10;
             res = true;

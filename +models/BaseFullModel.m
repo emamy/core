@@ -76,6 +76,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 % - \c License @ref licensing    
 %
 % @todo put addlistener methods for T,dt change into loadobj!
+%
+% @todo implement callbacks for the ODE solvers that automatically set computed f-values on
+% simulation points if desired
     
     properties
         % The full model's data container.
@@ -188,6 +191,14 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         %
         % @type error.BaseEstimator @default []
         ErrorEstimator = [];
+        
+        % Flag that determines whether fxi data should be computed along with the trajectories
+        % or not
+        %
+        % @todo write setter
+        %
+        % @type logical @default false
+        ComputeTrajectoryFxiData = false;
     end
     
     properties(SetObservable, Dependent)
@@ -296,7 +307,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             
             %% Parallel - computation
             if this.ComputeParallel
-                %error('Parallel computing not yet tested with new ModelData structure / model.Data.addTrajectory might not be thread-safe!');
+                error('Parallel computing not yet tested with new ModelData structure / model.Data.addTrajectory might not be thread-safe! not catered for: ComputeTrajectoryFxiData');
                 
                 idxmat = general.Utils.createCombinations(1:num_s,1:num_in);
                 
@@ -344,6 +355,12 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 if KerMor.App.Verbose > 0
                     pi = tools.ProcessIndicator(sprintf('Generating projection training data (%d trajectories)...',num_in*num_s),num_in*num_s);
                 end
+                if this.ComputeTrajectoryFxiData
+                    tfd = data.FileDataCollection(...
+                        fullfile(this.Data.DataDirectory,'trajectory_fxi'));
+                else
+                    tfd = [];
+                end
                 % Iterate through all input functions
                 for inidx = 1:num_in
                     % Iterate through all parameter samples
@@ -361,16 +378,26 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         % anyways)
                         oldv = this.EnableTrajectoryCaching;
                         this.EnableTrajectoryCaching = false;
-                        [~, x, ctime] = this.computeTrajectory(mu, inputidx);
+                        [t, x, ctime] = this.computeTrajectory(mu, inputidx);
                         this.EnableTrajectoryCaching = oldv;
                         
                         % Assign snapshot values
                         this.Data.TrajectoryData.addTrajectory(x, mu, inputidx, ctime);
+                        
+                        % Evaluate fxi on current values if required
+                        if this.ComputeTrajectoryFxiData
+                            d.fx = this.System.f.evaluate(x,t,repmat(mu,1,length(t)));
+                            d.mu = mu;
+                            d.inputidx = inputidx;
+                            tfd.addData([mu; inputidx],d);
+                        end
+                        
                         if KerMor.App.Verbose > 0
                             pi.step;
                         end
                     end
                 end
+                this.Data.TrajectoryFxiData = tfd;
                 if KerMor.App.Verbose > 0
                     pi.stop;
                 end

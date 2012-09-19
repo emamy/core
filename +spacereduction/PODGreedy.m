@@ -56,6 +56,8 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
         %
         % @default 100 @type integer
         MaxSubspaceSize = 100;
+        
+        IncludeTrajectoryFxiData = false;
     end
     
     properties(SetAccess=private)
@@ -69,6 +71,10 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
         
         function [V,W] = generateReducedSpace(this, model)
             md = model.Data.TrajectoryData;
+            mdfx = [];
+            if this.IncludeTrajectoryFxiData
+                mdfx = model.Data.TrajectoryFxiData;
+            end
             
             if KerMor.App.Verbose > 2
                 fprintf('POD-Greedy: Starting subspace computation using %d trajectories...\n',md.getNumTrajectories);
@@ -81,22 +87,26 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             o = general.Orthonormalizer;
             o.Algorithm = 'gs';
             
-            if KerMor.App.Verbose > 3
+            if KerMor.App.Verbose > 2
                 fprintf('POD-Greedy: Computing initial space...\n');
             end
             V = this.getInitialSpace(md, pod);
-            [err, idx] = this.getMaxErr(V, md);
+            [err, idx] = this.getMaxErr(V, md, mdfx);
             cnt = 1; 
             % Maximum possible subspace size
             ss = size(V,1);
             olderr = err;
             impr = 1;
             while (err(end) > this.Eps) && cnt < this.MaxSubspaceSize && size(V,2) < ss && impr(end) > this.MinRelImprovement
-                x = md.getTrajectoryNr(idx);
+                x = md.getTrajectoryNr(idx); % get trajectory
+                if ~isempty(mdfx) % augment with fxi data
+                    data = mdfx.getDataNr(idx,'fx'); 
+                    x = [x data.fx];%#ok
+                end
                 e = x - V*(V'*x);
                 Vn = pod.computePOD(e);
                 V = o.orthonormalize([V Vn]);
-                [err(end+1), idx] = this.getMaxErr(V,md);%#ok
+                [err(end+1), idx] = this.getMaxErr(V, md, mdfx);%#ok
                 impr(end+1) = (olderr-err(end))/olderr;%#ok
                 olderr = err(end);
                 cnt = cnt+1;
@@ -166,7 +176,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             V = V / norm(V);
         end
         
-        function [maxerr, midx] = getMaxErr(this, V, md)
+        function [maxerr, midx] = getMaxErr(this, V, md, mdfx)
             midx = -1;
             maxerr = 0;
             if this.ComputeParallel
@@ -177,7 +187,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
                 err = zeros(1,n);
                 parfor i=1:n
                     x = md.getTrajectoryNr(i); %#ok<PFBNS>
-                    hlp = sum(sqrt(sum((x - V*(V'*x)).^2,1)));
+                    hlp = sum(Norm.L2(x - V*(V'*x)));
                     if KerMor.App.Verbose > 4
                        fprintf('POD-Greedy: Error for trajectory %d: %e\n',i,hlp);
                     end
@@ -187,6 +197,10 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             else
                 for k=1:md.getNumTrajectories
                     x = md.getTrajectoryNr(k);
+                    if ~isempty(mdfx) % augment with fxi data
+                        data = mdfx.getDataNr(k,'fx'); 
+                        x = [x data.fx];%#ok
+                    end
                     e = sum(Norm.L2(x - V*(V'*x)));
                     if maxerr < e
                         maxerr = e;

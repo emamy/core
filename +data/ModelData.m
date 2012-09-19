@@ -26,6 +26,13 @@ classdef ModelData < data.FileData
         % @type data.ATrajectoryData @default data.MemoryTrajectoryData
         TrajectoryData = [];
         
+        % Evaluations of the system's nonlinearity on the trajectoriy data.
+        %
+        % @todo write setter
+        %
+        % @type data.FileDataCollection @default []
+        TrajectoryFxiData = [];
+        
         % Training data for the core function approximation.
         %
         % @type data.ApproxTrainData @default []
