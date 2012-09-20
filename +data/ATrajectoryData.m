@@ -1,4 +1,4 @@
-classdef ATrajectoryData < handle
+classdef ATrajectoryData < data.ABlockedData
 % Data class that contains a model's large data, including subspace matrices, trajectories and
 % approximation training data.
 %
@@ -38,6 +38,29 @@ classdef ATrajectoryData < handle
         function [t, dia, m, M] = computeManifoldDiameters(this)
             % @todo implement!
         end
+    
+        %% data.ABlockedData implementations
+        function n = getNumBlocks(this)
+            n = this.getNumTrajectories;
+        end
+        
+        function B = getBlock(this, nr)
+            B = this.getTrajectoryNr(nr);
+        end
+        
+        function [n, m] = size(this, dim)
+            n = [this.getTrajectoryDoFs this.getNumBlocks * this.getTrajectoryLength];
+            if nargin == 2
+                if dim > 0 && dim < 3
+                    n = n(dim);
+                else
+                    n = 0;
+                end
+            elseif nargout == 2
+                m = n(2);
+                n = n(1);
+            end
+        end
     end
     
     methods(Abstract)
@@ -46,6 +69,9 @@ classdef ATrajectoryData < handle
         
         % Gets the total number of trajectories
         n = getNumTrajectories(this);
+        
+        % Length of the stored trajectories
+        l = getTrajectoryLength(this);
         
         % Gets the trajectory with the number nr.
         [x, mu, inputidx, ctime] = getTrajectoryNr(this, nr);

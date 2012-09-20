@@ -1,4 +1,4 @@
-classdef FileMatrix < data.FileData & general.ABlockSVD
+classdef FileMatrix < data.FileData & data.ABlockedData
 % FileMatrix: File-based matrix which stores sets of rows in separate files.
 %
 % This class features a caching functionality for the last accessed block, so that for
@@ -145,41 +145,6 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             end
         end
         
-        function [U, S, V] = getSVD(this, k)
-            % Overloads the general.ABlockSVD method for efficiency.
-            %
-            % Transposes this matrix if more rows than columns and multiple blocks are used as
-            % it is faster to form the transposed once instead of having a nBlocks^2 cost
-            % operation in each call to the custom multiplication function in
-            % general.ABlockSVD.getSVD.
-            
-            if nargin < 2
-                k = min(this.n,this.m);
-            end
-            
-            trans = this.nBlocks > 1 && this.n > this.m;
-            if trans
-                if KerMor.App.Verbose > 0
-                    fprintf('FileMatrix.getSVD: Transposing (%dx%d -> %dx%d, %d blocks) for better performance.\n',...
-                        this.n,this.m,this.m,this.n,this.nBlocks);
-                end
-                hlp = this.ctranspose;
-            else
-                hlp = this;
-            end
-            if trans || nargout == 3
-                [U, S, V] = getSVD@general.ABlockSVD(hlp, k);
-            else
-                [U, S] = getSVD@general.ABlockSVD(hlp, k);
-            end
-            % Switch matrices if transposed version was used
-            if trans
-                tmp = U;
-                U = V;
-                V = tmp;
-            end
-        end
-        
         function [rowmin, rowmax] = getColBoundingBox(this)
             % Computes the bounding box of the matrix with respect to columns.
             rowmin = Inf*ones(this.n,1);
@@ -249,12 +214,13 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
         end
         
         function [n, m] = size(this, dim)
+            % Implementation of ABlockedData.size
             n = [this.n this.m];
             if nargin == 2
                 if dim > 0 && dim < 3
                     n = n(dim);
                 else
-                    n = 1;
+                    n = 0;
                 end
             elseif nargout == 2
                 n = this.n;
@@ -357,6 +323,7 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
         end
         
         function AB = mtimes(A, B)
+            % Override of ABlockedData.mtimes
             if isa(A,'data.FileMatrix')
                 % FileMatrix * FileMatrix case
                 if isa(B,'data.FileMatrix')
@@ -530,25 +497,20 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             % Superclass delete removes the folder if empty.
             delete@data.FileData(this);
         end
-    end
-    
-    methods(Access=protected)
+        
+        %% data.ABlockedData implementations
         function n = getNumBlocks(this)
+            % Implementation of ABlockedData.getNumBlocks
             n = this.nBlocks;
         end
         
-        function n = getColsPerBlock(this)
-            n = this.bCols;
-        end
-        
         function B = getBlock(this, nr)
+            % Implementation of ABlockedData.getBlock
             B = this.loadBlock(nr);
         end
-        
-        function [n, m] = getTotalSize(this)
-            n = this.n;
-            m = this.m;
-        end
+    end
+    
+    methods(Access=protected)
         
         function this = saveobj(this)
             saveobj@data.FileData(this);
@@ -718,24 +680,14 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             [u,s,v] = svd(B,'econ');
             [U,S,V] = A.getSVD;
             V = V.toMemoryMatrix;
+            res = res & norm(U*S*V-B,'fro') < p;
             [U5,S5,V5] = A.getSVD(5);
             V5 = V5.toMemoryMatrix;
-            res = res && norm(abs(V)-abs(v),'fro') < p && norm(abs(U)-abs(u),'fro') < p &&...
+            res = res && norm(abs(V)-abs(v'),'fro') < p && norm(abs(U)-abs(u),'fro') < p &&...
                 norm(diag(S)-diag(s)) < p;
-            res = res && norm(abs(V5)-abs(v(:,1:5)),'fro') < p ...
+            res = res && norm(abs(V5)-abs(v(:,1:5)'),'fro') < p ...
                     && norm(abs(U5)-abs(u(:,1:5)),'fro') < p ...
                     && norm(diag(S5)-diag(s(1:5,1:5))) < p;
-            
-            [ut,st,vt] = svd(B','econ');
-            [Ut,St,Vt] = At.getSVD;
-            Ut = Ut.toMemoryMatrix;
-            [Ut5,St5,Vt5] = At.getSVD(5);
-            Ut5 = Ut5.toMemoryMatrix;
-            res = res && norm(abs(Vt)-abs(vt),'fro') < p && norm(abs(Ut)-abs(ut),'fro') < p &&...
-                norm(diag(St)-diag(st)) < p;
-            res = res && norm(abs(Vt5)-abs(vt(:,1:5)),'fro') < p ...
-                    && norm(abs(Ut5)-abs(ut(:,1:5)),'fro') < p ...
-                    && norm(diag(St5)-diag(st(1:5,1:5))) < p;
                 
             % Bounding box test
             [bm, bM] = general.Utils.getBoundingBox(B);
@@ -760,6 +712,7 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             clear A;
             load Atmp;
             res = res && A == B;
+            rmdir(A.DataDirectory,'s');
             delete Atmp.mat;
             
             % Multiply for large result matrices
@@ -769,10 +722,6 @@ classdef FileMatrix < data.FileData & general.ABlockSVD
             B = rand(2000,50);
             BA = B*A;
             res = res && BA == B*a;
-            
-            d = A.DataDirectory;
-            clear A;
-            rmdir(d,'s');
         end
         
         function test_SpeedSVDTransp

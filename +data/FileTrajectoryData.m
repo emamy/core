@@ -1,4 +1,4 @@
-classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection & general.ABlockSVD
+classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
 % FileTrajectoryData: Trajectory data stored in external files.
 %
 % The constructor takes an optional storage_root parameter.
@@ -137,6 +137,10 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection & g
             this.updateBB(x);
         end
         
+        function l = getTrajectoryLength(this)
+            l = this.trajlen;
+        end
+        
         function clearTrajectories(this)
             this.clear;
             this.bbmin = [];
@@ -216,26 +220,6 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection & g
             end
             d = this.sizes(1);
             mud = this.sizes(2);
-        end
-    end
-    
-    %% general.ABlockSVD implementations
-    methods(Access=protected)
-        function n = getNumBlocks(this)
-            n = this.getNumTrajectories;
-        end
-        
-        function n = getColsPerBlock(this)
-            n = this.trajlen;
-        end
-        
-        function B = getBlock(this, nr)
-            B = this.getTrajectoryNr(nr);
-        end
-        
-        function [n, m] = getTotalSize(this)
-            n = this.getTrajectoryDoFs;
-            m = this.getNumBlocks * this.trajlen;
         end
     end
     

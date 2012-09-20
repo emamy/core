@@ -9,11 +9,15 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD
     %
     % @author Daniel Wirtz @date 19.03.2010
     %
-    % @change{0,6,dw,2012-07-13} Now also works with general.ABlockSVD arguments as trajectory
+    % @change{0,6,dw,2012-07-13} Now also works with data.ABlockedData arguments as trajectory
     % data.
     %
     % @change{0,5,dw,2011-08-04} Adopted to the new ModelData structure.
     % Now the global POD array is assembled from all the trajectories available.
+    
+    properties
+        IncludeTrajectoryFxiData = false;
+    end
     
     properties(SetAccess=private)
         % The singular values of the SVD of the used trajectories.
@@ -34,14 +38,15 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD
                 error('No training data found in ModelData.');
             end
             
-            % Matches for FileTrajectoryData
-            if isa(td,'general.ABlockSVD')
-                data = td;
-            elseif isa(td,'data.MemoryTrajectoryData')
-                data = reshape(td.TrajectoryData,td.getTrajectoryDoFs,[]);
-            end            
+            % Augment block data with fxi values
+            if this.IncludeTrajectoryFxiData
+                if isempty(md.TrajectoryFxiData)
+                    error('No training fxi data found in ModelData.');
+                end
+                td = data.JoinedBlockData(td, md.TrajectoryFxiData);
+            end
             
-            [V, this.SingularValues] = this.computePOD(data);
+            [V, this.SingularValues] = this.computePOD(td);
             
             % Here W=V!
             W = V;

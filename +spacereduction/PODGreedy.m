@@ -71,9 +71,13 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
         
         function [V,W] = generateReducedSpace(this, model)
             md = model.Data.TrajectoryData;
-            mdfx = [];
+            
+            % Augment block data with fxi values
             if this.IncludeTrajectoryFxiData
-                mdfx = model.Data.TrajectoryFxiData;
+                if isempty(md.TrajectoryFxiData)
+                    error('No training fxi data found in ModelData.');
+                end
+                md = data.JoinedBlockData(md, model.Data.TrajectoryFxiData);
             end
             
             if KerMor.App.Verbose > 2
@@ -98,11 +102,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             olderr = err;
             impr = 1;
             while (err(end) > this.Eps) && cnt < this.MaxSubspaceSize && size(V,2) < ss && impr(end) > this.MinRelImprovement
-                x = md.getTrajectoryNr(idx); % get trajectory
-                if ~isempty(mdfx) % augment with fxi data
-                    data = mdfx.getDataNr(idx,'fx'); 
-                    x = [x data.fx];%#ok
-                end
+                x = md.getBlock(idx); % get trajectory
                 e = x - V*(V'*x);
                 Vn = pod.computePOD(e);
                 V = o.orthonormalize([V Vn]);
@@ -144,18 +144,18 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             % Computes the initial space, which is the first POD mode of
             % the initial values!
             
-            n = md.getNumTrajectories();
-            x = md.getTrajectoryNr(1);
+            n = md.getNumBlocks;
+            x = md.getBlock(1);
             x0 = x(:,1);
             if this.ComputeParallel
                 parfor idx=2:n
-                    x = md.getTrajectoryNr(idx);%#ok
+                    x = md.getBlock(idx);%#ok
                     x0 = [x0, x(:,1)];
                 end
                 x0 = unique(x0','rows')';
             else
                 for idx=2:n
-                    x = md.getTrajectoryNr(idx);
+                    x = md.getBlock(idx);
                     x = x(:,1);
                     % Only add nonexisting vectors
                     if isempty(general.Utils.findVecInMatrix(x0,x))
@@ -165,9 +165,9 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             end
             if all(x0(:) == 0)
                 if KerMor.App.Verbose > 1
-                    fprintf('Initial values are all zero vectors. Using main POD mode of first trajectory as initial space.\n');
+                    fprintf('Initial values are all zero vectors. Using main POD mode of first block data as initial space.\n');
                 end
-                V = pod.computePOD(md.getTrajectoryNr(1));
+                V = pod.computePOD(md.getBlock(1));
             elseif size(x0,2) > 1
                 V = pod.computePOD(x0);
             else
@@ -180,26 +180,25 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             midx = -1;
             maxerr = 0;
             if this.ComputeParallel
-                n = md.getNumTrajectories;
+                n = md.getNumBlocks;
                 if KerMor.App.Verbose > 3
                    fprintf('POD-Greedy: Computing maximum error over %d trajectories on %d workers for subspace size %d...\n',n,matlabpool('size'),size(V,2));
                 end
                 err = zeros(1,n);
                 parfor i=1:n
-                    x = md.getTrajectoryNr(i); %#ok<PFBNS>
+                    x = md.getBlock(i); %#ok<PFBNS>
                     hlp = sum(Norm.L2(x - V*(V'*x)));
                     if KerMor.App.Verbose > 4
-                       fprintf('POD-Greedy: Error for trajectory %d: %e\n',i,hlp);
+                       fprintf('POD-Greedy: Error for block %d: %e\n',i,hlp);
                     end
                     err(i) = hlp;
                 end
                 [maxerr, midx] = max(err);
             else
-                for k=1:md.getNumTrajectories
-                    x = md.getTrajectoryNr(k);
+                for k=1:md.getNumBlocks;
+                    x = md.getBlock(k);
                     if ~isempty(mdfx) % augment with fxi data
-                        data = mdfx.getDataNr(k,'fx'); 
-                        x = [x data.fx];%#ok
+                        x = [x mdfx.getBlock(idx)];%#ok
                     end
                     e = sum(Norm.L2(x - V*(V'*x)));
                     if maxerr < e

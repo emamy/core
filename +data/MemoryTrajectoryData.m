@@ -84,6 +84,10 @@ classdef MemoryTrajectoryData < data.ATrajectoryData
            n = size(this.TrajectoryData,3);
         end
         
+        function l = getTrajectoryLength(this)
+            l = size(this.TrajectoryData,2);
+        end
+        
         function [x, mu, inputidx, ctime] = getTrajectoryNr(this, nr)
             % Gets the trajectory with the number nr.
             if nr > size(this.TrajectoryData,3) || nr < 1
@@ -155,6 +159,30 @@ classdef MemoryTrajectoryData < data.ATrajectoryData
             d = size(this.TrajectoryData,1);
             mud = size(this.Parameters,1);
         end
+        
+        %% data.ABlockedData implementations
+        function [n, m] = size(this, dim)
+            td = this.TrajectoryData;
+            n = [size(td,1) size(td,2)*size(td,3)];
+            if nargin == 2
+                if dim > 0 && dim < 3
+                    n = n(dim);
+                else
+                    n = 0;
+                end
+            elseif nargout == 2
+                m = n(2);
+                n = n(1);
+            end
+        end
+        
+        function n = getNumBlocks(~)
+            n = 1;
+        end
+        
+        function B = getBlock(this, ~)
+            B = reshape(this.TrajectoryData,this.getTrajectoryDoFs,[]);
+        end
     end
     
     methods(Static)
@@ -203,6 +231,8 @@ classdef MemoryTrajectoryData < data.ATrajectoryData
                 m.addTrajectory(tr(:,:,i),p(:,i),in(i),1);
             end
             res = res && m.getNumTrajectories == T;
+            
+            [U,S] = m.getSVD;%#ok
 
             for i=1:T;
                 [x, pi, ini] = m.getTrajectoryNr(i);

@@ -356,10 +356,15 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     pi = tools.ProcessIndicator(sprintf('Generating projection training data (%d trajectories)...',num_in*num_s),num_in*num_s);
                 end
                 if this.ComputeTrajectoryFxiData
-                    tfd = data.FileDataCollection(...
-                        fullfile(this.Data.DataDirectory,'trajectory_fxi'));
+                    elems = num_in*num_s*length(this.Times)*this.Dimension;
+                    if elems*32/(1024^3) > 1
+                        tfxd = data.FileTrajectoryData(...
+                            fullfile(this.Data.DataDirectory,'trajectory_fx'));
+                    else
+                        tfxd = data.MemoryTrajectoryData;
+                    end
                 else
-                    tfd = [];
+                    tfxd = [];
                 end
                 % Iterate through all input functions
                 for inidx = 1:num_in
@@ -386,10 +391,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         
                         % Evaluate fxi on current values if required
                         if this.ComputeTrajectoryFxiData
-                            d.fx = this.System.f.evaluate(x,t,repmat(mu,1,length(t)));
-                            d.mu = mu;
-                            d.inputidx = inputidx;
-                            tfd.addData([mu; inputidx],d);
+                            hlp = tic;
+                            fx = this.System.f.evaluate(x,t,repmat(mu,1,length(t)));
+                            ctime = toc(hlp);
+                            tfxd.addTrajectory(fx, mu, inputidx, ctime);
                         end
                         
                         if KerMor.App.Verbose > 0
@@ -397,7 +402,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         end
                     end
                 end
-                this.Data.TrajectoryFxiData = tfd;
+                this.Data.TrajectoryFxiData = tfxd;
                 if KerMor.App.Verbose > 0
                     pi.stop;
                 end

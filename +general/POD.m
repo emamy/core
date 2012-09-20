@@ -86,7 +86,7 @@ classdef POD < KerMorObject
             %
             % Parameters:
             % data: The set of column-vectors to perform the POD on. Can be a real matrix or a
-            % general.ABlockSVD instance. @type [matrix<double>|general.ABlockSVD]
+            % data.ABlockedData instance. @type [matrix<double>|general.ABlockSVD]
             %
             % Return values:
             % podvec: The POD modes computed. @type matrix<double>
@@ -112,14 +112,14 @@ classdef POD < KerMorObject
             end
             
             %% Block SVD case
-            if isa(data,'general.ABlockSVD')
+            if isa(data,'data.ABlockedData')
                 if ~any(strcmpi(this.Mode,{'abs','rel'}))
-                    error('Cannot use POD on general.ABlockSVD with setting "%s" (''abs'',''rel'' are allowed)',this.Mode);
+                    error('Cannot use POD on data.ABlockedData with setting "%s" (''abs'',''rel'' are allowed)',this.Mode);
                 end
                 if KerMor.App.Verbose > 2
-                    [n,m] = data.getTotalSize;
-                    fprintf('Starting POD on %dx%d BlockSVD(%s) with mode ''%s'' and value %g\n',...
-                        n,m,class(data),this.Mode,this.Value);
+                    [n,m] = size(data);
+                    fprintf('Starting POD on ABlockedData(%s, %dx%d) with mode ''%s'' and value %g\n',...
+                        class(data),n,m,this.Mode,this.Value);
                 end
                 [podvec, s] = data.getSVD(target_dim);
                 s = diag(s);
