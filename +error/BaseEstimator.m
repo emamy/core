@@ -10,6 +10,10 @@ classdef BaseEstimator < KerMorObject & ICloneable
     %
     % @author Daniel Wirtz @date 24.11.2010
     %
+    % @new{0,6,dw,2012-09-21} Removed the setReducedModel and replaced it by a
+    % estimator-cloning function error.BaseEstimator.prepareForReducedModel, that performs all
+    % necessary steps once the reduced model is completely built with all reduced components.
+    %
     % @new{0,6,dw,2012-06-08} Split up the former setReducedModel routine
     % into offlineGenerations and setReducedModel. The first stage is run
     % together with the BaseFullModels offlineGenerations, and the latter
@@ -66,9 +70,7 @@ classdef BaseEstimator < KerMorObject & ICloneable
         %
         % See also: models.ReducedModel#ErrorEstimator
         OutputError = [];
-    end
     
-    properties(SetAccess=private)
         % The reduced model associated with the error estimator.
         %
         % @type models.ReducedModel
@@ -94,11 +96,6 @@ classdef BaseEstimator < KerMorObject & ICloneable
             else
                 this.e0Comp = error.initial.Constant(model);
             end
-        end
-        
-        function setReducedModel(this, rmodel)
-            % Sets the reduced model to use with 
-            this.ReducedModel = rmodel;
         end
         
         function ct = postProcess(this, x, t, mu, inputidx)
@@ -182,6 +179,18 @@ classdef BaseEstimator < KerMorObject & ICloneable
         function ct = prepareConstants(~, ~, ~)
             ct = 0;
         end
+        
+        function prepared = prepareForReducedModel(this, rmodel)
+            % Default implementation which simply clones this (subclass!)instance
+            % and returns the copy to use in reduced models.
+            %
+            % Override in subclasses to do final (e.g. projection-related) steps.
+            prepared = this.clone;
+            if ~isa(rmodel,'models.ReducedModel')
+                error('The given value has to be a models.ReducedModel instance.');
+            end
+            prepared.ReducedModel = rmodel;
+        end
     end
     
     %% Getter & Setter
@@ -196,13 +205,6 @@ classdef BaseEstimator < KerMorObject & ICloneable
                 error('The value must be 0 or positive integer');
             end
             this.ExtraODEDims = value;            
-        end
-        
-        function set.ReducedModel(this, value)
-            if ~isempty(value) && ~isa(value,'models.ReducedModel')
-                error('The given value has to be a models.ReducedModel instance.');
-            end
-            this.ReducedModel = value;
         end
         
         function set.Enabled(this, value)

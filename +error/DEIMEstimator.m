@@ -1,4 +1,4 @@
-classdef DEIMEstimator < error.BaseEstimator
+classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProvider
     % DEIMEstimator: A-posteriori error estimation for DEIM reduced models.
     %
     % @author Daniel Wirtz @date 2012-05-10
@@ -213,60 +213,53 @@ classdef DEIMEstimator < error.BaseEstimator
             %             this.computeLogNormApprox;
         end
         
-        function setReducedModel(this, rmodel)
-            setReducedModel@error.BaseEstimator(this, rmodel);
-            newd = rmodel.System.f;
+        function prepared = prepareForReducedModel(this, rm)
+            prepared = prepareForReducedModel@error.BaseEstimator(this, rm);
+            
+            fm = rm.FullModel;
             
             % Perform projection of JacMDeim instance
-            if ~isempty(rmodel.V)
-                this.JacMDEIM = this.JacMDEIM.project(rmodel.V, rmodel.W);
-            end
+            prepared.JacMDEIM = this.JacMDEIM.project(rm.V, rm.W);
             
             % Precompute all the projected quantities that are independent of the DEIM error
             % orders
-            fm = rmodel.FullModel;
-            md = fm.Data;
             fA = fm.System.A;
             G = fm.G;
             A = [];
             if ~isempty(fA)
-                hlp = fA*md.V;
-                A = hlp - md.V*(md.W'*hlp); % (I-VW^T)AV
-                this.M6 = A'*(G*A);
-                this.Ah = A;
+                hlp = fA*rm.V;
+                A = hlp - rm.V*(rm.W'*hlp); % (I-VW^T)AV
+                prepared.M6 = A'*(G*A);
+                prepared.Ah = A;
             else
-                this.M6 = []; this.M7 = []; this.M8 = []; this.M9 = [];
+                prepared.M6 = []; prepared.M7 = []; prepared.M8 = []; prepared.M9 = [];
             end
             B = [];
             if ~isempty(fm.System.B)
-                B = fm.System.B - md.V*(md.W'*fm.System.B);
-                this.M12 = B'*(G*B);
-                this.Bh = B;
+                B = fm.System.B - rm.V*(rm.W'*fm.System.B);
+                prepared.M12 = B'*(G*B);
+                prepared.Bh = B;
             else
-                this.M9 = []; this.M10 = []; this.M11 = []; this.M12 = [];
+                prepared.M9 = []; prepared.M10 = []; prepared.M11 = []; prepared.M12 = [];
             end
             if ~isempty(A) && ~isempty(B)
                 if isa(B,'dscomponents.LinearInputConv')
-                    this.M9 = 2*A'*(G*B.B);
+                    prepared.M9 = 2*A'*(G*B.B);
                 else
                     % Both inherit from AffParamMatrix, so they can be
                     % multiplied :-)
-                    this.M9 = 2*A'*(G*B);
+                    prepared.M9 = 2*A'*(G*B);
                 end
             else
-                this.M9 = [];
+                prepared.M9 = [];
             end
             
-            if isempty(this.uolst) || (~isempty(this.deim) && ...
-                    this.deim ~= newd)
-                delete(this.uolst);
-                this.uolst = addlistener(newd,'OrderUpdated',@this.handleOrderUpdate);
-                this.deim = newd;
-                this.updateErrMatrices;
-            end
-            this.deim = newd;
+            newd = rm.System.f;
+            prepared.uolst = addlistener(newd,'OrderUpdated',@prepared.handleOrderUpdate);
+            prepared.deim = newd;
+            prepared.updateErrMatrices;
         end
-        
+               
         function ct = prepareConstants(this, mu, inputidx)
             if this.deim.Order(2) == 0 && ~this.UseTrueDEIMErr
                 warning('KerMor:DEIMEstimator','No DEIM error order set. Disabling error estimator.');
@@ -290,13 +283,13 @@ classdef DEIMEstimator < error.BaseEstimator
             if this.UseTrueDEIMErr
                 rm = this.ReducedModel;
                 fs = rm.FullModel.System;
-                I = speye(size(rm.V,1));
                 A = fs.A.evaluate(rm.V*x,t,mu);
                 a = A - rm.V*(rm.W'*A);
                 a = a + fs.f.evaluate(rm.V*x,t,mu) ...
                     - rm.V*rm.System.f.evaluate(x,t,mu);
                 if ~isempty(fs.B)
-                    a = a + (I-rm.V*rm.W')*fs.B.evaluate(t,mu)*ut;
+                    hlp = fs.B.evaluate(t,mu)*ut;
+                    a = a + (hlp-rm.V*(rm.W'*hlp));
                 end
                 a = Norm.LG(a,rm.FullModel.G);
             else
@@ -350,7 +343,7 @@ classdef DEIMEstimator < error.BaseEstimator
             if this.UseTrueLogLipConst || this.UseJacobianLogLipConst
                 rm = this.ReducedModel;
                 f = rm.FullModel.System.f;
-                tx = this.fullsol(:,find(rm.scaledTimes - t < eps,1));
+                tx = this.fullsol(:,find(abs(rm.scaledTimes - t) < eps,1));
                 rx = rm.V*x;
                 d = tx - rx;
                 diff = sum(d.*d);
@@ -416,6 +409,10 @@ classdef DEIMEstimator < error.BaseEstimator
             if ~isempty(this.JacMDEIM)
                 copy.JacMDEIM = this.JacMDEIM.clone;
             end
+            copy.deim = this.deim;
+            if ~isempty(copy.deim)
+                copy.uolst = addlistener(copy.deim,'OrderUpdated',@copy.handleOrderUpdate);
+            end
             
             % Sim Trans stuff
             copy.JacSimTransMaxSize = this.JacSimTransMaxSize;
@@ -466,6 +463,15 @@ classdef DEIMEstimator < error.BaseEstimator
             copy.silent = false;
         end
         
+        function plotSummary(this, pm, context)
+            if ~isempty(this.QSingVals)
+                str = sprintf('%s: Singular value decay for partial similarity transformation',context);
+                h = pm.nextPlot('deimest_simtrans_singvals',...
+                    str,...
+                    'transformation size','singular values');
+                semilogy(h,this.QSingVals,'LineWidth',2);
+            end
+        end
     end
     
     methods(Access=protected)
@@ -590,14 +596,13 @@ classdef DEIMEstimator < error.BaseEstimator
                 end
             end
             
-            G = this.ReducedModel.FullModel.G;
-            
             if KerMor.App.Verbose > 3
                 fprintf('error.DEIMEstimator: Updating error matrices of DEIMEstimator (#%s) to [%d %d]\n',...
                     this.ID,this.deim.Order);
             end
             
             if this.deim.Order(2) > 0
+                G = this.ReducedModel.FullModel.G;
                 M1 = this.deim.M1;
                 M2 = this.deim.M2;
                 this.M3 = M1'*(G*M1);

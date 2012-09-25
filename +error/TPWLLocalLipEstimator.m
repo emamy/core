@@ -47,26 +47,23 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
     end
     
     methods
-        function this = TPWLLocalLipEstimator(rmodel)
+        function this = TPWLLocalLipEstimator
             this.ExtraODEDims = 2;
-            if nargin == 1
-                this.setReducedModel(rmodel);
-            end
         end
         
         function copy = clone(this)
-            error('');
+            error('not yet implemented');
         end
     
-        function setReducedModel(this, rmodel)
+        function p = prepareForReducedModel(this, rmodel)
             % Overrides the setReducedModel method from error.BaseEstimator
             % and performs additional offline computations.
             
             % Call superclass method to perform standard estimator
             % computations
-            setReducedModel@error.BaseEstimator(this, rmodel);
+            p = prepareForReducedModel@error.BaseEstimator(this, rmodel);
                         
-            this.KernelLipschitzFcn = this.ReducedModel.System.f.GaussWeight.getLipschitzFunction;
+            p.KernelLipschitzFcn = rmodel.System.f.GaussWeight.getLipschitzFunction;
             
             % Get full model
             fm = rmodel.FullModel;
@@ -79,7 +76,7 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
                 end
             end
             
-            this.xi = fm.Approx.xi;
+            p.xi = fm.Approx.xi;
             
             Ai = fm.Approx.Ai;
             bi = fm.Approx.bi;
@@ -94,35 +91,35 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
                 end
                 bi = bi - rmodel.V*(rmodel.W'*bi);
                 
-                this.A = cell(n,n);
-                this.Ab = cell(n,n);
-                this.b = zeros(n,n);
+                p.A = cell(n,n);
+                p.Ab = cell(n,n);
+                p.b = zeros(n,n);
                 [x,y] = meshgrid(1:n);
                 all = [reshape(x,1,[]); reshape(y,1,[])];
                 for k = 1:n*n
                     i = all(1,k);
                     j = all(2,k);
-                    this.A{i,j} = Ai{i}'*(G*Ai{j});
-                    this.Ab{i,j} = Ai{i}'*(G*bi(:,j));
-                    %this.b(i,j) = bi(:,i)'*G*bi(:,j);
+                    p.A{i,j} = Ai{i}'*(G*Ai{j});
+                    p.Ab{i,j} = Ai{i}'*(G*bi(:,j));
+                    %p.b(i,j) = bi(:,i)'*G*bi(:,j);
                 end
-                this.b = bi'*(G*bi);
+                p.b = bi'*(G*bi);
                 
                 if ~isempty(fB)
-                    this.AB = cell(1,n);
+                    p.AB = cell(1,n);
                     for i=1:n
-                        this.AB{i} = Ai{i}'*(G*fB);
+                        p.AB{i} = Ai{i}'*(G*fB);
                     end
-                    this.bB = bi'*(G*fB);
-                    this.B = fB'*(G*fB);
+                    p.bB = bi'*(G*fB);
+                    p.B = fB'*(G*fB);
                 end
                 
                 % Compute AV_i`s for \beta(s) comp
-                this.AV = cell(1,n);
-                this.Ainorms = zeros(1,n);
+                p.AV = cell(1,n);
+                p.Ainorms = zeros(1,n);
                 for i=1:n
-                    this.AV{i} = Ai{i}'*(G*Ai{i});
-                    this.Ainorms(i) = norm(Ai{i});
+                    p.AV{i} = Ai{i}'*(G*Ai{i});
+                    p.Ainorms(i) = norm(Ai{i});
                 end
             else
                 error('TODO');
@@ -131,8 +128,8 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
 %                 
 %                 if ~isempty(B)
 %                     b = size(B,2);
-%                     this.M2 = zeros(n,b);
-%                     this.M3 = zeros(b,b);
+%                     p.M2 = zeros(n,b);
+%                     p.M3 = zeros(b,b);
 %                 end
             end
         end

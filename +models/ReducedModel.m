@@ -132,7 +132,7 @@ classdef ReducedModel < models.BaseModel
             
             % Use the error estimator that has been precomputed in 
             % the full model
-            this.ErrorEstimator = fullmodel.ErrorEstimator.clone;
+            this.ErrorEstimator = fullmodel.ErrorEstimator.prepareForReducedModel(this);
         end
         
         function [t, x, ctime] = computeTrajectory(this, mu, inputidx)
@@ -211,8 +211,8 @@ classdef ReducedModel < models.BaseModel
     end
     
     methods(Sealed)
-        function plot(this, t, y)
-            this.FullModel.plot(t, y);
+        function plot(this, t, y, varargin)
+            this.FullModel.plot(t, y, varargin{:});
         end
         
         function plotSingle(this, t, y, varargin)
@@ -253,10 +253,6 @@ classdef ReducedModel < models.BaseModel
                     error(msg);
                 end
             end
-            % Trigger the computations that may be needed once the actual
-            % reduced model is known to the error estimator.
-            value.setReducedModel(this);
-            
             this.fErrorEstimator = value;
         end
     end

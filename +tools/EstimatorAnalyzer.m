@@ -140,8 +140,8 @@ classdef EstimatorAnalyzer < handle
             % Contains only the error.DefaultEstimator class labeled 'True error'.
             est = struct.empty;
             est(end+1).Name = 'True error';
-            est(end).Estimator = error.DefaultEstimator;
-            est(end).Estimator.setReducedModel(this.ReducedModel);
+            e = error.DefaultEstimator;
+            est(end).Estimator = e.prepareForReducedModel(this.ReducedModel);
             est(end).Estimator.Enabled = true;
             est(end).MarkerStyle = 'o';
             est(end).LineStyle = '-';

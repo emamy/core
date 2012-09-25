@@ -134,6 +134,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
         end
         
         function offlineComputations(this, fm)
+            error('no yet repaired. need to check and move projection-related stuff to prepareForReducedModel');
             % Overrides the setReducedModel method from error.BaseEstimator
             % and performs additional offline computations.
             
