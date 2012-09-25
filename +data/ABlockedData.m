@@ -54,7 +54,7 @@ classdef ABlockedData < handle
                     fprintf('ABlockedData: Computing %d-partial SVD on %dx%d matrix (%d blocks)...\n',...
                         k,n,m,this.getNumBlocks);
                 end
-                vb = KerMor.App.Verbose > 0 && n*m > 100000;
+                vb = KerMor.App.Verbose > 0 && n*m > 100000 && this.getNumBlocks > 2;
                 cnt = 0;
                 [U,S] = eigs(@mult,n,k,'la',opts);
                 if KerMor.App.Verbose > 2, fprintf('BlockSVD: Finished after %d multiplications.\n',cnt); end
@@ -73,7 +73,7 @@ classdef ABlockedData < handle
             function w = mult(v)
                 w = 0;
                 nb = this.getNumBlocks;
-                if vb && nb > 2
+                if vb
                     pi = tools.ProcessIndicator('ABlockedData: Blockwise multiplication for %d-SVD on %d blocks',...
                         nb,false,k,nb);
                 end

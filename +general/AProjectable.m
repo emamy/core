@@ -30,6 +30,9 @@ classdef AProjectable < ICloneable
     % ensure cloning capabilities for any projectable class.
     %
     % @change{0,3,dw,2011-04-01} Updated documentation.
+    %
+    % @todo change AProjectable to IProjectable and remove V,W properties (not needed in all
+    % components that are projectable)
     
     properties(SetAccess=protected)
         % The `V` matrix of the biorthogonal pair `V,W`

@@ -101,8 +101,12 @@ classdef FileData < handle
             % Loads a FileData instance.
             %
             % Ensures that the directory associated with this FileData is existent.
-            if strcmp(this.Host,KerMor.getHost)
-                this.ensureDir;
+            if ~isa(this,'data.FileData')
+                fprintf(2,'Could not successfully load a data.FileData instance.\n');
+            else
+                if strcmp(this.Host,KerMor.getHost)
+                    this.ensureDir;
+                end
             end
         end
     end

@@ -117,7 +117,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             else
                 error('Invalid input arguments. Second variable input must be a scalar value determining the block size.');
             end
-            if isempty(varargin)
+            if isempty(varargin) || isempty(varargin{1})
                 storage_root = KerMor.App.DataStoreDirectory;
             elseif isa(varargin{1},'data.FileMatrix')
                 storage_root = fileparts(varargin{1}.DataDirectory);

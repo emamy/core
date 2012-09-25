@@ -39,6 +39,15 @@ classdef LogPlot
             %zdata = log10(get(p,'ZData'));
             %cdata = get(p,'CDATA');
         end
+        
+        function cleverPlot(ax,x,y,varargin)
+            if any(y(:)) < 0 || all(max(y)./min(y) < 100)
+                pfun = @plot;
+            else
+                pfun = @semilogy;
+            end
+            pfun(ax,x,y,varargin{:});
+        end
     end
     
     methods(Static, Access=private)

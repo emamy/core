@@ -346,6 +346,22 @@ classdef ModelAnalyzer < handle;
                 pm.done;
             end
         end
+        
+        function pm = plotReductionOverview(this, pm)
+            % @todo create interface with plot method -> current config gives automatic
+            % reduction overview in each component
+            if nargin < 2
+                pm = tools.PlotManager(false,2,2);
+                pm.LeaveOpen = true;
+            end
+            [t,m,p,l] = FindInstance(this.rm.FullModel,'general.IReductionSummaryPlotProvider');
+            display(t);
+            for k=1:length(m)
+                context = sprintf('%s (%s)',l{k},class(m{k}));
+                m{k}.plotSummary(pm,context);
+            end
+            pm.done;
+        end
     end
 end
 
