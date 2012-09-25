@@ -17,6 +17,7 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & general.IR
     
     properties
         IncludeTrajectoryFxiData = false;
+        IncludeFiniteDifferences = false;
     end
     
     properties(SetAccess=private)
@@ -44,6 +45,10 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & general.IR
                     error('No training fxi data found in ModelData.');
                 end
                 td = data.JoinedBlockData(td, md.TrajectoryFxiData);
+            end
+            % Wrap in finite difference adder
+            if this.IncludeFiniteDifferences
+                td = data.FinDiffBlockData(td);
             end
             
             [V, this.SingularValues] = this.computePOD(td);

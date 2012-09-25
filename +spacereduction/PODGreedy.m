@@ -81,6 +81,10 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable & general
                 end
                 md = data.JoinedBlockData(md, model.Data.TrajectoryFxiData);
             end
+            % Wrap in finite difference adder
+            if this.IncludeFiniteDifferences
+                md = data.FinDiffBlockData(md);
+            end
             
             if KerMor.App.Verbose > 2
                 fprintf('POD-Greedy: Starting subspace computation using %d trajectories...\n',md.getNumTrajectories);
@@ -105,9 +109,6 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable & general
             impr = 1;
             while (err(end) > this.Eps) && cnt < this.MaxSubspaceSize && size(V,2) < ss && impr(end) > this.MinRelImprovement
                 x = md.getBlock(idx); % get trajectory
-                if this.IncludeFiniteDifferences
-                    x = [x diff(x)];%#ok
-                end
                 e = x - V*(V'*x);
                 Vn = pod.computePOD(e);
                 V = o.orthonormalize([V Vn]);
@@ -216,9 +217,6 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable & general
             else
                 for k=1:md.getNumBlocks;
                     x = md.getBlock(k);
-                    if this.IncludeFiniteDifferences
-                        x = [x diff(x)];%#ok
-                    end
                     e = sum(Norm.L2(x - V*(V'*x)));
                     if maxerr < e
                         maxerr = e;
