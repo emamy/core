@@ -126,9 +126,6 @@ classdef DEIM
                 pm = testing.DEIM.plotDEIMErrs(res);
             end
             deim.Order = oldo;
-            if isa(deim,'general.MatrixDEIM')
-                deim.setSimilarityTransform(oldst);
-            end
         end
         
         function pm = plotDEIMErrs(res, pm)
@@ -237,6 +234,15 @@ classdef DEIM
             legend(h, lbl{:});
            
             pm.done;
+        end
+        
+        function [efull, ered, fxno] = getApproxErrorFullRed(r, xr, t, mu, V)
+            fm = r.FullModel;
+            fm.Approx.Order = r.System.f.Order;
+            fx = fm.System.f.evaluate(V*xr,t,mu);
+            efull = Norm.L2(fx-r.FullModel.Approx.evaluate(V*xr,t,mu));
+            ered = Norm.L2(fx-V*r.System.f.evaluate(xr,t,mu));
+            fxno = Norm.L2(fx);
         end
         
         function [etrue, EE, ED, pm] = getTrajApproxErrorDEIMEstimates(r, mu, inputidx)
@@ -478,63 +484,65 @@ classdef DEIM
             view(0,0);
         end
         
-        %% Model DEIM reduction quality assessment pics
+        %% Model DEIM reduction quality assessment pics        
         function [errs, relerrs, times, deim_orders] = getDEIMReducedModelErrors(r, mu, inidx, deim_orders)
             d = r.System.f;
             if nargin < 4
-                deim_orders = 1:d.MaxOrder;
+                deim_orders = 1:(d.MaxOrder-r.System.f.Order(2));
             end
             oldo = d.Order;
-            olde = r.ErrorEstimator.Enabled;
             no = length(deim_orders);
             errs = zeros(no,length(r.Times));
             relerrs = errs;
             times = zeros(no+1,1);
             [~, y, ct] = r.FullModel.simulate(mu, inidx);
             times(end) = ct;
-            r.ErrorEstimator.Enabled = false;
             pi = tools.ProcessIndicator('Computing DEIM-reduced model simulation errors for %d orders',no,false,no);
             for m = 1:no
-                r.System.f.Order = deim_orders(m);
-                [~, yr, ct] = r.simulate(mu, inidx);
-                errs(m,:) = Norm.L2(y-yr);
+                r.System.f.Order = [deim_orders(m) r.System.f.Order(2)];
+                [~, ~, ct] = r.simulate(mu, inidx);
+                errs(m,:) = r.ErrorEstimator.OutputError;
                 relerrs(m,:) = errs(m,:)./Norm.L2(y);
                 times(m) = ct;
                 pi.step;
             end
             pi.stop;
             d.Order = oldo;
-            r.ErrorEstimator.Enabled = olde;
         end
         
-        function pm = getDEIMReducedModelErrors_plots(r, errs, relerrs, times, deim_orders, pm)
-            if nargin < 6
-                pm = tools.PlotManager(false);
+        function pm = getDEIMReducedModelErrors_plots(r, errs, relerrs, times, deim_orders, pm, tag)
+            if nargin < 7
+                tag = '';
+                if nargin < 6
+                    pm = tools.PlotManager(false);
+                end
+            else
+                ftag = [tag '_'];
             end
             [X, Y] = meshgrid(r.Times, deim_orders);
-            h = pm.nextPlot('abserr',sprintf(['L2-absolute reduction errors\n'...
-                '(Linf in time for original view)']),...
+            h = pm.nextPlot([ftag 'abserr'],sprintf(['L2-absolute reduction errors\n'...
+                '(Linf in time for original view), tag:' tag]),...
                 'time','DEIM order');
             tools.LogPlot.logsurf(h,X,Y,errs,'EdgeColor','interp');
             view(90,0);
             
-            h = pm.nextPlot('relerr','L2-relative reduction errors',...
+            h = pm.nextPlot([ftag 'relerr'],['L2-relative reduction errors, tag:' tag],...
                 'time','DEIM order');
             tools.LogPlot.logsurf(h,X,Y,relerrs,'EdgeColor','interp');
             view(-120,30);
             
-            h = pm.nextPlot('ctimes','Computation times for reduced models',...
-                'DEIM order');
-            plot(h,deim_orders,times(1:end-1));
-            
-            h = pm.nextPlot('speedup',...
-                sprintf('Speedup against full model simulation of %gs',times(end)),...
-                'DEIM order');
-            plot(h,deim_orders,times(end)./times(1:end-1));
-            
-            if nargout == 0
-                pm.done;
-            end
+%             h = pm.nextPlot([ftag 'ctimes'],'Computation times for reduced models',...
+%                 'DEIM order');
+%             plot(h,deim_orders,times(1:end-1));
+%             
+%             h = pm.nextPlot([ftag 'speedup'],...
+%                 sprintf('Speedup against full model simulation of %gs',times(end)),...
+%                 'DEIM order');
+%             plot(h,deim_orders,times(end)./times(1:end-1));
+%             
+%             if nargout == 0
+%                 pm.done;
+%             end
         end
         
         %% Matrix DEIM approximation analysis
@@ -865,6 +873,20 @@ classdef DEIM
             end
         end
         
+        %% Effectivity analysis of error estimators
+        function pm = effectivityAnalysis(r, mu, inputidx)
+            pm = tools.PlotManager(false,2,1);
+            pm.SingleSize = [720 540];
+            pm.LeaveOpen = true;
+            [~,y] = r.FullModel.simulate(mu,inputidx);
+            [t,yr] = r.simulate(mu,inputidx);
+            err = Norm.L2(y-yr);
+            h = pm.nextPlot('errors','True and estimated error','time','error');
+            semilogy(h,t,err,'b',t,r.ErrorEstimator.OutputError,'r');
+            h = pm.nextPlot('errors','True and estimated error','time','error');
+            semilogy(h,t,r.ErrorEstimator.OutputError./err,'g');
+        end
+        
         %% Error estimator struct compilation
         function est = getDEIMEstimators_MDEIM_ST(rmodel, est, jdorders, stsizes)
             % Returns an estimator struct usable by the EstimatorAnalyzer
@@ -880,16 +902,17 @@ classdef DEIM
             end
             
             % Different configurations
+            e = rmodel.ErrorEstimator.clone;
             for j = 1:length(jdorders)
                 cl = li.nextLineStyle;
                 li2 = tools.LineSpecIterator;
                 for k = 1:length(stsizes)
-                    e = rmodel.ErrorEstimator.clone;
-                    e.JacMDEIM.Order = jdorders(j);
-                    e.JacSimTransSize = stsizes(k);
+                    str = sprintf('e.JacMDEIM.Order = %d; e.JacSimTransSize = %d',...
+                        jdorders(j),stsizes(k));
                     est(end+1).Name = sprintf('m_J:%d, k:%d',...
-                        e.JacMDEIM.Order(1),e.JacSimTransSize);%#ok
+                        jdorders(j),stsizes(k));%#ok
                     est(end).Estimator = e;
+                    est(end).Callback = @(e)eval(str);
                     est(end).MarkerStyle = li2.nextMarkerStyle;
                     est(end).LineStyle = cl;
                     est(end).Color = li.nextColor;
@@ -906,10 +929,11 @@ classdef DEIM
                 m.excludeColor(est(i).Color);
             end
             % Different configurations
+            e = rmodel.ErrorEstimator.clone; % need only one copy!
             for j = 1:length(errororders)
                 str = sprintf('e.ReducedModel.System.f.Order = [e.ReducedModel.System.f.Order(1) %d];',errororders(j));
                 est(end+1).Name = sprintf('m''=%d',errororders(j));%#ok
-                est(end).Estimator = rmodel.ErrorEstimator.clone;
+                est(end).Estimator = e;
                 est(end).Callback = @(e)eval(str);
                 est(end).MarkerStyle = m.nextMarkerStyle;
                 est(end).LineStyle = '-.';
