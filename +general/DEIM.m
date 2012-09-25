@@ -1,4 +1,4 @@
-classdef DEIM < KerMorObject & general.AProjectable
+classdef DEIM < KerMorObject & general.AProjectable & general.IReductionSummaryPlotProvider
 % DEIM: Implements the DEIM-Algorithm from [CS09]
 %
 % [CS09] Chaturantabut, S. & Sorensen, D.
@@ -210,6 +210,15 @@ classdef DEIM < KerMorObject & general.AProjectable
             copy.M1 = this.M1;
             copy.M2 = this.M2;
             copy.SingularValues = this.SingularValues;
+        end
+        
+        function plotSummary(this, pm, context)
+            if ~isempty(this.SingularValues)
+                str = sprintf('%s: DEIM POD singular value decay, MaxOrder: %d',context,this.MaxOrder);
+                h = pm.nextPlot('deim_singvals',...
+                    str,'POD size','singular values');
+                semilogy(h,this.SingularValues,'LineWidth',2);
+            end
         end
     end
     

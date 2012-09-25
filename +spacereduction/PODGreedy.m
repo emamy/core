@@ -1,4 +1,4 @@
-classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
+classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable & general.IReductionSummaryPlotProvider
 % PODGreedy: Greedy subspace computation over a fixed set of trajectories.
 %
 % This subspace computation method uses the POD-Greedy algorithm to determine a subspace which has a
@@ -58,6 +58,8 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
         MaxSubspaceSize = 100;
         
         IncludeTrajectoryFxiData = false;
+        
+        IncludeFiniteDifferences = false;
     end
     
     properties(SetAccess=private)
@@ -95,7 +97,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
                 fprintf('POD-Greedy: Computing initial space...\n');
             end
             V = this.getInitialSpace(md, pod);
-            [err, idx] = this.getMaxErr(V, md, mdfx);
+            [err, idx] = this.getMaxErr(V, md);
             cnt = 1; 
             % Maximum possible subspace size
             ss = size(V,1);
@@ -103,10 +105,13 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             impr = 1;
             while (err(end) > this.Eps) && cnt < this.MaxSubspaceSize && size(V,2) < ss && impr(end) > this.MinRelImprovement
                 x = md.getBlock(idx); % get trajectory
+                if this.IncludeFiniteDifferences
+                    x = [x diff(x)];%#ok
+                end
                 e = x - V*(V'*x);
                 Vn = pod.computePOD(e);
                 V = o.orthonormalize([V Vn]);
-                [err(end+1), idx] = this.getMaxErr(V, md, mdfx);%#ok
+                [err(end+1), idx] = this.getMaxErr(V, md);%#ok
                 impr(end+1) = (olderr-err(end))/olderr;%#ok
                 olderr = err(end);
                 cnt = cnt+1;
@@ -135,6 +140,20 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
                 end
             end
             W = V;
+        end
+        
+        function plotSummary(this, pm, context)
+            if ~isempty(this.Errors)
+                str = sprintf('%s: Error decay over training data\nEps:%g, MaxSize:%d, IncludeTrajectoryFxiData: %d',...
+                    context,this.Eps,this.MaxSubspaceSize,this.IncludeTrajectoryFxiData);
+                h = pm.nextPlot('podgreedy_errordecay',str,'subspace size','Linf(data)-L2(state) error');
+                semilogy(h,this.Errors(1,:),'LineWidth',2);
+                h = pm.nextPlot('podgreedy_gains',str,'subspace size','Gain');
+                semilogy(h,this.Errors(2,:),'LineWidth',2);
+            else
+                warning('spacereduction:PODGreedy',...
+                    'Error data empty. Not providing summary.');
+            end
         end
     end
     
@@ -176,7 +195,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             V = V / norm(V);
         end
         
-        function [maxerr, midx] = getMaxErr(this, V, md, mdfx)
+        function [maxerr, midx] = getMaxErr(this, V, md)
             midx = -1;
             maxerr = 0;
             if this.ComputeParallel
@@ -197,8 +216,8 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             else
                 for k=1:md.getNumBlocks;
                     x = md.getBlock(k);
-                    if ~isempty(mdfx) % augment with fxi data
-                        x = [x mdfx.getBlock(idx)];%#ok
+                    if this.IncludeFiniteDifferences
+                        x = [x diff(x)];%#ok
                     end
                     e = sum(Norm.L2(x - V*(V'*x)));
                     if maxerr < e

@@ -1,4 +1,4 @@
-classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD
+classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & general.IReductionSummaryPlotProvider
     %PODREDUCER Uses POD for reduced space generation.
     %
     % Internally the SVD decomposition of the snapshot array is used.
@@ -50,6 +50,18 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD
             
             % Here W=V!
             W = V;
+        end
+        
+        function plotSummary(this, pm, context)
+            if ~isempty(this.SingularValues)
+                str = sprintf('%s: POD singular value decay',context);
+                h = pm.nextPlot('podreducer_singvals',str,...
+                    'subspace size','singular values');
+                semilogy(h,this.SingularValues,'LineWidth',2);
+            else
+                warning('spacereduction:PODReducer',...
+                    'Singular value data empty. Not providing summary.');
+            end
         end
     end
     
