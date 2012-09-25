@@ -1,4 +1,4 @@
-function [t, matches, parents] = FindInstance(obj, type, varargin)
+function [t, matches, parents, locations] = FindInstance(obj, type, varargin)
 % FindInstance: Locate instances of certain classes within a class or a struct.
 %
 % Parameters:
@@ -14,6 +14,8 @@ function [t, matches, parents] = FindInstance(obj, type, varargin)
 % cell<classof(arg:type)>
 % parents: A cell array of all the parent objects/structs whose immediate property is of the
 % specified type.
+% locations: A cell array of the according locations/paths within the object hierarchy. @type
+% cell
 %
 % Examples:
 % s.someclass1 = RandStream('mt19937ar','Seed',1);
@@ -51,6 +53,7 @@ function [t, matches, parents] = FindInstance(obj, type, varargin)
     matches = {};
     visited = {};
     parents = {};
+    locations = {};
     t = PrintTable('Instances of "%s" in %s (%s)',...
         type,inputname(1),class(obj));
     t.HasHeader = true;
@@ -89,7 +92,7 @@ function [t, matches, parents] = FindInstance(obj, type, varargin)
                     if isa(prop,type)
                         matches{end+1} = prop;%#ok
                         parents{end+1} = obj;%#ok
-
+                        locations{end+1} = thislvl;%#ok
                         st = 'none';
                         if any(cellfun(@(o)isequal(o,'ID'),fieldnames(prop)))
                             st = prop.ID;
