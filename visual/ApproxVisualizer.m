@@ -254,7 +254,7 @@ else
     fm = r.FullModel;
     [ti,xi] = fm.computeTrajectory(mu,inidx);
     % Project to subspace
-    xi = fm.Data.V*(fm.Data.W'*xi);
+    xi = r.V*(r.W'*xi);
     n = length(ti);
     mui = repmat(mu,1,n);
     

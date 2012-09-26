@@ -69,7 +69,7 @@ classdef ReducedModel < models.BaseModel
     
     methods(Sealed)
         
-        function this = ReducedModel(fullmodel)
+        function this = ReducedModel(fullmodel, target_dim)
             % Creates a new reduced model instance.
             %
             % Optionally, a models.BaseFullModel subclass can be passed to
@@ -79,12 +79,12 @@ classdef ReducedModel < models.BaseModel
             % fullmodel: A full model where the reduced model shall be
             % created from. [Optional]
             this = this@models.BaseModel;
-            if nargin == 1
-                this.setFullModel(fullmodel);
+            if nargin > 0
+                this.setFullModel(fullmodel, target_dim);
             end
         end
         
-        function setFullModel(this, fullmodel)
+        function setFullModel(this, fullmodel, target_dim)
             % Creates a reduced model from a given full model.
             %
             % @docupdate
@@ -121,9 +121,9 @@ classdef ReducedModel < models.BaseModel
             end
             this.G = fullmodel.G;
             
-            % Copy data that is also needed in the reduced model
-            this.V = fullmodel.Data.V;
-            this.W = fullmodel.Data.W;
+            % Select the desired first target_dim vectors of the projection matrices
+            this.V = fullmodel.Data.V(:,1:target_dim);
+            this.W = fullmodel.Data.W(:,1:target_dim);
             
             this.ParamSamples = fullmodel.Data.ParamSamples;
             

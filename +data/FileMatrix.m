@@ -156,16 +156,6 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             end
         end
         
-        function A = toMemoryMatrix(this)
-            % Converts this FileMatrix to a full double matrix.
-            A = zeros(this.n,this.m);
-            for i=1:this.nBlocks
-                if this.created(i)
-                    A(:,this.getBlockPos(i)) = this.loadBlock(i);
-                end
-            end
-        end
-        
         function pos = getBlockPos(this, nr)
             % Returns the column indices of the block "nr" within the full matrix.
             pos = (nr-1)*this.bCols + 1 : min(nr*this.bCols,this.m);

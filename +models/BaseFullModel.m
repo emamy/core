@@ -505,7 +505,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.OfflinePhaseTimes = times;
         end
         
-        function [reduced,time] = buildReducedModel(this)
+        function [reduced,time] = buildReducedModel(this, target_dim)
             % Builds a reduced model from a full model.
             %
             % Before calling this method ensure that offlineGenerations was
@@ -522,9 +522,18 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             if isempty(this.Data.TrajectoryData.getNumTrajectories == 0) ...
                     && ~(this.Data.SampleCount == 0 && this.TrainingInputCount == 0)
                 error('No Snapshot data available. Forgot to call offlineGenerations before?');
+            elseif nargin == 2 
+                if isempty(this.SpaceReducer)
+                    error('Cannot specify a target dimension: No subspace projection is set up.');
+                elseif isempty(this.Data.V)
+                    error('Cannot specify a target dimension: Forgot to call off3_computeReducedSpace');
+                end
             end
             tic;
-            reduced = models.ReducedModel(this);
+            if nargin < 2
+                target_dim = size(this.Data.V,2);
+            end
+            reduced = models.ReducedModel(this, target_dim);
             time = toc;
         end
         

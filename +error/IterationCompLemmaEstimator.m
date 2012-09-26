@@ -155,14 +155,14 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             this.Ma_norms = f.Ma_norms;
             
             this.G = fm.GScaled;
-            if f.Kernel.IsRBF && ~isempty(fm.Data.V)
+            if f.Kernel.IsRBF && ~isempty(r.V)
                 % Use the projected centers z_i from the reduces system with x_i = Vz_i in this
                 % case.
-                hlp = f.project(fm.Data.V, fm.Data.W);
+                hlp = f.project(r.V, r.W);
                 this.c = hlp.Centers;
                 delete hlp;
                 % The norm is then ||Vz - x_i||_G = ||z-z_i||_V'GV
-                this.G = fm.Data.V'*(this.G*fm.Data.V);
+                this.G = r.V'*(this.G*r.V);
                 % Set flag for small z state vectors to true
                 this.smallz_flag = true;
             end

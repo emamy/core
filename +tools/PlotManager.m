@@ -454,6 +454,15 @@ classdef PlotManager < handle
             end
         end
         
+        function setFigureNames(this, name)
+            for i=1:length(this.Figures)
+                h = this.Figures(i);
+                if ishandle(h) && strcmp(get(h,'Type'),'figure')
+                    set(h,'Name',name);
+                end
+            end
+        end
+        
 %         function set.MaxLegendRows(this, value)
 %             if ~isscalar(value)
 %                 error('MaxLegendRows must be a scalar.');

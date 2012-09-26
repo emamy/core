@@ -236,8 +236,8 @@ classdef ModelAnalyzer < handle;
                 % Computes trajectory (including cache-lookup in
                 % BaseFullModel!)
                 [t,x] = fm.computeTrajectory(mu, inputidx);
-                if ~isempty(fm.Data.V)
-                    x = fm.Data.V*(fm.Data.W'*x);
+                if ~isempty(this.rm.V)
+                    x = this.rm.V*(this.rm.W'*x);
                 end
                 mu = repmat(mu,1,numel(t));
                 fx = fm.Approx.evaluate(x,t,mu);
@@ -354,8 +354,7 @@ classdef ModelAnalyzer < handle;
                 pm = tools.PlotManager(false,2,2);
                 pm.LeaveOpen = true;
             end
-            [t,m,p,l] = FindInstance(this.rm.FullModel,'general.IReductionSummaryPlotProvider');
-            display(t);
+            [~,m,~,l] = FindInstance(this.rm.FullModel,'general.IReductionSummaryPlotProvider');
             for k=1:length(m)
                 context = sprintf('%s (%s)',l{k},class(m{k}));
                 m{k}.plotSummary(pm,context);

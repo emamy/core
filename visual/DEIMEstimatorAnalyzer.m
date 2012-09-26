@@ -22,10 +22,10 @@ function varargout = DEIMEstimatorAnalyzer(varargin)
 
 % Edit the above text to modify the response to help DEIMEstimatorAnalyzer
 
-% Last Modified by GUIDE v2.5 25-Sep-2012 14:05:22
+% Last Modified by GUIDE v2.5 25-Sep-2012 16:33:42
 
 % Begin initialization code - DO NOT EDIT
-gui_Singleton = 1;
+gui_Singleton = 0;
 gui_State = struct('gui_Name',       mfilename, ...
                    'gui_Singleton',  gui_Singleton, ...
                    'gui_OpeningFcn', @DEIMEstimatorAnalyzer_OpeningFcn, ...
@@ -59,10 +59,26 @@ handles.output = hObject;
 guidata(hObject, handles);
 
 r = varargin{1};
+% Care condition: dont simulate very expensive by default!
+e = r.ErrorEstimator;
+if e.JacSimTransMaxSize > 0 && e.JacSimTransSize == 0
+    e.JacSimTransSize = 1;
+end
 setappdata(handles.main,'r',r);
 createModelParamSliders(handles,r);
 modelToGUI(handles, r);
 
+extra = '';
+sr = r.FullModel.SpaceReducer;
+if sr.IncludeTrajectoryFxiData
+    extra = 'InclFxiData:yes';
+end
+if sr.IncludeFiniteDifferences
+    extra = [extra 'InclFinDiff:yes'];
+end
+n = sprintf('Model "%s", %d-dim, reduced %d-dim, %s',...
+    r.Name,r.FullModel.Dimension,size(r.V,2),extra);
+set(hObject,'Name',n);
 set(handles.rbgAlpha,'SelectionChangeFcn',@(s,e)rbgAlpha_SelectionChanged(handles,s,e));
 set(handles.rbgBeta,'SelectionChangeFcn',@(s,e)rbgBeta_SelectionChanged(handles,s,e));
 set(handles.rbg_Param,'SelectionChangeFcn',@(s,e)rbgParam_SelectionChanged(handles,s,e));
@@ -192,16 +208,23 @@ in = getappdata(h.main,'inputidx');
 [~, y, tf, x] = r.FullModel.simulate(mu,in);
 [t, yr, tr, xr] = r.simulate(mu,in);
 err = Norm.L2(y-yr);
+yno = Norm.L2(y);
 setappdata(h.main,'x',x);
 setappdata(h.main,'xr',xr);
 setappdata(h.main,'t',t);
 setappdata(h.main,'y',y);
 setappdata(h.main,'yr',yr);
-semilogy(h.axerr,t,err,'b');
+tools.LogPlot.cleverPlot(h.axerr,t,err,'b');
+tools.LogPlot.cleverPlot(h.axrel,t,err./yno,'b');
 if r.ErrorEstimator.Enabled
     hold(h.axerr,'on');
-    semilogy(h.axerr,t,r.ErrorEstimator.OutputError,'r');
+    tools.LogPlot.cleverPlot(h.axerr,t,r.ErrorEstimator.OutputError,'r');
     hold(h.axerr,'off');
+    % Relative error
+    hold(h.axrel,'on');
+    tools.LogPlot.cleverPlot(h.axrel,t,r.ErrorEstimator.OutputError./yno,'r');
+    hold(h.axrel,'off');
+    % Effectivities
     tools.LogPlot.cleverPlot(h.axeff,t,r.ErrorEstimator.OutputError./err,'g');
     eest = r.ErrorEstimator.OutputError(end);
 else
@@ -209,8 +232,8 @@ else
     eest = -1;
 end
 str = sprintf('Times: Full %gs, Red.: %gs, Speedup: %g\n',tf,tr,tf/tr);
-str = [str sprintf('Errors at T=%g:\nTrue: %g, Estim.: %g, Eff.:%g',...
-    t(end),err(end),eest,eest/err(end))];
+str = [str sprintf('Errors(T=%g): True: %g, Est.: %g,\nRel: %g, Est.Rel.: %g, Eff.:%g',...
+    t(end),err(end),eest,err(end)/yno(end),eest/yno(end),eest/err(end))];
 set(h.lblRes,'String',str);
 tools.LogPlot.cleverPlot(h.axhlp,r.Times(2:end),r.ODESolver.LastAlpha,'m');
 tools.LogPlot.cleverPlot(h.axhlp2,r.Times(2:end),r.ODESolver.LastBeta,'c');
@@ -256,6 +279,7 @@ e = r.ErrorEstimator;
 switch get(rb,'UserData')
     case 1
         e.UseTrueDEIMErr = true;
+        e.Enabled = true;
     case 2
         e.UseTrueDEIMErr = false;
 end
@@ -372,10 +396,11 @@ getDEIMErrorsOnTraj(handles);
 
 
 % --- Executes on button press in btnRedSummary.
-function btnRedSummary_Callback(hObject, eventdata, handles)
-r = getappdata(handles.main,'r');
+function btnRedSummary_Callback(hObject, eventdata, h)
+r = getappdata(h.main,'r');
 ma = tools.ModelAnalyzer(r);
-ma.plotReductionOverview;
+pm = ma.plotReductionOverview;
+pm.setFigureNames(sprintf('Reduction summary of "%s"',get(h.main,'Name')));
 
 
 % --- Executes on slider movement.

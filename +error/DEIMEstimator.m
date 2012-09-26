@@ -207,7 +207,7 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
             this.compute_jacmdeim(fm);
             
             % Similarity transformation
-            this.compute_simtrans(fm);
+            %this.compute_simtrans(fm);
 
             % Compute approximation for local logarithmic norm
             %             this.computeLogNormApprox;

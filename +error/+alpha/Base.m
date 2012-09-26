@@ -19,6 +19,7 @@ classdef Base < handle
     
     methods
         function this = Base(fm)
+            error('todo: fix error estimator structure w.r.t offlineComputations and prepare model for estimator');
             % Obtain the correct snapshots
             % Standard case: the approx function is a kernel expansion. it
             % can also be that the system's core function is already a

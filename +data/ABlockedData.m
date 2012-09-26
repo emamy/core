@@ -16,8 +16,8 @@ classdef ABlockedData < handle
         % The minimum relative value of singular values that triggers selection of the 
         % compared to the largest one.
         %
-        % @type double @default 1e-12
-        MinRelSingularValueSize = 1e-12;
+        % @type double @default 1e-20
+        MinRelSingularValueSize = 1e-20;
     end
     
     methods
@@ -47,7 +47,7 @@ classdef ABlockedData < handle
             elseif this.getNumBlocks == 1
                 [U, S] = svd(this.getBlock(1),'econ');
                 U = U(:,1:k);
-                S = S(:,1:k);
+                S = S(1:k,1:k);
             else            
                 opts.issym = 1;
                 if KerMor.App.Verbose > 0
@@ -59,7 +59,7 @@ classdef ABlockedData < handle
                 [U,S] = eigs(@mult,n,k,'la',opts);
                 if KerMor.App.Verbose > 2, fprintf('BlockSVD: Finished after %d multiplications.\n',cnt); end
             end
-            sel = sqrt(diag(S)/S(1)) >= this.MinRelSingularValueSize;
+            sel = sqrt(diag(S)/S(1)) >= this.MinRelSingularValueSize & diag(S)>0;
             U = U(:,sel);
             if size(U,2) < k
                 warning('KerMor:ABlockedData','Have only %d nonzero singular values instead of %d desired ones.',...
@@ -96,7 +96,19 @@ classdef ABlockedData < handle
                     'If you want the right singular values, you need to override the mtimes method of data.ABlockedData(matrix, this).\nReturning the same instance.');
             end
             prod = this;
-        end 
+        end
+        
+        function A = toMemoryMatrix(this)
+            % Converts this FileMatrix to a full double matrix.
+            A = zeros(size(this));
+            pos = 1;
+            for i=1:this.getNumBlocks
+                B = this.getBlock(i);
+                s = size(B,2)-1;
+                A(:,pos:pos+s) = B;
+                pos = pos + s + 1;
+            end
+        end
     end
     
     methods(Abstract)
