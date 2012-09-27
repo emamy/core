@@ -21,6 +21,17 @@ classdef MatlabDocMaker
 %
 % @author Daniel Wirtz @date 2011-10-13
 %
+% @change{1,4,dw,2012-09-27} Added automatic dot Graphviz tool detection on
+% call to create.
+%
+% @change{1,3,dw,2012-02-16}
+% - Now also collecting error messages from mtocpp_post and adding them to
+% the warnings.log file.
+% - Added the directive "LD_LIBRARY_PATH= " for unix systems, as MatLab
+% sets it inside its executing environment. This can lead to errors if
+% doxygen and/or mtoc++ have been built using never GLIBC (libstd) versions
+% than the one shipped with MatLab.
+%
 % @change{1,3,dw,2012-01-16}
 % - Properly using the correct file separators everywhere now
 % - Hyperlinked the log file so it can be opened directly
@@ -206,13 +217,19 @@ classdef MatlabDocMaker
             % Always use "/" for latex usepackage commands, so replace "\" (effectively windows
             % only) by "/"
             latexextras = [strrep(cdir,'\','/') '/latexextras'];
+            [st, ~] = system('dot -V');
+            if st == 0
+                havedot = 'YES';
+            else
+                havedot = 'NO';
+            end
             system(sprintf(['m4 -D _OutputDir_="%s" -D _SourceDir_="%s" -D _ConfDir_="%s" -D _ProjectName_="%s"'...
                            ' -D _ProjectVersion_="%s" -D _MTOCFILTER_=%s -D _FileSep_=%s'...
-                           ' -D _LatexExtras_="%s"'...
+                           ' -D _LatexExtras_="%s" -D _HaveDot_=%s'...
                            ' "%sDoxyfile.m4" > "%s"'],...
                  MatlabDocMaker.getOutputDirectory, MatlabDocMaker.getSourceDirectory, cdir,...
                  MatlabDocMaker.getProjectName, MatlabDocMaker.getProjectVersion, strs.filter,...
-                 filesep, latexextras, [cdir filesep], doxyfile));
+                 filesep, latexextras, havedot, [cdir filesep], doxyfile));
             
             % Process latex extras
             texm4 = fullfile(cdir,'latexextras.m4');
@@ -233,7 +250,7 @@ classdef MatlabDocMaker
             end
             % Call doxygen
             fprintf('Running doxygen with mtoc++ filter...\n');
-            [~,warn] = system(sprintf('%sdoxygen "%s" 1>%s', ldpath, doxyfile, strs.null));
+            [~,warn] = system(sprintf('%sdoxygen "%s" 1>%s',ldpath, doxyfile, strs.null));
              
             % Postprocess
             fprintf('Running mtoc++ postprocessor...\n');
@@ -257,7 +274,7 @@ classdef MatlabDocMaker
             
             % Process warnings
             warn = strtrim(warn);
-            if ~isempty(warn) || ~isempty(postwarn)
+            if ~isempty(warn)
                 fprintf(['Warnings generated during documentation creation:\n' strrep(warn,'\','\\') '\n']);
                 % Write to log file later
                 log = fullfile(MatlabDocMaker.getOutputDirectory,'warnings.log');
@@ -351,7 +368,11 @@ classdef MatlabDocMaker
                 hasall = false;                
             end
             fprintf('[Required] Checking for mtoc++... ');
-            [st, vers] = system('mtocpp --version');
+            ldpath = '';
+            if isunix
+                ldpath = 'LD_LIBRARY_PATH= ';
+            end
+            [st, vers] = system(sprintf('%smtocpp --version',ldpath));
             if st == 0
                 fprintf(' found %s\n',vers(1:end-1));
             else
@@ -371,7 +392,7 @@ classdef MatlabDocMaker
             if st == 0
                 fprintf(' found %s\n',vers(1:end-1));
             else
-                fprintf(2,'dot Graphviz tool not found!\nSet HAVE_DOT = NO in Doxyfile.m4 or install dot for nice diagrams.\n');
+                fprintf(2,'dot Graphviz tool not found!\nInstall dot for nicer class diagrams.\n');
             end
             fprintf('[Recommended] Checking for latex... ');
             [st, vers] = system('latex --version');
