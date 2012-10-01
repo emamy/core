@@ -112,7 +112,7 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
             end
             
             newd = size(x,1); newmu = length(mu);
-            if isempty(this.sizes)
+            if isempty(this.sizes) || all(this.sizes == 0)
                 this.sizes = [newd newmu];
             elseif newd ~= this.sizes(1)
                 error('Invalid trajectory dimension. Existing: %d, new: %d',this.sizes(1),newd);

@@ -318,6 +318,7 @@ classdef BaseModel < KerMorObject
             % t: The simulation times `t_i` @type rowvec
             % y: The simulation output matrix `y`, i.e. `y(t_i)` @type matrix
             % varargin: Any further arguments for customized plots @type cell
+            % foo: sdgg @optional
             %
             % Return values:
             % f: The figure handle @type handle

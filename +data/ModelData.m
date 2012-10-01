@@ -33,6 +33,14 @@ classdef ModelData < data.FileData
         % @type data.FileDataCollection @default []
         TrajectoryFxiData = [];
         
+        % The orthonormalized vectors spanning the space of the input components.
+        %
+        % Set the models.BaseFullModel.ComputeBSpan to true to compute during
+        % models.BaseFullModel.off2_genTrainingData.
+        %
+        % @type matrix<double> @default []
+        InputSpaceSpan = [];
+        
         % Training data for the core function approximation.
         %
         % @type data.ApproxTrainData @default []

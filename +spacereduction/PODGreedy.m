@@ -1,4 +1,4 @@
-classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable & general.IReductionSummaryPlotProvider
+classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
 % PODGreedy: Greedy subspace computation over a fixed set of trajectories.
 %
 % This subspace computation method uses the POD-Greedy algorithm to determine a subspace which has a
@@ -60,10 +60,12 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable & general
         IncludeTrajectoryFxiData = false;
         
         IncludeFiniteDifferences = false;
+        
+        IncludeBSpan = false;
     end
     
     properties(SetAccess=private)
-        Errors;
+        ErrorImprovements;
     end
     
     methods
@@ -76,7 +78,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable & general
             
             % Augment block data with fxi values
             if this.IncludeTrajectoryFxiData
-                if isempty(md.TrajectoryFxiData)
+                if isempty(model.Data.TrajectoryFxiData)
                     error('No training fxi data found in ModelData.');
                 end
                 md = data.JoinedBlockData(md, model.Data.TrajectoryFxiData);
@@ -87,7 +89,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable & general
             end
             
             if KerMor.App.Verbose > 2
-                fprintf('POD-Greedy: Starting subspace computation using %d trajectories...\n',md.getNumTrajectories);
+                fprintf('POD-Greedy: Starting subspace computation using %d trajectories...\n',model.Data.TrajectoryData.getNumTrajectories);
             end
             
             pod = general.POD;
@@ -100,8 +102,21 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable & general
             if KerMor.App.Verbose > 2
                 fprintf('POD-Greedy: Computing initial space...\n');
             end
-            V = this.getInitialSpace(md, pod);
-            [err, idx] = this.getMaxErr(V, md);
+%             V = this.getInitialSpace(md, pod);
+%             if this.IncludeBSpan
+%                 V = o.orthonormalize([V md.InputSpaceSpan]);
+%             end
+
+            if this.IncludeBSpan
+                V = model.Data.InputSpaceSpan;
+                [err, idx] = this.getMaxErr(V(:,1), md);
+                for k=2:size(V,2)
+                    [err(end+1), idx] = this.getMaxErr(V(:,1:k), md);%#ok
+                end
+            else
+                V = this.getInitialSpace(md, pod);
+                [err, idx] = this.getMaxErr(V, md);
+            end
             cnt = 1; 
             % Maximum possible subspace size
             ss = size(V,1);
@@ -117,7 +132,8 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable & general
                 olderr = err(end);
                 cnt = cnt+1;
             end
-            this.Errors = [err; impr];
+            this.ErrorImprovements = impr;
+            this.ProjectionError = err;
             if cnt == this.MaxSubspaceSize
                 fprintf('POD-Greedy: Maximum predefined subspace size %d reached. Aborting.\n',this.MaxSubspaceSize);
             end
@@ -144,11 +160,11 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable & general
         end
         
         function plotSummary(this, pm, context)
-            if ~isempty(this.Errors)
-                str = sprintf('%s: Error decay over training data\nEps:%g, MaxSize:%d, IncludeTrajectoryFxiData: %d',...
-                    context,this.Eps,this.MaxSubspaceSize,this.IncludeTrajectoryFxiData);
-                h = pm.nextPlot('podgreedy_errordecay',str,'subspace size','Linf(data)-L2(state) error');
-                semilogy(h,this.Errors(1,:),'LineWidth',2);
+            plotSummary@spacereduction.BaseSpaceReducer(this, pm, context);
+            if ~isempty(this.ErrorImprovements)
+                str = sprintf('%s: Error decay over training data\nEps:%g, MaxSize:%d, FXI: %d, FD: %d, BSpan: %d',...
+                    context,this.Eps,this.MaxSubspaceSize,this.IncludeTrajectoryFxiData,...
+                    this.IncludeFiniteDifferences,this.IncludeBSpan);
                 h = pm.nextPlot('podgreedy_gains',str,'subspace size','Gain');
                 semilogy(h,this.Errors(2,:),'LineWidth',2);
             else

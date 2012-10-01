@@ -95,11 +95,11 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             % varargin: More optional input arguments, see below.
             %
             % Varargin arguments:
-            % 1: Either a char array denoting the target root folder where the file-containing
+            % -# Either a char array denoting the target root folder where the file-containing
             % data folder should be stored, or a data.FileMatrix instance which is then used to
             % place this FileMatrices files in the same root directory. If the latter is the
             % case, the same block size is also assumed.
-            % 2: The maximum block size in Bytes. @type integer @default 256MB
+            % -# The maximum block size in Bytes. @type integer @default 256MB
             
             % Matrix case: Create & assign directly
             if nargin < 2
@@ -670,7 +670,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             [u,s,v] = svd(B,'econ');
             [U,S,V] = A.getSVD;
             V = V.toMemoryMatrix;
-            res = res & norm(U*S*V-B,'fro') < p;
+            res = res && norm(U*S*V-B,'fro') < p;
             [U5,S5,V5] = A.getSVD(5);
             V5 = V5.toMemoryMatrix;
             res = res && norm(abs(V)-abs(v'),'fro') < p && norm(abs(U)-abs(u),'fro') < p &&...
@@ -678,6 +678,11 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             res = res && norm(abs(V5)-abs(v(:,1:5)'),'fro') < p ...
                     && norm(abs(U5)-abs(u(:,1:5)),'fro') < p ...
                     && norm(diag(S5)-diag(s(1:5,1:5))) < p;
+            % Exclude test
+            o = general.Orthonormalizer;
+            exclu = o.orthonormalize(rand(size(B,1),5));
+            [U,~,~] = A.getSVD(10,exclu);
+            res = res && norm(exclu'*U) < 1e-12; 
                 
             % Bounding box test
             [bm, bM] = general.Utils.getBoundingBox(B);

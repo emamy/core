@@ -18,6 +18,7 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & general.IR
     properties
         IncludeTrajectoryFxiData = false;
         IncludeFiniteDifferences = false;
+        IncludeBSpan = false;
     end
     
     properties(SetAccess=private)
@@ -50,19 +51,32 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & general.IR
             if this.IncludeFiniteDifferences
                 td = data.FinDiffBlockData(td);
             end
+            Vex = [];
+            if this.IncludeBSpan
+                Vex = md.InputSpaceSpan;
+            end
             
-            [V, this.SingularValues] = this.computePOD(td);
+            [V, this.SingularValues] = this.computePOD(td, Vex);
+            this.ProjectionError = flipud(cumsum(flipud(this.SingularValues)));
+            if ~isempty(Vex)
+                o = general.Orthonormalizer;
+                V = o.orthonormalize([Vex V]);
+            end
             
             % Here W=V!
             W = V;
         end
         
         function plotSummary(this, pm, context)
+            plotSummary@spacereduction.BaseSpaceReducer(this, pm, context);
             if ~isempty(this.SingularValues)
                 str = sprintf('%s: POD singular value decay',context);
                 h = pm.nextPlot('podreducer_singvals',str,...
                     'subspace size','singular values');
                 semilogy(h,this.SingularValues,'LineWidth',2);
+%                 h = pm.nextPlot('podreducer_projerr',str,...
+%                     'subspace size','projection error');
+%                 semilogy(h,this.SingularValues,'LineWidth',2);
             else
                 warning('spacereduction:PODReducer',...
                     'Singular value data empty. Not providing summary.');

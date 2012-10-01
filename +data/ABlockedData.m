@@ -4,6 +4,9 @@ classdef ABlockedData < handle
 %
 % @author Daniel Wirtz @date 2012-07-11
 %
+% @change{0,6,dw,2012-10-01} Added an optional Vexclude matrix argument to exclude a given
+% space from the data
+%
 % @new{0,6,dw,2012-07-11} Added this class.
 %
 % This class is part of the framework
@@ -21,12 +24,14 @@ classdef ABlockedData < handle
     end
     
     methods
-        function [U, S, V] = getSVD(this, k)
+        function [U, S, V] = getSVD(this, k, Vexclude)
             % Computes an SVD on this blockwise matrix `A = USV^T`.
             %
             % Parameters:
             % k: The number of largest singular values and vectors to compute. @type integer
             % @default all
+            % Vexclude: A matrix containing orthonormal columns, whose spanned space is to be
+            % excluded from the SVD.
             %
             % Return values:
             % U: The left-hand side singular vectors `U` of the decomposition `U\Sigma V^T =
@@ -36,8 +41,20 @@ classdef ABlockedData < handle
             % V: The transposed right-hand side singular vectors `V` of the
             % decomposition `U\Sigma V = A`. @type matrix<double>
             [n, m] = size(this);
-            if nargin < 2
+            if nargin < 3
+                Vexclude = [];
+                if nargin < 2
+                    k = min(n,m);
+                end
+            end
+            % Assume full size if k is empty
+            if isempty(k)
                 k = min(n,m);
+            end
+            % Reduce target dimension if remaining dimension is smaller more dimensions are to be excluded
+            % than 
+            if ~isempty(Vexclude)
+                k = min(k, min(n,m)-size(Vexclude,2));
             end
             
             % Fetch case for one block only
@@ -45,7 +62,12 @@ classdef ABlockedData < handle
                 U = [];
                 S = [];
             elseif this.getNumBlocks == 1
-                [U, S] = svd(this.getBlock(1),'econ');
+                Bl = this.getBlock(1);
+                % Subtract exclude space if wanted
+                if ~isempty(Vexclude)
+                    Bl = Bl - Vexclude*(Vexclude'*Bl);
+                end
+                [U, S] = svd(Bl,'econ');
                 U = U(:,1:k);
                 S = S(1:k,1:k);
             else            
@@ -56,6 +78,11 @@ classdef ABlockedData < handle
                 end
                 vb = KerMor.App.Verbose > 0 && n*m > 100000 && this.getNumBlocks > 2;
                 cnt = 0;
+                % If an exclude space is given, choose initial value outside of Vexclude
+                if ~isempty(Vexclude)
+                    v0 = rand(n,1);
+                    opts.v0 = v0 - Vexclude*(Vexclude'*v0);
+                end
                 [U,S] = eigs(@mult,n,k,'la',opts);
                 if KerMor.App.Verbose > 2, fprintf('BlockSVD: Finished after %d multiplications.\n',cnt); end
             end
@@ -79,6 +106,10 @@ classdef ABlockedData < handle
                 end
                 for j = 1:nb
                     B = this.getBlock(j);
+                    % Subtract exclude space if wanted
+                    if ~isempty(Vexclude)
+                        B = B - Vexclude*(Vexclude'*B);
+                    end
                     w = w + B*(B'*v);
                     if vb, pi.step; end
                 end

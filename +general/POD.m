@@ -81,12 +81,18 @@ classdef POD < KerMorObject
             this.registerProps('Mode','Value','UseSVDS');
         end
         
-        function [podvec, s] = computePOD(this, data)
+        function [podvec, s] = computePOD(this, data, Vexclude)
             % Computes the POD vectors according to the specified settings
+            %
+            % Depending on the type of data, any given Vinclude will be either projected out of
+            % the underlying data (matrix case) or appended to the computed space of target_dim
+            % minus Vinclude columns.
             %
             % Parameters:
             % data: The set of column-vectors to perform the POD on. Can be a real matrix or a
             % data.ABlockedData instance. @type [matrix<double>|general.ABlockSVD]
+            % Vexclude: A given set of orthonormal vectors to exclude from the resulting POD.
+            % @type matrix<double> @optional @default []
             %
             % Return values:
             % podvec: The POD modes computed. @type matrix<double>
@@ -99,6 +105,9 @@ classdef POD < KerMorObject
             %% Dimension checks
             % This is for the "explicit" modes where the target dimension
             % is either a fixed value or a fraction of the full dimension.
+            if nargin < 3
+                Vexclude = [];
+            end
             target_dim=[];
             if strcmpi(this.Mode,'rel')
                 target_dim = ceil(min(size(data))*this.Value);
@@ -118,13 +127,19 @@ classdef POD < KerMorObject
                 end
                 if KerMor.App.Verbose > 2
                     [n,m] = size(data);
-                    fprintf('Starting POD on ABlockedData(%s, %dx%d) with mode ''%s'' and value %g\n',...
-                        class(data),n,m,this.Mode,this.Value);
+                    fprintf('Starting POD on ABlockedData(%s, %dx%d, %d blocks) with mode ''%s'' and value %g\n',...
+                        class(data),n,m,data.getNumBlocks,this.Mode,this.Value);
                 end
-                [podvec, s] = data.getSVD(target_dim);
+                [podvec, s] = data.getSVD(target_dim, Vexclude);
                 s = diag(s);
             %% Matrix argument case
             else
+                % Subtract the space spanned by Vexclude if given
+                if ~isempty(Vexclude)
+                    data = data - Vexclude*(Vexclude'*data);
+                    target_dim = min(target_dim, min(size(data))-size(Vexclude));
+                end
+                
                 % Create full matrix out of sparse fxi sets to enable use of
                 % svd instead of svds
                 nonzero = [];
@@ -195,8 +210,14 @@ classdef POD < KerMorObject
                         length(z),length(s),length(s)-length(z));
                 end
                 u(:,z) = [];
-                podvec = u;
+
+                % Re-create the sparse matrix structure after POD computation if input argument
+                % was a sparse matrix
+                if ~isempty(nonzero)
+                    u = general.MatUtils.toSparse(u, nonzero, fulldim);
+                end
                 
+                podvec = u;
                 % Security checks (only for true matrices so far)
                 if any(any(round(podvec'*podvec) ~= eye(size(podvec,2))))
                     warning('KerMor:POD',['Resulting POD vectors not ' ...
@@ -205,12 +226,6 @@ classdef POD < KerMorObject
                     % properly orthonormal
                     o = general.Orthonormalizer;
                     podvec = o.orthonormalize(podvec);
-                end
-                
-                % Re-create the sparse matrix structure after POD computation if input argument
-                % was a sparse matrix
-                if ~isempty(nonzero)
-                    this.u = general.MatUtils.toSparse(this.u, nonzero, fulldim);
                 end
             end
         end
@@ -271,6 +286,13 @@ classdef POD < KerMorObject
             pod.Value = 10;
             V = pod.computePOD(vec);
             res = res && isequal(round(V'*V),eye(size(V,2)));
+            
+            % Vexclude mode
+            o = general.Orthonormalizer;
+            exclu = o.orthonormalize(rand(size(vec,1),round(pod.Value/2)));
+            Vex = pod.computePOD(vec,exclu);
+            res = res && isequal(round(Vex'*Vex),eye(size(Vex,2)));
+            res = res && norm(exclu'*Vex) < 1e-12;
             
             pod.Mode = 'abs';
             pod.Value = 10;

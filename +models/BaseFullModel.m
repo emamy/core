@@ -199,6 +199,14 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         %
         % @type logical @default false
         ComputeTrajectoryFxiData = false;
+        
+        % Flag that determines whether the span of the model's input should be computed at the
+        % offline stage in order to provide more information for spacereduction.
+        %
+        % @todo write setter
+        %
+        % @type logical @default false
+        ComputeBSpan = false;
     end
     
     properties(SetObservable, Dependent)
@@ -407,6 +415,29 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     pi.stop;
                 end
             end
+            
+            % Input space span computation
+            if this.ComputeBSpan
+                if KerMor.App.Verbose > 0
+                    fprintf('Computing input space span...');
+                end
+                B = this.System.B;
+                this.Data.InputSpaceSpan = [];
+                if isempty(B)
+                    warning('KerMor:BaseFullModel','Cannot compute B span, no System.B set.');
+                    return;
+                end
+                if isa(B,'dscomponents.LinearInputConv')
+                    o = general.Orthonormalizer;
+                    this.Data.InputSpaceSpan = o.orthonormalize(B.B);
+                else
+                    warning('KerMor:BaseFullModel','B span computation: Case %s not yet implemented',class(B));
+                end
+                if KerMor.App.Verbose > 0
+                    fprintf('dimension %d.\n',size(this.Data.InputSpaceSpan,2));
+                end
+            end
+            
             time = toc(time);
         end
         
