@@ -468,7 +468,7 @@ function pushbutton5_Callback(hObject, eventdata, h)
 r = getappdata(h.main,'r');
 m = r.FullModel;
 t = getappdata(h.main,'t');
-v = Norm.L2(getappdata(h.main,'x')-r.V*getappdata(h.main,'xr'));
+v = Norm.L2(getappdata(h.main,'x')-r.V*(r.V'*getappdata(h.main,'x')));
 pm = tools.PlotManager;
 pm.LeaveOpen = true;
 h = pm.nextPlot('','Trajectory subspace projection L2(state) error','time','error');

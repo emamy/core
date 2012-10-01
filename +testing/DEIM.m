@@ -65,8 +65,8 @@ classdef DEIM
                 no = length(orders);
                 for i=1:no
                     new = 1:(deim.MaxOrder-orders(i));
-                    errorders = [errorders new];
-                    neworders = [neworders orders(i)*ones(1,length(new))];
+                    errorders = [errorders new];%#ok
+                    neworders = [neworders orders(i)*ones(1,length(new))];%#ok
                 end
                 orders = neworders;
             elseif ~isempty(errorders) && length(orders) ~= length(errorders)
@@ -108,7 +108,7 @@ classdef DEIM
                         hlp(pos,i,2) = hlp2./fxinorm;
                         co = o;
                     else
-                        res(3:4,i) = res(3:4,i-1);
+                        hlp(pos,i,1:2) = hlp(pos,i-1,1:2);
                     end
                     if eo > 0
                         % Estimated absolute/rel errors
@@ -148,14 +148,15 @@ classdef DEIM
             h = pm.nextPlot('abs_diff','|true - estimated| absolute error','m','m''');
             doplot(h,tri,res(1,:),res(2,:),abs(res(5,:)-res(3,:)));
             view(0,90);
-            h = pm.nextPlot('rel_diff','|true - estimated| relative error','m','m''');
-            doplot(h,tri,res(1,:),res(2,:),abs(res(6,:)-res(4,:)));
+            h = pm.nextPlot('rel_diff','|(true - estimated)/true| errors','m','m''');
+            doplot(h,tri,res(1,:),res(2,:),abs((res(5,:)-res(3,:))./res(3,:)));
             hold on;
             sh = doplot(h,tri,res(1,:),res(2,:),1e-2*ones(size(res(6,:))),...
                 'EdgeColor','none','FaceColor','k');
             alpha(sh,.2);
             hold off;
-            view(71,52);
+            axis ij;
+            view(-40,34);
             
 %             h = pm.nextPlot('abs_diff','|true - dir. est.| absolute error','order','error order');
 %             doplot(h,tri,res(1,:),res(2,:),abs(res(7,:)-res(3,:)));
@@ -368,7 +369,7 @@ classdef DEIM
             % rowvec<double> @default [1e-1 1e-2 1e-3 1e-4]
             % orders: The different orders for which to compute the minimum
             % ErrorOrders @type rowvec<integer> @default One to
-            % approx.DEIM.MaxOrder in steps of three
+            % approx.DEIM.MaxOrder-1 in steps of three
             %
             % Return values:
             % res: A matrix containing the minimum required M', indexed by
@@ -384,7 +385,7 @@ classdef DEIM
             xi = atd.xi.toMemoryMatrix;
             fxi = atd.fxi.toMemoryMatrix;
             if nargin < 3 || isempty(orders)
-                orders = 1:3:f.MaxOrder;
+                orders = 1:3:(f.MaxOrder-1);
             end
             if nargin < 2 || isempty(relerrs)
                 relerrs = [1e-1 1e-2 1e-3 1e-4];
@@ -407,7 +408,6 @@ classdef DEIM
                 rel = zeros(eos,2);
                 for eo = 1:eos
                     f.Order = [orders(i) eo];
-                
                     eest = Norm.L2(f.getEstimatedError(xi, atd.ti, atd.mui));
                     rerr = abs((eest-etrue) ./ etrue);
                     rerr(isnan(rerr)) = [];

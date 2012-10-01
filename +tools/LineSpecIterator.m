@@ -96,19 +96,21 @@ classdef LineSpecIterator < handle
         function color = nextColor(this)
             color = this.Colors(this.curc+1,:);
             this.curc = mod(this.curc+1,size(this.Colors,1));
-            cnt = 1;
-            while any(sum(abs(repmat(color,size(this.excluded_cols,1),1)-this.excluded_cols),2) < .3)
-                % Pick next one
-                color = this.Colors(this.curc+1,:);
-                this.curc = mod(this.curc+1,size(this.Colors,1));
-                
-                cnt = cnt+1;
-                if cnt == size(this.Colors,1)
-                    warning('KerMor:LineSpecInterator',...
-                        'Out of pre-defined colors (all excluded). Using random color.');
-                    color = rand(1,3);
-                    this.Colors = [this.Colors; color];
-                    break;
+            if ~isempty(this.excluded_cols)
+                cnt = 1;
+                while any(sum(abs(repmat(color,size(this.excluded_cols,1),1)-this.excluded_cols),2) < .3)
+                    % Pick next one
+                    color = this.Colors(this.curc+1,:);
+                    this.curc = mod(this.curc+1,size(this.Colors,1));
+
+                    cnt = cnt+1;
+                    if cnt == size(this.Colors,1)
+                        warning('KerMor:LineSpecInterator',...
+                            'Out of pre-defined colors (all excluded). Using random color.');
+                        color = rand(1,3);
+                        this.Colors = [this.Colors; color];
+                        break;
+                    end
                 end
             end
             %fprintf('New color: [%g %g %g]\n',color);

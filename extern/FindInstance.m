@@ -11,7 +11,7 @@ function [t, matches, parents, locations] = FindInstance(obj, type, varargin)
 % t: A PrintTable instance containing information about the matches and their location within
 % the passed object. @type PrintTable
 % matches: A cell array of all instances that have been found in obj. @type
-% cell<classof(arg:type)>
+% cell
 % parents: A cell array of all the parent objects/structs whose immediate property is of the
 % specified type.
 % locations: A cell array of the according locations/paths within the object hierarchy. @type
