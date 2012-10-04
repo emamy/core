@@ -100,6 +100,9 @@ classdef EstimatorAnalyzer < handle
         %
         % @type struct
         Est;
+        
+        % The position where to start plotting error estimates
+        PlotStartIndex = 1;
     end
     
     properties(SetAccess=private)
@@ -435,16 +438,19 @@ classdef EstimatorAnalyzer < handle
         end
         
         function doPlots(this, data, ax)
+            % strip some initial values if set
+            times = this.Model.Times(this.PlotStartIndex:end);
+            data = data(:,this.PlotStartIndex:end);
             if this.LogarithmicPlot
-                ph = semilogy(ax,this.Model.Times,data);
+                ph = semilogy(ax,times,data);
             else
-                ph = plot(ax,this.Model.Times,data);
+                ph = plot(ax,times,data);
             end
             set(ph,'LineWidth',this.LineWidth);
             set(ph(1),'LineWidth',this.LineWidth+.5);
             hold on;
             % Select extra marker places
-            nt = length(this.Model.Times);
+            nt = length(times);
             sel = round(1:nt/this.NumMarkers:nt);
             ci = tools.LineSpecIterator;
             for idx=1:length(this.Est)
@@ -460,7 +466,7 @@ classdef EstimatorAnalyzer < handle
                 set(ph(idx),'LineStyle',e.LineStyle,'Color',c);
                 % Shift marker positions for better visual
                 pos = mod(sel+round(nt/(this.NumMarkers*length(this.Est)))*(idx-1),nt)+1;
-                h = plot(ax,this.Model.Times(pos), data(idx,pos), e.MarkerStyle,...
+                h = plot(ax,times(pos), data(idx,pos), e.MarkerStyle,...
                     'MarkerSize',this.MarkerSize);
                 % Get resulting color, so char-color specs can be used as e.Color above)
                 c = get(ph(idx),'Color');

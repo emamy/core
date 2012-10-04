@@ -99,7 +99,7 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
             
             % Solve for each time step
             oldx = x0(1:end-edim);
-            if ~isempty(est) && est.Enabled
+            if ~isempty(est) && est.Enabled && isa(est,'error.DEIMEstimator')
                 % Get initial values of alpha/beta for completeness
                 ut = [];
                 if ~isempty(s.u)

@@ -203,15 +203,12 @@ classdef DEIM
             n = size(res,2);
             %sel = 1:step:n;
             %sel = round(logspace(log10(1),log10(n),300));
-            sel = [1 2 3 4 5 7 9 11 13 15:6:n];
+            sel = [1 2 3 4 5 7 9 11 13 15:3:30 31:20:n];
             res = res(:,sel);
             n = size(res,2);
             % 1: order
             % 2: errororder
             tri = delaunay(res(1,:),res(2,:));
-                        
-            h = pm.nextPlot('est_abs','Absolute difference of estimated to true error','m','m''');
-            doplot(h,tri,res(1,:),res(2,:),abs(res(3,:)-res(7,:)));
             
             % 11: max rel error of (estimated-true error) w.r.t true error
             % 12: mean rel error of (estimated-true error) w.r.t true error
@@ -252,6 +249,9 @@ classdef DEIM
             hold off;
             axis ij;
             view(-40,34);
+            
+            h = pm.nextPlot('est_abs','Absolute difference of estimated to true error','m','m''');
+            doplot(h,tri,res(1,:),res(2,:),abs(res(3,:)-res(7,:)));
 
             pm.done;
             
@@ -435,7 +435,7 @@ classdef DEIM
             pm.done;
         end
         
-        function t = getMinReqErrorOrdersTable(errordata, relerrs, tsize, maxorder)
+        function [t, values] = getMinReqErrorOrdersTable(errordata, relerrs, tsize, maxorder)
             % Return values:
             % t: A PrintTable containing the results. If not specified as a
             % nargout argument, the table will be printed instead. @type
@@ -455,29 +455,30 @@ classdef DEIM
             title = arrayfun(@(e)sprintf('%g',e),relerrs,'Unif',false);
             t.addRow('m / rel. error',title{:});
             nr = length(relerrs);
-            o = [];
-            for i = 1:size(errordata,2)
-                if isempty(o) || o ~= errordata(1,i)
-                    o = errordata(1,i);
-                    pos = errordata(1,:) == o;
-                    maxv = errordata(maxvidx,pos);
-                    meanv = errordata(meanvidx,pos);
-                    hlp = cell.empty(0,nr);
-                    for j = 1:nr
-                        % Max rel errs
-                        maxidx = find(maxv <= relerrs(j),1,'first');
-                        if isempty(maxidx), 
-                            maxidx = min(maxv); 
-                        end
-                        % Mean rel errs
-                        meanidx = find(meanv <= relerrs(j),1,'first');
-                        if isempty(meanidx), 
-                            meanidx = min(meanv); 
-                        end
-                        hlp{j} = sprintf('%g/%g',maxidx,meanidx);
+            orders = unique(errordata(1,:));
+            values = zeros(length(orders),1+2*nr);
+            for i = 1:length(orders)
+                o = orders(i);
+                values(i,1) = o;
+                pos = errordata(1,:) == o;
+                maxv = errordata(maxvidx,pos);
+                meanv = errordata(meanvidx,pos);
+                hlp = cell.empty(0,nr);
+                for j = 1:nr
+                    % Max rel errs
+                    maxidx = find(maxv <= relerrs(j),1,'first');
+                    if isempty(maxidx), 
+                        maxidx = min(maxv); 
                     end
-                    t.addRow(errordata(1,i),hlp{:});
+                    % Mean rel errs
+                    meanidx = find(meanv <= relerrs(j),1,'first');
+                    if isempty(meanidx), 
+                        meanidx = min(meanv); 
+                    end
+                    hlp{j} = sprintf('%g/%g',maxidx,meanidx);
+                    values(i,1+[j j+nr]) = [maxidx meanidx];
                 end
+                t.addRow(errordata(1,i),hlp{:});
             end
             if nargout < 1
                 t.display;
