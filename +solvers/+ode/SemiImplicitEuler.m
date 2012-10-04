@@ -56,8 +56,8 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
             if ~isempty(find((abs(t(2:end)-t(1:end-1) - dt)) / dt > 1e-6,1)) %any(t(2:end)-t(1:end-1) - dt > 100*eps)
                 error('non-equidistant dt timesteps.');
             end
-            this.LastAlpha = zeros(1,steps-1);
-            this.LastBeta = zeros(1,steps-1);
+            this.LastAlpha = zeros(1,steps);
+            this.LastBeta = zeros(1,steps);
             
             rtm = this.RealTimeMode;
             if rtm
@@ -67,7 +67,7 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
                 x = [x0 zeros(size(x0,1),steps-1)];
             end
             
-            oldex = []; newex = []; edim = 0;
+            oldex = []; newex = []; edim = 0; est = [];
             if isa(this.model,'models.ReducedModel')
                 est = this.model.ErrorEstimator;
                 if ~isempty(est) && est.Enabled
@@ -99,6 +99,15 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
             
             % Solve for each time step
             oldx = x0(1:end-edim);
+            if ~isempty(est) && est.Enabled
+                % Get initial values of alpha/beta for completeness
+                ut = [];
+                if ~isempty(s.u)
+                    ut = s.u(t(1));
+                end
+                this.LastAlpha(1) = est.getAlpha(oldx, t(1), s.mu, ut);
+                this.LastBeta(1) = est.getBeta(oldx, t(1), s.mu);
+            end
             for idx = 2:steps;
                 RHS = M*oldx;
                 if ~isempty(s.f)
@@ -114,10 +123,10 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
                     % Time-dependent case: compute time-dependent components with updated time
                 else
                     if fdep
-                        A = s.A.evaluate(1, t(idx-1), s.mu);
+                        A = s.A.evaluate(1, t(idx), s.mu);
                     end
                     if mdep
-                        M = s.M.evaluate(t(idx-1));
+                        M = s.M.evaluate(t(idx));
                     end
                     newx = (M - dt * A)\RHS;
                 end
@@ -128,16 +137,17 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
                     if ~isempty(s.u)
                         ut = s.u(t(idx));
                     end
-                    al = est.getAlpha([oldx; oldex], t(idx), s.mu, ut);
-                    bet = est.getBeta([oldx; oldex], t(idx), s.mu);
-                    this.LastAlpha(idx-1) = al;
-                    this.LastBeta(idx-1) = bet;
+                    al = est.getAlpha(newx, t(idx), s.mu, ut);
+                    bet = est.getBeta(newx, t(idx), s.mu);
+                    this.LastAlpha(idx) = al;
+                    this.LastBeta(idx) = bet;
                     
                     % Explicit
-                    %newex = oldex + dt * est.evalODEPart([oldx; oldex], t(idx-1), s.mu, ut);
+                    %newex = oldex + dt * est.evalODEPart([newx; oldex], t(idx-1), s.mu, ut);
+                    newex = oldex + dt*(bet*oldex + al);
                     
                     % Implicit
-                    newex = (dt*al+oldex)/(1-dt*bet);
+                    %newex = (dt*al+oldex)/(1-dt*bet);
                     
 %                     fun = @(y)y-dt*est.evalODEPart([oldx; y], t(idx), s.mu, ut)-oldex/dt;
 %                     opts = optimset('Display','off');

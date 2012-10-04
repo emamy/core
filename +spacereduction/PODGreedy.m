@@ -166,7 +166,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
                     context,this.Eps,this.MaxSubspaceSize,this.IncludeTrajectoryFxiData,...
                     this.IncludeFiniteDifferences,this.IncludeBSpan);
                 h = pm.nextPlot('podgreedy_gains',str,'subspace size','Gain');
-                semilogy(h,this.Errors(2,:),'LineWidth',2);
+                semilogy(h,this.ErrorImprovements,'LineWidth',2);
             else
                 warning('spacereduction:PODGreedy',...
                     'Error data empty. Not providing summary.');

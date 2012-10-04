@@ -48,13 +48,31 @@ classdef DEIM
         end
         
         %% DEIM approximation analysis over training data
-        function [res, hlp, pm] = computeDEIMErrors(deim, atd, orders, errorders)
+        function res = computeDEIMErrors(deim, atd, orders, errorders)
             % Computes the DEIM approximation error over the given training
             % data for specified DEIM orders (M) and DEIM error orders
             % (M').
             %
             % The error over any training data point is measured L2 in
             % state and Linf over all training points.
+            %
+            % Return values:
+            % res: A 12 x totalcombinations matrix containing the values in
+            % rows
+            % 1: order
+            % 2: errororder
+            % 3: max abs true error (indep. of errororder)
+            % 4: max rel true error w.r.t true fxi norm (indep. of errororder)
+            % 5: mean abs true error (indep. of errororder)
+            % 6: mean rel true error w.r.t true fxi norm (indep. of errororder)
+            % 7: max abs estimated error
+            % 8: max rel estimated error w.r.t true fxi norm
+            % 9: mean abs estimated error
+            % 10: mean rel estimated error w.r.t true fxi norm
+            % 11: max rel error of (estimated-true error) w.r.t true error
+            % 12: mean rel error of (estimated-true error) w.r.t true error
+            % 13: max rel error of (estimated-maxorder error) w.r.t maxorder error
+            % 14: mean rel error of (estimated-maxorder error) w.r.t maxorder error
             oldo = deim.Order;
             if nargin < 4
                 if nargin < 3
@@ -62,8 +80,7 @@ classdef DEIM
                 end
                 errorders = [];
                 neworders = [];
-                no = length(orders);
-                for i=1:no
+                for i=1:length(orders)
                     new = 1:(deim.MaxOrder-orders(i));
                     errorders = [errorders new];%#ok
                     neworders = [neworders orders(i)*ones(1,length(new))];%#ok
@@ -72,21 +89,17 @@ classdef DEIM
             elseif ~isempty(errorders) && length(orders) ~= length(errorders)
                 error('If both the orders and error orders are given they must have same number of elements');
             end
-            no = length(orders);
-            if isempty(errorders)
-                errorders = zeros(1,no);
-            end
+            n = length(orders);
+            res = zeros(14,n);
+            res(1,:) = orders;
+            res(2,:) = errorders;
             % State space error function
             efun = @Norm.L2;
             
-            res = zeros(6,no);
             nb = atd.xi.nBlocks;
-            pi = tools.ProcessIndicator(sprintf('Computing DEIM errors and estimates for %d Order/ErrOrder settings over %d xi-Blocks',no,nb),no*nb);
+            pi = tools.ProcessIndicator(sprintf('Computing DEIM errors and estimates for %d Order/ErrOrder settings over %d xi-Blocks',n,nb),n*nb);
             co = [];
-            for i = 1:no
-                res(1:2,i) = [orders(i); errorders(i)];
-            end
-            hlp = zeros(atd.xi.m,no,4);
+            m = atd.xi.m;
             for k = 1:nb
                 pos = atd.xi.getBlockPos(k);
                 xi = atd.xi(:,pos);
@@ -94,85 +107,152 @@ classdef DEIM
                 if ~isempty(deim.V)
                     xi = deim.V'*xi;
                 end
-                fxinorm = efun(fxi)';
-                for i = 1:no
-                    o = orders(i);
-                    eo = errorders(i);
-                    deim.Order = [o eo];
-
-                    % Absolute true error (only for new orders)
-                    if isempty(co) || o ~= co
+                fxinorm = efun(fxi);
+                deim.Order = deim.MaxOrder;
+                afximaxorder = deim.evaluate(xi,atd.ti(pos),atd.mui(:,pos));
+                for i = 1:n
+                    deim.Order = [res(1,i) res(2,i)];
+                    % Check if new overall DEIM order m
+                    if isempty(co) || res(1,i) ~= co
                         afxi = deim.evaluate(xi,atd.ti(pos),atd.mui(:,pos));
-                        hlp2 = efun(fxi-afxi)';
-                        hlp(pos,i,1) = hlp2;
-                        hlp(pos,i,2) = hlp2./fxinorm;
-                        co = o;
-                    else
-                        hlp(pos,i,1:2) = hlp(pos,i-1,1:2);
+                        % Get true DEIM error against full function
+                        etrue = efun(fxi-afxi);
+                        % Get error measured against max order DEIM approx
+                        emaxorder = efun(afximaxorder-afxi);
+                        % 3: max abs true error (indep. of errororder)
+                        res(3,i) = max(res(3,i),max(etrue)); 
+                        % 4: max rel true error w.r.t true fxi norm (indep. of errororder)
+                        hlp = etrue./fxinorm;
+                        hlp(isnan(hlp)) = 0;
+                        res(4,i) = max(res(4,i),max(hlp)); 
+                        % 5: mean abs true error (indep. of errororder)
+                        res(5,i) = res(5,i) + sum(etrue)/m; 
+                        % 6: mean rel true error w.r.t true fxi norm (indep. of errororder)
+                        res(6,i) = res(6,i) + sum(hlp)/m; 
+                        co = res(1,i);
+                    else % else copy
+                        res(3:6,i) = res(3:6,i-1);
                     end
-                    if eo > 0
+                    if res(2,i) > 0
                         % Estimated absolute/rel errors
-                        hlp2 = efun(deim.getEstimatedError(xi,atd.ti(pos),atd.mui(:,pos)))';
-                        hlp(pos,i,3) = hlp2;
-                        hlp(pos,i,4) = hlp2./fxinorm;
+                        eest = efun(deim.getEstimatedError(xi,atd.ti(pos),atd.mui(:,pos)));
+                        % 7: max abs estimated error
+                        res(7,i) = max(res(7,i),max(eest));
+                        % 8: max rel estimated error w.r.t true fxi norm
+                        hlp = eest./fxinorm;
+                        hlp(isnan(hlp)) = 0;
+                        res(8,i) = max(res(8,i),max(hlp));
+                        % 9: mean abs estimated error
+                        res(9,i) = res(9,i) + sum(eest)/m;
+                        % 10: mean rel estimated error w.r.t true fxi norm
+                        res(10,i) = res(10,i) + sum(hlp)/m;
+                        % 11: max rel error on (estimated-true error) w.r.t true error
+                        hlp = abs(eest-etrue)./etrue;
+                        hlp(isnan(hlp)) = 0;
+                        res(11,i) = max(res(11,i),max(hlp));
+                        % 12: mean rel error on (estimated-true error) w.r.t true error
+                        res(12,i) = res(12,i) + sum(hlp)/m;
+                        % 13: max rel error on (estimated-maxorder error) w.r.t maxorder error
+                        hlp = abs(eest-emaxorder)./emaxorder;
+                        hlp(isnan(hlp)) = 0;
+                        res(13,i) = max(res(13,i),max(hlp));
+                        % 14: mean rel error on (estimated-maxorder error) w.r.t maxorder error
+                        res(14,i) = res(14,i) + sum(hlp)/m;
                     end
                     pi.step;
                 end
             end
-            % Compute Linf error over all samples
-            res(3:6,:) = squeeze(Norm.Linf(hlp))';
-            pi.stop;
-            if nargout == 3
-                pm = testing.DEIM.plotDEIMErrs(res);
-            end
             deim.Order = oldo;
+            pi.stop;
         end
         
         function pm = plotDEIMErrs(res, pm)
-            %% Plotting
-            tri = delaunay(res(1,:),res(2,:));
+            
             if nargin < 2
                 pm = tools.PlotManager(false,2,3);
-                pm.FilePrefix = 'deim';
+                pm.FilePrefix = 'comp_m_mdash';
             end
-            h = pm.nextPlot('true_abs','Linf-L2 absolute error','m','m''');
-            doplot(h,tri,res(1,:),res(2,:),res(3,:));
-            h = pm.nextPlot('true_rel','Linf-L2 relative  error','m','m''');
-            doplot(h,tri,res(1,:),res(2,:),res(4,:));
+            % Not used yet:
+            % 5: mean abs true error (indep. of errororder)
+            % 6: mean rel true error w.r.t true fxi norm (indep. of errororder)
+            % 9: mean abs estimated error
+            % 10: mean rel estimated error w.r.t true fxi norm
             
+            % Compute unique positions
+            [orders, idx] = unique(res(1,:));
+            % 1: order, 2: errororder
+            tri = delaunay(res(1,:),res(2,:));
+            
+            % 3: max abs true error (indep. of errororder)
+            h = pm.nextPlot('true_abs','Linf-L2 absolute error','m','m''');
+            semilogy(h,orders,res(3,idx));
+            %doplot(h,tri,res(1,:),res(2,:),res(3,:));
+            % 7: max abs estimated error
             h = pm.nextPlot('est_abs','Estimated absolute error','m','m''');
-            doplot(h,tri,res(1,:),res(2,:),res(5,:));
+            doplot(h,tri,res(1,:),res(2,:),res(7,:),'EdgeColor','none');
+            
+            % 4: max rel true error w.r.t true fxi norm (indep. of errororder)
+            h = pm.nextPlot('true_rel','Linf-L2 relative  error','m','m''');
+            semilogy(h,orders,res(4,idx));
+            %doplot(h,tri,res(1,:),res(2,:),res(4,:));
+            % 8: max rel estimated error w.r.t true fxi norm
             h = pm.nextPlot('est_rel','Estimated relative error','m','m''');
-            doplot(h,tri,res(1,:),res(2,:),res(6,:));
+            doplot(h,tri,res(1,:),res(2,:),res(8,:),'EdgeColor','none');
+            
+            %% Reduced Triplots
+            n = size(res,2);
+            %sel = 1:step:n;
+            %sel = round(logspace(log10(1),log10(n),300));
+            sel = [1 2 3 4 5 7 9 11 13 15:6:n];
+            res = res(:,sel);
+            n = size(res,2);
+            % 1: order
+            % 2: errororder
+            tri = delaunay(res(1,:),res(2,:));
                         
-            h = pm.nextPlot('abs_diff','|true - estimated| absolute error','m','m''');
-            doplot(h,tri,res(1,:),res(2,:),abs(res(5,:)-res(3,:)));
-            view(0,90);
-            h = pm.nextPlot('rel_diff','|(true - estimated)/true| errors','m','m''');
-            doplot(h,tri,res(1,:),res(2,:),abs((res(5,:)-res(3,:))./res(3,:)));
+            h = pm.nextPlot('est_abs','Absolute difference of estimated to true error','m','m''');
+            doplot(h,tri,res(1,:),res(2,:),abs(res(3,:)-res(7,:)));
+            
+            % 11: max rel error of (estimated-true error) w.r.t true error
+            % 12: mean rel error of (estimated-true error) w.r.t true error
+            h = pm.nextPlot('max_relerr_est_true_totrue','"max (true - estimated)/true" relative error','m','m''');
+            doplot(h,tri,res(1,:),res(2,:),res(11,:));
             hold on;
-            sh = doplot(h,tri,res(1,:),res(2,:),1e-2*ones(size(res(6,:))),...
+            sh = doplot(h,tri,res(1,:),res(2,:),1e-2*ones(1,n),...
+                'EdgeColor','none','FaceColor','k');
+            alpha(sh,.2);
+            hold off;
+            axis ij;
+            h = pm.nextPlot('mean_relerr_est_true_totrue','"mean (true - estimated)/true" relative error','m','m''');
+            doplot(h,tri,res(1,:),res(2,:),res(12,:));
+            hold on;
+            sh = doplot(h,tri,res(1,:),res(2,:),1e-2*ones(1,n),...
                 'EdgeColor','none','FaceColor','k');
             alpha(sh,.2);
             hold off;
             axis ij;
             view(-40,34);
             
-%             h = pm.nextPlot('abs_diff','|true - dir. est.| absolute error','order','error order');
-%             doplot(h,tri,res(1,:),res(2,:),abs(res(7,:)-res(3,:)));
-%             h = pm.nextPlot('rel_diff','|true - dir. est.| relative error','order','error order');
-%             doplot(h,tri,res(1,:),res(2,:),abs(res(8,:)-res(4,:)));
-%             
-%             h = pm.nextPlot('abs_diff','|dir est - ref. est.| absolute error','order','error order');
-%             doplot(h,tri,res(1,:),res(2,:),abs(res(5,:)-res(7,:)));
-%             h = pm.nextPlot('rel_diff','|dir est - ref. est.| relative error','order','error order');
-%             doplot(h,tri,res(1,:),res(2,:),abs(res(6,:)-res(8,:)));
-%             
-%             h = pm.nextPlot('est_abs','Direct estimation of absolute error','order','error order');
-%             doplot(h,tri,res(1,:),res(2,:),res(7,:));
-%             h = pm.nextPlot('est_rel','Direct estimation of relative error','order','error order');
-%             doplot(h,tri,res(1,:),res(2,:),res(8,:));
-            
+            % 13: max rel error of (estimated-maxorder error) w.r.t maxorder error
+            % 14: mean rel error of (estimated-maxorder error) w.r.t maxorder error
+            h = pm.nextPlot('max_relerr_est_emaxo_toemaxo','"max (maxordererror - estimated)/maxordererror" relative error','m','m''');
+            doplot(h,tri,res(1,:),res(2,:),res(13,:));
+            hold on;
+            sh = doplot(h,tri,res(1,:),res(2,:),1e-2*ones(1,n),...
+                'EdgeColor','none','FaceColor','k');
+            alpha(sh,.2);
+            hold off;
+            axis ij;
+            h = pm.nextPlot('mean_relerr_est_emaxo_toemaxo','"mean (maxordererror - estimated)/maxordererror" relative error','m','m''');
+            doplot(h,tri,res(1,:),res(2,:),res(14,:));
+            hold on;
+            sh = doplot(h,tri,res(1,:),res(2,:),1e-2*ones(1,n),...
+                'EdgeColor','none','FaceColor','k');
+            alpha(sh,.2);
+            hold off;
+            axis ij;
+            view(-40,34);
+
             pm.done;
             
             function p = doplot(h, tri, x, y, z, varargin)
@@ -355,88 +435,51 @@ classdef DEIM
             pm.done;
         end
         
-        function [res, relerrs, orders, t] = getMinRequiredErrorOrders(fm, relerrs, orders)
-            % [res, relerrs, orders, t] = getMeanRequiredErrorOrders(this, relerrs, orders, mu)
-            % This high-level function computes the minimum values of M' in
-            % order to have the relative error of true to estimated DEIM
-            % error smaller than the specified relerrs.
-            %
-            % Parameters:
-            % fm: The full model @type models.BaseFullModel
-            % relerrs: The relative errors that may occur between true and
-            % estimated approximation error, maximized over time of each
-            % trajectory, averaged over all trajectories. @type
-            % rowvec<double> @default [1e-1 1e-2 1e-3 1e-4]
-            % orders: The different orders for which to compute the minimum
-            % ErrorOrders @type rowvec<integer> @default One to
-            % approx.DEIM.MaxOrder-1 in steps of three
-            %
+        function t = getMinReqErrorOrdersTable(errordata, relerrs, tsize, maxorder)
             % Return values:
-            % res: A matrix containing the minimum required M', indexed by
-            % orders in rows and relative errors in columns. @type
-            % matrix<double>
-            % relerrs: The effectively used relerrs. @type rowvec<double>
-            % orders: The effectively used orders. @type rowvec<integer>
             % t: A PrintTable containing the results. If not specified as a
             % nargout argument, the table will be printed instead. @type
             % PrintTable @optional
-            f = fm.Approx;
-            atd = fm.Data.ApproxTrainData;
-            xi = atd.xi.toMemoryMatrix;
-            fxi = atd.fxi.toMemoryMatrix;
-            if nargin < 3 || isempty(orders)
-                orders = 1:3:(f.MaxOrder-1);
+            if nargin == 4
+                txt = sprintf('DEIM MaxOrder %d error',maxorder);
+                maxvidx = 13;
+                meanvidx = 14;
+            else
+                txt = 'true DEIM error';
+                maxvidx = 11;
+                meanvidx = 12;
             end
-            if nargin < 2 || isempty(relerrs)
-                relerrs = [1e-1 1e-2 1e-3 1e-4];
-            end
-            
-            oldo = f.Order;
-            res = zeros(length(orders),length(relerrs));
-            resmean = res;
-            t = PrintTable('Required M'' over %d training samples for min/mean relative error',size(xi,2));
+            t = PrintTable('Required M'' over %d training samples for min/mean errors relative to %s',...
+                tsize,txt);
             t.HasHeader = true;
             title = arrayfun(@(e)sprintf('%g',e),relerrs,'Unif',false);
             t.addRow('m / rel. error',title{:});
-            pi = tools.ProcessIndicator('Computing min required error orders over %d DEIM orders (%d max order, %d total, %d rel errors)',...
-                sum(f.MaxOrder-orders),false,length(orders),f.MaxOrder,...
-                sum(f.MaxOrder-orders),length(relerrs));
-            for i = 1:length(orders)
-                f.Order = orders(i);
-                etrue = Norm.L2(fxi - f.evaluate(xi,atd.ti,atd.mui));
-                eos = f.MaxOrder-orders(i);
-                rel = zeros(eos,2);
-                for eo = 1:eos
-                    f.Order = [orders(i) eo];
-                    eest = Norm.L2(f.getEstimatedError(xi, atd.ti, atd.mui));
-                    rerr = abs((eest-etrue) ./ etrue);
-                    rerr(isnan(rerr)) = [];
-                    rel(eo,1) = max(rerr);
-                    rel(eo,2) = mean(rerr);
-                    pi.step;
-                end
-                hlp = cell.empty(0,4);
-                for j = 1:length(relerrs)
-                    % Max rel errs
-                    idx = find(rel(:,1) <= relerrs(j),1,'first');
-                    if isempty(idx)
-                        idx = min(rel(:,1));
+            nr = length(relerrs);
+            o = [];
+            for i = 1:size(errordata,2)
+                if isempty(o) || o ~= errordata(1,i)
+                    o = errordata(1,i);
+                    pos = errordata(1,:) == o;
+                    maxv = errordata(maxvidx,pos);
+                    meanv = errordata(meanvidx,pos);
+                    hlp = cell.empty(0,nr);
+                    for j = 1:nr
+                        % Max rel errs
+                        maxidx = find(maxv <= relerrs(j),1,'first');
+                        if isempty(maxidx), 
+                            maxidx = min(maxv); 
+                        end
+                        % Mean rel errs
+                        meanidx = find(meanv <= relerrs(j),1,'first');
+                        if isempty(meanidx), 
+                            meanidx = min(meanv); 
+                        end
+                        hlp{j} = sprintf('%g/%g',maxidx,meanidx);
                     end
-                    res(i,j) = idx;
-                    % Mean rel errs
-                    idx = find(rel(:,2) <= relerrs(j),1,'first');
-                    if isempty(idx)
-                        idx = min(rel(:,1));
-                    end
-                    resmean(i,j) = idx;
-                    hlp{j} = sprintf('%g/%g',res(i,j),resmean(i,j));
+                    t.addRow(errordata(1,i),hlp{:});
                 end
-                t.addRow(orders(i),hlp{:});
             end
-            pi.stop;
-            f.Order = oldo;
-            res = [res resmean];
-            if nargout < 4
+            if nargout < 1
                 t.display;
             end
         end
