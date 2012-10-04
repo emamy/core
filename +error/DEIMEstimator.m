@@ -79,6 +79,9 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
         % Included for easy error estimator comparison.
         UseJacobianLogLipConst = false;
         
+        % Expensive conservative guess.
+        UseJacobianNorm = false;
+        
         % "Expensive" version that uses the true approximation error
         % between the DEIM approximation and the full system function
         % instead of the `M'` variant.
@@ -207,7 +210,7 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
             this.compute_jacmdeim(fm);
             
             % Similarity transformation
-            %this.compute_simtrans(fm);
+            this.compute_simtrans(fm);
 
             % Compute approximation for local logarithmic norm
             %             this.computeLogNormApprox;
@@ -277,7 +280,6 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
         end
         
         function a = getAlpha(this, x, t, mu, ut)
-            x = x(1:end-1);
             % More expensive variant, using the true DEIM approximation
             % error instead of the estimated ones using M,M' technique
             if this.UseTrueDEIMErr
@@ -333,7 +335,6 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
         end
         
         function b = getBeta(this, x, t, mu)
-            x = x(1:end-1);
             % Old log lip const kernel learning code
             %x = x .* (this.scale(:,2) - this.scale(:,1)) + this.scale(:,1);
             %             x = (x - this.scale(:,1)) ./ (this.scale(:,2) - this.scale(:,1));
@@ -358,10 +359,15 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
                 else
                     b = 0;
                 end
-            elseif this.UseFullJacobian
+            elseif this.UseFullJacobian || this.UseJacobianNorm
                 rm = this.ReducedModel;
                 f = rm.FullModel.System.f;
-                b = general.Utils.logNorm(f.getStateJacobian(rm.V*x, t, mu));
+                J = f.getStateJacobian(rm.V*x, t, mu);
+                if this.UseJacobianNorm
+                    b = normest(J);
+                else
+                    b = general.Utils.logNorm(J);
+                end
             else
                 DJ = this.JacMDEIM.evaluate(x,t,mu);
                 b = general.Utils.logNorm(DJ);

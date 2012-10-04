@@ -75,6 +75,8 @@ classdef PlotManager < handle
 % Redistribution and use in source and binary forms, with or without modification, are
 % permitted only in compliance with the BSD license, see
 % http://www.opensource.org/licenses/bsd-license.php
+%
+% @todo register onFigureClose callback to remove figure from handles list
     
     properties
         % Flag if single plots shall be used for subsequent calls to

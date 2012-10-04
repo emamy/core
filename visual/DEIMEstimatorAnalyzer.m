@@ -235,8 +235,8 @@ str = sprintf('Times: Full %gs, Red.: %gs, Speedup: %g\n',tf,tr,tf/tr);
 str = [str sprintf('Errors(T=%g): True: %g, Est.: %g,\nRel: %g, Est.Rel.: %g, Eff.:%g',...
     t(end),err(end),eest,err(end)/yno(end),eest/yno(end),eest/err(end))];
 set(h.lblRes,'String',str);
-tools.LogPlot.cleverPlot(h.axhlp,r.Times(2:end),r.ODESolver.LastAlpha,'m');
-tools.LogPlot.cleverPlot(h.axhlp2,r.Times(2:end),r.ODESolver.LastBeta,'c');
+tools.LogPlot.cleverPlot(h.axhlp,r.Times,r.ODESolver.LastAlpha,'m');
+tools.LogPlot.cleverPlot(h.axhlp2,r.Times,r.ODESolver.LastBeta,'c');
 axis(h.axerr,'tight');
 if r.ErrorEstimator.Enabled
     axis(h.axeff,'tight');
@@ -292,6 +292,7 @@ e = r.ErrorEstimator;
 e.UseTrueLogLipConst = false;
 e.UseJacobianLogLipConst = false;
 e.UseFullJacobian = false;
+e.UseJacobianNorm = false;
 switch get(rb,'UserData')
     case 1
         e.UseTrueLogLipConst = true;
@@ -299,6 +300,8 @@ switch get(rb,'UserData')
         e.UseJacobianLogLipConst = true;
     case 3
         e.UseFullJacobian = true;
+    case 4
+        e.UseJacobianNorm = true;
 end
 reSimulate(h);
 

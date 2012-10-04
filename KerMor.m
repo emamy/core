@@ -988,7 +988,8 @@ classdef KerMor < handle
             [s, m] = system('git branch -v');
             cd(olddir);
             if s ~= 0
-                error('An error occurred retrieving the git branch: %s',m);
+                warning('KerMor:Env','An error occurred retrieving the git branch: %s',m);
+                m = [];
             end
         end
         
