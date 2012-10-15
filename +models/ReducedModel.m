@@ -122,8 +122,20 @@ classdef ReducedModel < models.BaseModel
             this.G = fullmodel.G;
             
             % Select the desired first target_dim vectors of the projection matrices
+            if target_dim > size(fullmodel.Data.V,2)
+                warning('ReducedModel:build','Target dimension %d larger than available subspace size %d. Using %d.',...
+                    target_dim,size(fullmodel.Data.V,2),size(fullmodel.Data.V,2));
+                target_dim = size(fullmodel.Data.V,2);
+            end
             this.V = fullmodel.Data.V(:,1:target_dim);
-            this.W = fullmodel.Data.W(:,1:target_dim);
+            % If petrov-galerkin projection, use W
+            if ~isempty(fullmodel.Data.W)
+                this.W = fullmodel.Data.W(:,1:target_dim);
+            else
+                % Else perform galerkin projection with W=V
+                this.W = this.V;
+            end
+            
             
             this.ParamSamples = fullmodel.Data.ParamSamples;
             
@@ -213,6 +225,10 @@ classdef ReducedModel < models.BaseModel
     methods(Sealed)
         function plot(this, t, y, varargin)
             this.FullModel.plot(t, y, varargin{:});
+        end
+        
+        function plotState(this, t, y, varargin)
+            this.FullModel.plotState(t, y, varargin{:});
         end
         
         function plotSingle(this, t, y, varargin)

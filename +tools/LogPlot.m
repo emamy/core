@@ -18,6 +18,10 @@ classdef LogPlot
             p = surf(h,X,Y,Z,'FaceColor','interp','EdgeColor','k',varargin{:});
         end
         
+        function p = nicesurfc(h,X,Y,Z,varargin)
+            p = surfc(h,X,Y,Z,'FaceColor','interp','EdgeColor','k',varargin{:});
+        end
+        
         function p = logsurf(h,X,Y,Z,varargin)
             % Create meshgrid if not already existing
             if isvector(X) && isvector(Y)
@@ -30,20 +34,31 @@ classdef LogPlot
             tools.LogPlot.postprocess(h);
         end
         
+        function p = logsurfc(h,X,Y,Z,varargin)
+            % Create meshgrid if not already existing
+            if isvector(X) && isvector(Y)
+                [X,Y] = meshgrid(X,Y);
+            end
+            iszero = Z == 0;
+            Z(iszero) = .5*min(Z(:));
+            Z = log10(Z);
+            p = tools.LogPlot.nicesurfc(h,X,Y,Z,varargin{:});
+            tools.LogPlot.postprocess(h);
+        end
+        
         function p = logtrisurf(h, tri, x, y, z, varargin)
             z = log10(z);
             p = trisurf(tri, x, y, z,'Parent',h,'FaceColor','interp','EdgeColor','k',varargin{:});
             tools.LogPlot.postprocess(h);
-            % color log-scaling mess
-            %set(h,'zscale','log');
-            %zdata = log10(get(p,'ZData'));
-            %cdata = get(p,'CDATA');
         end
         
         function cleverPlot(ax,x,y,varargin)
             if any(y(:)) < 0 || all(max(y)./min(y) < 100)
                 pfun = @plot;
             else
+                % As soon as one plot varies over more that two orders of magnitude,
+                % use log Y scale
+                set(ax,'YScale','log');
                 pfun = @semilogy;
             end
             pfun(ax,x,y,varargin{:});

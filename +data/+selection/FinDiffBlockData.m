@@ -38,7 +38,7 @@ classdef FinDiffBlockData < data.ABlockedData
             B = [B diff(B,1,2)];
         end
         
-        function [n, m] = size(this, dim)
+        function [n, m] = size(this, varargin)
             n = [size(this.orig,1) 2*size(this.orig,2)-this.getNumBlocks];
             if nargin == 2
                 if dim > 0 && dim < 3

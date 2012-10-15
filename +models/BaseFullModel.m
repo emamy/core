@@ -21,6 +21,12 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 %
 % @author Daniel Wirtz @date 16.03.2010
 %
+% @new{0,6,dw,2012-10-10} Added the SaveTag property on this level. It is automatically set
+% according to the model name whenever it is still empty and the models name is set.
+%
+% @new{0,6,dw,2012-10-08} Added a new read-only property models.BaseFullModel.OfflinePhaseTimes
+% that contains the last offline computation times in a row vector.
+%
 % @change{0,6,dw,2012-04-26} Using tools.ProcessIndicator for training data
 % generation now.
 %
@@ -207,6 +213,18 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         %
         % @type logical @default false
         ComputeBSpan = false;
+        
+        % A custom tag that can be used as a prefix to files for corresponding model
+        % identification.
+        %
+        % If the property models.BaseModel.Name is set and the SaveTag is still empty, a
+        % lowercase, trimmed and spaces-replaced-by-underscore SaveTag will be automatically
+        % set.
+        %
+        % @propclass{optional}
+        %
+        % @type char @default []
+        SaveTag = [];
     end
     
     properties(SetObservable, Dependent)
@@ -230,11 +248,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
     properties(SetAccess=private)
         % The computation times for all phases of the last offline generation.
         %
-        % Contains a `1\times 5` row vector with the corresponding times for the 'off1_' to 'off_5'
+        % Contains a `1\times 6` row vector with the corresponding times for the 'off1_' to 'off_6'
         % phases.
         %
-        % @default []
-        % @type rowvec
+        % @type rowvec<double> @default []
         OfflinePhaseTimes = [];
     end
     
@@ -271,9 +288,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.addlistener('dt','PreSet', @this.intTimeChanging);
             this.addlistener('T','PostSet', @this.intTimeChanged);
             this.addlistener('dt','PostSet', @this.intTimeChanged);
+            this.addlistener('Name','PostSet', @this.nameChanged);
         end
         
-        function time = off1_createParamSamples(this)
+        function off1_createParamSamples(this)
             % Offline phase 1: Sample generation.
             
             % Sampling
@@ -283,10 +301,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             elseif this.System.ParamCount > 0
                 error('No parameter sampler set for a parameterized system. See package sampling and the Sampler property of the BaseFullModel class.');
             end
-            time = toc(time);
+            this.OfflinePhaseTimes(1) = toc(time);
         end
         
-        function time = off2_genTrainingData(this)
+        function off2_genTrainingData(this)
             % Offline phase 2: Snapshot generation for subspace computation
             %
             % @todo
@@ -364,13 +382,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     pi = tools.ProcessIndicator(sprintf('Generating projection training data (%d trajectories)...',num_in*num_s),num_in*num_s);
                 end
                 if this.ComputeTrajectoryFxiData
-                    elems = num_in*num_s*length(this.Times)*this.Dimension;
-                    if elems*32/(1024^3) > 1
+                    %elems = num_in*num_s*length(this.Times)*this.Dimension;
+                    %if elems*32/(1024^3) > 1
                         tfxd = data.FileTrajectoryData(...
                             fullfile(this.Data.DataDirectory,'trajectory_fx'));
-                    else
-                        tfxd = data.MemoryTrajectoryData;
-                    end
+                    %else
+                    %    tfxd = data.MemoryTrajectoryData;
+                    %end
                 else
                     tfxd = [];
                 end
@@ -438,10 +456,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 end
             end
             
-            time = toc(time);
+            this.OfflinePhaseTimes(2) = toc(time);
         end
         
-        function time = off3_computeReducedSpace(this)
+        function off3_computeReducedSpace(this)
             % Offline phase 3: Generate state space reduction
             time = tic;
             V = []; W = [];
@@ -451,10 +469,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             end
             this.Data.V = V;
             this.Data.W = W;
-            time = toc(time);
+            this.OfflinePhaseTimes(3) = toc(time);
         end
         
-        function time = off4_genApproximationTrainData(this)
+        function off4_genApproximationTrainData(this)
             % Generates the training data `x_i` for the
             % `\hat{f}`-approximation and precomputes `f(x_i)` values.
             %
@@ -466,10 +484,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 this.Data.ApproxTrainData = data.ApproxTrainData.computeFrom(this, ...
                     this.System.f, this.Approx.TrainDataSelector, this.ComputeParallel);
             end
-            time = toc(t);
+            this.OfflinePhaseTimes(4) = toc(t);
         end
         
-        function time = off5_computeApproximation(this)
+        function off5_computeApproximation(this)
             % Offline phase 5: Core function approximation
             %
             % @todo proper subset selection algorithm/method
@@ -499,10 +517,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 end
             end
             
-            time = toc(time);
+            this.OfflinePhaseTimes(5) = toc(time);
         end
         
-        function time = off6_prepareErrorEstimator(this)
+        function off6_prepareErrorEstimator(this)
             % Prepares offline data for a possible error estimator.
             t = tic;
             e = this.ErrorEstimator;
@@ -512,10 +530,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 end
                 e.offlineComputations(this);
             end
-            time = toc(t);
+            this.OfflinePhaseTimes(6) = toc(t);
         end
         
-        function times = offlineGenerations(this)
+        function offlineGenerations(this)
             % Performs all large offline computations for model reduction.
             %
             % This method is mainly used to compile all large data for the
@@ -524,16 +542,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % It calls all of the offX_ - methods in their order.
             %
             % See also: buildReducedModel
-            
-            times(1) = this.off1_createParamSamples;
-            times(2) = this.off2_genTrainingData;
-            times(3) = this.off3_computeReducedSpace;
-            times(4) = this.off4_genApproximationTrainData;
-            times(5) = this.off5_computeApproximation;
-            times(6) = this.off6_prepareErrorEstimator;
-            
-            % Store the computation times
-            this.OfflinePhaseTimes = times;
+            this.OfflinePhaseTimes = [];
+            this.off1_createParamSamples;
+            this.off2_genTrainingData;
+            this.off3_computeReducedSpace;
+            this.off4_genApproximationTrainData;
+            this.off5_computeApproximation;
+            this.off6_prepareErrorEstimator;
         end
         
         function [reduced,time] = buildReducedModel(this, target_dim)
@@ -633,6 +648,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 this.Data.SimCache.clearTrajectories;
             end
         end
+        
+        function nameChanged(this, ~, ~)
+            if isempty(this.SaveTag)
+                this.SaveTag = regexprep(...
+                    strrep(strtrim(this.Name),' ','_'),'[^\d\w~-]','');
+            end
+        end
     end
         
     %% Getter & Setter
@@ -713,6 +735,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.addlistener('dt','PreSet', @this.intTimeChanging);
             this.addlistener('T','PostSet', @this.intTimeChanged);
             this.addlistener('dt','PostSet', @this.intTimeChanged);
+            this.addlistener('Name','PostSet', @this.nameChanged);
         end
     end
            

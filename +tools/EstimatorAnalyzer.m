@@ -287,7 +287,7 @@ classdef EstimatorAnalyzer < handle
             
             this.doPlots(errs, ax);
 
-            axis(ax,[0 this.Model.T this.getYMin(errs) 3*max(errs(:))]);
+            axis(ax,[this.Model.Times(this.PlotStartIndex) this.Model.T this.getYMin(errs) 3*max(errs(:))]);
         end
         
         function plotRelativeErrors(this, relerrs, pm)
@@ -298,7 +298,7 @@ classdef EstimatorAnalyzer < handle
             
             re = relerrs(:);
             re(isinf(re)) = -Inf;
-            axis(ax,[0 this.Model.T this.getYMin(relerrs) 3*max(re)]);
+            axis(ax,[this.Model.Times(this.PlotStartIndex) this.Model.T this.getYMin(relerrs) 3*max(re)]);
         end
         
         function plotCTimes(this, errs, ctimes, pm)
@@ -336,7 +336,7 @@ classdef EstimatorAnalyzer < handle
             % Add legend
             a = cell(1,length(this.Est));
             [a{:}] = this.Est(:).Name;
-            legend(a,'Location','NorthEast');
+            legend(a,'Location','NorthEast','Interpreter','latex');
             axis([.9*min(errs(:,end)) 1.1*max(errs(:,end)) .9*min(ctimes(:)) 1.1*max(ctimes(:))]);
         end
         
@@ -350,10 +350,13 @@ classdef EstimatorAnalyzer < handle
             end
             pt = PrintTable('%s for model "%s"',str,this.Model.Name);
             pt.HasRowHeader = true;
-            pt.addRow('Name',sprintf('$\\Delta(%g)$',this.Model.T),'Time','Overestimation');
+            pt.addRow('Name',sprintf('$\\Delta(%g)$',this.Model.T),'Time','Efficiency');
+            sfun = @(v)general.Utils.getLatexStr(v,3);
             for id = 1:length(this.Est)
-                pt.addRow(this.Est(idx(id)).Name,errs(idx(id),end),ctimes(idx(id)),...
-                    errs(idx(id),end)/errs(1,end),{'$%1.3e}$','%2.2fs','$%1.3e}$'});
+                  pt.addRow(this.Est(idx(id)).Name,errs(idx(id),end),ctimes(idx(id)),...
+                    errs(idx(id),end)/errs(1,end),{sfun,'%2.2fs',sfun});
+%                 pt.addRow(this.Est(idx(id)).Name,errs(idx(id),end),ctimes(idx(id)),...
+%                     errs(idx(id),end)/errs(1,end),{'$%1.3$','%2.2fs','$%1.3e$'});
             end
             pt.HasHeader = true;
         end
@@ -427,7 +430,8 @@ classdef EstimatorAnalyzer < handle
     
     methods(Access=private)
         
-        function y = getYMin(~, err)
+        function y = getYMin(this, err)
+            err = err(:,this.PlotStartIndex:end);
             e1 = min(err(:,1));
             er = min(reshape(err(:,2:end),1,[]));
             if log10(abs(e1 - er)) < 5
@@ -474,7 +478,7 @@ classdef EstimatorAnalyzer < handle
             end
             a = cell(1,length(this.Est));
             [a{:}] = this.Est(:).Name;
-            [~,oh] = legend(a,'Location','SouthEast');
+            [~,oh] = legend(a,'Location','SouthEast','Interpreter','latex','FontSize',14);
             % Assign markers to legend
             oh = findobj(oh,'Type','line');
             for idx=1:length(this.Est)

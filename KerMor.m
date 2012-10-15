@@ -982,13 +982,17 @@ classdef KerMor < handle
         end
         
         function m = getGitBranch
-            % Returns the current git branch
+            % Returns the current git commit in a descriptive string
             olddir = pwd;
             cd(KerMor.App.HomeDirectory);
-            [s, m] = system('git branch -v');
+            [s, m] = system(sprintf('export TERM=%s; git log -n 1 --pretty=format:"%%H: %%s%%+ai by %%an<%%ae>"',getenv('TERM')));
             cd(olddir);
+            % Odd fix to remove UTF-8 chars (display in editor breaks)
+            if m(1) == char(27)
+                m = strrep(m(9:end-16),[char(27) '[m'],'');
+            end
             if s ~= 0
-                warning('KerMor:Env','An error occurred retrieving the git branch: %s',m);
+                warning('KerMor:Env','An error occurred retrieving the git commit: %s',m);
                 m = [];
             end
         end

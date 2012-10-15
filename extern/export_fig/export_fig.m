@@ -15,6 +15,7 @@
 %   export_fig ... -<renderer>
 %   export_fig ... -<colorspace>
 %   export_fig ... -append
+%   export_fig ... -bookmark
 %   export_fig(..., handle)
 %
 % This function saves a figure or single axes to one or more vector and/or
@@ -119,6 +120,8 @@
 %   -append - option indicating that if the file (pdfs only) already
 %             exists, the figure is to be appended as a new page, instead
 %             of being overwritten (default).
+%   -bookmark - option to indicate that a bookmark with the name of the
+%               figure is to be created in the output file (pdf only).
 %   handle - The handle of the figure or axes (can be an array of handles
 %            of several axes, but these must be in the same figure) to be
 %            saved. Default: gcf.
@@ -133,7 +136,7 @@
 %
 %   See also PRINT, SAVEAS.
 
-% Copyright (C) Oliver Woodford 2008-2011
+% Copyright (C) Oliver Woodford 2008-2012
 
 % The idea of using ghostscript is inspired by Peder Axensten's SAVEFIG
 % (fex id: 10889) which is itself inspired by EPS2PDF (fex id: 5782).
@@ -155,7 +158,18 @@
 % Thanks to Tammy Threadgill for reporting a bug where an axes is not
 % isolated from gui objects.
 
+% 23/02/12: Ensure that axes limits don't change during printing
+% 14/03/12: Fix bug in fixing the axes limits (thanks to Tobias Lamour for
+%           reporting it).
+% 02/05/12: Incorporate patch of Petr Nechaev (many thanks), enabling
+%           bookmarking of figures in pdf files.
+% 09/05/12: Incorporate patch of Arcelia Arrieta (many thanks), to keep
+%           tick marks fixed.
+
 function [im alpha] = export_fig(varargin)
+% Make sure the figure is rendered correctly _now_ so that properties like
+% axes limits are up-to-date.
+drawnow;
 % Parse the input arguments
 [fig options] = parse_args(nargout, varargin{:});
 % Isolate the subplot, if it is one
@@ -183,6 +197,19 @@ if isbitmap(options) && magnify ~= 1
         set(fontu, 'FontUnits', 'points');
     end
 end
+% MATLAB "feature": axes limits and tick marks can change when printing
+Hlims = findall(fig, 'Type', 'axes');
+if ~cls
+    % Record the old axes limit and tick modes
+    Xlims = make_cell(get(Hlims, 'XLimMode'));
+    Ylims = make_cell(get(Hlims, 'YLimMode'));
+    Zlims = make_cell(get(Hlims, 'ZLimMode'));
+    Xtick = make_cell(get(Hlims, 'XTickMode'));
+    Ytick = make_cell(get(Hlims, 'YTickMode'));
+    Ztick = make_cell(get(Hlims, 'ZTickMode'));
+end
+% Set all axes limit and tick modes to manual, so the limits and ticks can't change
+set(Hlims, 'XLimMode', 'manual', 'YLimMode', 'manual', 'ZLimMode', 'manual', 'XTickMode', 'manual', 'YTickMode', 'manual', 'ZTickMode', 'manual');
 % Set to print exactly what is there
 set(fig, 'InvertHardcopy', 'off');
 % Set the renderer
@@ -261,7 +288,7 @@ if isbitmap(options)
             % Compute the resolution
             res = options.magnify * get(0, 'ScreenPixelsPerInch') / 25.4e-3;
             % Save the png
-            imwrite(A, [options.name '.png'], 'Alpha', alpha, 'ResolutionUnit', 'meter', 'XResolution', res, 'YResolution', res);
+            imwrite(A, [options.name '.png'], 'Alpha', double(alpha), 'ResolutionUnit', 'meter', 'XResolution', res, 'YResolution', res);
             % Clear the png bit
             options.png = false;
         end
@@ -385,6 +412,14 @@ if isvector(options)
         if options.transparent && ~isequal(get(fig, 'Color'), 'none')
             eps_remove_background(tmp_nam);
         end
+        % Add a bookmark to the PDF if desired
+        if options.bookmark
+            fig_nam = get(fig, 'Name');
+            if isempty(fig_nam)
+                warning('export_fig:EmptyBookmark', 'Bookmark requested for figure with no name. Bookmark will be empty.');
+            end
+            add_bookmark(tmp_nam, fig_nam);
+        end
         % Generate a pdf
         eps2pdf(tmp_nam, pdf_nam, 1, options.append, options.colourspace==2, options.quality);
     catch ex
@@ -417,6 +452,10 @@ if cls
 else
     % Reset the hardcopy mode
     set(fig, 'InvertHardcopy', old_mode);
+    % Reset the axes limit and tick modes
+    for a = 1:numel(Hlims)
+        set(Hlims(a), 'XLimMode', Xlims{a}, 'YLimMode', Ylims{a}, 'ZLimMode', Zlims{a}, 'XTickMode', Xtick{a}, 'YTickMode', Ytick{a}, 'ZTickMode', Ztick{a});
+    end
 end
 return
 
@@ -440,6 +479,7 @@ options = struct('name', 'export_fig_out', ...
                  'alpha', nout == 2, ...
                  'aa_factor', 3, ...
                  'magnify', 1, ...
+                 'bookmark', false, ...
                  'quality', []);
 native = false; % Set resolution to native of an image
 
@@ -482,6 +522,8 @@ for a = 1:nargin-1
                     options.aa_factor = str2double(varargin{a}(3));
                 case 'append'
                     options.append = true;
+                case 'bookmark'
+                    options.bookmark = true;
                 case 'native'
                     native = true;
                 otherwise
@@ -717,4 +759,45 @@ return
 
 function b = isbitmap(options)
 b = options.png || options.tif || options.jpg || options.bmp || options.im || options.alpha;
+return
+
+% Helper function
+function A = make_cell(A)
+if ~iscell(A)
+    A = {A};
+end
+return
+
+function add_bookmark(fname, bookmark_text)
+% Adds a bookmark to the temporary EPS file after %%EndPageSetup
+% Read in the file
+fh = fopen(fname, 'r');
+if fh == -1
+    error('File %s not found.', fname);
+end
+try
+    fstrm = fread(fh, '*char')';
+catch ex
+    fclose(fh);
+    rethrow(ex);
+end
+fclose(fh);
+
+% Include standard pdfmark prolog to maximize compatibility
+fstrm = strrep(fstrm, '%%BeginProlog', sprintf('%%%%BeginProlog\n/pdfmark where {pop} {userdict /pdfmark /cleartomark load put} ifelse'));
+% Add page bookmark
+fstrm = strrep(fstrm, '%%EndPageSetup', sprintf('%%%%EndPageSetup\n[ /Title (%s) /OUT pdfmark',bookmark_text));
+
+% Write out the updated file
+fh = fopen(fname, 'w');
+if fh == -1
+    error('Unable to open %s for writing.', fname);
+end
+try
+    fwrite(fh, fstrm, 'char*1');
+catch ex
+    fclose(fh);
+    rethrow(ex);
+end
+fclose(fh);
 return

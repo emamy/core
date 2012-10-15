@@ -22,7 +22,7 @@ function varargout = DEIMEstimatorAnalyzer(varargin)
 
 % Edit the above text to modify the response to help DEIMEstimatorAnalyzer
 
-% Last Modified by GUIDE v2.5 25-Sep-2012 16:33:42
+% Last Modified by GUIDE v2.5 12-Oct-2012 13:53:00
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -58,7 +58,26 @@ handles.output = hObject;
 % Update handles structure
 guidata(hObject, handles);
 
-r = varargin{1};
+% Parse inputs
+ip = inputParser;
+ip.addRequired('Model',@(r)isa(r,'models.ReducedModel'));
+ip.addParamValue('StartIdx',4,@isposintscalar);
+ip.parse(varargin{:});
+res = ip.Results;
+r = res.Model;
+setappdata(handles.main,'startidx',res.StartIdx);
+
+mu = r.System.mu;
+if isempty(mu)
+    mu = r.ParamSamples(:,1);
+end
+setappdata(handles.main,'mu',mu);
+in = [];
+if r.System.InputCount > 0
+    in = 1;
+end
+setappdata(handles.main,'inputidx',in);
+
 % Care condition: dont simulate very expensive by default!
 e = r.ErrorEstimator;
 if e.JacSimTransMaxSize > 0 && e.JacSimTransSize == 0
@@ -83,68 +102,76 @@ set(handles.rbgAlpha,'SelectionChangeFcn',@(s,e)rbgAlpha_SelectionChanged(handle
 set(handles.rbgBeta,'SelectionChangeFcn',@(s,e)rbgBeta_SelectionChanged(handles,s,e));
 set(handles.rbg_Param,'SelectionChangeFcn',@(s,e)rbgParam_SelectionChanged(handles,s,e));
 
-setappdata(handles.main,'mu',r.ParamSamples(:,1));
-in = [];
-if r.System.InputCount > 0
-    in = 1;
-end
-setappdata(handles.main,'inputidx',in);
-
 reSimulate(handles);
 
 function createModelParamSliders(h,r)
-% Setup training sample slider
-set(h.slTrainParam,'Min',1,'Max',size(r.ParamSamples,2),'Value',1);
-% Create model parameter slides
-parent = h.rbg_Param;
-set(parent,'Units','pixels');
-pos = get(parent,'Position');
-set(parent,'Units','normalized');
-dist = 22;%px
-pcnt = 0;
-pdata = struct;
-pdata.sl = zeros(r.System.ParamCount,1);
-pdata.lbl = zeros(r.System.ParamCount,1);
-for pidx = 1:r.System.ParamCount
-    p = r.System.Params(pidx);
-    if p.HasRange
-        % Top location
-        top = pos(4)-pcnt*dist-40-2*dist;
-        % Create labels
-        label = uicontrol('Tag',sprintf('lblP%d',pidx),'Style','text',...
-                'Parent',parent,'HorizontalAlignment','left');
-        set(label,'String',p.Name,'Units','pixels', 'Position',[10 top 100 14]);
-        set(label,'Units','normalized');
-        pdata.lbl(pidx) = label;
-        % Labels for min/max values
-        label = uicontrol('Tag',['runtime_lbll' num2str(pidx)],'Style','text',...
-                'Parent',parent,'HorizontalAlignment','right');
-        set(label,'String',sprintf('%g',p.MinVal),'Units','pixels',...
-            'Position',[100 top 30 14]);
-        set(label,'Units','normalized');
-        label = uicontrol('Tag',['runtime_lblr' num2str(pidx)],'Style','text',...
-                'Parent',parent,'HorizontalAlignment','left');
-        set(label,'String',sprintf('%g',p.MaxVal),'Units','pixels',...
-            'Position',[320 top 30 14]);
-        set(label,'Units','normalized');
-        % Create slider
-        ctrl = uicontrol('Tag',sprintf('slP%d',pidx),'Parent',...
-            parent,'Style','slider','UserData',pidx);
-        % Position
-        set(ctrl,'Units','pixels','Position',[140 top 170 16]);
-        set(ctrl,'Units','normalized');
-        % Range etc
-        set(ctrl,'Min',p.MinVal,'Max',p.MaxVal,'Value',p.MinVal);
-        set(ctrl,'SliderStep',[0.01 0.1]);
-        % Set callback & string
-        set(ctrl,'Callback',@(~,~)(updateUserParam(h)));
-        pdata.sl(pidx) = ctrl;
-       
-        % increase position counter
-        pcnt = pcnt + 1;
+if r.System.ParamCount > 0
+    % Setup training sample slider
+    set(h.slTrainParam,'Min',1,'Max',size(r.ParamSamples,2),'Value',1);
+    % Create model parameter slides
+    parent = h.rbg_Param;
+    set(parent,'Units','pixels');
+    pos = get(parent,'Position');
+    set(parent,'Units','normalized');
+    dist = 22;%px
+    pcnt = 0;
+    pdata = struct;
+    pdata.sl = zeros(r.System.ParamCount,1);
+    pdata.lbl = zeros(r.System.ParamCount,1);
+    mu = getappdata(h.main,'mu');
+    for pidx = 1:r.System.ParamCount
+        p = r.System.Params(pidx);
+        if p.HasRange
+            % Top location
+            top = pos(4)-pcnt*dist-40-2*dist;
+            
+            %% Create name labels
+            label = uicontrol('Tag',sprintf('lblP%d',pidx),'Style','text',...
+                    'Parent',parent,'HorizontalAlignment','left');
+            set(label,'String',[p.Name ':'],'Units','pixels',...
+                'Position',[10 top 60 14]);
+            set(label,'Units','normalized');
+            
+            %% Labels for min/max values
+            label = uicontrol('Tag',['runtime_lbll' num2str(pidx)],'Style','text',...
+                    'Parent',parent,'HorizontalAlignment','right');
+            set(label,'String',sprintf('%g',p.MinVal),'Units','pixels',...
+                'Position',[70 top 40 14]);
+            set(label,'Units','normalized');
+            label = uicontrol('Tag',['runtime_lblr' num2str(pidx)],'Style','text',...
+                    'Parent',parent,'HorizontalAlignment','left');
+            set(label,'String',sprintf('%g',p.MaxVal),'Units','pixels',...
+                'Position',[290 top 40 14]);
+            set(label,'Units','normalized');
+            
+            %% Create slider
+            ctrl = uicontrol('Tag',sprintf('slP%d',pidx),'Parent',...
+                parent,'Style','slider','UserData',pidx);
+            % Position
+            set(ctrl,'Units','pixels','Position',...
+                [110 top 170 16]);
+            set(ctrl,'Units','normalized');
+            % Range etc
+            set(ctrl,'Min',p.MinVal,'Max',p.MaxVal,'Value',mu(pidx));
+            set(ctrl,'SliderStep',[0.01 0.1]);
+            % Set callback & string
+            set(ctrl,'Callback',@(~,~)(updateUserParam(h)));
+            pdata.sl(pidx) = ctrl;
+
+            %% Create value labels
+            label = uicontrol('Tag',sprintf('lblPV%d',pidx),'Style','text',...
+                    'Parent',parent,'HorizontalAlignment','left');
+            set(label,'String',sprintf('%g',mu(pidx)),'Units','pixels',...
+                'Position',[340 top 40 14]);
+            set(label,'Units','normalized');
+            pdata.lbl(pidx) = label;
+            
+            % increase position counter
+            pcnt = pcnt + 1;
+        end
     end
+    setappdata(h.main,'pdata',pdata);
 end
-setappdata(h.main,'pdata',pdata);
 
 function updateUserParam(h)
 r = getappdata(h.main,'r');
@@ -159,7 +186,7 @@ if pc > 0
         else
             mu(pidx) = r.FullModel.System.Params(pidx).MinVal;
         end
-        s = sprintf('%s: %g',r.System.Params(pidx).Name,mu(pidx));
+        s = sprintf('%g',r.System.Params(pidx).Name,mu(pidx));
         set(pdata.lbl(pidx),'String',s);
     end
     setappdata(h.main,'mu',mu);
@@ -205,38 +232,51 @@ fprintf('Simulating... ');
 r = getappdata(h.main,'r');
 mu = getappdata(h.main,'mu');
 in = getappdata(h.main,'inputidx');
-[~, y, tf, x] = r.FullModel.simulate(mu,in);
-[t, yr, tr, xr] = r.simulate(mu,in);
-err = Norm.L2(y-yr);
-yno = Norm.L2(y);
-setappdata(h.main,'x',x);
-setappdata(h.main,'xr',xr);
-setappdata(h.main,'t',t);
-setappdata(h.main,'y',y);
-setappdata(h.main,'yr',yr);
-tools.LogPlot.cleverPlot(h.axerr,t,err,'b');
-tools.LogPlot.cleverPlot(h.axrel,t,err./yno,'b');
+s = struct;
+[~, s.y, s.tf, s.x] = r.FullModel.simulate(mu,in);
+[s.t, s.yr, s.tr, s.xr] = r.simulate(mu,in);
+setappdata(h.main,'s',s);
+rePlot(h);
+
+function rePlot(h)
+fprintf('plotting... ');
+r = getappdata(h.main,'r');
+s = getappdata(h.main,'s');
+if get(h.rbOutput,'Value') % Output error plot
+    Cn = normest(r.FullModel.System.C.C);
+    err = Cn*1e-7*Norm.L2(s.x-r.V*s.xr);
+    %err2 = Norm.L2(r.FullModel.System.computeOutput(s.x-r.V*s.xr));
+    %trajnorm = Norm.L2(s.y-s.yr);
+    trajnorm = Norm.L2(s.y);
+    esterr = r.ErrorEstimator.OutputError;
+else % State space error plot
+    err = Norm.L2(s.x-r.V*s.xr);
+    trajnorm = Norm.L2(s.x);
+    esterr = r.ErrorEstimator.StateError;
+end
+doPlot(h.axerr,r.Times,err,'b');
+doPlot(h.axrel,r.Times,err./trajnorm,'b');
 if r.ErrorEstimator.Enabled
     hold(h.axerr,'on');
-    tools.LogPlot.cleverPlot(h.axerr,t,r.ErrorEstimator.OutputError,'r');
+    doPlot(h.axerr,r.Times,esterr,'r');
     hold(h.axerr,'off');
     % Relative error
     hold(h.axrel,'on');
-    tools.LogPlot.cleverPlot(h.axrel,t,r.ErrorEstimator.OutputError./yno,'r');
+    doPlot(h.axrel,r.Times,esterr./trajnorm,'r');
     hold(h.axrel,'off');
     % Effectivities
-    tools.LogPlot.cleverPlot(h.axeff,t,r.ErrorEstimator.OutputError./err,'g');
-    eest = r.ErrorEstimator.OutputError(end);
+    doPlot(h.axeff,r.Times,esterr./err,'g');
+    eest = esterr(end);
 else
     cla(h.axeff);
     eest = -1;
 end
-str = sprintf('Times: Full %gs, Red.: %gs, Speedup: %g\n',tf,tr,tf/tr);
+str = sprintf('Times: Full %gs, Red.: %gs, Speedup: %g\n',s.tf,s.tr,s.tf/s.tr);
 str = [str sprintf('Errors(T=%g): True: %g, Est.: %g,\nRel: %g, Est.Rel.: %g, Eff.:%g',...
-    t(end),err(end),eest,err(end)/yno(end),eest/yno(end),eest/err(end))];
+    r.Times(end),err(end),eest,err(end)/trajnorm(end),eest/trajnorm(end),eest/err(end))];
 set(h.lblRes,'String',str);
-tools.LogPlot.cleverPlot(h.axhlp,r.Times,r.ODESolver.LastAlpha,'m');
-tools.LogPlot.cleverPlot(h.axhlp2,r.Times,r.ODESolver.LastBeta,'c');
+doPlot(h.axhlp,r.Times,r.ErrorEstimator.LastAlpha,'m');
+doPlot(h.axhlp2,r.Times,r.ErrorEstimator.LastBeta,'c');
 axis(h.axerr,'tight');
 if r.ErrorEstimator.Enabled
     axis(h.axeff,'tight');
@@ -245,11 +285,15 @@ if r.ErrorEstimator.Enabled
 end
 fprintf('done.\n');
 
+function doPlot(h, x, y, varargin)
+startidx = getappdata(get(h,'Parent'),'startidx');
+tools.LogPlot.cleverPlot(h,x(startidx:end),y(startidx:end),varargin{:});
+
 function getDEIMErrorsOnTraj(h)
 r = getappdata(h.main,'r');
-xr = getappdata(h.main,'xr');
+s = getappdata(h.main,'s');
 mu = getappdata(h.main,'mu');
-[ef,er,fxno] = testing.DEIM.getApproxErrorFullRed(r, xr, r.Times, mu, r.V);
+[ef,er,fxno] = testing.DEIM.getApproxErrorFullRed(r, s.xr, s.t, mu, r.V);
 pm = tools.PlotManager;
 pm.LeaveOpen = true;
 ax = pm.nextPlot('deimerr','True and projected approximation error on current trajectory','time','error');
@@ -423,8 +467,7 @@ if ~isequal(getappdata(h.main,'mu'),mu)
     pdata = getappdata(h.main,'pdata');
     for pidx = 1:length(mu)
         set(pdata.sl(pidx),'Value',mu(pidx));
-        s = sprintf('%s: %g',r.System.Params(pidx).Name,mu(pidx));
-        set(pdata.lbl(pidx),'String',s);
+        set(pdata.lbl(pidx),'String',sprintf('%g',mu(pidx)));
     end
     drawnow;
     reSimulate(h);
@@ -449,17 +492,34 @@ function btnVisResult_Callback(hObject, eventdata, h)
 % handles    structure with handles and user data (see GUIDATA)
 r = getappdata(h.main,'r');
 m = r.FullModel;
-t = getappdata(h.main,'t');
+s = getappdata(h.main,'s');
+pm = [];
+if get(h.rbOutput,'Value')
+    vr = s.yr;
+    v = s.y;
+    pm = tools.PlotManager(false,1,2);
+    pm.LeaveOpen = true;
+    pfun = @(t,y)r.plot(t,y,pm);
+    pfunm = @(t,y)m.plot(t,y,pm);
+else
+    vr = r.V*s.xr;
+    v = s.x;
+    pfun = @r.plotState;
+    pfunm = @r.plotState;
+end
 if get(h.chkAbsErr,'Value')
-    r.plot(t,getappdata(h.main,'yr'));
+    pfun(s.t,vr);
     set(gcf,'Name','Results of reduced simulation');
-    m.plot(t,abs(getappdata(h.main,'y')-getappdata(h.main,'yr')));
+    pfunm(s.t,abs(v-vr));
     set(gcf,'Name','Absolute errors');
 else
-    m.plot(t,getappdata(h.main,'y'));
+    pfunm(s.t,v);
     set(gcf,'Name','Results of full simulation');
-    r.plot(t,getappdata(h.main,'yr'));
+    pfun(s.t,vr);
     set(gcf,'Name','Results of reduced simulation');
+end
+if ~isempty(pm)
+    pm.done;
 end
 
 
@@ -469,7 +529,6 @@ function pushbutton5_Callback(hObject, eventdata, h)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 r = getappdata(h.main,'r');
-m = r.FullModel;
 t = getappdata(h.main,'t');
 v = Norm.L2(getappdata(h.main,'x')-r.V*(r.V'*getappdata(h.main,'x')));
 pm = tools.PlotManager;
@@ -477,3 +536,37 @@ pm.LeaveOpen = true;
 h = pm.nextPlot('','Trajectory subspace projection L2(state) error','time','error');
 tools.LogPlot.cleverPlot(h,t,v,'r','LineWidth',2);
 pm.done;
+
+
+% --- Executes on button press in btnApproxLogNorm.
+function btnApproxLogNorm_Callback(hObject, eventdata, h)
+% hObject    handle to btnApproxLogNorm (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+r = getappdata(h.main,'r');
+%m = r.FullModel;
+x = getappdata(h.main,'xr');
+use = 20;
+sel = round(linspace(1,size(x,2),min(use,size(x,2))));
+x = x(:,sel);
+mui = r.getRandomParam(400,1);
+res = testing.LogNorm.getApproxLogNormsAtPos(r, x, r.scaledTimes(sel),mui);
+pm = tools.PlotManager;
+pm.LeaveOpen = true;
+testing.LogNorm.getApproxLogNormsAtPos_plots(res, pm);
+pm.done;
+
+
+% --- Executes on button press in rbState.
+function rbState_Callback(hObject, eventdata, h)
+if get(hObject,'Value')
+    set(h.rbOutput,'Value',0);
+end
+rePlot(h);
+
+% --- Executes on button press in rbOutput.
+function rbOutput_Callback(hObject, eventdata, h)
+if get(hObject,'Value')
+    set(h.rbState,'Value',0);
+end
+rePlot(h);

@@ -29,7 +29,7 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & general.IR
     end
         
     methods
-        function [V,W] = generateReducedSpace(this, model)
+        function [V, W] = generateReducedSpace(this, model)
             % Implements the abstract method from BaseSpaceReducer
             
             % Compile all trajectories into a large vector
@@ -63,8 +63,8 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & general.IR
                 V = o.orthonormalize([Vex V]);
             end
             
-            % Here W=V!
-            W = V;
+            % Galerkin projection
+            W = [];
         end
         
         function plotSummary(this, pm, context)

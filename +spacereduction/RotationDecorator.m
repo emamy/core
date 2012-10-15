@@ -55,7 +55,7 @@ classdef RotationDecorator < spacereduction.BaseSpaceReducer
             %
             
             % Call subclass reduction
-            [V,W] = this.sp.generateReducedSpace(model);
+            [V, W] = this.sp.generateReducedSpace(model);
             
             %rnd = RandStream('mt19937ar','Seed',2564);
             

@@ -62,9 +62,11 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
         IncludeFiniteDifferences = false;
         
         IncludeBSpan = false;
+        
+        IncludeAxData = false;
     end
     
-    properties(SetAccess=private)
+    properties%(SetAccess=private)
         ErrorImprovements;
     end
     
@@ -73,9 +75,16 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             this.registerProps('Eps','MinRelImprovement','MaxSubspaceSize');
         end
         
-        function [V,W] = generateReducedSpace(this, model)
+        function [V, W] = generateReducedSpace(this, model)
             md = model.Data.TrajectoryData;
             
+            % Wrap in finite difference adder
+            if this.IncludeFiniteDifferences
+                md = data.JoinedBlockData(md, data.FinDiffBlockData(md));
+            end
+            if this.IncludeAxData
+                md = data.JoinedBlockData(md, data.AxBlockData(md, model.System.A));
+            end
             % Augment block data with fxi values
             if this.IncludeTrajectoryFxiData
                 if isempty(model.Data.TrajectoryFxiData)
@@ -83,10 +92,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
                 end
                 md = data.JoinedBlockData(md, model.Data.TrajectoryFxiData);
             end
-            % Wrap in finite difference adder
-            if this.IncludeFiniteDifferences
-                md = data.FinDiffBlockData(md);
-            end
+            
             
             if KerMor.App.Verbose > 2
                 fprintf('POD-Greedy: Starting subspace computation using %d trajectories...\n',model.Data.TrajectoryData.getNumTrajectories);
@@ -156,10 +162,16 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
                     title('Error improvement relative to previous error');
                 end
             end
-            W = V;
+            % Galerkin projection!
+            W = [];
         end
         
         function plotSummary(this, pm, context)
+            if nargin < 2
+                pm = tools.PlotManager;
+                pm.LeaveOpen = true;
+                context = 'POD-Greedy';
+            end
             plotSummary@spacereduction.BaseSpaceReducer(this, pm, context);
             if ~isempty(this.ErrorImprovements)
                 str = sprintf('%s: Error decay over training data\nEps:%g, MaxSize:%d, FXI: %d, FD: %d, BSpan: %d',...

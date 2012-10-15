@@ -56,6 +56,7 @@ classdef LineSpecIterator < handle
                     ncolors = size(predef,1);
                 end
             end
+            maxintensity = .7;
             np = size(predef,1);
             if ncolors > np
                 num = ncolors - np;
@@ -64,10 +65,10 @@ classdef LineSpecIterator < handle
                 r = RandStream('mt19937ar','Seed',seed);
                 mindiff = .3;
                 for n=1:num
-                    color = r.rand(1,3);
+                    color = r.rand(1,3)*maxintensity;
                     cnt = 1;
                     while any(sum(abs(repmat(color,np+n-1,1)-colors(1:np+n-1,:)),2) < mindiff)
-                        color = r.rand(1,3);
+                        color = r.rand(1,3)*maxintensity;
                         cnt = cnt+1;
                         if cnt > 1000
                             mindiff = mindiff*.8;

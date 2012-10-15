@@ -28,11 +28,6 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
         model;
     end
     
-    properties(SetAccess=private)
-        LastAlpha;
-        LastBeta;
-    end
-    
     methods
         function this = SemiImplicitEuler(model)
             this.model = model;
@@ -56,8 +51,6 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
             if ~isempty(find((abs(t(2:end)-t(1:end-1) - dt)) / dt > 1e-6,1)) %any(t(2:end)-t(1:end-1) - dt > 100*eps)
                 error('non-equidistant dt timesteps.');
             end
-            this.LastAlpha = zeros(1,steps);
-            this.LastBeta = zeros(1,steps);
             
             rtm = this.RealTimeMode;
             if rtm
@@ -99,15 +92,6 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
             
             % Solve for each time step
             oldx = x0(1:end-edim);
-            if ~isempty(est) && est.Enabled && isa(est,'error.DEIMEstimator')
-                % Get initial values of alpha/beta for completeness
-                ut = [];
-                if ~isempty(s.u)
-                    ut = s.u(t(1));
-                end
-                this.LastAlpha(1) = est.getAlpha(oldx, t(1), s.mu, ut);
-                this.LastBeta(1) = est.getBeta(oldx, t(1), s.mu);
-            end
             for idx = 2:steps;
                 RHS = M*oldx;
                 if ~isempty(s.f)
@@ -139,8 +123,6 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
                     end
                     al = est.getAlpha(newx, t(idx), s.mu, ut);
                     bet = est.getBeta(newx, t(idx), s.mu);
-                    this.LastAlpha(idx) = al;
-                    this.LastBeta(idx) = bet;
                     
                     % Explicit
                     %newex = oldex + dt * est.evalODEPart([newx; oldex], t(idx-1), s.mu, ut);

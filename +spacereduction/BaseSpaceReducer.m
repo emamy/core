@@ -4,7 +4,7 @@ classdef BaseSpaceReducer < KerMorObject & general.IReductionSummaryPlotProvider
     % @author Daniel Wirtz
     % @date 11.03.2010
     
-    properties(SetAccess=protected)
+    properties%(SetAccess=protected)
         ProjectionError = [];
     end
     

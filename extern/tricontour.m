@@ -1,4 +1,4 @@
-function [cout,hout] = tricontour(p,t,Hn,N)
+function [cout,hout] = tricontour(ax,t,p,Hn,N,varargin)
 
 % Contouring for functions defined on triangular meshes
 %
@@ -46,7 +46,7 @@ function [cout,hout] = tricontour(p,t,Hn,N)
 
 
 % I/O checking
-if nargin~=4
+if nargin<5
     error('Incorrect number of inputs')
 end
 if nargout>2
@@ -349,11 +349,11 @@ for v = 1:num       % Loop over contouring levels
         
     else        % Just plot the contours as is, this is faster...
         
-        z = repmat(lev(v),2,ncc);
+        z = repmat(lev(v),2,ncc)+.01*abs(lev(v));
         
         h = [h; patch('Xdata',[penew(c1,1),penew(c2,1)]', ...
               'Ydata',[penew(c1,2),penew(c2,2)]', ...
-              'Zdata',z,'Cdata',z,'facecolor','none','edgecolor','flat')]; 
+              'Zdata',z,'Cdata',z,'Parent',ax,varargin{:})]; 
           
         hold on
         

@@ -1,7 +1,7 @@
-classdef FinDiffBlockData < data.ABlockedData
-% FinDiffBlockData: Wrapper for block data that adds finite differences of the block data
+classdef AxBlockData < data.ABlockedData
+% AxBlockData: Wrapper for block data that computes A(x) of the block data
 %
-%
+% No time dependency allowed yet.
 %
 % @author Daniel Wirtz @date 2012-09-20
 %
@@ -15,14 +15,21 @@ classdef FinDiffBlockData < data.ABlockedData
     
     properties(Access=private)
         orig;
+        fun;
     end
     
     methods
-        function this = FinDiffBlockData(original)
-            if ~isa(original,'data.ABlockedData')
-                error('Only data.ABlockedData instances are allowed');
+        function this = AxBlockData(original, fun)
+            if ~isa(original,'data.ATrajectoryData')
+                error('Only data.ATrajectoryData instances can be wrapped');
+            end
+            if ~isa(fun, 'dscomponents.ACoreFun')
+                error('Fun argument must be a dscomponents.ACoreFun');
+            elseif fun.TimeDependent
+                error('Fun argument cannot be TimeDependent yet');
             end
             this.orig = original;
+            this.fun = fun;
         end
         
         function prod = mtimes(matrix, this)
@@ -34,12 +41,12 @@ classdef FinDiffBlockData < data.ABlockedData
         end
         
         function B = getBlock(this, nr)
-            B = this.orig.getBlock(nr);
-            B = [B diff(B,1,2)];
+            [B, mu] = this.orig.getTrajectoryNr(nr);
+            B = this.fun.evaluate(B,[],mu);
         end
         
         function [n, m] = size(this, dim)
-            n = [size(this.orig,1) 2*size(this.orig,2)-this.getNumBlocks];
+            n = size(this.orig);
             if nargin == 2
                 if dim > 0 && dim < 3
                     n = n(dim);

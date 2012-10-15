@@ -178,6 +178,19 @@ classdef Utils
 %             % @todo remove from this class (currently sims are running who might call this)
 %             str = object2str(obj);
 %         end
+
+        function str = getLatexStr(value, digits)
+            if nargin < 2
+                digits = 3;
+            end
+            str = sprintf(sprintf('%%.%de',digits),value);
+            str = sprintf('%s',str(1:digits+2));
+            expo = floor(log10(value));
+            if expo ~= 0
+                str = sprintf('%s\\times10^{%d}',str,expo);
+            end
+            str = sprintf('$%s$',str);
+        end
         
         function str = implode(data, glue, format)
             % Implodes the elements of data using glue.
@@ -511,7 +524,6 @@ classdef Utils
             hlp = .5*(A + A');
             dim = size(hlp,1);
             if dim > 1000
-%                 t = tic;
                 if nargin == 3
                     opts.v0 = v0;
                 end
@@ -541,13 +553,13 @@ classdef Utils
                         [v, ln] = eigs(hlp,1,'la',opts);
                     end
                 end
-%                 t2 = toc(t);
             else
-%                 t = tic;
-                [v, d] = eig(full(hlp));
+                if issparse(hlp)
+                    hlp = full(hlp);
+                end
+                [v, d] = eig(hlp);
                 [ln, idx] = max(diag(d));
                 v = v(:,idx);
-%                 t1 = toc(t);
             end
 %             t = tic;
 %             % Get smallest and largest magnitude eigenvalues

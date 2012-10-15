@@ -623,7 +623,7 @@ classdef PrintTable < handle
                 % apply same format string
                 if length(data{end}) == 1 && length(data)-1 > 1
                     data{end} = repmat(data{end},1,length(data)-1);
-                    if this.HasRowHeader    
+                    if this.HasRowHeader
                         % Make sure the row header becomes a string if not
                         % already one
                         data(1) = this.stringify(data(1));
@@ -635,10 +635,14 @@ classdef PrintTable < handle
                     data(1) = this.stringify(data(1));
                     data{end} = ['%s' data{end}(:)'];
                 end
-               str = cell(1,length(data)-1);
-               for i=1:length(data)-1
-                   str{i} = sprintf(data{end}{i},data{i});
-               end
+                str = cell(1,length(data)-1);
+                for i=1:length(data)-1
+                    if isa(data{end}{i},'function_handle')
+                        str{i} = data{end}{i}(data{i});
+                    else
+                        str{i} = sprintf(data{end}{i},data{i});
+                    end
+                end
             else % convert to strings if no specific format is given
                 str = cell(1,length(data));
                 for i=1:length(data)
@@ -725,6 +729,7 @@ classdef PrintTable < handle
             t.addRow(123.45678,pi,789,{'%2.3f','$%4.4g$','decimal: %d'});
             t.addRow('12345678','123','789');
             t.addRow('123456789','123','789');
+            t.addRow(123.45678,pi,789,{'%2.3f',@(v)sprintf('functioned pi=%g!',v-3),'decimal: %d'});
             t.addRow('attention: inserting tabs per format','\t','destroys the table tabbing',{'%s','1\t2%s3\t','%s'});
             t.display;
             

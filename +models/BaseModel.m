@@ -216,6 +216,13 @@ classdef BaseModel < KerMorObject
         % @default .1 (as in dt)
         % See also: tau dt
         dtscaled = .1;
+        
+        % Contains the GIT revision of this model when it was last saved.
+        %
+        % This field is automatically set upon saveobj.
+        %
+        % @type char @default ''
+        gitRefOnSave = '';
     end
     
     properties(Access=private)
@@ -282,25 +289,8 @@ classdef BaseModel < KerMorObject
             % Measure rest of time
             starttime = tic;
             
-            % Re-scale state variable
-            % (new variable name here as x is optionally returned!)
-            %
-            % NOTE: This is also called for reduced simulations within ReducedModel.simulate.
-            % However, reduced models do not employ state scaling anymore as it has been
-            % included in the x0, C components at build-time for the reduced model,
-            % respectively.
-            % See models.ReducedSystem.setReducedModel
-            sx = x;
-            if ~isequal(this.System.StateScaling,1)
-                if isscalar(this.System.StateScaling)
-                    sx = this.System.StateScaling*x;
-                else
-                    sx = bsxfun(@times,x,this.System.StateScaling);
-                end
-            end
-            
             % Convert to output
-            y = this.System.C.computeOutput(t, sx, mu);
+            y = this.System.computeOutput(x);
             
             % Scale times back to real units
             t = t*this.tau;
@@ -332,8 +322,34 @@ classdef BaseModel < KerMorObject
             end
             y = general.Utils.preparePlainPlot(y);
             plot(ax,t,y);
-            title(ax,sprintf('Plot for model "%s"', this.Name));
-            xlabel(ax,'Time'); ylabel(ax,'Output functions');
+            title(ax,sprintf('Output plot for model "%s"', this.Name));
+            xlabel(ax,'Time'); ylabel(ax,'Output values');
+        end
+        
+        function [f, ax] = plotState(this, t, x, varargin)
+            % Plots the results of the simulation.
+            % Override in subclasses for a more specific plot if desired.
+            %
+            % Parameters:
+            % t: The simulation times `t_i` @type rowvec
+            % y: The simulation output matrix `y`, i.e. `y(t_i)` @type matrix
+            % varargin: Any further arguments for customized plots @type cell
+            % foo: sdgg @optional
+            %
+            % Return values:
+            % f: The figure handle @type handle
+            % ax: The axes handle @type handle
+            if isempty(varargin)
+                f = figure;
+                ax = gca(f);
+            else
+                ax = varargin{1};
+                f = get(ax,'Parent');
+            end
+            x = general.Utils.preparePlainPlot(x);
+            plot(ax,t,x);
+            title(ax,sprintf('State space plot for model "%s"', this.Name));
+            xlabel(ax,'Time'); ylabel(ax,'State space values');
         end
         
         function plotSingle(this, t, y, varargin)
@@ -485,14 +501,18 @@ classdef BaseModel < KerMorObject
             % none.
             x0 = this.System.x0.evaluate(mu) ./ this.System.StateScaling;
         end
+        
+        function this = saveobj(this)
+            % Store the current GIT branch in the object.
+            this.gitRefOnSave = KerMor.getGitBranch;
+        end
     end
     
     methods(Access=protected, Sealed)
         function plotstep(this, src, ed)%#ok
             % Callback for the ODE solvers StepPerformed event that enables
             % during-simulation-plotting.
-            y = this.System.C.computeOutput(ed.Times, ...
-                this.System.StateScaling .* ed.States, this.System.mu);
+            y = this.System.computeOutput(ed.States);
             this.plotSingle(ed.Times * this.tau,y);
             drawnow;
             % Gets first set in "simulate"

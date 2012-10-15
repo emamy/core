@@ -112,7 +112,9 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
         %
         % @type general.MatrixDEIM
         JacMDEIM;
-        
+    end
+    
+    properties(SetAccess=private)
         M3 = [];
         M4 = [];
         M5 = [];
@@ -131,6 +133,10 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
         
         % Stores zi min- and max scaling
         scale;
+    
+        LastAlpha;
+        
+        LastBeta;
         
         % The local logarithmic norm estimation
         kexp;
@@ -169,6 +175,7 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
         fullsol;
         uolst = [];
         silent = false;
+        lastvalpos;
     end
     
     methods
@@ -271,10 +278,25 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
                 return;
             end
             % True log lip const comparison estimator
-            if this.UseTrueLogLipConst || this.UseJacobianLogLipConst
-                [~, this.fullsol, ct] = this.ReducedModel.FullModel.computeTrajectory(mu,inputidx);
-            else
-                ct = 0;
+            if this.Enabled
+                rm = this.ReducedModel;
+                if this.UseTrueLogLipConst || this.UseJacobianLogLipConst
+                    [~, this.fullsol, ct] = rm.FullModel.computeTrajectory(mu, inputidx);
+                else
+                    ct = 0;
+                end            
+                % Get initial values of alpha/beta for completeness
+                ut = [];
+                t0 = rm.scaledTimes(1);
+                if ~isempty(inputidx)
+                    ut = rm.System.Inputs{inputidx}(t0);
+                end
+                x0 = rm.System.x0.evaluate(mu);
+                this.LastAlpha = zeros(1,length(rm.Times));
+                this.LastBeta = zeros(1,length(rm.Times));
+                this.lastvalpos = [1 1];
+                this.LastAlpha(1) = this.getAlpha(x0, t0, mu, ut);
+                this.LastBeta(1) = this.getBeta(x0, t0, mu);
             end
             this.kexp = [];
         end
@@ -332,6 +354,8 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
 %                     error('alpha computation mismatch.');
 %                 end
             end
+            this.LastAlpha(this.lastvalpos(1)) = a;
+            this.lastvalpos(1) = this.lastvalpos(1)+1;
         end
         
         function b = getBeta(this, x, t, mu)
@@ -398,6 +422,8 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
                 b = b + this.Aln.compose(t, mu);
             end
             %this.kexp(2,end) = b;
+            this.LastBeta(this.lastvalpos(2)) = b;
+            this.lastvalpos(2) = this.lastvalpos(2) + 1;
         end
         
         function eint = evalODEPart(this, x, t, mu, ut)
@@ -424,6 +450,7 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
             copy.JacSimTransMaxSize = this.JacSimTransMaxSize;
             copy.jstSize = this.jstSize;
             copy.QFull = this.QFull;
+            copy.QSingVals = this.QSingVals;
             
             copy.UseTrueLogLipConst = this.UseTrueLogLipConst;
             copy.UseTrueDEIMErr = this.UseTrueDEIMErr;

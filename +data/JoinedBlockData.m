@@ -46,7 +46,7 @@ classdef JoinedBlockData < data.ABlockedData
             end
         end
         
-        function [n, m] = size(this, varargin)
+        function [n, m] = size(this, dim)
             n = [size(this.td1,1) size(this.td1,2)+size(this.td2,2)];
             if nargin == 2
                 if dim > 0 && dim < 3

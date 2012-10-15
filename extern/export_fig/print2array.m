@@ -38,6 +38,12 @@
 
 % 9/12/2011 Pass font path to ghostscript.
 
+% 27/1/2012 Bug fix affecting painters rendering tall figures. Thanks to
+% Ken Campbell for reporting it.
+
+% 3/4/2012 Bug fix to median input. Thanks to Andy Matthews for reporting
+% it.
+
 function [A bcol] = print2array(fig, res, renderer)
 % Generate default input arguments, if needed
 if nargin < 2
@@ -115,7 +121,7 @@ if nargin > 2 && strcmp(renderer, '-painters')
                 break;
             end
         end
-        bcol = median([reshape(A(:,[l r],:), [], size(A, 3)); reshape(A(:,[t b],:), [], size(A, 3))], 1);
+        bcol = uint8(median(single([reshape(A(:,[l r],:), [], size(A, 3)); reshape(A([t b],:,:), [], size(A, 3))]), 1));
         for c = 1:size(A, 3)
             A(:,[1:l-1, r+1:end],c) = bcol(c);
             A([1:t-1, b+1:end],:,c) = bcol(c);

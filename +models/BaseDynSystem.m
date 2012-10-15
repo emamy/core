@@ -370,6 +370,57 @@ classdef BaseDynSystem < KerMorObject
         end
     end
     
+    methods(Sealed)
+        function y = computeOutput(this, x)
+            % Computes the output `y(t) = C(t,\mu)Sx(t)` from a given state
+            % result vector `x(t)`, using the system's time and current mu (if given).
+            %
+            % The matrix `S` represents possibly set state space scaling, and `C(t,\mu)` is an
+            % output conversion. Identity values are assumed if the corresponding components
+            % are not set/given.
+            %
+            % Parameters:
+            % x: The state variable vector at each time step per column @type matrix<double>
+            %
+            % Return values:
+            % y: The output according to `y(t) = C(t,\mu)Sx(t)`
+            %
+            % NOTE: This is also called for reduced simulations within ReducedModel.simulate.
+            % However, reduced models do not employ state scaling anymore as it has been
+            % included in the x0, C components at build-time for the reduced model,
+            % respectively. Consequently, the StateScaling property of ReducedSystems is 1.
+            %
+            % See models.ReducedSystem.setReducedModel
+            
+            % Re-scale state variable
+            if ~isequal(this.StateScaling,1)
+                if isscalar(this.StateScaling)
+                    x = this.StateScaling*x;
+                else
+                    x = bsxfun(@times,x,this.StateScaling);
+                end
+            end
+            y = x;
+            if ~isempty(this.C)
+                if this.C.TimeDependent
+                    % Evaluate the output conversion at each time t
+                    % Figure out resulting size of C*x evaluation
+                    t = this.scaledTimes;
+                    hlp = this.C.evaluate(t(1),this.mu)*x(:,1);
+                    y = zeros(size(hlp,1),length(t));
+                    y(:,1) = hlp;
+                    for idx=2:length(t)
+                        y(:,idx) = this.C.evaluate(t(idx),this.mu)*x(:,idx);
+                    end
+                else
+                    % otherwise it's a constant matrix so multiplication
+                    % can be preformed much faster.
+                    y = this.C.evaluate([],this.mu)*x;
+                end
+            end
+        end
+    end
+    
     methods(Access=protected)
         function validateModel(this, model)%#ok
             % Validates if the model to be set is a valid BaseModel at
