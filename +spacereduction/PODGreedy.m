@@ -56,17 +56,9 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
         %
         % @default 100 @type integer
         MaxSubspaceSize = 100;
-        
-        IncludeTrajectoryFxiData = false;
-        
-        IncludeFiniteDifferences = false;
-        
-        IncludeBSpan = false;
-        
-        IncludeAxData = false;
     end
     
-    properties%(SetAccess=private)
+    properties(SetAccess=private)
         ErrorImprovements;
     end
     

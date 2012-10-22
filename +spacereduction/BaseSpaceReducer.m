@@ -4,7 +4,23 @@ classdef BaseSpaceReducer < KerMorObject & general.IReductionSummaryPlotProvider
     % @author Daniel Wirtz
     % @date 11.03.2010
     
-    properties%(SetAccess=protected)
+    properties(SetObservable)
+        % Flag if to include `f(x_i)` values for each `x_i` value, too
+        %
+        % @propclass{important} Including this data in the subspace can reduce projection
+        % errors of nonlinearities
+        %
+        % @type logical @default false
+        IncludeTrajectoryFxiData = false;
+        
+        IncludeFiniteDifferences = false;
+        
+        IncludeBSpan = false;
+        
+        IncludeAxData = false;
+    end
+    
+    properties(SetAccess=protected)
         ProjectionError = [];
     end
     
@@ -21,6 +37,37 @@ classdef BaseSpaceReducer < KerMorObject & general.IReductionSummaryPlotProvider
         
     methods(Abstract)
         [V,W] = generateReducedSpace(model);
+    end
+    
+    %% Getter & setter
+    methods 
+        function set.IncludeTrajectoryFxiData(this, value)
+            if isempty(value) || ~islogical(value) || ~isscalar(value)
+                error('Value needs to be a logical scalar.');
+            end
+            this.IncludeTrajectoryFxiData = value;
+        end
+        
+        function set.IncludeFiniteDifferences(this, value)
+            if isempty(value) || ~islogical(value) || ~isscalar(value)
+                error('Value needs to be a logical scalar.');
+            end
+            this.IncludeFiniteDifferences = value;
+        end
+        
+        function set.IncludeBSpan(this, value)
+            if isempty(value) || ~islogical(value) || ~isscalar(value)
+                error('Value needs to be a logical scalar.');
+            end
+            this.IncludeBSpan = value;
+        end
+        
+        function set.IncludeAxData(this, value)
+            if isempty(value) || ~islogical(value) || ~isscalar(value)
+                error('Value needs to be a logical scalar.');
+            end
+            this.IncludeAxData = value;
+        end
     end
     
 end

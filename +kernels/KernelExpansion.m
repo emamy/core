@@ -73,8 +73,8 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         % @type colvec<double>
         ComponentNorms;
         
-        % Returns the M upper bound for this KernelExpansion, which is `M
-        % := \max\limits_{j=1}^d\sum\limits_{i=1}^m |c^d_i|
+        % Returns the M upper bound for this KernelExpansion, which is `M :=
+        % \max\limits_{j=1}^d\sum\limits_{i=1}^m |c^d_i|`
         MBnd;
     end
     

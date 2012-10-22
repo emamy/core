@@ -268,7 +268,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                        
             % Setup default values for the full model's components
             this.Sampler = sampling.RandomSampler;
-            
+                        
             this.SpaceReducer = spacereduction.PODGreedy;
             
             this.Approx = approx.KernelApprox;

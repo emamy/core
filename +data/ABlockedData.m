@@ -31,7 +31,7 @@ classdef ABlockedData < handle
             % k: The number of largest singular values and vectors to compute. @type integer
             % @default all
             % Vexclude: A matrix containing orthonormal columns, whose spanned space is to be
-            % excluded from the SVD.
+            % excluded from the SVD. @type matrix<double> @default []
             %
             % Return values:
             % U: The left-hand side singular vectors `U` of the decomposition `U\Sigma V^T =

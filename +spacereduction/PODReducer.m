@@ -15,12 +15,6 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & general.IR
     % @change{0,5,dw,2011-08-04} Adopted to the new ModelData structure.
     % Now the global POD array is assembled from all the trajectories available.
     
-    properties
-        IncludeTrajectoryFxiData = false;
-        IncludeFiniteDifferences = false;
-        IncludeBSpan = false;
-    end
-    
     properties(SetAccess=private)
         % The singular values of the SVD of the used trajectories.
         %
