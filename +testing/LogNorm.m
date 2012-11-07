@@ -240,7 +240,7 @@ classdef LogNorm
             % given parameters mui.
             %
             % Parameters:
-            % m: A BaseFullModel whos offlineGenerations have been run and
+            % mo: A BaseFullModel whos offlineGenerations have been run and
             % that uses a DEIMEstimator. @type models.BaseFullModel
             % x: The state space location to use. @type colvec<double>
             % t: The time t that belongs to the state space vector x. @type double

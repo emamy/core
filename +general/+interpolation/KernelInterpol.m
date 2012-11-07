@@ -112,6 +112,12 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
         
         %% approx.algorithms.IKernelCoeffComp interface members
         function init(this, K, kexp)
+            % Initializes the interpolation
+            %
+            % Parameters:
+            % K: The kernel matrix @type data.MemoryKernelMatrix
+            % kexp: If given, some preconditioning can be performed usign the kernel expansions
+            % information. @type kernels.KernelExpansion @default []
             this.K = K;
             this.P = [];
             if nargin > 2
@@ -139,13 +145,11 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
             end
         end
         
-        function [ci, svidx] = computeKernelCoefficients(this, fxi, dummy)%#ok
+        function [ci, svidx] = computeKernelCoefficients(this, fxi, ~)
             % Implementation of the kernels.ICoeffComp interface
             %
             % Parameters:
-            % yi: The target values `y_i` as row vector @type rowvec
-            % dummy: Initial values for the coefficients `c_i`. Not needed
-            % with interpolation.
+            % fxi: The target values `\vf(\vx_i)` as row vector @type rowvec<double>
             %
             % Return values:
             % ci: The coefficients `c_i` as row vector @type rowvec

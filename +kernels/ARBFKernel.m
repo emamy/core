@@ -1,9 +1,9 @@
 classdef ARBFKernel < kernels.BaseKernel
     % Abstract class for radial basis function / rotation- and translation invariant kernels
     %
-    % All rbf kernels have the form `\Phi(x,y) := \phi(||x-y||_G), x\in\mathbb{R}^d` for some
+    % All rbf kernels have the form `\Phi(x,y) := \phi(\noG{x-y}), \vx\in\R^d` for some
     % real-valued scalar function `\phi: [0, \infty] \longrightarrow \R` and a given
-    % norm-inducing matrix `G`.
+    % norm-inducing matrix `\vG`.
     %
     % When combinations of Kernels are used, this interface will have to be changed to a property.
     % Up to now, the class CombinationKernel cannot dynamically adopt to the interface for the case
@@ -76,10 +76,10 @@ classdef ARBFKernel < kernels.BaseKernel
     
     methods(Sealed)
         function r = getSqDiffNorm(this, x, y)
-            % Returns the \b squared norm `r` of the difference `\norm{x-y}{G}^2`.
+            % Returns the \b squared norm `r` of the difference `\noG{x-y}^2`.
             %
-            % The evaluation respects and projection matrix `P` that might be set at
-            % kernels.BaseKernel. In this case the matrix `G` must match the projected sizes of
+            % The evaluation respects and projection matrix `\vP` that might be set at
+            % kernels.BaseKernel. In this case the matrix `\vG` must match the projected sizes of
             % the argument vectors.
             %
             % @note Evaluation of the squared norm is preferred over computing the squareroot
@@ -93,7 +93,7 @@ classdef ARBFKernel < kernels.BaseKernel
             % is assumed. @type matrix<double>
             %
             % Return values:
-            % r: The matrix `R \in \R^{n\times m}` with entries `R_{ij} = \norm{x_i-y_j}{G}^2`
+            % r: The matrix `\vR \in \R^{n\times m}` with entries `R_{ij} = \norm{x_i-y_j}{G}^2`
             %
             % See also: kernels.BaseKernel.P kernels.ARBFKernel.G
             if ~isempty(this.fP)
@@ -123,13 +123,13 @@ classdef ARBFKernel < kernels.BaseKernel
         % Implementations must accept matrix valued `r` and evaluate by component-based means.
         %
         % Parameters:
-        % r: The radius matrix `R\in\R^{n\times m}` @type matrix<double>
+        % r: The radius matrix `\vR\in\R^{n\times m}` @type matrix<double>
         %
         % Return values:
         % phir: The evaluation matrix `\phi(R)\in\R^{n\times m}` with entries `\phi(R)_{ij} =
         % \phi(r_{ij})`.
         % 
-        phir = evaluateScalar(r);
+        phir = evaluateScalar(this, r);
     end
     
 end

@@ -258,6 +258,8 @@ classdef AffParamMatrix < general.AProjectable
             % Parameters:
             % V: The first projection matrix for "reconstruction" @type matrix<double>
             % W: The second projection matrix for "projection" @type matrix<double>
+            % target: If clone was called for a subclass, the new subclass instance @type
+            % general.AffParamMatrix @default []
             
             if isempty(V) || isempty(W)
                 error('Both V and W must be given and nonempty (Set either to 1 for neutral as required).');

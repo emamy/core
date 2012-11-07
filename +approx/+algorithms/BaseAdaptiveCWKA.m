@@ -375,7 +375,7 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
             %
             % Parameters:
             % kexp: The kernel expansion @type kernels.KernelExpansion
-            % dists: A vector of dimension 3 containing the distances for
+            % value: A vector of dimension 3 containing the distances for
             % the state, time and parameter kernels. @type colvec
             %
             % Return values:
@@ -412,7 +412,7 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
             %
             % Parameters:
             % kexp: The kernel expansion @type kernels.KernelExpansion
-            % dists: A vector of dimension 3 containing the degrees for
+            % value: A vector of dimension 3 containing the degrees for
             % the state, time and parameter kernels. @type colvec
             kexp.Kernel.Degree = value(1);
             if this.pte

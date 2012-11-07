@@ -167,7 +167,7 @@ return;
 
   % Display the text in the Command Window
   count1 = fprintf(2,format,varargin{:});
-  %awtinvoke(cmdWinDoc,'remove',lastPos,1);   % TODO: find out how to remove the extra '_'
+  %awtinvoke(cmdWinDoc,'remove',lastPos,1);   % \todo: find out how to remove the extra '_'
   drawnow;
   docElement = cmdWinDoc.getParagraphElement(lastPos+1);
   if bolFlag && ~underlineFlag
@@ -347,7 +347,7 @@ function setElementStyle(docElement,style,hyperlinkFlag)
   if isempty(links)
       %docElement.addAttribute('LinkStartTokens',repmat(int32(-1),length(tokens(2)),1));
   else
-      %TODO: remove hyperlink by setting the value to -1
+      %\todo: remove hyperlink by setting the value to -1
   end
   
   % Correct empty URLs to be un-hyperlinkable (only underlined)
@@ -434,7 +434,7 @@ function showDemo
   cprintf([1,0.5,0], 'and multi-\nline orange\n');
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%% TODO %%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%% \todo %%%%%%%%%%%%%%%%%%%%%%%%%
 % - Fix: Remove leading space char (hidden underline '_')
 % - Fix: Find workaround for multi-line quirks/limitations
 % - Fix: Non-\n-terminated segments are displayed as black

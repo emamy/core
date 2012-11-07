@@ -503,7 +503,7 @@ if c.iske
     if ~isempty(c.fun2) && get(h.rbErr,'Value') == 1
         c.curCenterFx = c.curCenterFx - c.fun2.evaluate(xf,[],[]);
         if c.hastime || c.hasparams
-            warning('a:b','Evaluation is WRONG with params and time set. TODO.');
+            warning('a:b','Evaluation is WRONG with params and time set. \todo.');
         end
     end
     setappdata(h.main,'conf',c);

@@ -14,11 +14,10 @@ classdef BaseKernel < KerMorObject & ICloneable
     % - Implement eq-method for all kernels
     
     properties(SetObservable)
-%     properties(SetObservable, Dependent)
-        % The matrix `G` that induces the state space scalar product
-        % `\langle x-y\rangle_G` and norm `||x-y||_G` to use.
+        % The matrix `\vG` that induces the state space scalar product
+        % `\spG{x}{y}` and norm `\noG{x-y}` to use.
         %
-        % Must be a positive definite, symmetric matrix `G`.
+        % Must be a positive definite, symmetric matrix `\vG`.
         %
         % @propclass{critical} If a custom norm is used (i.e. after
         % subspace projection) tihs must be set in order to obtain correct
@@ -27,7 +26,7 @@ classdef BaseKernel < KerMorObject & ICloneable
         % @type matrix<double> @default 1
         G = 1;
         
-        % Projection/selection matrix for argument components
+        % Projection/selection matrix `\vP` for argument components
         %
         % Set this value to the indices of the components of any argument passed to the kernel
         % that should be effectively used. This property is mainly used with parameter kernels
@@ -37,7 +36,7 @@ classdef BaseKernel < KerMorObject & ICloneable
         %
         % @propclass{data} Depends on the kernel setting and problem setup.
         %
-        % @default [] @type matrix
+        % @default [] @type matrix<double>
         P = [];
     
         % A set of center vectors that is to be used upon calls to
@@ -53,18 +52,17 @@ classdef BaseKernel < KerMorObject & ICloneable
     end
         
     properties(SetAccess=protected)
-        % Flag that determines if the current kernel is a radial basis
-        % function, i.e. its evaluation is of the form $\Phi(x,y) =
-        % \phi(\norm{x-y}{G})$ for some scalar function $\phi$.
+        % Flag that determines if the current kernel is a radial basis function, i.e. its
+        % evaluation is of the form `\Phi(x,y) = \phi(\noG{x-y})` for some scalar function
+        % `\phi`.
         %
         % Set in subclasses according to current kernel.
         %
         % @type logical @default false
         IsRBF = false;
         
-        % Flag that determines if the current kernel bases on scalar
-        % product evaluations, i.e. are of the form $\Phi(x,y) =
-        % \phi(\sp{x}{y}_G)$ for some scalar function $\phi$.
+        % Flag that determines if the current kernel bases on scalar product evaluations, i.e.
+        % are of the form `\Phi(x,y) = \phi(\spG{x}{y})` for some scalar function `\phi`.
         %
         % Set in subclasses according to current kernel.
         %
@@ -146,7 +144,7 @@ classdef BaseKernel < KerMorObject & ICloneable
         % Return values:
         % Phi: The evaluation matrix `\Phi(x,y) \in \R^{n\times m}` of the kernel `\Phi`, with
         % entries `\Phi(x_i,y_j)` at `i,j`.
-        K = evaluate(x, y);
+        K = evaluate(this, x, y);
         
         % Computes the partial derivatives with respect to each component of the first argument.
         %

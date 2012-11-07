@@ -17,11 +17,12 @@ classdef PointerCoreFun < dscomponents.ACoreFun
     
     methods
         function this = PointerCoreFun(funPtr, xdim, multieval, timedep)
-            % Creates a new core function using the function pointer as inner function.
+            % Creates a new core function `\vf` using the function pointer as inner function.
             %
             % Parameters:
             % funPtr: The function handle to use. Must implement the interface `(x,t,\mu)` to
             % be called with. @type function_handle
+            % xdim: The input space dimension of the function `\vf`
             % multieval: If the function handle can take matrix valued `(x,t,mu)`, set this
             % flag to true to speed up computations. @type logical @default false
             % timedep: A flag that indicates if the passed function handle is (directly)

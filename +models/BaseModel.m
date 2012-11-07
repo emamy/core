@@ -88,14 +88,14 @@ classdef BaseModel < KerMorObject
         % @propclass{optional}
         Name = 'Base Model';
                               
-        % The custom scalar product matrix `G`
+        % The custom scalar product matrix `\vG`
         %
         % In some settings the state variables have a special meaning (like
         % DOF's in FEM simulations) where the pure `L^2`-norm has less
         % meaning than a custom norm induced by a symmetric positive
-        % definite matrix G. If `d\in\mathbb{N}` is the number of state
-        % variables (i.e. dimensions of `x(t)`), then we must have
-        % `G\in\mathbb{R}^{d\times d}`.
+        % definite matrix G. If `d\in\N` is the number of state
+        % variables (i.e. dimensions of `\vx(t)`), then we must have
+        % `\vG\in\R^{d\times d}`.
         %
         % Leave at default value `1` if `G=I_d` should be assumed.
         %
@@ -135,9 +135,9 @@ classdef BaseModel < KerMorObject
         
         % The scaled version of G.
         %
-        % Equals `\tilde{G} = D'GD` for `D=diag(s)` and `s` being the System.StateScaling property.
+        % Equals `\tilde{\vG} = \vD^T\vG\vD` for `\vD=diag(s)` and `s` being the System.StateScaling property.
         %
-        % Use this whenever having to take the real G-norm of some scaled state variables
+        % Use this whenever having to take the real `\vG`-norm of some scaled state variables
         %
         % See also: G System.StateScaling
         %
@@ -190,7 +190,7 @@ classdef BaseModel < KerMorObject
         % @propclass{important} Choose an appropriate ODE solver for your
         % system.
         %
-        % @type solvers.ode.BaseSolver @default solvers.ode.MLWrapper(@ode23)
+        % @type solvers.ode.BaseSolver @default solvers.ode.MLWrapper(ode23)
         ODESolver;
         
         % Determines if the simulation should plot intermediate steps
@@ -307,8 +307,7 @@ classdef BaseModel < KerMorObject
             % Parameters:
             % t: The simulation times `t_i` @type rowvec
             % y: The simulation output matrix `y`, i.e. `y(t_i)` @type matrix
-            % varargin: Any further arguments for customized plots @type cell
-            % foo: sdgg @optional
+            % varargin: Any further arguments for customized plots
             %
             % Return values:
             % f: The figure handle @type handle
@@ -333,8 +332,7 @@ classdef BaseModel < KerMorObject
             % Parameters:
             % t: The simulation times `t_i` @type rowvec
             % y: The simulation output matrix `y`, i.e. `y(t_i)` @type matrix
-            % varargin: Any further arguments for customized plots @type cell
-            % foo: sdgg @optional
+            % varargin: Any further arguments for customized plots
             %
             % Return values:
             % f: The figure handle @type handle

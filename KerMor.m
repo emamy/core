@@ -36,7 +36,7 @@ classdef KerMor < handle
     % values as first guess.
     %
     % @change{0,5,dw,2011-10-13} Moved all documentation related stuff to
-    % an own class @ref MatlabDocMaker.
+    % an own class "MatlabDocMaker" (now hidden from docs as in extern folder).
     %
     % @new{0,5,dw,2011-08-04} Added flag UseDPCM to switch the default property changed system
     % on/off.

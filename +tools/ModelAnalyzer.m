@@ -134,7 +134,7 @@ classdef ModelAnalyzer < handle;
         end
         
         function plotRedErrForParamSamples(this, errs, pm)
-           % @TODO implement, so far only plotting in DEIM testing with multiple DEIM m Orders.
+           % @\todo implement, so far only plotting in DEIM testing with multiple DEIM m Orders.
         end
         
         function [t, pm] = compareRedFull(this, mu, inputidx)

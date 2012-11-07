@@ -4,7 +4,7 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
     % @author Daniel Wirtz @date 2012-05-10
     %
     % @change{0,6,dw,2012-06-11} 
-    % - Added support for different norm-inducing matrices `G`.
+    % - Added support for different norm-inducing matrices `\vG`.
     % - New property UseTrueDEIMErr to enable use of the actual DEIM
     % approximation error within the alpha term computation (Experimental
     % use)
@@ -89,7 +89,7 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
     end
     
     properties%(SetAccess=private)
-        % The complete similarity transformation matrix of size
+        % The complete similarity transformation `\vQ` matrix of size
         % `d \times JacSimTransMaxSize`
         %
         % (Debug/testing use)
@@ -125,8 +125,8 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
         M10 = [];
         M11 = [];
         M12 = [];
-        Ah; % the \hat{A} component
-        Bh; % the \hat{B} component
+        Ah; % the `\hat{A}` component
+        Bh; % the `\hat{B}` component
         
         % The precomputed logarithmic norms of the system's A components
         Aln;
@@ -188,6 +188,9 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
         function offlineComputations(this, fm)
             % Overrides the method from BaseEstimator and performs
             % additional computations.
+            %
+            % Parameters:
+            % fm: The full model. @type models.BaseFullModel
             
             if KerMor.App.Verbose > 0
                 fprintf('error.DEIMEstimator: Starting offline computations...\n');
@@ -224,6 +227,12 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
         end
         
         function prepared = prepareForReducedModel(this, rm)
+            % Prepares this estimator for use with a given reduced model.
+            % Basically uses the projection matrices and some other reduced quantities for
+            % local storage.
+            %
+            % Parameters:
+            % rm: The reduced model @type models.ReducedModel
             prepared = prepareForReducedModel@error.BaseEstimator(this, rm);
             
             fm = rm.FullModel;
@@ -555,7 +564,7 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
 
                 d = fm.System.f.xDim;
                 n = size(jtd.fxi,2);
-                v = data.FileMatrix(d,n,fm.Data.DataDirectory,512*1024^2);
+                v = data.FileMatrix(d,n,'Dir',fm.Data.DataDirectory,'BlockSize',512*1024^2);
                 ln = zeros(1,n);
                 times = ln;
                 pi = tools.ProcessIndicator('Computing Jacobian similarity transform data for %d jacobians',n,false,n);

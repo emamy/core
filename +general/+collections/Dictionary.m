@@ -97,7 +97,7 @@ classdef Dictionary < handle
             % Pass no argument in order to clear the whole dictionary.
             %
             % Parameters:
-            % key: A key whose key/value pair is to be removed from the dictionary. @optional
+            % key: A key whose key/value pair is to be removed from the dictionary. @default []
             if nargin ==  2
                 cidx = [];
                 for i=1:length(this.List)

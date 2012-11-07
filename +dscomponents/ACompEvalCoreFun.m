@@ -17,10 +17,10 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
 % use random point sets and not only the full set (but that also)
 %
 % @new{0,6,dw,2012-05-30} Added the
-% ACompEvalCoreFun.evaluateComponentSetGradients and
-% ACompEvalCoreFun.evaluateComponentGradients methods for efficient
+% ACompEvalCoreFun.evaluateComponentSetGradientsAt and
+% ACompEvalCoreFun.evaluateComponentGradientsAt methods for efficient
 % jacobian computation of the DEIM approximation. The
-% evaluateComponentGradients default implementation uses finite
+% evaluateComponentGradientsAt default implementation uses finite
 % differences.
 %
 % @new{0,6,dw,2012-03-26} Added this class.
@@ -56,15 +56,24 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
                 this.jend{nr}, this.jrow{nr}, this.jself{nr}, this.S{nr}*x, t, mu);
         end
         
-        function dfx = evaluateComponentSetGradients(this, nr, x, t, mu)
+        function dfx = evaluateComponentSetGradientsAt(this, nr, x, t, mu)
             % Computes the full/reduced gradients of all component
             % functions of the given point set.
             %
+            % Parameters:
+            % nr: The number of the PointSet to use. @type integer
+            % x: The state space location `\vx` @type colvec<double>
+            % t: The corresponding times `t` for the state `\vx` @type double
+            % mu: The corresponding parameter `\mu` for the state `\vx` @type colvec<double>
+            %
+            % See also: PointSet
+            %
             % Uses the template method, whose default implementation is via
             % finite differences.
-            dfx = this.evaluateComponentGradients(this.PointSets{nr},...
+            dfx = this.evaluateComponentGradientsAt(this.PointSets{nr},...
                     this.jend{nr}, this.jrow{nr}, this.jself{nr},...
                     this.S{nr}*x, t, mu) * this.S{nr};
+            
             % the multiplication by S{nr} from the right is due to the
             % inner derivative (chain rule).
             % this is identity if no projection occured.
@@ -77,6 +86,18 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
         function J = evaluateJacobianSet(this, nr, x, t, mu)
             % Returns the jacobian entries of the point set that have been
             % specified using setPointSet's argument jpd.
+            %
+            % Parameters:
+            % nr: The number of the PointSet to use. @type integer
+            % x: A matrix `\vX` with the state space locations `\vx_i` in its columns @type
+            % matrix<double>
+            % t: The corresponding times `t_i` for each state `\vx_i` @type rowvec<double>
+            % mu: The corresponding parameters `\mu_i` for each state `\vx_i`, as column matrix
+            % @type matrix<double>
+            %
+            % Return values:
+            % J: The values of the given points (linear indexing) in the Jacobian in each row,
+            % with as many columns as `\vX` had.
             %
             % See also: setPointSet
             
@@ -288,12 +309,27 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
     end
     
     methods(Access=protected)
-        function dfx = evaluateComponentGradients(this, pts, ends, idx, self, x, t, mu)
+        function dfx = evaluateComponentGradientsAt(this, pts, ends, idx, self, x, t, mu)
             % Default implementation of gradient computation via finite
             % differences.
             %
             % Override in subclasses for more performance if direct
             % derivative information is available.
+            %
+            % Parameters:
+            % pts: The components of `f` for which derivatives are required @type
+            % rowvec<integer>
+            % ends: At the `i`-th entry it contains the last position in the `\vx` vector that
+            % indicates an input value relevant for the `i`-th point evaluation, i.e.
+            % `f_i(\vx) = f_i(\vx(ends(i-1){:}ends(i)));` @type rowvec<integer>
+            % idx: The indices of `\vx`-entries in the global `\vx` vector w.r.t the `i`-th
+            % point, e.g. `xglobal(i-1:i+1) = \vx(ends(i-1):ends(i))` @type rowvec<integer>
+            % self: The positions in the `\vx` vector that correspond to the `i`-th output
+            % dimension, if applicable (usually `f_i` depends on `x_i`, but not necessarily)
+            % @type rowvec<integer>
+            % x: The state space location `\vx` @type colvec<double>
+            % t: The corresponding times `t` for the state `\vx` @type double
+            % mu: The corresponding parameter `\mu` for the state `\vx` @type colvec<double>
             %
             % Return values:
             % dfx: A length(pts) x size(x,1) matrix containing the
@@ -308,19 +344,27 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
         end
         
         function dfx = evaluateComponentPartialDerivatives(this, pts, ends, idx, deriv, self, x, t, mu, dfxsel)
+            % Computes specified partial derivatives of `f` of the components given by pts and
+            % the selected partial derivatives by dfxsel.
+            %
+            % Override in subclasses for optimized performance
+            %
             % Parameters:
-            % pts: The output dimensions of f for which derivatives are required
-            % ends: At the `i`-th entry it contains the last position in the 'x' vector that
+            % pts: The components of `f` for which derivatives are required @type
+            % rowvec<integer>
+            % ends: At the `i`-th entry it contains the last position in the `\vx` vector that
             % indicates an input value relevant for the `i`-th point evaluation, i.e.
-            % 'f_i(x) = f_i(x(ends(i-1):ends(i)));'
-            % idx: The indices of x entries in the global x vector w.r.t the i-th point, e.g.
-            % 'xglobal(i-1:i+1) = x(ends(i-1):ends(i))'
-            % deriv: The indices within x that derivatives are required for.
-            % self: The positions in the x vector that correspond to the i-th output dimension,
-            % if applicable (usually f_i depends on x_i, but not necessarily)
-            % x: The required x values to evaluate all points pts
-            % t: The current time
-            % mu: the current parameter
+            % `f_i(\vx) = f_i(\vx(ends(i-1){:}ends(i)));` @type rowvec<integer>
+            % idx: The indices of `\vx`-entries in the global `\vx` vector w.r.t the `i`-th
+            % point, e.g. `xglobal(i-1:i+1) = \vx(ends(i-1):ends(i))` @type rowvec<integer>
+            % deriv: The indices within `\vx` that derivatives are required for.
+            % @type rowvec<integer>
+            % self: The positions in the `\vx` vector that correspond to the `i`-th output
+            % dimension, if applicable (usually `f_i` depends on `x_i`, but not necessarily)
+            % @type rowvec<integer>
+            % x: The state space location `\vx` @type colvec<double>
+            % t: The corresponding times `t` for the state `\vx` @type double
+            % mu: The corresponding parameter `\mu` for the state `\vx` @type colvec<double>
             % dfxsel: A derivative selection matrix. Contains the mapping for each row of x to
             % the output points pts. As deriv might contain less than 'size(x,1)' values, use
             % 'dfxsel(:,deriv)' to select the mapping for the actually computed derivatives.
@@ -328,6 +372,8 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             % Return values:
             % dfx: A column vector with 'numel(deriv)' rows containing the derivatives at all
             % specified pts i with respect to the coordinates given by 'idx(ends(i-1):ends(i))'
+            %
+            % See also: setPointSet
             dt = sqrt(eps);
             d = length(deriv);
             xd = size(x,2);
@@ -350,11 +396,31 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
     end
     
     methods(Abstract, Access=protected)
-        % This is the template method that actually evaluates the
-        % components at given points and values.
+        % This is the template method that actually evaluates the components at given points
+        % and values.
         %
         % @attention This method must be able to handle vector-arguments
-        % for `x,t,mu`!
-        evaluateComponents(this, pts, ends, idx, self, x, t, mu);
+        % for `\vx,t,\vmu`!
+        %
+        % Parameters:
+        % pts: The components of `\vf` for which derivatives are required @type rowvec<integer>
+        % ends: At the `i`-th entry it contains the last position in the `\vx` vector that
+        % indicates an input value relevant for the `i`-th point evaluation, i.e.
+        % `f_i(\vx) = f_i(\vx(ends(i-1){:}ends(i)));` @type rowvec<integer>
+        % idx: The indices of `\vx`-entries in the global `\vx` vector w.r.t the `i`-th
+        % point, e.g. `xglobal(i-1:i+1) = \vx(ends(i-1):ends(i))` @type rowvec<integer>
+        % self: The positions in the `\vx` vector that correspond to the `i`-th output
+        % dimension, if applicable (usually `f_i` depends on `x_i`, but not necessarily)
+        % @type rowvec<integer>
+        % x: A matrix `\vX` with the state space locations `\vx_i` in its columns @type
+        % matrix<double>
+        % t: The corresponding times `t_i` for each state `\vx_i` @type rowvec<double>
+        % mu: The corresponding parameters `\mu_i` for each state `\vx_i`, as column matrix
+        % @type matrix<double>
+        %
+        % Return values:
+        % fx: A matrix with pts-many component function evaluations `f_i(\vx)` as rows and as
+        % many columns as `\vX` had.
+        fx = evaluateComponents(this, pts, ends, idx, self, x, t, mu);
     end
 end

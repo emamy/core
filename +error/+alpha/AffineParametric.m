@@ -29,9 +29,9 @@ classdef AffineParametric < error.alpha.Base
             % the inputs.
             %
             % Parameters:
-            % rmodel: The reduced model @type models.ReducedModel
-            % M: The projected coefficient matrix `M_{\alpha} -
-            % VW^tM_{\alpha})` @type matrix
+            % fm: The full model @type models.BaseFullModel
+            % M: The projected coefficient matrix `\vM_{\alpha} - \vV\vW^T\vM_{\alpha})` @type
+            % matrix<double>
             if ~isempty(fm.Data.V) && ~isempty(fm.Data.W)
                 % Please see the AffParamMatrix overridden operators to understand what's going on
                 % here :-)
@@ -47,10 +47,9 @@ classdef AffineParametric < error.alpha.Base
             %
             % Parameters:
             % phi: The kernel vector `\Phi(x,x_i)` @type colvec
-            % ut: The evaluation of the current input `u(t)` at time `t`
-            % @type double
+            % ut: The evaluation of the current input `\vu(t)` at time `t` @type colvec<double>
             % t: The current time `t` @type double
-            % mu: The current parameter `\mu` @type colvec
+            % mu: The current parameter `\vmu` @type colvec<double>
             a = phi*this.M1*phi';
             if ~isempty(ut) % An input function u is set
                 a = a + phi*this.mb.compose(t,mu)*ut + ut'*this.bb.compose(t,mu)*ut;

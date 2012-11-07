@@ -174,6 +174,13 @@ classdef ApproxTrainData < handle
     methods(Static)
         function atd = computeFrom(model, f, selector, parallel)
             % Computes approximation training data for a model, function and selector
+            %
+            % Parameters:
+            % model: The full model instance @type models.BaseFullModel
+            % f: The model's core function @type dscomponents.ACoreFun
+            % selector: The training data selector @type data.selection.ASelector
+            % parallel: Flag to set if computation should be done in parallel (MatlabPool)
+            % @type logical @default false
             if nargin < 4
                 parallel = false;
             end
@@ -215,7 +222,8 @@ classdef ApproxTrainData < handle
                 if KerMor.App.Verbose > 0
                     fprintf('Serial computation of f-values at %d points (%d xi-blocks) ...\n',size(atd.xi,2),xi.nBlocks);
                 end
-                fxi = data.FileMatrix(f.fDim,size(xi,2),fileparts(xi.DataDirectory),128*1024^2);
+                fxi = data.FileMatrix(f.fDim,size(xi,2),...
+                    'Dir',fileparts(xi.DataDirectory),'BlockSize',128*1024^2);
                 if KerMor.App.Verbose > 1
                     pi = tools.ProcessIndicator('Computing %d %dx%d-block f evaluations on %d %dx%d-blocks of xi snapshots',...
                         fxi.nBlocks,false,fxi.nBlocks,fxi.n,fxi.bCols,xi.nBlocks,xi.n,xi.bCols);

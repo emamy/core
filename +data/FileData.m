@@ -51,7 +51,7 @@ classdef FileData < handle
         end
         
         function relocate(this, newDataDirectoryRoot)%#ok
-            % @TODO Implement multiple-host FileData's with different storage_root folders (per
+            % @\todo Implement multiple-host FileData's with different storage_root folders (per
             % host for example)
         end
         

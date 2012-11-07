@@ -90,9 +90,9 @@ classdef POD < KerMorObject
             %
             % Parameters:
             % data: The set of column-vectors to perform the POD on. Can be a real matrix or a
-            % data.ABlockedData instance. @type [matrix<double>|general.ABlockSVD]
+            % data.ABlockedData instance. @type matrix<double> or general.ABlockSVD
             % Vexclude: A given set of orthonormal vectors to exclude from the resulting POD.
-            % @type matrix<double> @optional @default []
+            % @type matrix<double> @default []
             %
             % Return values:
             % podvec: The POD modes computed. @type matrix<double>

@@ -72,9 +72,12 @@ classdef MLode15i < solvers.ode.MLWrapper & solvers.ode.AImplSolver
             % Solves the ode specified by odefun implicitly.
             %
             % Parameters:
-            % odefun: A function handle for the ODE's dynamic function `f(t,x)`
-            % t: The times `t_i` on which to solve the ODE
+            % odefun: A function handle for the ODE's dynamic function `f(t,x)` @type
+            % function_handle
+            % t: The times `t_i` on which to solve the ODE @type rowvec<double>
             % x0: Initial condition vector `x_0(\mu)`
+            % opts: Optional options struct for ODE settings obtained by \c odeset. @type
+            % struct @default []
             %
             % Return values:
             % t: The desired computation times `t_0,\ldots,t_N` as row vector

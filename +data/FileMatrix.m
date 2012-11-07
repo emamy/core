@@ -9,6 +9,8 @@ classdef FileMatrix < data.FileData & data.ABlockedData
 %
 % @author Daniel Wirtz @date 2012-07-09
 %
+% @change{0,6,dw,2012-11-06} Changed the constructor to use an inputParser
+%
 % @new{0,6,dw,2012-07-09} Added this class.
 %
 % This class is part of the framework
@@ -20,7 +22,10 @@ classdef FileMatrix < data.FileData & data.ABlockedData
 % @todo add getBlockPos method for block indices and consider removing the idx vector
 
     properties(Constant)
-        BLOCK_SIZE = 256*1024^2; % 256MB
+        % The default block size to use for new FileMatrix instances.
+        %
+        % @type integer @default 256MB
+        BLOCK_SIZE = 256*1024^2; 
     end
     
     properties
@@ -84,55 +89,56 @@ classdef FileMatrix < data.FileData & data.ABlockedData
     end
     
     methods
-        function this = FileMatrix(n, m, varargin)
+        function this = FileMatrix(var, varargin)
             % Creates a new file matrix.
+            % Possible constructors:
+            % - FileMatrix(A): Creates a new file matrix 
             %
             % Parameters:
-            % n: If a scalar, the row dimension. If a matrix, this must be the only parameter
-            % and the file matrix is created using the matrix value and the default BLOCK_SIZE.
-            % @type [integer,matrix<double>]
-            % m: The number of columns. @type integer
+            % var: If a scalar, the row dimension. If a matrix, the file matrix is initialized
+            % using the matrix value. @type matrix<double>
             % varargin: More optional input arguments, see below.
-            %
-            % Varargin arguments:
-            % -# Either a char array denoting the target root folder where the file-containing
-            % data folder should be stored, or a data.FileMatrix instance which is then used to
-            % place this FileMatrices files in the same root directory. If the latter is the
-            % case, the same block size is also assumed.
-            % -# The maximum block size in Bytes. @type integer @default 256MB
+            % m: If the var argument was a row dimension, the column dimension `m` is a
+            % required argument. @type integer
+            % Dir: A char array denoting the target root folder where the file-containing
+            % data folder should be stored.
+            % BlockSize: The maximum block size in Bytes. @type integer
             
-            % Matrix case: Create & assign directly
-            if nargin < 2
-               if ismatrix(n)
-                   A = n;
-                   [n, m] = size(A);  
-               else
-                   error('If one argument is passed, it must be a matrix.');
-               end
-            end
-            if length(varargin) < 2
-                block_size = min(data.FileMatrix.BLOCK_SIZE,n*m*8);
-            elseif isposrealscalar(varargin{2})
-                block_size = varargin{2};
+            ip = inputParser;
+            matrixin = false;
+            if numel(var) > 1
+                A = var;
+                [n, m] = size(A); %#ok<*PROP>
+                matrixin = true;
+%             elseif isa(var,'data.FileMatrix')
+%                 n = var.n;
+%                 m = var.m;
+%                 varargin = {'Dir', fileparts(var.DataDirectory),...
+%                     'BlockSize', var.blocksize};
             else
-                error('Invalid input arguments. Second variable input must be a scalar value determining the block size.');
+                n = var;
+                ip.addRequired('m');
             end
-            if isempty(varargin) || isempty(varargin{1})
-                storage_root = KerMor.App.DataStoreDirectory;
-            elseif isa(varargin{1},'data.FileMatrix')
-                storage_root = fileparts(varargin{1}.DataDirectory);
-                block_size = varargin{1}.blocksize;
-            elseif ischar(varargin{1})
-                storage_root = varargin{1};
-            else
-                error('Invalid input arguments. First variable input must be either a FileMatrix or a char array.');
+            ip.addParamValue('Dir',KerMor.App.TempDirectory,...
+            @(v)ischar(v) && exist(v,'dir') == 7);
+            ip.addParamValue('BlockSize',data.FileMatrix.BLOCK_SIZE,...
+                @(v)round(v) == v && isposrealscalar(v));
+            ip.parse(varargin{:});
+            % Latest at here we have an m value
+            if isfield(ip.Results,'m')
+                m = ip.Results.m;
             end
-            this = this@data.FileData(fullfile(storage_root,...
+            % Error checks
+            if ~(round(n) == n && round(m) == m)
+                error('Size arguments n, m must be integer values.');
+            end
+
+            this = this@data.FileData(fullfile(ip.Results.Dir,...
                 sprintf('matrix_%s',general.IDGenerator.generateID)));
             this.n = n; 
             this.m = m;
-            this.blocksize = block_size;
-            this.bCols = max(floor(block_size/(8*n)),1);
+            this.blocksize = min(ip.Results.BlockSize,n*m*8);
+            this.bCols = max(floor(this.blocksize/(8*n)),1);
             this.nBlocks = ceil(m / this.bCols);
             this.created = false(1,this.nBlocks);
             hlp = reshape(repmat(1:this.nBlocks,this.bCols,1),[],1);
@@ -140,7 +146,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             this.idx = [hlp(1:m) hlp2(1:m)];
             
             % Matrix case: Assign value directly
-            if nargin < 2
+            if matrixin
                 this.subsasgn(struct('type',{'()'},'subs',{{':',':'}}),A);
             end
         end
@@ -162,7 +168,8 @@ classdef FileMatrix < data.FileData & data.ABlockedData
         end
         
         function copy = copyWithNewBlockSize(this, block_size)
-            copy = data.FileMatrix(this.n,this.m,fileparts(this.DataDirectory),block_size);
+            copy = data.FileMatrix(this.n,this.m,...
+                'Dir',fileparts(this.DataDirectory),'BlockSize',block_size);
             for k=1:this.nBlocks
                 pos = this.getBlockPos(k);
                 copy.subsasgn(struct('type',{'()'},'subs',{{':',pos}}),this.loadBlock(k));
@@ -193,7 +200,8 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             if ~isa(this,'data.FileMatrix') && ~isscalar(expo)
                 error('FileMatrix power only defined for scalar values.');
             end
-            value = data.FileMatrix(this.n,this.m,this);
+            value = data.FileMatrix(this.n,this.m,'Dir', fileparts(this.DataDirectory),...
+                'BlockSize', this.blocksize);
             for k=1:this.nBlocks
                 value.saveBlock(k,this.loadBlock(k).^expo);
             end
@@ -334,7 +342,8 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                         end
                     % FileMatrix * matrix case
                     else
-                        AB = data.FileMatrix(A.n, size(B,2), A);
+                        AB = data.FileMatrix(A.n, size(B,2), 'Dir', fileparts(A.DataDirectory),...
+                            'BlockSize', A.blocksize);
                         ABcols = AB.bCols;
                         key = struct('type',{'()'},'subs',{{':'}});
                         for i=1:A.nBlocks
@@ -354,7 +363,8 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 end
                 % [vec|mat] * FileMatrix case
             elseif isa(B,'data.FileMatrix')
-                AB = data.FileMatrix(size(A,1),B.m, fileparts(B.DataDirectory), B.blocksize);
+                AB = data.FileMatrix(size(A,1), B.m, 'Dir', fileparts(B.DataDirectory),...
+                    'BlockSize', B.blocksize);
                 key = struct('type',{'()'},'subs',{{':'}});
                 % If AB has more blocks than B, the resulting matrix is larger than B.
                 % Thus, we need A*b to be as most as big as blocksize, which is why slices of B
@@ -381,7 +391,8 @@ classdef FileMatrix < data.FileData & data.ABlockedData
         end
         
         function trans = ctranspose(this)
-            trans = data.FileMatrix(this.m,this.n,this);
+            trans = data.FileMatrix(this.m, this.n, 'Dir', fileparts(this.DataDirectory),...
+                'BlockSize', this.blocksize);
             if this.InPlaceTranspose
                 if this.nBlocks > 1
                     pi = tools.ProcessIndicator('Creating in-place transposed of %d-block matrix in %s' ,this.nBlocks,...
@@ -596,7 +607,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                         s = load(fullfile(directory,sprintf('block_%d.mat',nb)));
                     end
                     M = (nb-1)*nCols + size(s.A,2);
-                    fm = data.FileMatrix(N,M,fileparts(directory),8*nCols*N);
+                    fm = data.FileMatrix(N,M,'Dir',fileparts(directory),'BlockSize',8*nCols*N);
                     fm.updateMinMax(A1); % first block
                     if nb > 1
                         fm.updateMinMax(s.A);
@@ -621,7 +632,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
         function res = test_FileMatrix
             res = true;
             B = rand(99,100);
-            A = data.FileMatrix(99,100,KerMor.App.TempDirectory,99*20*8);
+            A = data.FileMatrix(99,100,'Dir',KerMor.App.TempDirectory,'BlockSize',99*20*8);
             key = struct('type',{'()'},'subs',[]);
             % col-wise setting (fast)
             for k=1:100
@@ -690,7 +701,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             res = res && isequal(bm,am) && isequal(bM,aM);
             
             B = rand(100,10000)+.1;
-            A = data.FileMatrix(100,10000,KerMor.App.TempDirectory,round(numel(B)*8/40));
+            A = data.FileMatrix(100,10000,'BlockSize',round(numel(B)*8/40));
             key.subs = {':', ':'};
             A.subsasgn(key,B);
             
@@ -711,7 +722,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             delete Atmp.mat;
             
             % Multiply for large result matrices
-            A = data.FileMatrix(50,1000,KerMor.App.TempDirectory,50*200*8);
+            A = data.FileMatrix(50,1000,'BlockSize',50*200*8);
             a = rand(50,1000);
             A(:,:) = a;
             B = rand(2000,50);
@@ -725,7 +736,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             % Direct time: 2475.53, Transposed time: 756.023, transposed SVD time: 661.171
             %
             % Thus: Auto-transpose for matrices with nBlocks > 1
-            A = data.FileMatrix(100,10,KerMor.App.TempDirectory,100*10*8/20);
+            A = data.FileMatrix(100,10,'BlockSize',100*10*8/20);
             A(:,:) = rand(size(A));
             ti = tic;
             [u,s,v] = A.getSVD(5);

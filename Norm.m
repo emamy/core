@@ -19,11 +19,11 @@ classdef Norm
             % Returns the discrete `L^2` norm for each column vector in x.
             %
             % Parameters:
-            % x: A matrix containing column vectors @type matrix<double>
+            % x: A matrix `\vX` containing column vectors `\vx_i` @type matrix<double>
             %
             % Return values:
-            % n: The `L^2` norm `||v||_2 = \sqrt{\sum\limits_{i=1}^d}v_i^2}` for each column
-            % vector `v\in\R^d` @type rowvec<double>
+            % n: The `L^2` norm `\norm{\vx}{2} = \sqrt{\sum\limits_{i=1}^dx_i^2}` for each column
+            % vector `\vx\in\R^d` in `\vX` @type rowvec<double>
             n = sqrt(sum(x.^2,1));
         end
         
@@ -31,11 +31,11 @@ classdef Norm
             % Returns the discrete `L^1` norm for each column vector in x.
             %
             % Parameters:
-            % x: A matrix containing column vectors @type matrix<double>
+            % x: A matrix `\vX` containing column vectors `\vx_i` @type matrix<double>
             %
             % Return values:
-            % n: The `L^1` norm `||v||_1 = \sum\limits_{i=1}^d|v_i|` for each column vector
-            % `v\in\R^d` @type rowvec<double>
+            % n: The `L^1` norm `\norm{\vx}{1} = \sum\limits_{i=1}^d|x_i|` for each column vector
+            % `\vx\in\R^d` in `\vX` @type rowvec<double>
             n = sum(abs(x),1);
         end
         
@@ -43,23 +43,24 @@ classdef Norm
             % Returns the discrete `L^\infty` norm for each column vector in x.
             %
             % Parameters:
-            % x: A matrix containing column vectors @type matrix<double>
+            % x: A matrix `\vX` containing column vectors `\vx_i` @type matrix<double>
             %
             % Return values:
-            % n: The `L^\infty` norm `||v||_\infty = \max\limits_{i=1}^d|v_i|` for each column
-            % vector `v\in\R^d` @type rowvec<double>
+            % n: The `L^\infty` norm `\norm{\vx}{\infty} = \max\limits_{i=1}^d|x_i|` for each
+            % column vector `\vx\in\R^d` in `\vX` @type rowvec<double>
             n = max(abs(x),[],1);
         end
         
         function n = LG(x, G)
-            % Returns the G-induced norm for each column vector in x.
+            % Returns the `\vG`-induced norm for each column vector in `\vX`.
             %
             % Parameters:
-            % x: A matrix containing column vectors @type matrix<double>
-            % G: A positive definite matrix `G`
+            % x: A matrix `\vX` containing column vectors `\vx_i` @type matrix<double>
+            % G: A positive definite matrix `\vG`
             %
             % Return values:
-            % n: The G-norm `||v||_G = \sqrt{x^tGx}` for each column vector `v` @type rowvec<double>
+            % n: The G-norm `\noG{\vx} = \sqrt{\vx^T\vG\vx}` for each column vector `\vx` in
+            % `\vX` @type rowvec<double>
             n = sqrt(sum(x.*(G*x),1));
         end
     end

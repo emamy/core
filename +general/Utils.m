@@ -89,7 +89,7 @@ classdef Utils
             % Creates the cartesian product of the vectors passed as a
             % matrix containing elements of each vector per row.
             %
-            % Inputs:
+            % Parameters:
             % ranges: Can either be a cell array of vectors or a vector.
             % varargin: If the first argument is a vector, an arbitrary
             % number of additional vectors can be passed to build the
@@ -132,6 +132,10 @@ classdef Utils
             % Recursively copies struct fields from one struct to another.
             %
             % Effectively implements a struct.clone() method.
+            %
+            % Parameters:
+            % source: The source struct. @type struct
+            % target: The target struct. @type struct
             %
             % @author Daniel Wirtz @date 2010-11-03
             if ~isstruct(source) || ~isstruct(target)
@@ -403,7 +407,9 @@ classdef Utils
             % a whole figure which allows to drop any unwanted uiobjects
             % contained on the source figure.
             %
-            % @todo use export_fig here!
+            % Parameters:
+            % ax: The axes handle to save. @type handle
+            % varargin: Any additional parameters are passed to general.Utils.saveFigure
             
             fig = figure('Visible','off','MenuBar','none','ToolBar','none');
             %fig = figure('MenuBar','none','ToolBar','none');
@@ -495,23 +501,22 @@ classdef Utils
         end
         
         function [ln, v] = logNorm(A, G, v0)
-            % Computes the logarithmic norm of a matrix, optionally using a
-            % positive definite symmetric matrix `G` inducing the matrix
+            % Computes the logarithmic norm of a matrix `\vA`, optionally using a
+            % positive definite symmetric matrix `\vG` inducing the matrix
             % norm to use.
             %
             % Parameters:
-            % A: The target matrix @type matrix<double>
-            % G: The positive definite, symmetric matrix `G` inducing the
+            % A: The target matrix `\vA` @type matrix<double>
+            % G: The positive definite, symmetric matrix `\vG` inducing the
             % norm and hence matrix norm to use. Defaults to identity
-            % matrix (Euclidean/L2 norm) @type matrix<double>
-            % @default I
-            % v0: An initial vector for eigs to start with. @type colvec<double> @optional
+            % matrix (Euclidean/L2 norm) @type matrix<double> @default `\vI_d`
+            % v0: An initial vector for eigs to start with. @type colvec<double> @default []
             %
             % Return values:
             % ln: The logarithmic norm with respect to the given matrix
-            % norm induced by `G`. @type double
+            % norm induced by `\vG`. @type double
             % v: The eigenvector of the largest eigenvalue (=log norm) of
-            % the symmetric part of `A`. @type colvec<double>
+            % the symmetric part of `\vA`. @type colvec<double>
             %
             % @change{0,6,dw,2012-07-18} Added a re-try with 6 eigenvalues if no convergence
             % for one eigenvalue takes place. Added an optional v0 parameter as start vector

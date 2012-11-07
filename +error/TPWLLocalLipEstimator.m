@@ -122,7 +122,7 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
                     p.Ainorms(i) = norm(Ai{i});
                 end
             else
-                error('TODO');
+                error('\todo');
 %                 % No projection means no projection error!
 %                 n = size(Ma,2);
 %                 

@@ -73,11 +73,13 @@ classdef ReducedModel < models.BaseModel
             % Creates a new reduced model instance.
             %
             % Optionally, a models.BaseFullModel subclass can be passed to
-            % create this new reduced model from.
+            % create this new reduced model from. The target_dim parameter determines how many
+            % (first) columns of the projection matrices V,W should be taken.
             %
             % Parameters:
             % fullmodel: A full model where the reduced model shall be
-            % created from. [Optional]
+            % created from. @type models.BaseFullModel
+            % target_dim: The target reduced model state space dimension. @type integer
             this = this@models.BaseModel;
             if nargin > 0
                 this.setFullModel(fullmodel, target_dim);

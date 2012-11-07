@@ -123,6 +123,10 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
         
         %% approx.algorithms.IKernelCoeffComp interface members
         function init(this, K, varargin)
+            % Sets the kernel matrix.
+            %
+            % Parameters:
+            % K: The kernel matrix @type data.IKernelMatrix
             this.K = K;
         end
         

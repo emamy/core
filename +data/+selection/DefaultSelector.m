@@ -44,7 +44,8 @@ classdef DefaultSelector < data.selection.ASelector
             if nt > 0
                 [xdim, mudim] = td.getTrajectoryDoFs;
                 % Use 512 MB chunks for approx train data
-                xi = data.FileMatrix(xdim,nt*len,md.DataDirectory,8*512*1024^2);
+                xi = data.FileMatrix(xdim,nt*len,...
+                    'Dir',md.DataDirectory,'BlockSize',8*512*1024^2);
                 ti = zeros(1,nt*len);
                 mui = zeros(mudim,nt*len);
                 for k=1:nt

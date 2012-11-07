@@ -323,7 +323,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             num_in = max(1,this.TrainingInputCount);
             
             %             if num_s*num_in < matlabpool('size')
-            %                 % @TODO: switch back if changed!
+            %                 % @\todo: switch back if changed!
             %                 this.ComputeParallel = false;
             %             end
             

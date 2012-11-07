@@ -158,6 +158,8 @@ classdef EstimatorAnalyzer < handle
             % mu: The parameter `\mu` to use @type colvec
             % inidx: The input index `i` of the input function `u_i` to use
             % @type integer
+            % pm: An optional PlotManager instance to pass to the plot-creating functions @type
+            % tools.PlotManager @default []
             
             if nargin < 3
                 inidx = [];

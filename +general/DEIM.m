@@ -162,7 +162,7 @@ classdef DEIM < KerMorObject & general.AProjectable & general.IReductionSummaryP
         end
         
         function J = getStateJacobian(this, x, t, mu)
-            hlp = this.U * this.f.evaluateComponentSetGradients(1, x, t, mu);
+            hlp = this.U * this.f.evaluateComponentSetGradientsAt(1, x, t, mu);
             if isempty(this.V)
                 p = logical(this.f.JSparsityPattern);
                 J = sparse(this.f.fDim,this.f.xDim);

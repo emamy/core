@@ -56,6 +56,13 @@ classdef DEIM
             % The error over any training data point is measured L2 in
             % state and Linf over all training points.
             %
+            % Parameters:
+            % deim: The DEIM instance @type general.DEIM
+            % atd: The approximation training data @type data.ApproxTrainData
+            % orders: The different orders `1 \leq m\leq M` to try @type rowvec<integer>
+            % errorders: The different error orders `1 \leq m'\leq M-m` to try @type
+            % rowvec<integer>
+            %
             % Return values:
             % res: A 12 x totalcombinations matrix containing the values in
             % rows
@@ -336,6 +343,9 @@ classdef DEIM
             % approx.DEIM.MaxOrder `N` are used estimations for the given
             % trajectory computed.
             %
+            % Parameters:
+            % r: The reduced model @type models.ReducedModel
+            %
             % Return values:
             % etrue: The true approximation error using the full
             % trajectory.
@@ -346,7 +356,7 @@ classdef DEIM
             % ED: The absolute difference between true and estimated error
             % for each ErrorOrder (rows) and timestep (columns)
             % pm: The PlotManager used to create the result plots. If not
-            % requested as output, no plotting will be done. @optional
+            % requested as output, no plotting will be done.
             fm = r.FullModel;
             if nargin < 3
                 inputidx = fm.TrainingInputs;
@@ -440,7 +450,9 @@ classdef DEIM
             % Return values:
             % t: A PrintTable containing the results. If not specified as a
             % nargout argument, the table will be printed instead. @type
-            % PrintTable @optional
+            % PrintTable
+            % values: a value matrix with rows for orders and columns for relerrs @type
+            % matrix<double>
             if nargin == 4
                 txt = sprintf('DEIM MaxOrder %d error',maxorder);
                 maxvidx = 13;
@@ -488,7 +500,16 @@ classdef DEIM
         
         %% DEIM approximation analysis over parameters for specific state space location
         function [mui, fxi, afxi] = getDEIMErrorsAtXForParams(m, x, numExtraSamples)
+            %
+            % Parameters:
+            % m: The full model @type models.BaseFullModel
+            % x: The state space location `\vx` @type colvec<double>
+            % numExtraSamples: The number of extra samples to use. @type integer @default 0
+            %
             % Only t=0 is used
+            if nargin < 3
+                numExtraSamples = 0;
+            end
             mui = m.Data.ParamSamples;
             s = sampling.RandomSampler;
             s.Seed = 1;
@@ -531,6 +552,12 @@ classdef DEIM
         
         %% Model DEIM reduction quality assessment pics        
         function [errs, relerrs, times, deim_orders] = getDEIMReducedModelErrors(r, mu, inidx, deim_orders)
+            %
+            % Parameters:
+            % r: The reduced model @type models.ReducedModel
+            % mu: The current parameter `\vmu` @type colvec<double>
+            % inidx: The input index `i` for the input function `\vu_i(t)` @type integer
+            % deim_orders: The DEIM orders `1 \leq m \leq M` to use @type rowvec<integer>
             d = r.System.f;
             if nargin < 4
                 deim_orders = 1:(d.MaxOrder-r.System.f.Order(2));
@@ -592,6 +619,12 @@ classdef DEIM
         
         %% Matrix DEIM approximation analysis
         function [e, aln, orders] = compareDEIM_Full_Jacobian(m, atd, orders)
+            % Compares the MDEIM approximation with the full jacobian
+            %
+            % Parameters:
+            % m: The full model @type models.BaseFullModel
+            % atd: The approximation training data @type data.ApproxTrainData
+            % orders: The different orders `m_J` to try @type rowvec<integer>
             deim = m.ErrorEstimator.JacMDEIM;
             if nargin < 3
                 orders = 1:deim.MaxOrder;
@@ -686,6 +719,10 @@ classdef DEIM
         
         %% Effectivity analysis of error estimators
         function pm = effectivityAnalysis(r, mu, inputidx)
+            % Plots an effectivity graph for the current error estimator.
+            %
+            % Parameters:
+            % r: The reduced model @type models.ReducedModel
             pm = tools.PlotManager(false,2,1);
             pm.SingleSize = [720 540];
             pm.LeaveOpen = true;
@@ -700,7 +737,17 @@ classdef DEIM
         
         %% Error estimator struct compilation
         function est = getDEIMEstimators_MDEIM_ST(rmodel, est, jdorders, stsizes)
-            % Returns an estimator struct usable by the EstimatorAnalyzer
+            % Computes a set of DEIMEstimators for given MDEIM orders and simtrans-sizes.
+            %
+            % Parameters:
+            % rmodel: The reduced model @type models.ReducedModel
+            % est: The estimator settings struct @type struct
+            % jdorders: The MDEIM orders `1\leq m_J \leq M_J` to use @type rowvec<integer>
+            % stsizes: The similarity transformation sizes `1\leq k \leq d` to use @type
+            % rowvec<integer>
+            % 
+            % Return values:
+            % est: An estimator struct usable by the EstimatorAnalyzer @type struct
             if nargin < 3
                 stsizes = [1 10];
                 if nargin < 2

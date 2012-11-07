@@ -23,7 +23,7 @@ classdef FileDataCollection < data.FileData
             % Creates a new FileDataCollection in a file folder.
             %
             % Parameters:
-            % varargin: Either a data.ModelData instance to infer the storage root from, or a
+            % data_dir: Either a data.ModelData instance to infer the storage root from, or a
             % string containing a valid folder. @default A temporary folder within the
             % KerMor.TempDirectory
             if ~usejava('jvm')
@@ -54,6 +54,15 @@ classdef FileDataCollection < data.FileData
     
     methods(Access=protected)
         function data = getData(this, keydata, varargin)
+            % Retrieves data from the collection element of a given key.
+            %
+            % Parameters:
+            % keydata: The unique key data to identify a collection object @type rowvec<double>
+            % varargin: Contains the name of the fields to obtain as strings
+            %
+            % Return values:
+            % data: A struct with the fields as specified in varargin. @type struct
+            %
             % @todo make varargout instead of data struct
             key = general.Utils.getHash(keydata);
             data = [];
@@ -76,7 +85,16 @@ classdef FileDataCollection < data.FileData
         end
         
         function data = getDataNr(this, nr, varargin)
-            % Gets the trajectory with the number nr.
+            % Retrieves data from the nr-st collection element.
+            %
+            % Parameters:
+            % nr: The element number
+            % varargin: Contains the name of the fields to obtain as strings
+            %
+            % Return values:
+            % data: A struct with the fields as specified in varargin. @type struct
+            %
+            % @todo make varargout instead of data struct
             if nr > this.hm.size || nr < 1
                 error('Invalid data position number: %d',nr);
             end

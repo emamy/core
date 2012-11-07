@@ -121,6 +121,14 @@ classdef MLWrapper < solvers.ode.BaseSolver
         function varargout = solverCall(this, odefun, t, x0, opts)
             % Default solver call for all builtin ode solvers except
             % ode15i. This method gets overridden in MLode15i.
+            %
+            % Parameters:
+            % odefun: A function handle for the ODE's dynamic function `f(t,x)` @type
+            % function_handle
+            % t: The times `t_i` on which to solve the ODE @type rowvec<double>
+            % x0: Initial condition vector `x_0(\mu)`
+            % opts: Optional options struct for ODE settings obtained by \c odeset. @type
+            % struct @default []
             [varargout{1:nargout}] = this.MLSolver(odefun, t, x0, opts);
         end
     end

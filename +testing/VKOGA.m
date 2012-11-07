@@ -85,7 +85,7 @@ classdef VKOGA
 %             pm.done;
 %             pm.savePlots(dir, types, [], true);
 
-            % Dat hier läuft EXTREM schlecht für VKOGA..
+            % Dat hier lï¿½uft EXTREM schlecht fï¿½r VKOGA..
 %             name = 'Franke3D';%'F7';
 %             pm.FilePrefix = sprintf('testfun_%s',name);
 %             [kexp, kexpo, a, ao, atd] = testing.VKOGA.test_VKOGA_TestFuns(name, 500, seed);
@@ -112,6 +112,125 @@ classdef VKOGA
 %             pm.savePlots(dir, types, [], true);
             
             %             ap.Verbose = oldv;
+        end
+        
+        function pm = phitildeconvergencetest()
+            pm = tools.PlotManager;
+            pm.LeaveOpen = true;
+%             ms = 16; % marker size
+            lw = 1; %testing.VKOGA.LineWidth
+            fine = .01;
+            x = -10:fine:10;
+            
+            k = kernels.GaussKernel;
+            k.setGammaForDistance(20/4,1e-5);
+            pos = [-3.3 -2];% -1.5 0 -4.5];
+            
+            phix = kernels.KernelExpansion;
+            phix.Kernel = k;
+            phix.Ma = 1;
+            h = pm.nextPlot('plots','Tests','x','stuff');
+            
+            %X = -2.01:.001:-2.001;
+            X = [-2.9 -2.5 -2.4 -2.3 -2.3 -2.1 -2.01:.001:-2.002 -2.001:.0001:-2.0001];
+            for k=1:length(X)
+                curX = X(k);
+                phix.Centers.xi = curX;
+            
+                fx = phix.evaluate(x);
+%                 h = pm.nextPlot('plots','Tests','x','stuff');
+                plot(h,x,fx,'r','LineWidth',lw);
+                hold(h,'on');
+                
+                iphix = interpolate(phix, pos);
+                
+                afx = iphix.evaluate(x);
+                plot(h,x,afx,'r--','LineWidth',lw);
+
+                g = phix - iphix;
+                gn = g.clone;
+                no = sqrt(1-iphix.evaluate(curX));
+                gn.Ma = gn.Ma / no;
+                
+                fg = g.evaluate(x);
+                plot(h,x,fg,'b','LineWidth',lw);
+                fgn = gn.evaluate(x);
+                plot(h,x,fgn,'g','LineWidth',lw);
+                title(sprintf('x=%g, no=%g, ||g||=%g, ||g_n||=%g\n,Ma=%s\nCenters:%s',curX,no,...
+                    g.NativeNorm,gn.NativeNorm,sprintf('%g ',gn.Ma),...
+                    sprintf('%g ',gn.Centers.xi)));
+                
+%                 gtest = gn.clone;
+%                 gtest.Ma(3) = -gtest.Ma(3)-gtest.Ma(1);
+%                 gtest.Ma(1) = 0;
+%                 fgt = gtest.evaluate(x);
+%                 plot(h,x,fgt,'m','LineWidth',lw);
+                
+%                 title(sprintf('x=%g, no=%g, ||g||=%g, ||g_n||=%g\n,Ma=%s\nCenters:%s\nMa_{gtest}=%s',curX,no,...
+%                     g.NativeNorm,gn.NativeNorm,sprintf('%g ',gn.Ma),...
+%                     sprintf('%g ',gn.Centers.xi),sprintf('%g ',gtest.Ma)));
+                plot(h,curX,0,'kx');
+                plot(h,pos,0,'kx');
+                hold(h,'off');
+                pause;
+            end
+            
+            function kexp = interpolate(fun, pos)
+                kexp = kernels.KernelExpansion;
+                kexp.Kernel = fun.Kernel;
+                kexp.Centers.xi = pos;
+                kexp.Ma = (kexp.getKernelMatrix\fun.evaluate(pos)')';
+            end
+            
+            % Extension errors
+%             free = true(size(x));
+%             free(c) = false;
+%             xf = x(free);
+%             Kbig = kexp.getKernelVector(xf)';
+%             
+%             % Compute kernel fcn projection to H(m-1)
+%             A = kexp.getKernelMatrix \ Kbig;
+%             F = fx(c);
+%             
+%             oga_err = abs(fx(free) - F*A);
+%             %oga_err = abs(fx-afx);
+%             phinormsq = sqrt(1 - sum(A.*Kbig,1));
+%             vkoga_err = oga_err ./ phinormsq;
+%             
+%             g = [0 .5 0];
+%             plot(h,xf,oga_err,'Color',g,'LineWidth',testing.VKOGA.LineWidth);
+%             plot(h,xf,vkoga_err,'--','Color',g,'LineWidth',testing.VKOGA.LineWidth);
+%             
+%             off = -1.1;
+%             plot(h,xf,phinormsq+off,'m-.','LineWidth',testing.VKOGA.LineWidth);
+%             
+% %             plot(h,x(c),fx(c),'b.','MarkerSize',ms+8,'LineWidth',testing.VKOGA.LineWidth);
+% %             [om, oidx] = max(oga_err);
+% %             [vm, vidx] = max(vkoga_err);
+% %             plot(h,xf(oidx),om,'rx',xf(vidx),vm,'rx','MarkerSize',ms,'LineWidth',testing.VKOGA.LineWidth);
+%             
+%             % Lines at maxima
+% %             plot(h,[xf(oidx) xf(oidx)],[om phinormsq(oidx)+off],'k--');
+% %             plot(h,[xf(vidx) xf(vidx)],[vm phinormsq(vidx)+off],'k--');
+%             % Zero line
+%             plot(h,x,0,'k');
+%             
+%             lh = legend('$f_j(x)$','$f_j^{m-1}(x)$','$\langle f_j-f_j^{m-1}, \Phi(x,\cdot)\rangle_\mathcal{H}$',...
+%                 '$\langle f_j, \phi^{m-1}_x\rangle_\mathcal{H}$','$||\tilde{\phi}^{m-1}_x||-3$');
+%             set(lh,'Interpreter','latex','Location','Best');
+%             %set(lh,'FontSize',30,'FontWeight',pm.SaveFont.FontWeight);
+%             
+%             % experimental plots for phi limit value finding
+%             plot(h,x(c),0,'b.','MarkerSize',ms+8,'LineWidth',testing.VKOGA.LineWidth);
+%             dfx = abs(diff(fx)/fine);
+%             dfx = dfx(free(1:end-1));
+%             plot(h,xf(1:end-1),dfx);
+%             %dphinsq = abs(diff(phinormsq)/fine);
+%             %plot(h,xf(1:end-1),dphinsq);
+%             plot(h,xf(1:end-1),fx(free(1:end-1)).*sqrt(dfx./sqrt(phinormsq(1:end-1))),'Color','r');
+%             plot(h,xf(1:end-1),dafx./abs(sqrt(dphinsq)),'Color','m');
+%             hlp = afx(free);
+%             plot(h,xf(1:end-1),hlp(1:end-1)./abs(sqrt(dphinsq)),'Color','m');
         end
         
         function pm = selectCritGraphic(pm, seed)

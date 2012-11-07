@@ -8,10 +8,10 @@ function [h, Y, E] = ParamSweep2D(rmodel, mu, inputidx, params, range1, range2, 
 % mu: The current parameter `\mu`. Pass this if the model has more parameters than the one to sweep.
 % If set, the value at the index of the sweeped parameter will be overwritten.
 % inputidx: The input index to use. As usual, set to [] if none are used.
-% param: Either a string containing the name of the parameter to sweep, or it's index in the
-% parameter vector.
-% paramvals: A row vector of parameter values for sweeping.
-% ax: An axes handle to plot to. @type handle<axes> @default new figure
+% params: The indices of the parameters to sweep in the parameter vector. @type matrix<integer>
+% range1: The range for parameter one @type rowvec<double>
+% range2: The range for parameter two @type rowvec<double>
+% ax: An axes handle to plot to. @type handle @default new figure
 %
 % Return values:
 % h: The handle of the created figure

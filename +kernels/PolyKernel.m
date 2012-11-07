@@ -16,7 +16,7 @@ classdef PolyKernel < kernels.BaseKernel
         
         function this = PolyKernel(deg)
             if nargin == 1
-                % TODO validity checks
+                % \todo validity checks
                 this.Degree = deg;
             end
             this.IsScProd = true;

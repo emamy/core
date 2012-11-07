@@ -57,8 +57,9 @@ classdef ACoreFun < KerMorObject & general.AProjectable
     
     properties(SetObservable, SetAccess=protected)
         % Set this property if the projection process is customized by
-        % overriding the default project method. This affects the
-        % evaluation method of the ACoreFun.
+        % overriding the default project method.
+        % 
+        % This affects the evaluation method of the ACoreFun.
         %
         % @propclass{optional} If the structure of the underlying function allows more efficient
         % projection set this flag to true in the subclass constructor.
@@ -143,7 +144,7 @@ classdef ACoreFun < KerMorObject & general.AProjectable
         end
         
         function target = project(this, V, W, target)
-            % Sets the protected V,W matrices that can be utilized on core
+            % Sets the protected `\vV,\vW` matrices that can be utilized on core
             % function evaluations after projection.
             %
             % If the customized subclass sets the CustomProjection property
@@ -359,7 +360,7 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             % finite difference computed one.
             %
             % Attention:
-            % This method always works, also if you did not overload the
+            % This method trivially works if you did not overload the
             % dscomponents.ACoreFun.getStateJacobian method (then it will check the default
             % implementation against itself)
             %

@@ -1,16 +1,15 @@
-function [Y,E] = EstimatorParamSweep(ea, mu, inputidx, param, paramvals)
+function [Y,E] = EstimatorParamSweep(ea, mu, ~, param, paramvals)
 % ParamSweep: Plots the output with error bounds for a range of one specified parameter.
 %
 % This function may only be used if the output of the reduced models is one-dimensional.
 %
 % Parameters:
-% d: A complete tools.EstimatorAnalyzer instance with reduced model already set
+% ea: A complete tools.EstimatorAnalyzer instance with reduced model already set
 % mu: The current parameter `\mu`. Pass this if the model has more parameters than the one to sweep.
 % If set, the value at the index of the sweeped parameter will be overwritten.
-% inputidx: The input index to use. As usual, set to [] if none are used.
 % param: Either a string containing the name of the parameter to sweep, or it's index in the
 % parameter vector.
-% paramvals: A row vector of parameter values for sweeping.
+% paramvals: A row vector of parameter values for sweeping. @type rowvec<double>
 %
 % Return values:
 % Y: The simulation matrix for every parameter, each simulation in a row.

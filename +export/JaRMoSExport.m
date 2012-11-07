@@ -83,6 +83,12 @@ classdef JaRMoSExport < handle
     methods
         
         function exportModel(this, model, folder)
+            % Exports the given model for use in JaRMoS to the given folder
+            %
+            % Parameters:
+            % model: The model to export. @type models.ReducedModel
+            % folder: The target folder @type char
+            
             %% Use last folder if KerMor is around
             if nargin == 2
                 initialdir = '';

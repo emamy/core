@@ -29,9 +29,9 @@ classdef Constant < error.alpha.Base
             % the inputs.
             %
             % Parameters:
-            % rmodel: The reduced model @type models.ReducedModel
-            % M: The projected coefficient matrix `M_{\alpha} -
-            % VW^tM_{\alpha})` @type matrix
+            % fm: The full model @type models.BaseFullModel
+            % M: The projected coefficient matrix `\vM_{\alpha} - \vV\vW^T\vM_{\alpha})` @type
+            % matrix<double>
             
             if ~isempty(fm.System.B)
                 try

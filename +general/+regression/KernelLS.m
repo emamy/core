@@ -65,7 +65,7 @@ classdef KernelLS < KerMorObject & approx.algorithms.IKernelCoeffComp
             if length(y) <= this.MaxStraightInvDim
                 a = M\y;
             else
-                % @TODO: why doepcgs pcg not work here? matrix is symmetric!
+                % @\todo: why doepcgs pcg not work here? matrix is symmetric!
                 [a, flag] = bicg(M,y,this.CGTol, this.CGMaxIt);%#ok
             end
         end
