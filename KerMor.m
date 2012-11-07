@@ -9,6 +9,9 @@ classdef KerMor < handle
     %
     % @author Daniel Wirtz @date 2011-03-04
     %
+    % @new{0,7,dw,2012-11-07} Started KerMor 0.7 to congratulate President Obama for his
+    % re-election :-)
+    %
     % @new{0,6,dw,2012-05-3} Added a getGitBranch function to easily access
     % the current branch. This is intended to be helpful on figuring out
     % under which commit a certain simulation was run (and saved)
@@ -260,7 +263,7 @@ classdef KerMor < handle
         % @type char
         %
         % See also: MainVersion
-        SubVersion = '6';
+        SubVersion = '7';
         
         % The prefix for the host-dependent preference tags
         %
