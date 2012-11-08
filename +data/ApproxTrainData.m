@@ -153,19 +153,23 @@ classdef ApproxTrainData < handle
         end
         
         function set.xi(this, value)
-            if ~isa(value,'data.FileMatrix') && ismatrix(value)
-                value = data.FileMatrix(value);
-            elseif ~isa(value,'data.FileMatrix')
-                error('The xi property must be a matrix or a data.FileMatrix');
+            if ~isempty(value)
+                if ~isa(value,'data.FileMatrix') && ismatrix(value)
+                    value = data.FileMatrix(value);
+                elseif ~isa(value,'data.FileMatrix')
+                    error('The xi property must be a matrix or a data.FileMatrix');
+                end
             end
             this.xi = value;
         end
         
         function set.fxi(this, value)
-            if ~isa(value,'data.FileMatrix') && ismatrix(value)
-                value = data.FileMatrix(value);
-            elseif ~isa(value,'data.FileMatrix')
-                error('The fxi property must be matrix or a data.FileMatrix');
+            if ~isempty(value)
+                if ~isa(value,'data.FileMatrix') && ismatrix(value)
+                    value = data.FileMatrix(value);
+                elseif ~isa(value,'data.FileMatrix')
+                    error('The fxi property must be matrix or a data.FileMatrix');
+                end
             end
             this.fxi = value;
         end

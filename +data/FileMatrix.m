@@ -1,31 +1,31 @@
 classdef FileMatrix < data.FileData & data.ABlockedData
-% FileMatrix: File-based matrix which stores sets of rows in separate files.
-%
-% This class features a caching functionality for the last accessed block, so that for
-% subsequent calls to loadBlock with the same number no new hard drive access is necessary.
-% This makes the FileMatrix almost as fast as a normal matrix when one block is used, i.e. the
-% whole matrix fits into one block of the pre-defined size block_size passed at the
-% constructor.
-%
-% @author Daniel Wirtz @date 2012-07-09
-%
-% @change{0,6,dw,2012-11-06} Changed the constructor to use an inputParser
-%
-% @new{0,6,dw,2012-07-09} Added this class.
-%
-% This class is part of the framework
-% KerMor - Model Order Reduction using Kernels:
-% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
-% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
-% - \c License @ref licensing   
-%
-% @todo add getBlockPos method for block indices and consider removing the idx vector
-
+    % FileMatrix: File-based matrix which stores sets of rows in separate files.
+    %
+    % This class features a caching functionality for the last accessed block, so that for
+    % subsequent calls to loadBlock with the same number no new hard drive access is necessary.
+    % This makes the FileMatrix almost as fast as a normal matrix when one block is used, i.e. the
+    % whole matrix fits into one block of the pre-defined size block_size passed at the
+    % constructor.
+    %
+    % @author Daniel Wirtz @date 2012-07-09
+    %
+    % @change{0,6,dw,2012-11-06} Changed the constructor to use an inputParser
+    %
+    % @new{0,6,dw,2012-07-09} Added this class.
+    %
+    % This class is part of the framework
+    % KerMor - Model Order Reduction using Kernels:
+    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % - \c License @ref licensing
+    %
+    % @todo add getBlockPos method for block indices and consider removing the idx vector
+    
     properties(Constant)
         % The default block size to use for new FileMatrix instances.
         %
         % @type integer @default 256MB
-        BLOCK_SIZE = 256*1024^2; 
+        BLOCK_SIZE = 256*1024^2;
     end
     
     properties
@@ -92,7 +92,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
         function this = FileMatrix(var, varargin)
             % Creates a new file matrix.
             % Possible constructors:
-            % - FileMatrix(A): Creates a new file matrix 
+            % - FileMatrix(A): Creates a new file matrix
             %
             % Parameters:
             % var: If a scalar, the row dimension. If a matrix, the file matrix is initialized
@@ -104,23 +104,27 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             % data folder should be stored.
             % BlockSize: The maximum block size in Bytes. @type integer
             
+            if isempty(var)
+                error('Cannot create a FileMatrix with empty first argument. Must either be a row number or a matrix.');
+            end
+            
             ip = inputParser;
             matrixin = false;
             if numel(var) > 1
                 A = var;
                 [n, m] = size(A); %#ok<*PROP>
                 matrixin = true;
-%             elseif isa(var,'data.FileMatrix')
-%                 n = var.n;
-%                 m = var.m;
-%                 varargin = {'Dir', fileparts(var.DataDirectory),...
-%                     'BlockSize', var.blocksize};
+                %             elseif isa(var,'data.FileMatrix')
+                %                 n = var.n;
+                %                 m = var.m;
+                %                 varargin = {'Dir', fileparts(var.DataDirectory),...
+                %                     'BlockSize', var.blocksize};
             else
                 n = var;
                 ip.addRequired('m');
             end
             ip.addParamValue('Dir',KerMor.App.TempDirectory,...
-            @(v)ischar(v) && exist(v,'dir') == 7);
+                @(v)ischar(v) && exist(v,'dir') == 7);
             ip.addParamValue('BlockSize',data.FileMatrix.BLOCK_SIZE,...
                 @(v)round(v) == v && isposrealscalar(v));
             ip.parse(varargin{:});
@@ -132,10 +136,10 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             if ~(round(n) == n && round(m) == m)
                 error('Size arguments n, m must be integer values.');
             end
-
+            
             this = this@data.FileData(fullfile(ip.Results.Dir,...
                 sprintf('matrix_%s',general.IDGenerator.generateID)));
-            this.n = n; 
+            this.n = n;
             this.m = m;
             this.blocksize = min(ip.Results.BlockSize,n*m*8);
             this.bCols = max(floor(this.blocksize/(8*n)),1);
@@ -250,7 +254,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                         B = this.loadBlock(b);
                         value(:,pos(:,1) == b) = B(s{1},pos(pos(:,1)==b,2));
                     end
-                % Linear addressing
+                    % Linear addressing
                 elseif length(key.subs) == 1
                     error('Not yet implemented.');
                 else
@@ -282,7 +286,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                         B(s{1},pos(pos(:,1)==b,2)) = value(:,pos(:,1) == b);
                         this.saveBlock(b,B);
                     end
-                % Linear addressing
+                    % Linear addressing
                 elseif length(key.subs) == 1
                     error('Not yet implemented.');
                 else
@@ -298,13 +302,13 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 if isa(A,'data.FileMatrix')
                     if isa(B,'data.FileMatrix')
                         error('Not yet implemented.');
-%                         diff = data.FileMatrix(A.n, A.m, A);
-%                         key = struct('type',{'()'},'subs',{{':'}});
-%                         for i=1:A.nBlocks
-%                             pos = A.getBlockPos(i);
-%                             key.subs{2} = pos;
-%                             diff.subsasgn(key,A.loadBlock(i) - B(:,pos));
-%                         end
+                        %                         diff = data.FileMatrix(A.n, A.m, A);
+                        %                         key = struct('type',{'()'},'subs',{{':'}});
+                        %                         for i=1:A.nBlocks
+                        %                             pos = A.getBlockPos(i);
+                        %                             key.subs{2} = pos;
+                        %                             diff.subsasgn(key,A.loadBlock(i) - B(:,pos));
+                        %                         end
                     else
                         diff = zeros(A.n, A.m);
                         for i=1:A.nBlocks
@@ -337,10 +341,10 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                             % Only multiply if nonzero
                             if A.created(bidx)
                                 ABlock = A.loadBlock(bidx);
-                                AB = AB + ABlock*B(A.getBlockPos(bidx),:);  
+                                AB = AB + ABlock*B(A.getBlockPos(bidx),:);
                             end
                         end
-                    % FileMatrix * matrix case
+                        % FileMatrix * matrix case
                     else
                         AB = data.FileMatrix(A.n, size(B,2), 'Dir', fileparts(A.DataDirectory),...
                             'BlockSize', A.blocksize);
@@ -372,7 +376,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 if AB.nBlocks > B.nBlocks
                     for i=1:AB.nBlocks
                         key.subs{2} = AB.getBlockPos(i);
-                        b = B.subsref(key);                        
+                        b = B.subsref(key);
                         AB.subsasgn(key,A*b);
                     end
                 else
@@ -570,6 +574,35 @@ classdef FileMatrix < data.FileData & data.ABlockedData
         end
     end
     
+    methods(Static, Access=protected)
+        function this = loadobj(this, initfrom)
+            % Loads a FileMatrix instance.
+            
+            created = false;
+            if ~isa(this, 'data.FileMatrix')
+                initfrom = this;
+                this = data.FileMatrix(initfrom.n,initfrom.m,'Dir',...
+                    initfrom.DataDirectory,'BlockSize',initfrom.BlockSize);
+                created = true;
+            end
+            if nargin == 2 || created
+                this.InPlaceTranspose = this.InPlaceTranspose;
+                this.bCols = initfrom.bCols;
+                this.nBlocks = initfrom.nBlocks;
+                this.n = initfrom.n;
+                this.m = initfrom.m;
+                this.MinValue = initfrom.MinValue;
+                this.MaxValue = initfrom.MaxValue;
+                this.idx = initfrom.idx;
+                this.created = initfrom.created;
+                this.blocksize = initfrom.blocksize;
+                this = loadobj@data.FileData(this, initfrom);
+            else
+                this = loadobj@data.FileData(this);
+            end
+        end
+    end
+    
     methods(Static)
         function fm = recoverFrom(directory)
             % Tries to recover a FileMatrix from a given directory, containing the old block
@@ -687,14 +720,14 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             res = res && norm(abs(V)-abs(v'),'fro') < p && norm(abs(U)-abs(u),'fro') < p &&...
                 norm(diag(S)-diag(s)) < p;
             res = res && norm(abs(V5)-abs(v(:,1:5)'),'fro') < p ...
-                    && norm(abs(U5)-abs(u(:,1:5)),'fro') < p ...
-                    && norm(diag(S5)-diag(s(1:5,1:5))) < p;
+                && norm(abs(U5)-abs(u(:,1:5)),'fro') < p ...
+                && norm(diag(S5)-diag(s(1:5,1:5))) < p;
             % Exclude test
             o = general.Orthonormalizer;
             exclu = o.orthonormalize(rand(size(B,1),5));
             [U,~,~] = A.getSVD(10,exclu);
-            res = res && norm(exclu'*U) < 1e-12; 
-                
+            res = res && norm(exclu'*U) < 1e-12;
+            
             % Bounding box test
             [bm, bM] = general.Utils.getBoundingBox(B);
             [am, aM] = A.getColBoundingBox;

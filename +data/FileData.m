@@ -97,16 +97,25 @@ classdef FileData < handle
     end
     
     methods(Static, Access=protected)
-        function this = loadobj(this)
+        function this = loadobj(this, initfrom)
             % Loads a FileData instance.
             %
             % Ensures that the directory associated with this FileData is existent.
-            if ~isa(this,'data.FileData')
-                fprintf(2,'Could not successfully load a data.FileData instance.\n');
-            else
-                if strcmp(this.Host,KerMor.getHost)
-                    this.ensureDir;
-                end
+            
+            created = false;
+            if ~isa(this, 'data.FileData')
+                initfrom = this;
+                this = data.FileData(initfrom.DataDirectory);
+                created = true;
+            end
+            if nargin == 2 || created
+                this.DataDirectory = initfrom.DataDirectory;
+                this.Host = initfrom.Host;
+                this.isSaved = initfrom.isSaved;
+            end
+            
+            if strcmp(this.Host,KerMor.getHost)
+                this.ensureDir;
             end
         end
     end

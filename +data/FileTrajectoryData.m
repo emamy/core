@@ -238,11 +238,29 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
     end
     
     methods(Static, Access=protected)
-        function this = loadobj(this)
+        function this = loadobj(this, initfrom)
             % Loads a FileTrajectoryData instance.
             %
             % Ensures that the directory associated with this FileTrajectoryData is existent.
-            this = loadobj@data.FileDataCollection(this);
+            
+            created = false;
+            if ~isa(this,'data.FileTrajectoryData')
+                initfrom = this;
+                this = data.FileTrajectoryData(initfrom.DataDirectory);
+                created = true;
+            end
+            if nargin == 2 || created
+                this.sizes = initfrom.sizes;
+                this.bbmin = initfrom.bbmin;
+                this.bbmax = initfrom.bbmax;
+                this.trajlen = initfrom.trajlen;
+                % property from ABlockedData
+                this.MinRelSingularValueSize = initfrom.MinRelSingularValueSize;
+                this = loadobj@data.FileDataCollection(this, initfrom);
+            else
+               this = loadobj@data.FileDataCollection(this);
+            end
+            
             if exist(this.DataDirectory,'dir') ~= 7
                 this.bbmin = [];
                 this.bbmax = [];

@@ -140,11 +140,24 @@ classdef FileDataCollection < data.FileData
     end
     
     methods(Static, Access=protected)
-        function this = loadobj(this)
+        function this = loadobj(this, initfrom)
             % Loads a FileTrajectoryData instance.
             %
             % Ensures that the directory associated with this FileTrajectoryData is existent.
-            this = loadobj@data.FileData(this);
+            
+            created = false;
+            if ~isa(this, 'data.FileDataCollection')
+                initfrom = this;
+                this = data.FileDataCollection(initfrom.DataDirectory);
+                created = true;
+            end
+            if nargin == 2 || created
+                this.hm = initfrom.hm;
+                this = loadobj@data.FileData(this, initfrom);
+            else
+               this = loadobj@data.FileData(this);
+            end
+            
             if exist(this.DataDirectory,'dir') ~= 7
                 this.hm.clear;
                 warning('FileDataCollection:load','This FileDataCollection instance was created on host "%s" and the DataDirectory cannot be found on the local machine "%s". Clearing FileDataCollection.',this.host,KerMor.getHost);

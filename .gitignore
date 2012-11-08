@@ -19,6 +19,8 @@
 *.dll
 /data
 /temp
-/datastore
+/zdatastore
 /documentation/bin
-/WSH12
+/zWSH12
+/zDW13
+/zWH12c
