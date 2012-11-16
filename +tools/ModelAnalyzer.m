@@ -209,7 +209,7 @@ classdef ModelAnalyzer < handle;
             
             %% Plotting
             if nargout > 1
-                pm = tools.PlotManager(false, 2, 2);
+                pm = PlotManager(false, 2, 2);
                 fm.plot(ti, y, pm.nextPlot('full_sim',sprintf('Full simulation\n%s',str)));
                 fm.plot(ti, yr, pm.nextPlot('red_sim',sprintf('Reduced simulation\n%s',str)));
                 fm.plot(ti, log10(abs(y-yr)), pm.nextPlot('abs_err',sprintf('Absolute error (log scale)\n%s',str)));
@@ -251,7 +251,7 @@ classdef ModelAnalyzer < handle;
         
         function pm = analyzeError(this, mu, inputidx, pm)
             if nargin < 4
-                pm = tools.PlotManager(false, 2, 3);
+                pm = PlotManager(false, 2, 3);
                 if nargin < 3
                     inputidx = [];
                     if nargin < 2
@@ -351,7 +351,7 @@ classdef ModelAnalyzer < handle;
             % @todo create interface with plot method -> current config gives automatic
             % reduction overview in each component
             if nargin < 2
-                pm = tools.PlotManager(false,2,2);
+                pm = PlotManager(false,2,2);
                 pm.LeaveOpen = true;
             end
             [~,m,~,l] = FindInstance(this.rm.FullModel,'general.IReductionSummaryPlotProvider');

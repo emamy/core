@@ -25,16 +25,16 @@ classdef DEIM
             
             d = m.Approx;
             res = testing.DEIM.computeDEIMErrors(d, m.Data.ApproxTrainData);
-            %pm = tools.PlotManager(true);
-            pm = tools.PlotManager(false,1,2);
+            %pm = PlotManager(true);
+            pm = PlotManager(false,1,2);
             pm.FilePrefix = 'DEIM_errors';
             testing.DEIM.plotDEIMErrs(res, pm);
             %pm.savePlots('.',{'fig','jpg','eps'}, true);
             pm.savePlots('.',{'fig','jpg'}, true);
             
             [etrue, EE, ED] = ma.getTrajApproxErrorDEIMEstimates(mu,[]);
-%             pm = tools.PlotManager(true);
-            pm = tools.PlotManager(false,1,2);
+%             pm = PlotManager(true);
+            pm = PlotManager(false,1,2);
             pm.FilePrefix = 'traj_approx_err';
             ma.getTrajApproxErrorDEIMEstimates_plots(m.scaledTimes, etrue, EE, ED, pm);
 %             pm.savePlots('.',{'fig','jpg','eps'}, true);
@@ -176,7 +176,7 @@ classdef DEIM
         function pm = plotDEIMErrs(res, pm)
             
             if nargin < 2
-                pm = tools.PlotManager(false,2,3);
+                pm = PlotManager(false,2,3);
                 pm.FilePrefix = 'comp_m_mdash';
             end
             % Not used yet:
@@ -307,7 +307,7 @@ classdef DEIM
                 end
             end
             if nargin < 2
-                pm = tools.PlotManager(false,3,1);
+                pm = PlotManager(false,3,1);
             end
             h = pm.nextPlot('max_rel_err',sprintf('Maximum relative errors of DEIM jacobian vs. original one\nmasked to sparsity pattern'));
             plot(h,t')
@@ -419,7 +419,7 @@ classdef DEIM
             o = f.Order(1);
             mo = f.MaxOrder;
             if nargin < 6
-                pm = tools.PlotManager(false,2,2);
+                pm = PlotManager(false,2,2);
             end
             t = r.Times;
             h = pm.nextPlot('true_err','True approximation error on trajectory','time','error');
@@ -523,7 +523,7 @@ classdef DEIM
         
         function pm = getDEIMErrorsAtXForParams_plots(m, mui, fxi, afxi, pm)
             if nargin < 5
-                pm = tools.PlotManager;
+                pm = PlotManager;
                 pm.LeaveOpen = true;
             end
 
@@ -586,7 +586,7 @@ classdef DEIM
             if nargin < 7
                 tag = '';
                 if nargin < 6
-                    pm = tools.PlotManager(false);
+                    pm = PlotManager(false);
                 end
             else
                 ftag = [tag '_'];
@@ -667,7 +667,7 @@ classdef DEIM
         
         function pm = compareDEIM_Full_Jacobian_plots(m, e, aln, orders, pm, atdsubset)
             if nargin < 5 || isempty(pm)
-                pm = tools.PlotManager(false,1,2);
+                pm = PlotManager(false,1,2);
             end
             co = 'none';
             td = 1:size(e,2);
@@ -723,7 +723,7 @@ classdef DEIM
             %
             % Parameters:
             % r: The reduced model @type models.ReducedModel
-            pm = tools.PlotManager(false,2,1);
+            pm = PlotManager(false,2,1);
             pm.SingleSize = [720 540];
             pm.LeaveOpen = true;
             [~,y] = r.FullModel.simulate(mu,inputidx);

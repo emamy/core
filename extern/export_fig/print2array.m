@@ -24,27 +24,26 @@
 %   A - MxNx3 uint8 image of the figure.
 %   bcol - 1x3 uint8 vector of the background color
 
-% Copyright (C) Oliver Woodford 2008-2011
+% Copyright (C) Oliver Woodford 2008-2012
 
-% 5/9/2011 Set EraseModes to normal when using opengl or zbuffer renderers.
-% Thanks to Pawel Kocieniewski for reporting the issue.
+% 05/09/11: Set EraseModes to normal when using opengl or zbuffer
+%           renderers. Thanks to Pawel Kocieniewski for reporting the
+%           issue.
+% 21/09/11: Bug fix: unit8 -> uint8! Thanks to Tobias Lamour for reporting
+%           the issue.
+% 14/11/11: Bug fix: stop using hardcopy(), as it interfered with figure
+%           size and erasemode settings. Makes it a bit slower, but more
+%           reliable. Thanks to Phil Trinh and Meelis Lootus for reporting
+%           the issues.
+% 09/12/11: Pass font path to ghostscript.
+% 27/01/12: Bug fix affecting painters rendering tall figures. Thanks to
+%           Ken Campbell for reporting it.
+% 03/04/12: Bug fix to median input. Thanks to Andy Matthews for reporting
+%           it.
+% 26/10/12: Set PaperOrientation to portrait. Thanks to Michael Watts for
+%           reporting the issue.
 
-% 21/9/2011 Bug fix: unit8 -> uint8!
-% Thanks to Tobias Lamour for reporting the issue.
-
-% 14/11/2011 Bug fix: stop using hardcopy(), as it interfered with figure
-% size and erasemode settings. Makes it a bit slower, but more reliable.
-% Thanks to Phil Trinh and Meelis Lootus for reporting the issues.
-
-% 9/12/2011 Pass font path to ghostscript.
-
-% 27/1/2012 Bug fix affecting painters rendering tall figures. Thanks to
-% Ken Campbell for reporting it.
-
-% 3/4/2012 Bug fix to median input. Thanks to Andy Matthews for reporting
-% it.
-
-function [A bcol] = print2array(fig, res, renderer)
+function [A, bcol] = print2array(fig, res, renderer)
 % Generate default input arguments, if needed
 if nargin < 2
     res = 1;
@@ -84,10 +83,10 @@ if nargin > 2 && strcmp(renderer, '-painters')
         cmd_str = [cmd_str ' -sOutputFile="' tmp_nam '" "' tmp_eps '"'];
         % Execute the ghostscript command
         ghostscript(cmd_str);
-    catch
+    catch me
         % Delete the intermediate file
         delete(tmp_eps);
-        rethrow(lasterror);
+        rethrow(me);
     end
     % Delete the intermediate file
     delete(tmp_eps);
@@ -133,8 +132,9 @@ else
     end
     err = false;
     % Set paper size
-    old_mode = get(fig, 'PaperPositionMode');
-    set(fig, 'PaperPositionMode', 'auto');
+    old_pos_mode = get(fig, 'PaperPositionMode');
+    old_orientation = get(fig, 'PaperOrientation');
+    set(fig, 'PaperPositionMode', 'auto', 'PaperOrientation', 'portrait');
     try
         % Print to tiff file
         print(fig, renderer, res_str, '-dtiff', tmp_nam);
@@ -146,7 +146,7 @@ else
         err = true;
     end
     % Reset paper size
-    set(fig, 'PaperPositionMode', old_mode);
+    set(fig, 'PaperPositionMode', old_pos_mode, 'PaperOrientation', old_orientation);
     % Throw any error that occurred
     if err
         rethrow(ex);

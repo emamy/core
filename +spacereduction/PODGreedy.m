@@ -160,7 +160,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
         
         function plotSummary(this, pm, context)
             if nargin < 2
-                pm = tools.PlotManager;
+                pm = PlotManager;
                 pm.LeaveOpen = true;
                 context = 'POD-Greedy';
             end

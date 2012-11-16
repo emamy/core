@@ -59,7 +59,7 @@ classdef LogNorm
         
         function pm = compareSimTransJac_FullJac_plots(m, aln, times, st_sizes, pm)
             if nargin < 5
-                pm = tools.PlotManager(false,2,2);
+                pm = PlotManager(false,2,2);
             end
             jstd = m.Data.JacSimTransData;
             pm.nextPlot('correct_ln',sprintf('Full logarithmic norms\nJacobian full dimension %dx%d',...
@@ -181,7 +181,7 @@ classdef LogNorm
                 times, jtimes, deim_orders, st_sizes, pm)
             % See WSH12 tests_burgers for likely better plot routine
             if nargin < 7
-                pm = tools.PlotManager(false,2,2);
+                pm = PlotManager(false,2,2);
             end
             
             jstd = m.Data.JacSimTransData;
@@ -394,7 +394,7 @@ classdef LogNorm
             pos = l;
 
             if doplot
-                pm = tools.PlotManager(false, 2, 2);
+                pm = PlotManager(false, 2, 2);
             end
 
             xi = atd.xi(:,sel);

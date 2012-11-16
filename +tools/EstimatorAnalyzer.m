@@ -159,7 +159,7 @@ classdef EstimatorAnalyzer < handle
             % inidx: The input index `i` of the input function `u_i` to use
             % @type integer
             % pm: An optional PlotManager instance to pass to the plot-creating functions @type
-            % tools.PlotManager @default []
+            % PlotManager @default []
             
             if nargin < 3
                 inidx = [];
@@ -266,7 +266,7 @@ classdef EstimatorAnalyzer < handle
         
         function pm = createPlots(this, errs, relerrs, ctimes, pm)
             if nargin < 5
-                pm = tools.PlotManager(false, 2, 2);
+                pm = PlotManager(false, 2, 2);
             end
             
             % Absolute error plots

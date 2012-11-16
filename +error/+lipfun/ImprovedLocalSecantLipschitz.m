@@ -100,7 +100,7 @@ classdef ImprovedLocalSecantLipschitz < error.lipfun.Base
                     fprintf('Precomputing %d max local secants for BellFunction(Gamma=%f,r0=%f) in range [0, %f] ..\n',num,this.Gamma,this.x0,maxDistance);
                 end
                 rs = this.bellfcn.ModifiedNewton(start,di);
-                t = general.collections.BinTree;
+                t = BinTree;
                 if KerMor.App.Verbose > 1
                     fprintf('Building tree data structure..\n');
                 end

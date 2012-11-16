@@ -360,6 +360,8 @@ classdef BaseModel < KerMorObject
             % Parameters:
             % t: The current time `t`
             % y: The system's output `y(t)`
+            % varargin: Any arguments that should be passed on to inner plotting methods (model
+            % dependent)
             this.plot(t, y, varargin{:});
         end
         

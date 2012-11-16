@@ -294,7 +294,7 @@ r = getappdata(h.main,'r');
 s = getappdata(h.main,'s');
 mu = getappdata(h.main,'mu');
 [ef,er,fxno] = testing.DEIM.getApproxErrorFullRed(r, s.xr, s.t, mu, r.V);
-pm = tools.PlotManager;
+pm = PlotManager;
 pm.LeaveOpen = true;
 ax = pm.nextPlot('deimerr','True and projected approximation error on current trajectory','time','error');
 if max(ef)/min(ef) < 100 || max(er)/min(er) < 100
@@ -497,7 +497,7 @@ pm = [];
 if get(h.rbOutput,'Value')
     vr = s.yr;
     v = s.y;
-    pm = tools.PlotManager(false,1,2);
+    pm = PlotManager(false,1,2);
     pm.LeaveOpen = true;
     pfun = @(t,y)r.plot(t,y,pm);
     pfunm = @(t,y)m.plot(t,y,pm);
@@ -531,7 +531,7 @@ function pushbutton5_Callback(hObject, eventdata, h)
 r = getappdata(h.main,'r');
 t = getappdata(h.main,'t');
 v = Norm.L2(getappdata(h.main,'x')-r.V*(r.V'*getappdata(h.main,'x')));
-pm = tools.PlotManager;
+pm = PlotManager;
 pm.LeaveOpen = true;
 h = pm.nextPlot('','Trajectory subspace projection L2(state) error','time','error');
 tools.LogPlot.cleverPlot(h,t,v,'r','LineWidth',2);
@@ -551,7 +551,7 @@ sel = round(linspace(1,size(x,2),min(use,size(x,2))));
 x = x(:,sel);
 mui = r.getRandomParam(400,1);
 res = testing.LogNorm.getApproxLogNormsAtPos(r, x, r.scaledTimes(sel),mui);
-pm = tools.PlotManager;
+pm = PlotManager;
 pm.LeaveOpen = true;
 testing.LogNorm.getApproxLogNormsAtPos_plots(res, pm);
 pm.done;

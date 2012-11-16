@@ -166,12 +166,12 @@
 % 09/05/12: Incorporate patch of Arcelia Arrieta (many thanks), to keep
 %           tick marks fixed.
 
-function [im alpha] = export_fig(varargin)
+function [im, alpha] = export_fig(varargin)
 % Make sure the figure is rendered correctly _now_ so that properties like
 % axes limits are up-to-date.
 drawnow;
 % Parse the input arguments
-[fig options] = parse_args(nargout, varargin{:});
+[fig, options] = parse_args(nargout, varargin{:});
 % Isolate the subplot, if it is one
 cls = strcmp(get(fig(1), 'Type'), 'axes');
 if cls
@@ -281,7 +281,7 @@ if isbitmap(options)
         A = uint8(A);
         % Crop the background
         if options.crop
-            [alpha v] = crop_background(alpha, 0);
+            [alpha, v] = crop_background(alpha, 0);
             A = A(v(1):v(2),v(3):v(4),:);
         end
         if options.png
@@ -324,7 +324,7 @@ if isbitmap(options)
             set(fig, 'Color', tcol, 'Position', pos);
             tcol = 255;
         else
-            [A tcol] = print2array(fig, magnify, renderer);
+            [A, tcol] = print2array(fig, magnify, renderer);
         end
         % Crop the background
         if options.crop
@@ -459,7 +459,7 @@ else
 end
 return
 
-function [fig options] = parse_args(nout, varargin)
+function [fig, options] = parse_args(nout, varargin)
 % Parse the input arguments
 % Set the defaults
 fig = get(0, 'CurrentFigure');
@@ -541,7 +541,7 @@ for a = 1:nargin-1
                     end
             end
         else
-            [p options.name ext] = fileparts(varargin{a});
+            [p, options.name, ext] = fileparts(varargin{a});
             if ~isempty(p)
                 options.name = [p filesep options.name];
             end
@@ -666,9 +666,9 @@ if size(A, 3) == 3 && ...
 end
 return
 
-function [A v] = crop_background(A, bcol)
+function [A, v] = crop_background(A, bcol)
 % Map the foreground pixels
-[h w c] = size(A);
+[h, w, c] = size(A);
 if isscalar(bcol) && c > 1
     bcol = bcol(ones(1, c));
 end

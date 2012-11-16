@@ -127,6 +127,7 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
             %
             % Parameters:
             % K: The kernel matrix @type data.IKernelMatrix
+            % varargin: Not used here.
             this.K = K;
         end
         

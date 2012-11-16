@@ -27,24 +27,26 @@
 % The idea of changing dash length with line width came from comments on
 % fex id: 5743, but the implementation is mine :)
 
-% 14/11/2011 Fix a MATLAB bug rendering black or white text incorrectly.
-% Thanks to Mathieu Morlighem for reporting the issue and obtaining a fix
-% from TMW.
-
-% 8/12/2011 Added ability to correct fonts. Several people have requested
-% this at one time or another, and also pointed me to printeps (fex id:
-% 7501), so thank you to them. My implementation (which was not inspired by
-% printeps - I'd already had the idea for my approach) goes
-% slightly further in that it allows multiple fonts to be swapped.
-
-% 14/12/2011 Fix bug affecting font names containing spaces. Many thanks to
-% David Szwer for reporting the issue.
-
-% 25/1/2012 Add a font not to be swapped. Thanks to Anna Rafferty and Adam
-% Jackson for reporting the issue. Also fix a bug whereby using a font
-% alias can lead to another font being swapped in.
-
-% 10/4/2012 Make the font swapping case insensitive.
+% 14/11/2011: Fix a MATLAB bug rendering black or white text incorrectly.
+%             Thanks to Mathieu Morlighem for reporting the issue and
+%             obtaining a fix from TMW.
+% 08/12/11: Added ability to correct fonts. Several people have requested
+%           this at one time or another, and also pointed me to printeps
+%           (fex id: 7501), so thank you to them. My implementation (which
+%           was not inspired by printeps - I'd already had the idea for my
+%           approach) goes slightly further in that it allows multiple
+%           fonts to be swapped.
+% 14/12/11: Fix bug affecting font names containing spaces. Thanks to David
+%           Szwer for reporting the issue.
+% 25/01/12: Add a font not to be swapped. Thanks to Anna Rafferty and Adam
+%           Jackson for reporting the issue. Also fix a bug whereby using a
+%           font alias can lead to another font being swapped in.
+% 10/04/12: Make the font swapping case insensitive.
+% 26/10/12: Set PaperOrientation to portrait. Thanks to Michael Watts for
+%           reporting the issue.
+% 26/10/12: Fix issue to do with swapping fonts changing other fonts and
+%           sizes we don't want, due to listeners. Thanks to Malcolm Hudson
+%           for reporting the issue.
 
 function print2eps(name, fig, varargin)
 options = {'-depsc2'};
@@ -58,7 +60,7 @@ if numel(name) < 5 || ~strcmpi(name(end-3:end), '.eps')
     name = [name '.eps']; % Add the missing extension
 end
 % Find all the used fonts in the figure
-font_handles = findall(fig, '-property', 'FontName');
+font_handles = findobj(fig, '-property', 'FontName');
 fonts = get(font_handles, 'FontName');
 if ~iscell(fonts)
     fonts = {fonts};
@@ -85,21 +87,43 @@ matlab_fonts = {'Helvetica', 'Times-Roman', 'Palatino', 'Bookman', 'Helvetica-Na
 matlab_fontsl = lower(matlab_fonts);
 require_swap = find(~ismember(fontslu, matlab_fontsl));
 unused_fonts = find(~ismember(matlab_fontsl, fontslu));
-font_swap = cell(3, 0);
-for a = 1:min(numel(require_swap), numel(unused_fonts))
-    ind = find(strcmp(fontslu{require_swap(a)}, fontsl));
-    n = numel(ind);
-    font_swap(1,end+1:end+n) = reshape(mat2cell(font_handles(ind), ones(n, 1)), 1, []);
-    font_swap(2,end-n+1:end) = matlab_fonts(unused_fonts(a));
-    font_swap(3,end-n+1:end) = reshape(fonts(ind), 1, []);
+font_swap = cell(3, min(numel(require_swap), numel(unused_fonts)));
+fonts_new = fonts;
+for a = 1:size(font_swap, 2)
+    font_swap{1,a} = find(strcmp(fontslu{require_swap(a)}, fontsl));
+    font_swap{2,a} = matlab_fonts{unused_fonts(a)};
+    font_swap{3,a} = fonts{font_swap{1,end}(1)};
+    fonts_new(font_swap{1,a}) = {font_swap{2,a}};
 end
 % Swap the fonts
-for a = 1:size(font_swap, 2)
-    set(font_swap{1,a}, 'FontName', font_swap{2,a});
+if ~isempty(font_swap)
+    fonts_size = cell2mat(get(font_handles, 'FontSize'));
+    M = false(size(font_handles));
+    % Loop because some changes may not stick first time, due to listeners
+    c = 0;
+    update = zeros(1000, 1);
+    for b = 1:10 % Limit number of loops to avoid infinite loop case
+        for a = 1:numel(M)
+            M(a) = ~isequal(get(font_handles(a), 'FontName'), fonts_new{a}) || ~isequal(get(font_handles(a), 'FontSize'), fonts_size(a));
+            if M(a)
+                set(font_handles(a), 'FontName', fonts_new{a}, 'FontSize', fonts_size(a));
+                c = c + 1;
+                update(c) = a;
+            end
+        end
+        if ~any(M)
+            break;
+        end
+    end
+    % Compute the order to revert fonts later, without the need of a loop
+    [update, M] = unique(update(1:c));
+    [M, M] = sort(M);
+    update = reshape(update(M), 1, []);
 end
 % Set paper size
-old_mode = get(fig, 'PaperPositionMode');
-set(fig, 'PaperPositionMode', 'auto');
+old_pos_mode = get(fig, 'PaperPositionMode');
+old_orientation = get(fig, 'PaperOrientation');
+set(fig, 'PaperPositionMode', 'auto', 'PaperOrientation', 'portrait');
 % MATLAB bug fix - black and white text can come out inverted sometimes
 % Find the white and black text
 white_text_handles = findobj(fig, 'Type', 'text');
@@ -119,12 +143,12 @@ print(fig, options{:}, name);
 set(black_text_handles, 'Color', [0 0 0]);
 set(white_text_handles, 'Color', [1 1 1]);
 % Reset paper size
-set(fig, 'PaperPositionMode', old_mode);
+set(fig, 'PaperPositionMode', old_pos_mode, 'PaperOrientation', old_orientation);
 % Correct the fonts
 if ~isempty(font_swap)
     % Reset the font names in the figure
-    for a = 1:size(font_swap, 2)
-        set(font_swap{1,a}, 'FontName', font_swap{3,a});
+    for a = update
+        set(font_handles(a), 'FontName', fonts{a}, 'FontSize', fonts_size(a));
     end
     % Replace the font names in the eps file
     font_swap = font_swap(2:3,:);

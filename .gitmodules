@@ -1,0 +1,3 @@
+[submodule "extern/matlabtools"]
+	path = extern/matlabtools
+	url = /home/dwirtz/agh/git/software/matlab/matlabtools/

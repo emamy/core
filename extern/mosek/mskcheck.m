@@ -1,1 +1,0 @@
-mosek_src/mskcheck.m

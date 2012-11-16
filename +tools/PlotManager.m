@@ -217,7 +217,7 @@ classdef PlotManager < handle
             this.ss = s(1,3:4);
         end
         
-        function ax_handle = nextPlot(this, tag, caption, xlab, ylab, leg_str)
+        function ax_handle = nextPlot(this, tag, caption, xlab, ylab, leg_str, numsubplots)
             % Creates a new axis to plot in. Depending on the property
             % tools.PlotMananger.Single this will either advance to the
             % next subplot or open up a new figure window of size
@@ -262,16 +262,20 @@ classdef PlotManager < handle
                 this.Figures(end+1) = figure('Position',[(this.ss - this.SingleSize)/2 this.SingleSize],'Tag',tag);
                 ax_handle = gca;
             else
-                this.cnt = this.cnt + 1;
+                if nargin < 7
+                    numsubplots = 1;
+                end
+                this.cnt = this.cnt + numsubplots;
                 if isempty(this.Figures) || this.cnt > this.rows*this.cols
                     this.Figures(end+1) = figure('Tag',tag);
-                    this.cnt = 1;
+                    this.cnt = numsubplots;
                 else
                     if gcf ~= this.Figures(end)
                         figure(this.curax);
                     end
                 end
-                ax_handle = subplot(this.rows, this.cols, this.cnt, 'Tag', tag);
+                ax_handle = subplot(this.rows, this.cols, ...
+                    (this.cnt-numsubplots+1):this.cnt, 'Tag', tag);
             end
             this.curax = ax_handle;
             this.donelast = false;
@@ -624,9 +628,24 @@ classdef PlotManager < handle
                 warning('ohno:invalidExtension','Invalid extension: %s, using eps',ext);
                 extidx = 3;
             end
-            file = [filename '.' exts{extidx}];
             
-            if ~isempty(file)
+            if ~isempty(filename)
+                % check if directory exists and resolve relative paths (export_fig subfunctions
+                % somehow tend to break)
+                [thedir, thefile] = fileparts(filename);
+                if exist(thedir,'dir') ~= 7
+                    mkdir(thedir);
+                end
+                % Special treatment for home directory, as the file name is wrapped into ""
+                % inside export_fig's commands. this prevents ~ from being resolved and thus
+                % the pdf/eps export fails.
+                if isunix && thedir(1) == '~'
+                    [~, homedir] = system('echo ~'); %contains a linebreak, too
+                    thedir = [homedir(1:end-1) thedir(2:end)];
+                end
+                jdir = java.io.File(thedir);
+                thedir = char(jdir.getCanonicalPath);
+                file = [fullfile(thedir, thefile) '.' exts{extidx}];
                 if extidx == 1 % fig
                     saveas(fig, file, 'fig');
                 else

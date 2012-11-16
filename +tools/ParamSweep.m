@@ -46,7 +46,7 @@ if npar == 0
     error('Parameter values to sweep must be given.');
 end
 if nargin < 6
-    pm = tools.PlotManager;
+    pm = PlotManager;
 end
 
 % Iterate over parameter values

@@ -38,12 +38,12 @@ function varargout = ghostscript(cmd)
 [varargout{1:nargout}] = system(sprintf('"%s" %s', gs_path, cmd));
 return
 
-function path = gs_path
+function path_ = gs_path
 % Return a valid path
 % Start with the currently set path
-path = user_string('ghostscript');
+path_ = user_string('ghostscript');
 % Check the path works
-if check_gs_path(path)
+if check_gs_path(path_)
     return
 end
 % Check whether the binary is on the path
@@ -53,8 +53,8 @@ else
     bin = {'gs'};
 end
 for a = 1:numel(bin)
-    path = bin{a};
-    if check_store_gs_path(path)
+    path_ = bin{a};
+    if check_store_gs_path(path_)
         return
     end
 end
@@ -75,20 +75,20 @@ if ispc
             for b = 1:numel(executable)
                 path2 = [default_location dir_list(a).name executable{b}];
                 if exist(path2, 'file') == 2
-                    path = path2;
+                    path_ = path2;
                     ver_num = ver_num2;
                 end
             end
         end
     end
-    if check_store_gs_path(path)
+    if check_store_gs_path(path_)
         return
     end
 else
     bin = {'/usr/bin/gs', '/usr/local/bin/gs'};
     for a = 1:numel(bin)
-        path = bin{a};
-        if check_store_gs_path(path)
+        path_ = bin{a};
+        if check_store_gs_path(path_)
             return
         end
     end
@@ -109,9 +109,9 @@ while 1
     bin_dir = {'', ['bin' filesep], ['lib' filesep]};
     for a = 1:numel(bin_dir)
         for b = 1:numel(bin)
-            path = [base bin_dir{a} bin{b}];
-            if exist(path, 'file') == 2
-                if check_store_gs_path(path)
+            path_ = [base bin_dir{a} bin{b}];
+            if exist(path_, 'file') == 2
+                if check_store_gs_path(path_)
                     return
                 end
             end
@@ -120,21 +120,21 @@ while 1
 end
 error('Ghostscript not found. Have you installed it from www.ghostscript.com?');
 
-function good = check_store_gs_path(path)
+function good = check_store_gs_path(path_)
 % Check the path is valid
-good = check_gs_path(path);
+good = check_gs_path(path_);
 if ~good
     return
 end
 % Update the current default path to the path found
-if ~user_string('ghostscript', path)
+if ~user_string('ghostscript', path_)
     warning('Path to ghostscript installation could not be saved. Enter it manually in ghostscript.txt.');
     return
 end
 return
 
-function good = check_gs_path(path)
+function good = check_gs_path(path_)
 % Check the path is valid
-[good message] = system(sprintf('"%s" -h', path));
+[good message] = system(sprintf('"%s" -h', path_));
 good = good == 0;
 return

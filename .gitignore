@@ -17,6 +17,7 @@
 *.exe
 *.bat
 *.dll
++general/+collections/Dictionary.m
 /data
 /temp
 /zdatastore

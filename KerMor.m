@@ -9,6 +9,12 @@ classdef KerMor < handle
     %
     % @author Daniel Wirtz @date 2011-03-04
     %
+    % @change{0,7,dw,2012-11-16}
+    % - Moved some tools from the extern folder into a new separate git repo "MatlabTools",
+    % including the previous general.collections package
+    % - Changed the warning for missing mosek quadprog
+    % - Adjusted the directories that are being added to PATH at startup
+    %
     % @new{0,7,dw,2012-11-07} Started KerMor 0.7 to congratulate President Obama for his
     % re-election :-)
     %
@@ -699,7 +705,6 @@ classdef KerMor < handle
             % Setup home directory & paths
             p = this.HomeDirectory;
             addpath(p);
-            addpath(fullfile(p,'demos'));
             addpath(fullfile(p,'visual'));
             % Figure position settings
             if ~isempty(this.DefaultFigurePosition)
@@ -749,9 +754,10 @@ classdef KerMor < handle
                 
                 warning off MATLAB:dispatcher:nameConflict
                 
-                disp('Checking for 3rd party software...')
+                disp('Initializing 3rd party software...')
                 addpath(fullfile(p,'extern'));
-                addpath(fullfile(p,'extern','dpcm'));
+                addpath(fullfile(p,'extern','matlabtools'));
+                addpath(fullfile(p,'extern','matlabtools','dpcm'));
                 addpath(fullfile(p,'extern','export_fig'));
                 addpath(fullfile(p,'extern','compat'));
                 
@@ -773,21 +779,21 @@ classdef KerMor < handle
                 addpath(fullfile(p,'extern','ipopt'));
                 if ~this.HasIPOPT
                     warning('KerMor:init','No IPOPT available!');
-                    %rmpath(fullfile(p,'extern','ipopt'));
                 end
                 
                 % qpoases
                 addpath(fullfile(p,'extern','qpOASES'));
                 if ~this.HasqpOASES
                     warning('KerMor:init','No qpOASES available!');
-                    %rmpath(fullfile(p,'extern','qpOASES'));
                 end
                 
                 % mosek
-                addpath(fullfile(p,'extern','mosek'));
+                mosekdir = fullfile(p,'extern','mosek');
+                if exist(mosekdir,'dir') == 7
+                    addpath(mosekdir);
+                end
                 if ~this.HasqpMosek
-                    warning('KerMor:init','No mosek available!');
-                    %rmpath(fullfile(p,'extern','mosek'));
+                    fprintf(2,'KerMor startup: No mosek solver available!\n');
                 end
                 
                 % rbmatlab
