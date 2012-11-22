@@ -118,7 +118,7 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable & ICloneable
         end
     end
     
-    methods(Access=protected)
+    methods(Access=protected, Sealed)
         function computeCoeffs(this, kexp, fxi, initialalpha)
             % Computes the coefficients for all components.
             %
@@ -134,7 +134,7 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable & ICloneable
             % fxi: The `f(x_i)`values at the expansion centers
             % initialalpha: Initial `\alpha_i` value to use as
             % initialization (if applicable for the algorithm)
-            if isempty(initialalpha)
+            if nargin < 4 || isempty(initialalpha)
                 initialalpha = double.empty(size(fxi,1),0);
             end
             if this.ComputeParallel
@@ -175,7 +175,7 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable & ICloneable
                     kexp.Ma(:,svidx) = ai;
                 else
                     for fdim = 1:fdims
-                        if KerMor.App.Verbose > 3
+                        if KerMor.App.Verbose > 3 && fdims > 1
                             fprintf('Computing approximation for dimension %d/%d ... %2.0f %%\n',fdim,fdims,(fdim/fdims)*100);
                         end
                         % Call template method

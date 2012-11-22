@@ -1,11 +1,11 @@
-classdef $name
-% $name: 
+classdef IClassConfig < handle
+% IClassConfig: 
 %
 % @docupdate
 %
-% @author $author @date $date
+% @author Daniel Wirtz @date 2012-11-22
 %
-% @new{$mainver,$subver,$authorshort,$date} Added this class.
+% @new{0,7,dw,2012-11-22} Added this class.
 %
 % This class is part of the framework
 % KerMor - Model Order Reduction using Kernels:
@@ -13,10 +13,12 @@ classdef $name
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
     
-    properties
-    end
-    
-    methods
+    methods(Abstract)
+        n = getNumConfigurations(this);
+        
+        applyConfiguration(this, nr, object);
+        
+        str = getConfigurationString(this, nr);
     end
     
 end

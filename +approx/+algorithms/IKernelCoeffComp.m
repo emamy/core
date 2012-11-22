@@ -27,6 +27,8 @@ classdef IKernelCoeffComp < handle
         % A flag that indicates to users if the coefficient computation
         % method is capable of using a matrix of column fxi vectors or only
         % single vectors.
+        %
+        % @type logical @default false
         MultiTargetComputation = false;
     end
     
