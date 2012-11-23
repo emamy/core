@@ -147,8 +147,16 @@ classdef ApproxTrainData < handle
             if isscalar(sel)
                 sel = 1:sel:size(this.xi,2);
             end
-            satd = data.ApproxTrainData(this.xi(:,sel), ...
-                this.ti(:,sel), this.mui(:,sel));
+            xi = this.xi(:,sel);
+            ti = [];
+            if ~isempty(this.ti)
+                ti = this.ti(:,sel);
+            end
+            mui = [];
+            if ~isempty(this.mui)
+                mui = this.mui(:,sel);
+            end
+            satd = data.ApproxTrainData(xi, ti, mui);
             satd.fxi = this.fxi(:,sel);
         end
         

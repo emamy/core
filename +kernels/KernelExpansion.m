@@ -191,6 +191,11 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             K = [];
             if ~isempty(this.Centers)
                 K = this.fSK.evaluate(this.Centers.xi,[]);
+%                 cent = this.Centers.xi;
+%                 if isa(cent,'data.FileMatrix')
+%                     cent = cent.toMemoryMatrix;
+%                 end
+%                 K = this.fSK.evaluate(cent,[]);
             end
         end
         

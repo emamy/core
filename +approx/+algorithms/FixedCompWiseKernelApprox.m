@@ -3,6 +3,9 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
 %
 % @author Daniel Wirtz @date 2011-06-01
 %
+% @change{0,7,dw,2011-11-22} Moved FixedCompWiseKernelApprox.guessGammas to
+% kernels.config.ExpansionConfig
+%
 % @change{0,5,dw,2011-11-02} 
 % - New interface for approximation computation: Passing an data.ApproxTrainData instance now
 % instead of 'xi,ti,mui' parameters.
@@ -30,8 +33,23 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
 % extract convenience methods further, general concept of "KernelConfig")
     
     properties(SetObservable)    
-        % @propclass{experimental} 
-        Gammas;
+        % The different kernel expansion configurations to try
+        %
+        % @propclass{critical} Without this setting this algorithm makes little sense.
+        %
+        % @type kernels.config.ExpansionConfig @default []
+        ExpConfig = [];
+        
+        % The different coefficient computation algorithm configurations to try
+        %
+        % @propclass{critical} Without this setting this algorithm makes little sense.
+        %
+        % @type general.config.IClassConfig @default []
+        CoeffConfig = [];
+    end
+    
+    properties(SetAccess=private)
+        BestConfigIndices;
     end
     
     properties(Transient, SetAccess=private)
@@ -45,7 +63,7 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
             this = this@approx.algorithms.BaseKernelApproxAlgorithm;
             
             % Register default property changed listeners
-            this.registerProps('Gammas');
+            this.registerProps('ExpConfig');
         end
                         
         function copy = clone(this)
@@ -59,56 +77,7 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
             copy = clone@approx.algorithms.BaseKernelApproxAlgorithm(this, copy);
 
             % copy local props
-            copy.Gammas = this.Gammas;
-        end
-
-        function guessGammas(this, atd, ng, mf, Mf)
-            % Guesses 'ng' `\gamma` values to use during approximation.
-            %
-            % The computation is using the same method as in BaseAdaptiveCWKA.getDists
-            %
-            % Parameters:
-            % atd: The approximation training data @type data.ApproxTrainData
-            % ng: The number of `\gamma` values to guess @type integer
-            % mf: The factor for minimum sample data distance @type double @default .5
-            % Mf: The factor for the bounding box diameter @type double @default 2
-            %
-            
-            if ~isa(atd,'data.ApproxTrainData')
-                error('First argument has to be a data.ApproxTrainData instance');
-            end
-            gameps = .1;
-            if nargin < 5
-                Mf = 2;
-                if nargin < 4
-                    mf = .5;
-                end
-            end
-            dfun = @logsp;
-            
-            dists = zeros(3,ng);
-            dists(1,:) = dfun(mf*atd.xiDia, Mf*atd.xiDia);
-            if atd.hasTime
-                dists(2,:) = dfun(mf*atd.tiDia, Mf*atd.tiDia);
-            end
-            if atd.hasParams
-                dists(3,:) = dfun(mf*atd.muiDia, Mf*atd.muiDia);
-            end
-            k = kernels.GaussKernel;
-            this.Gammas = zeros(size(dists));
-            for i=1:ng
-               this.Gammas(1,i) = k.setGammaForDistance(dists(1,i),gameps);
-               this.Gammas(2,i) = k.setGammaForDistance(dists(2,i),gameps);
-               this.Gammas(3,i) = k.setGammaForDistance(dists(3,i),gameps);
-            end
-            
-            function linsp(from, to)%#ok
-                d = linspace(from,to,ng);
-            end
-            
-            function d = logsp(from, to)
-                d = logspace(log10(from),log10(to),ng);
-            end
+            copy.ExpConfig = this.ExpConfig;
         end
     end
     
@@ -119,113 +88,89 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
             % @docupdate
             % @todo Think about suitable stopping condition (relative error
             % change?)
-            
-            %% Checks
-            % This algorithm so far works only with Gaussian kernels
-            pte = isa(kexp,'kernels.ParamTimeKernelExpansion');
-            if pte
-                tkg = isa(kexp.TimeKernel,'kernels.GaussKernel');
-                if ~isa(kexp.Kernel,'kernels.GaussKernel') || ...
-                        (pte && ((~tkg && ~isa(kexp.TimeKernel,'kernels.NoKernel')) || ...
-                        ~isa(kexp.ParamKernel,'kernels.GaussKernel')))
-                    error('Any kernels used have to be Gaussian kernels for this approximation algorithm so far');
-                end
-            end
-            
-            % Set AKernelCoreFun centers
-            kexp.Centers.xi = atd.xi;
+             
+            % Set centers
+            xi = atd.xi.toMemoryMatrix;
+            fxi = atd.fxi.toMemoryMatrix;
+            kexp.Centers.xi = xi;
             kexp.Centers.ti = atd.ti;
             kexp.Centers.mui = atd.mui;
             
             errfun = @getLInftyErr;
-                        
+            ec = this.ExpConfig;
+            nc = ec.getNumConfigurations;
+            cc = this.CoeffConfig;
+            nco = cc.getNumConfigurations;
+            
+            total = max(nc,1)*max(nco,1);
             % Keep track of maximum errors
-            this.MaxErrors = zeros(1,length(this.Gammas));
+            this.MaxErrors = zeros(1,total);
             minerr = Inf;
-            bestg = []; 
+            bestcidx = [];
+            bestcoidx = [];
             bestMa = [];
-            for gidx = 1:size(this.Gammas,2)
-                
-                g = this.Gammas(:,gidx);
-                kexp.Kernel.Gamma = g(1);
-                if pte
-                    if tkg
-                        kexp.TimeKernel.Gamma = g(2);
-                    end
-                    kexp.ParamKernel.Gamma = g(3);
-                end
-                
+            pi = tools.ProcessIndicator('Trying %d configurations (%d kernel, %d coeffcomp)',...
+                total,false,total,nc,nco);
+            cnt = 1;
+            for kcidx = 1:nc
                 if KerMor.App.Verbose > 2
-                    fprintf('xg: %.5e',g(1));
-                    if pte
-                        fprintf(', tg: %.5e, pg:%.5e',g(1),g(2));
-                    end
-                    fprintf('\n');
+                    fprintf('Applying expansion config %s\n',ec.getConfigurationString(kcidx));
                 end
+                ec.applyConfiguration(kcidx, kexp);
                 
-                %% Compute coefficients
-                %warning('off','MATLAB:nearlySingularMatrix');
                 % Call coeffcomp preparation method and pass kernel matrix
                 K = data.MemoryKernelMatrix(kexp.getKernelMatrix);
                 this.CoeffComp.init(K, kexp);
 
-                % Call protected method
-                ex = [];
-                try
-                    this.computeCoeffs(kexp, atd.fxi, []);
-                catch ME
-                    if gidx > 1 && strcmp(ME.identifier,'KerMor:coeffcomp:failed')    
-                        ex = ME;
-                        break;
-                    else
-                        rethrow(ME);
-                    end
-                end
-                
-                %% Determine maximum error over training data
-                fhat = kexp.evaluate(atd.xi, atd.ti, atd.mui);
-                [val, maxidx, errs] = errfun(atd.fxi,fhat);
-                rel = val / (norm(atd.fxi(maxidx))+eps);
-                this.MaxErrors(gidx) = val;
-                
-                if val < minerr
-                    minerr = val;
-                    bestMa = kexp.Ma;
-                    bestg = g;
+                for coidx = 1:nco
                     if KerMor.App.Verbose > 2
-                        fprintf(' b: %.5e (rel %.5e)',val,rel);
+                        fprintf('Applying %s config %s\n',class(this.CoeffComp),cc.getConfigurationString(coidx));
                     end
-                else
-                    if KerMor.App.Verbose > 2
-                        fprintf(' w: %.5e  (rel %.5e)',val,rel);
-                    end
-                end
+                    cc.applyConfiguration(coidx, this.CoeffComp);
                     
-                if KerMor.App.Verbose > 2
-                    fprintf(' ||Ma||:%.5e\n',sum(kexp.Ma_norms));
+                    % Call protected method
+                    this.computeCoeffs(kexp, atd.fxi, []);
+%                     this.computeCoeffs(kexp, atd.fxi, kexp.Ma);
+                    
+                    % Determine maximum error
+                    fhat = kexp.evaluate(xi, atd.ti, atd.mui);
+                    [val, maxidx, errs] = errfun(fxi,fhat);
+                    rel = val / (norm(fxi(maxidx))+eps);
+                    this.MaxErrors(cnt) = val;
+                    
+                    if val < minerr
+                        minerr = val;
+                        bestMa = kexp.Ma;
+                        bestcidx = kcidx;
+                        bestcoidx = coidx;
+                        if KerMor.App.Verbose > 3
+                            fprintf(' b: %.5e (rel %.5e)',val,rel);
+                        end
+                    else
+                        if KerMor.App.Verbose > 3
+                            fprintf(' w: %.5e  (rel %.5e)',val,rel);
+                        end
+                    end
+
+                    if KerMor.App.Verbose > 3
+                        fprintf(' ||Ma||:%.5e\n',sum(kexp.Ma_norms));
+                    end
+                    pi.step;
+                    cnt = cnt+1;
                 end
             end
             
-                
             %% Assign best values
-            kexp.Kernel.Gamma = bestg(1);
-            if pte
-                if isa(kexp.TimeKernel,'kernels.GaussKernel')
-                    kexp.TimeKernel.Gamma = bestg(2);
-                end
-                kexp.ParamKernel.Gamma = bestg(3);
-            end
+            this.BestConfigIndices = [bestcidx; bestcoidx];
+            ec.applyConfiguration(bestcidx, kexp);
             kexp.Ma = bestMa;
-
-            if ~isempty(ex)
-                fprintf('Adaptive approximation generation stopped due to exception.\n')
-                cprintf('red',ex.getReport);
-            end
             
             if KerMor.App.Verbose > 1
                 figure;
                 plot(this.MaxErrors,'r');
             end
+            
+            pi.stop;
         
             function [val,idx,errs] = getLInftyErr(a,b)
                 % computes the 'L^\infty'-approximation error over the

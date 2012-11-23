@@ -34,7 +34,7 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
         AlphaRelMinValue = eps;
     end
     
-    properties
+    properties(Transient)
         % The kernel matrix to use.
         %
         % The reason why this is a property and not an argument is that
@@ -143,23 +143,11 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
             % svidx: The support vector indices of all elements of `c_i`
             % that regarded to be support vectors. @type integer
             %
-            % @throws KerMor:coeffcomp:failed Thrown if the coefficient computation failed for a
-            % reason known within KerMor.
-            %
             % See also: AlphaRelMinValue
-            try
-                ci = this.regress(yi, initialai);
-                svidx = find(abs(ci) ./ max(abs(ci)) > this.AlphaRelMinValue);
-                ci = ci(svidx);
-            catch ME
-                if strcmp(ME.identifier,'KerMor:solvers:qp:notconverged')
-                    m = MException('KerMor:coeffcomp:failed','Regression failed');
-                    m.addCause(ME);
-                    m.throw;
-                else
-                    rethrow(ME);
-                end
-            end
+            ci = this.regress(yi, initialai);
+            svidx = find(abs(ci) ./ max(abs(ci)) > this.AlphaRelMinValue);
+            ci = ci(svidx);
+            
             if isempty(svidx)
                 ci = 0;
                 svidx = 1;
