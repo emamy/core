@@ -988,6 +988,7 @@ classdef KerMor < handle
         function host = getHost
             % Returns the hostname of the current machine
             host = char(getHostName(java.net.InetAddress.getLocalHost));
+            host = regexprep(strtrim(host),'[^\d\w~-]','');
         end
         
         function m = getGitBranch
