@@ -988,7 +988,7 @@ classdef KerMor < handle
         function host = getHost
             % Returns the hostname of the current machine
             host = char(getHostName(java.net.InetAddress.getLocalHost));
-            host = regexprep(strtrim(host),'[^\d\w~-]','');
+            host = regexprep(strtrim(host),'[^\d\w]','');
         end
         
         function m = getGitBranch
@@ -1031,7 +1031,7 @@ classdef KerMor < handle
             %
             % Return values:
             % tag: The host-dependent tag used for KerMor preferences
-            tag = [KerMor.PrefTagPrefix strrep(KerMor.getHost,'.','')];
+            tag = [KerMor.PrefTagPrefix KerMor.getHost];
         end
         
         function d = getDir
