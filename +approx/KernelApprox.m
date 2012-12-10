@@ -76,7 +76,7 @@ classdef KernelApprox < approx.BaseApprox & dscomponents.ParamTimeKernelCoreFun
             this = this@approx.BaseApprox;
             this = this@dscomponents.ParamTimeKernelCoreFun;
             
-            this.Algorithm = approx.algorithms.AdaptiveCompWiseKernelApprox;
+            this.Algorithm = approx.algorithms.VKOGA;
              
             this.registerProps('Algorithm');
         end

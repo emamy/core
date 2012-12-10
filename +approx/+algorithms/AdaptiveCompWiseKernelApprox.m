@@ -98,7 +98,7 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseAdaptiveCWKA
         end
     end
     
-    methods(Access=private)
+    methods(Access=protected)
         function bool = checkStop(this, cnt, rel, val)
             % Checks the stopping conditions for the adaptive approximation
             % algorithm.
@@ -115,21 +115,17 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseAdaptiveCWKA
             end
             reqimpr = mean(this.lasterrs(1:end-1))*(1-this.MinImprovePerc);
             
-            bool = false;
-            if cnt == this.MaxExpansionSize
-                fprintf('AdaptiveCWKA stopping criteria holds: Max expansion size %d reached.\n',this.MaxExpansionSize);
-                bool = true;
-            elseif rel < this.MaxRelErr
-                fprintf('AdaptiveCWKA stopping criteria holds: Relative error %.7e < %.7e\n',rel,this.MaxRelErr);
-                bool = true;
-            elseif val < this.effabs
-                fprintf('AdaptiveCWKA stopping criteria holds: Absolute error %.7e < %.7e\n',val,this.effabs);
-                bool = true;
-            elseif numel(this.lasterrs) == this.ImproveRange && reqimpr < val
-                fprintf('AdaptiveCWKA stopping criteria holds: Error improvement over mean error of last %d iterations below %2.2f%% percent (required:%e, achieved:%e)\n',...
-                    this.ImproveRange, this.MinImprovePerc*100, reqimpr, val);
-                bool = true;
-                this.lasterrs = [];
+            bool = checkStop@approx.algorithms.BaseAdaptiveCWKA(this, cnt, rel);
+            if ~bool
+                if val < this.effabs
+                    fprintf('AdaptiveCompWiseKernelApprox stopping criteria holds: Absolute error %.7e < %.7e\n',val,this.effabs);
+                    bool = true;
+                elseif numel(this.lasterrs) == this.ImproveRange && reqimpr < val
+                    fprintf('AdaptiveCompWiseKernelApprox stopping criteria holds: Error improvement over mean error of last %d iterations below %2.2f%% percent (required:%e, achieved:%e)\n',...
+                        this.ImproveRange, this.MinImprovePerc*100, reqimpr, val);
+                    bool = true;
+                    this.lasterrs = [];
+                end
             end
         end
     end

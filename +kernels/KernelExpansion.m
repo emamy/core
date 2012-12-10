@@ -199,6 +199,23 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             end
         end
         
+        function v = scalarProductWith(this, f)
+            if ~isa(f,'kernels.KernelExpansion')
+                error('f argument must be another KernelExpansion');
+            end
+            if size(this.Centers.xi,1) ~= size(f.Centers.xi,1)
+                error('Function input dimension mismatch');
+            end
+            if size(this.Ma,1) ~= size(f.Ma,1)
+                error('Function output dimension mismatch');
+            end
+            v = sum(sum(this.Ma .* f.evaluate(this.Centers.xi),2));
+        end
+        
+        function normalize(this)
+            this.Ma = this.Ma / this.NativeNorm;
+        end
+        
         function setCentersFromATD(this, atd, idx)
             % Sets the centers according to the indices 'idx' of the data.ApproxTrainData
             this.Centers.xi = atd.xi(:,idx);
