@@ -179,6 +179,17 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
             end
         end
         
+        function setCentersFromATD(this, atd, idx)
+            % Sets the centers according to the indices 'idx' of the data.ApproxTrainData
+            setCentersFromATD@kernels.KernelExpansion(this, atd, idx);
+            if atd.hasTime
+                this.Centers.ti = atd.ti(:,idx);
+            end
+            if atd.hasParams
+                this.Centers.mui = atd.mui(:,idx);
+            end
+        end
+        
         function copy = clone(this, copy)
             if nargin == 1
                 copy = kernels.ParamTimeKernelExpansion;

@@ -48,11 +48,43 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseAdaptiveCWKA
 % @new{0,3,dw,2011-04-01} Added this class.
 %
 % @todo Think about suitable stopping condition (relative error change?)
+
+    properties(SetObservable)
+        % The percentage over which the error has to improve compared to the mean error of
+        % the ImproveRange earlier steps.
+        %
+        % Set to empty to disable.
+        %
+        % @propclass{important} Higher improvement values may terminate the search too early
+        % and thus reduce the approximation quality. Too low values might not detect stallment
+        % of the approximation process early enough.
+        %
+        % @type double @default .05
+        %
+        % See also: ImproveRange
+        MinImprovePerc = .05;
+
+        % The range over which the error improvement is to be monitored.
+        %
+        % Set to empty to disable.
+        %
+        % @propclass{important} A too short monitoring range might stop the algorithm too
+        % early, whereas a too long range will detect stallment too late.
+        %
+        % @type integer @default 15
+        %
+        % See also: MinImprovePerc
+        ImproveRange = 15;
+    end
     
     methods    
-%         function this = AdaptiveCompWiseKernelApprox
-%             this = this@approx.algorithms.BaseAdaptiveCWKA;
-%         end
+        function this = AdaptiveCompWiseKernelApprox
+            error('Use currently not supported.');
+            this = this@approx.algorithms.BaseAdaptiveCWKA;%#ok
+            % Register default property changed listeners
+            this.registerProps('MaxExpansionSize','NumGammas',...
+                'gameps','MaxRelErr','MaxAbsErrFactor','ErrFun','MinImprovePerc','ImproveRange');
+        end
                         
         function copy = clone(this)
             % Clones the instance.
@@ -66,8 +98,44 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseAdaptiveCWKA
         end
     end
     
+    methods(Access=private)
+        function bool = checkStop(this, cnt, rel, val)
+            % Checks the stopping conditions for the adaptive approximation
+            % algorithm.
+            % Considers maximum expansion size, maximum relative and
+            % absolute error (absolute error is computed as
+            % 'MaxAbsErrFactor'`\times \max |fxi(:)|`)
+            %
+            % See also: MaxExpansionSize MaxRelErr MaxAbsErrFactor
+            
+            % Update lasterrs error improvement record
+            this.lasterrs(end+1) = val;
+            if numel(this.lasterrs) > this.ImproveRange
+                this.lasterrs(1) = [];
+            end
+            reqimpr = mean(this.lasterrs(1:end-1))*(1-this.MinImprovePerc);
+            
+            bool = false;
+            if cnt == this.MaxExpansionSize
+                fprintf('AdaptiveCWKA stopping criteria holds: Max expansion size %d reached.\n',this.MaxExpansionSize);
+                bool = true;
+            elseif rel < this.MaxRelErr
+                fprintf('AdaptiveCWKA stopping criteria holds: Relative error %.7e < %.7e\n',rel,this.MaxRelErr);
+                bool = true;
+            elseif val < this.effabs
+                fprintf('AdaptiveCWKA stopping criteria holds: Absolute error %.7e < %.7e\n',val,this.effabs);
+                bool = true;
+            elseif numel(this.lasterrs) == this.ImproveRange && reqimpr < val
+                fprintf('AdaptiveCWKA stopping criteria holds: Error improvement over mean error of last %d iterations below %2.2f%% percent (required:%e, achieved:%e)\n',...
+                    this.ImproveRange, this.MinImprovePerc*100, reqimpr, val);
+                bool = true;
+                this.lasterrs = [];
+            end
+        end
+    end
+    
     methods(Access=protected, Sealed)
-        function detailedAdaptiveApproximation(this, kexp, atd)
+        function startAdaptiveExtension(this, kexp, atd)
             % Performs adaptive approximation generation.
             %
             % Parameters:
@@ -288,5 +356,21 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseAdaptiveCWKA
                 drawnow;
             end
         end 
+    end
+    
+    methods
+        function set.ImproveRange(this, value)
+            if ~isempty(value) && (round(value) ~= value || value <= 0)
+                error('ImproveRange must be a positive natural number.');
+            end
+            this.ImproveRange = value;
+        end
+        
+        function set.MinImprovePerc(this, value)
+            if ~isempty(value) && (value <= 0 || ~isscalar(value))
+                error('MinImprovePerc must be a positive double scalar.');
+            end
+            this.MinImprovePerc = value;
+        end
     end
 end

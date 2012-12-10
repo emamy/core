@@ -128,7 +128,7 @@ function varargout = FunVis2D(varargin)
 
 % Edit the above text to modify the response to help FunVis2D
 
-% Last Modified by GUIDE v2.5 17-Jan-2012 11:03:34
+% Last Modified by GUIDE v2.5 28-Nov-2012 17:39:54
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -536,63 +536,66 @@ end
 function plotCurrent(h, c)
 
 fx = getappdata(h.main,'fx');
-fx2 = getappdata(h.main,'fx2');
-X1 = getappdata(h.main,'X1');
-X2 = getappdata(h.main,'X2');
-    
-fx = reshape(fx(c.dout,:),size(X1,1),[]);
-cap = sprintf('Plot of %s against %s and %s',c.lbl.fx{c.dout},c.lbl.x{c.d1},c.lbl.x{c.d2});
-
-txt = '';
-if ~isempty(fx2) && get(h.rbErr,'Value') == 1
-    fx2 = reshape(fx2(c.dout,:),size(X1,1),[]);
-    if ~any(isnan(fx2))
-        cap = sprintf('Error f_1-f_2 at output %s against %s and %s',c.lbl.fx{c.dout},c.lbl.x{c.d1},c.lbl.x{c.d2});
-        %fx = abs(fx-fx2);
-        fx = fx-fx2;
-        txt = sprintf('L2:%.2e, Linf:%.2e\nrL21:%.2e, rL22:%.2e',c.err.l2(c.dout),c.err.linf(c.dout),...
-            c.err.rel_l2_1(c.dout),c.err.rel_l2_2(c.dout));
-    else
-        fprintf('Warning, current output %s contains NaNs. Not plotting error.\n',c.lbl.fx{c.dout});
-    end
-end
-set(h.lblErr,'String',txt);
-
 mi = min(fx(:));
 Ma = max(fx(:));
-if mi == 0 && Ma == 0
-    mi = -eps; Ma = eps;
-elseif mi ~= 0 && abs((mi-Ma) / mi) < 1e-14
-    s = sign(mi);
-    mi = (1-.001*s)*mi; Ma=(1+.001*s)*Ma;
-end
+X1 = getappdata(h.main,'X1');
+X2 = getappdata(h.main,'X2');
+cap = sprintf('Plot of %s against %s and %s',c.lbl.fx{c.dout},c.lbl.x{c.d1},c.lbl.x{c.d2});
 
-%% Plots
-cla(h.ax);
-hold(h.ax,'on');
-s1 = surf(h.ax,X1,X2,fx);
+if get(h.chkPlotFun,'Value') == 1
+    
+    fx2 = getappdata(h.main,'fx2');
+    fx = reshape(fx(c.dout,:),size(X1,1),[]);
 
-if ~isempty(fx2) && get(h.rbAdd,'Value') == 1
-    fx2 = reshape(fx2(c.dout,:),size(X1,1),[]);
-    if ~any(isnan(fx2))
-        mi = min(mi,min(fx2(:)));
-        Ma = max(Ma,max(fx2(:)));
-        cap = sprintf('Plot of %s against %s and %s, both functions',c.lbl.fx{c.dout},c.lbl.x{c.d1},c.lbl.x{c.d2});
-        s2 = surf(h.ax,X1,X2,fx2);
-        alpha(s2,.7);
-        s1 = [s1; s2];
+    txt = '';
+    if ~isempty(fx2) && get(h.rbErr,'Value') == 1
+        fx2 = reshape(fx2(c.dout,:),size(X1,1),[]);
+        if ~any(isnan(fx2))
+            cap = sprintf('Error f_1-f_2 at output %s against %s and %s',c.lbl.fx{c.dout},c.lbl.x{c.d1},c.lbl.x{c.d2});
+            %fx = abs(fx-fx2);
+            fx = fx-fx2;
+            txt = sprintf('L2:%.2e, Linf:%.2e\nrL21:%.2e, rL22:%.2e',c.err.l2(c.dout),c.err.linf(c.dout),...
+                c.err.rel_l2_1(c.dout),c.err.rel_l2_2(c.dout));
+        else
+            fprintf('Warning, current output %s contains NaNs. Not plotting error.\n',c.lbl.fx{c.dout});
+        end
     end
+    set(h.lblErr,'String',txt);
+
+    if mi == 0 && Ma == 0
+        mi = -eps; Ma = eps;
+    elseif mi ~= 0 && abs((mi-Ma) / mi) < 1e-14
+        s = sign(mi);
+        mi = (1-.001*s)*mi; Ma=(1+.001*s)*Ma;
+    end
+
+    %% Plots
+    cla(h.ax);
+    hold(h.ax,'on');
+    s1 = surf(h.ax,X1,X2,fx);
+
+    if ~isempty(fx2) && get(h.rbAdd,'Value') == 1
+        fx2 = reshape(fx2(c.dout,:),size(X1,1),[]);
+        if ~any(isnan(fx2))
+            mi = min(mi,min(fx2(:)));
+            Ma = max(Ma,max(fx2(:)));
+            cap = sprintf('Plot of %s against %s and %s, both functions',c.lbl.fx{c.dout},c.lbl.x{c.d1},c.lbl.x{c.d2});
+            s2 = surf(h.ax,X1,X2,fx2);
+            alpha(s2,.7);
+            s1 = [s1; s2];
+        end
+    end
+    if get(h.rbErr,'Value') == 1
+        s3 = surf(h.ax,X1,X2,zeros(size(X1)));
+        alpha(s3,.7);
+        s1 = [s1; s3];
+    end
+    mode = 'none';
+    if get(h.chkGrid,'Value') == 1
+        mode = 'interp';
+    end
+    set(s1,'EdgeColor',mode);
 end
-if get(h.rbErr,'Value') == 1
-    s3 = surf(h.ax,X1,X2,zeros(size(X1)));
-    alpha(s3,.7);
-    s1 = [s1; s3];
-end
-mode = 'none';
-if get(h.chkGrid,'Value') == 1
-    mode = 'interp';
-end
-set(s1,'EdgeColor',mode);
 
 xsel = c.idxmap([c.d1 c.d2]);
 %% Plot center points if desired
@@ -644,6 +647,7 @@ if ~isempty(ctrls)
     clear ctrls;
 end
 
+set(h.pnlBS,'Units','pixels');
 pos = get(h.pnlBS,'Position');
 pnlh = pos(4);
 
@@ -913,4 +917,8 @@ function chkGrid_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of chkGrid
+plotCurrent(handles,getappdata(handles.main,'conf'));
+
+% --- Executes on button press in chkPlotFun.
+function chkPlotFun_Callback(hObject, eventdata, handles)
 plotCurrent(handles,getappdata(handles.main,'conf'));

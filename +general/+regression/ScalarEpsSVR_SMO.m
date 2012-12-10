@@ -154,7 +154,7 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
                 %% Update E
                 E = this.C * sum(max(0,min(2-this.Eps,dW)));
                                 
-                S = T + E;
+                S = abs(T + E);
                 cnt = cnt+1;
             end
             if this.Vis > 0

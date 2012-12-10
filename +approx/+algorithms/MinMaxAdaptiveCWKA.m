@@ -39,7 +39,8 @@ classdef MinMaxAdaptiveCWKA < approx.algorithms.BaseAdaptiveCWKA
     
     methods    
         function this = MinMaxAdaptiveCWKA
-            this = this@approx.algorithms.BaseAdaptiveCWKA;
+            this = this@approx.algorithms.BaseAdaptiveCWKA;%#ok
+            error('Use currently not supported.');
         end
                         
         function copy = clone(this)
@@ -55,7 +56,7 @@ classdef MinMaxAdaptiveCWKA < approx.algorithms.BaseAdaptiveCWKA
     end
     
     methods(Access=protected, Sealed)
-        function detailedAdaptiveApproximation(this, kexp, atd)
+        function startAdaptiveExtension(this, kexp, atd)
             % Performs adaptive approximation generation.
             %
             % Parameters:

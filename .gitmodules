@@ -1,3 +1,3 @@
 [submodule "extern/matlabtools"]
 	path = extern/matlabtools
-	url = /home/dwirtz/agh/git/software/matlab/matlabtools/
+	url = http://dwirtz@www.ians.uni-stuttgart.de:8080/agh/gitblit/git/software/matlab/matlabtools

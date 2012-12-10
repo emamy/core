@@ -12,6 +12,17 @@ classdef IClassConfig < handle
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
+
+    properties
+        % The index of the configuration with the best results.
+        %
+        % Set inside the algorithm this configuration set is used for.
+        %
+        % @propclass{verbose} Helps identifying the effectively used configuration.
+        %
+        % @type integer @default []
+        vBestConfigIndex = [];
+    end
     
     methods(Abstract)
         n = getNumConfigurations(this);

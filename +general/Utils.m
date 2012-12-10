@@ -332,6 +332,7 @@ classdef Utils
                         getpref(KerMor.getPrefTag,'LASTPATH',pwd));
                     if ~isequal(filename, 0)
                         file = [pathname filename];
+                        setpref(KerMor.getPrefTag,'LASTPATH',pathname)
                     end
                 else
                     file = [filename '.' exts{extidx}];
@@ -574,6 +575,11 @@ classdef Utils
 %             t3 = toc(t);
 %             fprintf('eig-full: %g/%gs, eigs-shift: %g/%gs, eigs-be: %g/%gs\n',...
 %                 ln1,t1,ln,t2,ln2,t3);
+        end
+        
+        function idx = getRandOrder(n)
+            v = rand(1,n);
+            [~, idx] = sort(v);
         end
     end
     

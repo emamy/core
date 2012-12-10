@@ -1,4 +1,4 @@
-classdef ExpansionConfig
+classdef ExpansionConfig < general.config.IClassConfig
 % ExpansionConfig: Collects several IKernelConfigs to apply to a kernel expansion
 %
 % @todo implement setter etc and do checks
@@ -60,6 +60,18 @@ classdef ExpansionConfig
             end
             if ~isempty(this.ParamConfig)
                 str = [str sprintf('param: %s',this.ParamConfig.getConfigurationString(nr))];
+            end
+        end
+        
+        function setBestConfigIndices(this, idx)
+            % @todo implement event listener for PostSet of vBestConfigIndex
+            this.vBestConfigIndex = idx;
+            this.StateConfig.vBestConfigIndex = idx;
+            if ~isempty(this.TimeConfig)
+                this.TimeConfig.vBestConfigIndex = idx;
+            end
+            if ~isempty(this.ParamConfig)
+                this.ParamConfig.vBestConfigIndex = idx;
             end
         end
         

@@ -26,17 +26,12 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable & ICloneable
 % - \c License @ref licensing
     
     properties(SetObservable)
-        % An instance of a class implementing the approx.algorithms.IKernelCoeffComp
-        % interface.
+        % The different kernel expansion configurations to try
         %
-        % This properties class will be used to compute the kernel
-        % coefficients for each dimension.
+        % @propclass{critical} Without this setting this algorithm makes little sense.
         %
-        % @propclass{important} The correct coefficient computation strategy might make the
-        % difference.
-        %
-        % @default general.interpolation.KernelInterpol
-        CoeffComp;
+        % @type kernels.config.ExpansionConfig @default []
+        ExpConfig = [];
         
         % Flag that determines whether the approximation center f values should be scaled to [-1,1]
         % before the approximation is computed.
@@ -46,28 +41,49 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable & ICloneable
         %
         % @default false
         UsefScaling = false;
+        
+        % The error function to apply on each data vector.
+        %
+        % Must be a function_handle that takes one matrix argument. The result is computed
+        % along the first dimension, i.e. the return value has the same number of columns than
+        % the input matrix.
+        %
+        % @propclass{important} Depending on the approximation goal different error functions
+        % are suitable.
+        %
+        % @type function_handle @default "@Norm.L2"
+        %
+        % See also: Norm
+        ErrorFun = @Norm.L2;
+    end
+    
+    properties(SetAccess=protected)
+        % The computation time for the last run in seconds.
+        %
+        % @type double @default []
+        LastCompTime = [];
     end
     
     methods
         function this = BaseKernelApproxAlgorithm
             this = this@KerMorObject;
             
-            this.CoeffComp = general.interpolation.KernelInterpol;
-            
-            this.registerProps('CoeffComp','UsefScaling');
+            this.registerProps('ExpConfig','UsefScaling');
         end
         
         function copy = clone(this, copy)
-            copy.CoeffComp = this.CoeffComp; % Dont clone the coefficient computation method
+            copy.ExpConfig = this.ExpConfig;
             copy.UsefScaling = this.UsefScaling;
+            copy.ErrorFun = this.ErrorFun;
+            copy.LastCompTime = this.LastCompTime;
         end
         
         
         function computeApproximation(this, kexp, atd)
-            
+            time = tic;
             % Scale f-values if wanted
             if this.UsefScaling
-                [fm,fM] = general.Utils.getBoundingBox(atd.fxi);
+                [fm,fM] = atd.fxi.getColBoundingBox;
                 s = max(abs(fm),abs(fM));
                 s(s==0) = 1;
                 oldfxi = atd.fxi;
@@ -75,7 +91,7 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable & ICloneable
             end
             
             % Call template method for component wise approximation
-            this.detailedComputeApproximation(kexp, atd);
+            this.templateComputeApproximation(kexp, atd);
             
             % Rescale if set
             if this.UsefScaling
@@ -105,116 +121,37 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable & ICloneable
             if sum(hlp) / numel(kexp.Ma) < .5
                 kexp.Ma = sparse(kexp.Ma);
             end
+            this.LastCompTime = toc(time);
         end
     end
     
-    %% Getter & Setter
-    methods
-        function set.CoeffComp(this, value)
-            if ~isa(value,'approx.algorithms.IKernelCoeffComp')
-                error('Property value must implement the approx.algorithms.IKernelCoeffComp interface');
-            end
-            this.CoeffComp = value;
-        end
-    end
-    
-    methods(Access=protected, Sealed)
-        function computeCoeffs(this, kexp, fxi, initialalpha)
-            % Computes the coefficients for all components.
-            %
-            % Convenience method that any subclasses may (must?) use in
-            % order to compute the coefficients. Depending on the parallel
-            % flag this is done parallel or not (parfor)
-            %
-            % Please take care that the CoeffComp.init method was called
-            % before executing this function.
-            %
-            % Parameters:
-            % kexp: The kernel expansion
-            % fxi: The `f(x_i)`values at the expansion centers
-            % initialalpha: Initial `\alpha_i` value to use as
-            % initialization (if applicable for the algorithm)
-            if nargin < 4 || isempty(initialalpha)
-                initialalpha = double.empty(size(fxi,1),0);
-            end
-            if this.ComputeParallel
-                if KerMor.App.Verbose > 3
-                    fprintf('Starting parallel component-wise coefficient computation\n');
-                end
-                this.computeCoeffsParallel(kexp, fxi, initialalpha);
-            else
-                if KerMor.App.Verbose > 3
-                    fprintf('Starting component-wise coefficient computation\n');
-                end
-                this.computeCoeffsSerial(kexp, fxi, initialalpha);
-            end
-        end
-    end
-    
-    methods(Access=private)
-        
-        function computeCoeffsSerial(this, kexp, fxi, initialalpha)
-            % Computes the coefficients using the CoeffComp instance
-            % serially.
-            %
-            % @throws KerMor:coeffcomp_failed Forwarded from CoeffComp
-            %
-            % @todo remove waitbar and connect to verbose/messaging system
-            %% Non-parallel execution
-            fdims = size(fxi,1);
-            oldma = kexp.Ma;
-            try
-                n = size(kexp.Centers.xi,2);
-                kexp.Ma = zeros(fdims, n);
-                if this.CoeffComp.MultiTargetComputation
-                    if KerMor.App.Verbose > 3
-                        fprintf('Computing approximation for all %d dimensions...\n',fdims);
-                    end
-                    % Call template method
-                    [ai, svidx] = this.CoeffComp.computeKernelCoefficients(fxi,initialalpha);
-                    kexp.Ma(:,svidx) = ai;
-                else
-                    for fdim = 1:fdims
-                        if KerMor.App.Verbose > 3 && fdims > 1
-                            fprintf('Computing approximation for dimension %d/%d ... %2.0f %%\n',fdim,fdims,(fdim/fdims)*100);
-                        end
-                        % Call template method
-                        [ai, svidx] = this.CoeffComp.computeKernelCoefficients(fxi(fdim,:),initialalpha(fdim,:)); 
-                        kexp.Ma(fdim,svidx) = ai;
-                    end
-                end
-            catch ME
-                if strcmp(ME.identifier,'KerMor:coeffcomp_failed')
-                    % Restore old coefficients
-                    kexp.Ma = oldma;
-                end
-                rethrow(ME);
-            end
-        end
-        
-        function computeCoeffsParallel(this, kexp, fxi, initialalpha)
-            %% Parallel execution
-            n = size(kexp.Centers.xi,2);
-            fdims = size(fxi,1);
-            fprintf('Starting parallel component-wise approximation computation of %d dimensions on %d workers...\n',fdims,matlabpool('size'));
-            Ma = zeros(fdims, n);
-            parfor fdim = 1:fdims
-                % Call template method
-                [ai, sv] = this.CoeffComp.computeKernelCoefficients(...
-                    fxi(fdim,:),initialalpha(fdim,:));%#ok
-                Ai = zeros(1,n);
-                Ai(sv) = ai;
-                Ma(fdim,:) = Ai;
-            end
-            kexp.Ma = Ma;
-        end
-    end
+%     methods(Access=protected)
+%         function [val, idx, errs] = getError(this, kexp, atd)
+%             % Computes the error according to the chosen error function
+%             % (see ErrorFun property) with respect to the current kernel
+%             % expansion and the `f(x_i)` values in the training data.
+%             %
+%             % Parameters:
+%             % kexp: The kernel expansion @type kernels.KernelExpansion
+%             % atd: The approximation training data @type data.ApproxTrainData
+%             %
+%             % Return values:
+%             % val: The maximum error `\max ||f(x_i,t_i,\mu_i) -
+%             % \hat{f}(x_i,t_i,\mu_i)||_{\{2,\infty\}}` @type double
+%             % idx: The index of the maximum error inside the errs vector @type integer
+%             % errs: A row vector of the errors for each sample @type rowvec
+%             %
+%             % See also: ErrorFun
+%             errs = this.ErrorFun(atd.fxi - kexp.evaluate(atd.xi, atd.ti, atd.mui));
+%             [val, idx] = max(errs);
+%         end
+%     end
     
     methods(Abstract, Access=protected)
         % Performs the actual approximation after scaling.
         %
         % Template method.
-        detailedComputeApproximation(this, kexp, atd);
+        templateComputeApproximation(this, kexp, atd);
     end
     
 end

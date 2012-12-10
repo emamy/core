@@ -199,6 +199,11 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             end
         end
         
+        function setCentersFromATD(this, atd, idx)
+            % Sets the centers according to the indices 'idx' of the data.ApproxTrainData
+            this.Centers.xi = atd.xi(:,idx);
+        end
+        
         function c = getGlobalLipschitz(this, t, mu)%#ok          
             c = sum(this.Ma_norms) * this.Kernel.getGlobalLipschitz;
         end
