@@ -249,6 +249,8 @@ classdef KerMor < handle
     %
     % @todo KerMor.App.getDir method that saves the last accessed directory if successfully
     % selected
+    %
+    % @todo: matrix-wertige auswertung/integration für alle systeme?
     
     properties(Constant)
         % The current KerMor main version number

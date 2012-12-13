@@ -110,6 +110,8 @@ classdef AffParamMatrix < general.AProjectable
             % For example, one would pass '(t+1)/mu(1))' as 'coeff_fun' string if the function was to be
             % '@(t,mu)(t+1)/mu(1))'
             % mat: The corresponding matrix `A_i`
+            %
+            % TODO: allow function handle arguments!
           
             if ~isa(coeff_fun,'char')
                 error('Coeff_fun must be a string.');
