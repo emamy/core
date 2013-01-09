@@ -54,6 +54,22 @@ classdef ACoreFun < KerMorObject & general.AProjectable
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
+
+    properties(SetObservable)
+        % Flag that indicates if the ACoreFun is (truly) time-dependent.
+        %
+        % Set in subclasses to the correct value for your implementation.
+        % Most built-in KerMor classes set their values correctly or guess them.
+        %
+        % This will cause different behaviour for e.g. ODE solvers.
+        %
+        % @propclass{critical} Not setting this value in implementing subclasses causes
+        % KerMor's ODE solvers to (possibly) produce wrong results due to wrong assumptions on
+        % the time dependence of the core function.
+        %
+        % @type logical @default true
+        TimeDependent = true;
+    end
     
     properties(SetObservable, SetAccess=protected)
         % Set this property if the projection process is customized by
@@ -97,19 +113,6 @@ classdef ACoreFun < KerMorObject & general.AProjectable
         % might have sparsity pattern but not actually a analytic
         % jacobian..)
         JSparsityPattern = [];
-        
-        % Flag that indicates if the ACoreFun is (truly) time-dependent.
-        %
-        % Set in subclasses to the correct value for your implementation.
-        %
-        % This will cause different behaviour for e.g. ODE solvers.
-        %
-        % @propclass{critical} Not setting this value in implementing subclasses causes
-        % KerMor's ODE solvers to (possibly) produce wrong results due to wrong assumptions on
-        % the time dependence of the core function.
-        %
-        % @type logical @default true
-        TimeDependent = true;
         
         % The current state space dimension of the function's argument `x`.
         %

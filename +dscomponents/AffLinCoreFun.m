@@ -108,8 +108,10 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
             end
             
             mu = ones(1,100);
-            this.TimeDependent = ~all(this.cfun(0,mu) == this.cfun(Inf,mu));
-            fprintf('AffLinCoreFun: Guessed time-dependency to %d.\n',this.TimeDependent);
+            if (this.TimeDependent)
+                this.TimeDependent = ~all(this.cfun(0,mu) == this.cfun(Inf,mu));
+                fprintf('AffLinCoreFun: Guessed time-dependency to %d.\n',this.TimeDependent);
+            end
         end
         
         function prod = mtimes(this, other)
