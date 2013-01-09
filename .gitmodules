@@ -1,6 +1,6 @@
-[submodule "extern/matlabtools"]
+[submodule "Matlab Tools"]
 	path = extern/matlabtools
 	url = ../matlabtools
-[submodule "+models/+muscle"]
+[submodule "MuscleSim"]
 	path = +models/+muscle
 	url = ../kmm_muscle
