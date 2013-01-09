@@ -1,3 +1,6 @@
 [submodule "extern/matlabtools"]
 	path = extern/matlabtools
-	url = http://www.ians.uni-stuttgart.de:8080/agh/gitblit/git/software/matlab/matlabtools
+	url = ../matlabtools
+[submodule "+models/+muscle"]
+	path = +models/+muscle
+	url = ../kmm_muscle
