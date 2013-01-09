@@ -710,6 +710,7 @@ classdef KerMor < handle
             p = this.HomeDirectory;
             addpath(p);
             addpath(fullfile(p,'visual'));
+            
             % Figure position settings
             if ~isempty(this.DefaultFigurePosition)
                 set(0,'DefaultFigurePosition',this.DefaultFigurePosition);
@@ -758,6 +759,22 @@ classdef KerMor < handle
                 
                 warning off MATLAB:dispatcher:nameConflict
                 
+                fprintf('Autoadding external folders to path... ');
+                d = dir(KerMor.App.HomeDirectory);
+                found = false;
+                for n=1:length(d)
+                    e = d(n);
+                    if e.name(1) == 'z' && e.name(2) ~= 'z'
+                        found = true;
+                        addpath(e.name);
+                        fprintf('%s... ',e.name);
+                    end
+                end
+                if found
+                    fprintf('\n');
+                else
+                    fprintf('none found! (Create folders beginning with "z" like "zMyExternSources"\n');
+                end
                 disp('Initializing 3rd party software...')
                 addpath(fullfile(p,'extern'));
                 addpath(fullfile(p,'extern','matlabtools'));
