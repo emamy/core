@@ -251,6 +251,8 @@ classdef KerMor < handle
     % selected
     %
     % @todo: matrix-wertige auswertung/integration für alle systeme?
+    %
+    % @todo: possibility to add custom directories to PATH on startup (managed in kermor prefs)?
     
     properties(Constant)
         % The current KerMor main version number
