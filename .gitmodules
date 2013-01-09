@@ -1,6 +1,8 @@
 [submodule "Matlab Tools"]
 	path = extern/matlabtools
 	url = ../matlabtools
+	update = merge
 [submodule "MuscleSim"]
 	path = +models/+muscle
 	url = ../kmm_muscle
+	update = merge
