@@ -42,15 +42,17 @@ classdef BaseCustomSolver < solvers.ode.BaseSolver
             ed = solvers.ode.SolverEventData(times);
             notify(this,'PreSolve',ed);
             
-            x = this.customSolve(odefun, times, x0);
+            x = this.customSolve(odefun, times, x0, outputtimes);
             
             % Fire PostSolve event
             ed.States = x;
             notify(this,'PostSolve',ed);
             
             % Extract wanted values
-            x = x(:,outputtimes);
             t = times(outputtimes);
+            % New: x is supposed to be returned in the size of effectively desired timesteps
+            % (memory issues for large, long simulations)
+            %x = x(:,outputtimes);
         end
     end
     
@@ -144,7 +146,10 @@ classdef BaseCustomSolver < solvers.ode.BaseSolver
         % x0: The initial value
         %
         % See also: getCompTimes
-        x = customSolve(this, odefun, t, x0);
+        %
+        % @change{0,7,dw,2013-01-11} Passing the outputtimes parameter to the customSolve
+        % method in order to allow for more memory-efficient implementations.
+        x = customSolve(this, odefun, t, x0, outputtimes);
     end
     
     events

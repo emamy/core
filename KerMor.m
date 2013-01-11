@@ -760,13 +760,14 @@ classdef KerMor < handle
                 warning off MATLAB:dispatcher:nameConflict
                 
                 fprintf('Autoadding external folders to path... ');
-                d = dir(KerMor.App.HomeDirectory);
+                hd = KerMor.App.HomeDirectory;
+                d = dir(hd);
                 found = false;
                 for n=1:length(d)
                     e = d(n);
                     if e.name(1) == 'z' && e.name(2) ~= 'z'
                         found = true;
-                        addpath(e.name);
+                        addpath(fullfile(hd,e.name));
                         fprintf('%s... ',e.name);
                     end
                 end

@@ -36,7 +36,12 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
     end
     
     methods(Access=protected)
-        function x = customSolve(this, ~, t, x0)
+        function x = customSolve(this, ~, t, x0, outputtimes)
+            % Implements the actual semi-implicit solving of the given ODE system.
+            %
+            %
+            % @change{0,7,dw,2013-01-11} Using the outputtimes parameter in order to provide a
+            % more memory-efficient implementation.
             s = this.model.System;
             if isempty(s.A)
                error('This solver requires an (affine) linear system component A.'); 
@@ -47,6 +52,7 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
 %             end
             % Initialize result
             steps = length(t);
+            
             dt = t(2)-t(1);
             if ~isempty(find((abs(t(2:end)-t(1:end-1) - dt)) / dt > 1e-6,1)) %any(t(2:end)-t(1:end-1) - dt > 100*eps)
                 error('non-equidistant dt timesteps.');
@@ -57,7 +63,11 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
                 ed = solvers.ode.SolverEventData;
                 x = [];
             else
-                x = [x0 zeros(size(x0,1),steps-1)];
+                effsteps = length(find(outputtimes));
+                % Create return matrix in size of effectively desired timesteps
+                x = [x0 zeros(size(x0,1),effsteps-1)];
+                % Initialize output index counter
+                outidx = 2;
             end
             
             oldex = []; newex = []; edim = 0; est = [];
@@ -136,14 +146,18 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
 %                     newex2 = fsolve(fun, oldex, opts);
                 end
                 
-                % Real time mode: Fire StepPerformed event
-                if rtm
-                    ed.Times = t(idx);
-                    ed.States = [newx; newex];
-                    this.notify('StepPerformed',ed);
-                    % Normal mode: Collect solution in result vector
-                else
-                    x(:,idx) = [newx; newex];%#ok
+                % Only produce output at wanted timesteps
+                if outputtimes(idx)
+                    if rtm
+                        % Real time mode: Fire StepPerformed event
+                        ed.Times = t(idx);
+                        ed.States = [newx; newex];
+                        this.notify('StepPerformed',ed);
+                        % Normal mode: Collect solution in result vector
+                    else
+                        x(:,outidx) = [newx; newex];%#ok
+                        outidx = outidx+1;
+                    end
                 end
                 oldx = newx;
                 oldex = newex;
