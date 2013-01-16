@@ -25,15 +25,6 @@ classdef GaussKernel < kernels.BellFunction
     % kernels.GaussKernel.test_GaussMexSpeedTest1Arg and @ref
     % kernels.GaussKernel.test_GaussMexSpeedTest2Arg)
     
-    properties(SetObservable)
-        % Univariate scaling
-        %
-        % @propclass{critical} Greatly influences the kernels behaviour.
-        %
-        % @type double @default 1
-        Gamma = 1;
-    end    
-    
     methods
         function this = GaussKernel(Gamma)
             % Creates a new GaussKernel
@@ -46,9 +37,9 @@ classdef GaussKernel < kernels.BellFunction
             if nargin == 1
                 this.Gamma = Gamma;
             else
-                % Set r0 according to whatever default value for Gamma is currently set
-                this.r0 = sqrt(this.Gamma^2/2);
+                this.updateGammaDependants;
             end
+            this.addlistener('Gamma','PostSet',@this.updateGammaDependants);
         end
         
         function K = evaluate(this, x, y)
@@ -129,18 +120,8 @@ classdef GaussKernel < kernels.BellFunction
             phi = exp(-r.^2/this.Gamma^2);
         end
         
-        function set.Gamma(this, value)
-            % @todo check why penalty factor was set here to 1/value! ?!?
-            if ~isreal(value) || ~isscalar(value) || value <= 0
-                error('Only positive scalar values allowed for Gamma.');
-            end
-            this.Gamma = value;
-            
-            % Update the dilation parameter of ARBFKernel
-            this.epsilon = 1/value;
-            
-            % Adjust the BellFunctions' x0 value
-            this.r0 = value/sqrt(2);
+        function dc = getDefaultConfig(this)
+            dc = kernels.config.RBFConfig('G',this.Gamma);
         end
         
         function g = setGammaForDistance(this, dist, ep)
@@ -179,8 +160,22 @@ classdef GaussKernel < kernels.BellFunction
         end
     end
     
-    methods(Static)
+    methods(Access=private)
+        function updateGammaDependants(this, ~, ~)
+            % Adjust the BellFunctions' x0 value
+            this.r0 = this.Gamma/sqrt(2);
+        end
+    end
+    
+    methods(Static,Access=protected)
         
+        function obj = loadobj(obj)
+            obj = loadobj@kernels.BellFunction(obj);
+            obj.addlistener('Gamma','PostSet',@this.updateGammaDependants);
+        end
+    end
+        
+    methods(Static)
         function res = test_InterpolGamma            
             ki = general.interpolation.KernelInterpol;
             %ki.UseLU = true;

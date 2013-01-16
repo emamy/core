@@ -62,6 +62,13 @@ classdef KerMorObject < DPCMObject
             % Negates the result of eq(A,B) for KerMorObject.
             bool = ~eq(A,B);
         end
+        
+        function cn = getClassName(this)
+            % Returns the simple class name of this object without packages
+            cn = class(this);
+            dotpos = strfind(cn,'.');
+            cn = cn(dotpos(end)+1:end);
+        end
     end
         
     methods(Sealed, Access=protected)

@@ -11,6 +11,9 @@ classdef ARBFKernel < kernels.BaseKernel
     %
     % @author Daniel Wirtz @date 2011-08-09
     %
+    % @change{0,7,dw,2013-01-16} Moved the Gamma property to here as it is a common setting for
+    % all RBF kernels.
+    %
     % @new{0,5,dw,2011-10-17} 
     % - Added this class.
     % - Implemented the general evaluate function for rotation invariant
@@ -25,14 +28,13 @@ classdef ARBFKernel < kernels.BaseKernel
     % @todo: change property to check for interface implementation,
     % implement in other suitable kernels
     
-    properties(SetAccess=protected)
-        % The 'dilation parameter' after [S08], which is used by the preconditioning process
-        % for kernel interpolation.
+    properties(SetObservable)
+        % Univariate scaling
         %
-        % Is being set by subclasses according to their local configuration.
+        % @propclass{critical} Greatly influences the kernels behaviour.
         %
         % @type double @default 1
-        epsilon = 1;
+        Gamma = 1;
     end
     
     methods
@@ -76,7 +78,7 @@ classdef ARBFKernel < kernels.BaseKernel
     
     methods(Sealed)
         function r = getSqDiffNorm(this, x, y)
-            % Returns the \b squared norm `r` of the difference `\noG{x-y}^2`.
+            % Returns the weighted \b squared norm `r` of the difference `\noG{x-y}^2/\gamma^2`.
             %
             % The evaluation respects and projection matrix `\vP` that might be set at
             % kernels.BaseKernel. In this case the matrix `\vG` must match the projected sizes of
@@ -93,7 +95,8 @@ classdef ARBFKernel < kernels.BaseKernel
             % is assumed. @type matrix<double>
             %
             % Return values:
-            % r: The matrix `\vR \in \R^{n\times m}` with entries `R_{ij} = \norm{x_i-y_j}{G}^2`
+            % r: The matrix `\vR \in \R^{n\times m}` with entries `R_{ij} =
+            % \norm{x_i-y_j}{G}^2/\gamma^2`
             %
             % See also: kernels.BaseKernel.P kernels.ARBFKernel.G
             if ~isempty(this.fP)
@@ -113,7 +116,18 @@ classdef ARBFKernel < kernels.BaseKernel
                 n2sq = sum(y.*(this.fG*y),1);
                 n2 = size(y,2);
             end;
-            r = (ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*sx'*y;
+            r = ((ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*sx'*y); %/this.Gamma^2
+        end
+    end
+    
+    %% Getter & setter
+    methods
+        function set.Gamma(this, value)
+            % @todo check why penalty factor was set here to 1/value! ?!?
+            if ~isreal(value) || ~isscalar(value) || value <= 0
+                error('Only positive scalar values allowed for Gamma.');
+            end
+            this.Gamma = value;
         end
     end
     

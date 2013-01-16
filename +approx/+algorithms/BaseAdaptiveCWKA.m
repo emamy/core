@@ -73,7 +73,7 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
         Used = [];
     end
     
-    properties(Access=private)
+    properties(Access=protected)
         initialidx;
     end
     
@@ -114,7 +114,7 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
             this.MaxErrors = [];
             
             [~, this.initialidx] = this.getInitialCenter(atd);
-            this.initExpansion(kexp, atd);
+%             this.initExpansion(kexp, atd);
             
             % Start adaptive extension part of subclass
             this.startAdaptiveExtension(kexp, atd);
@@ -156,13 +156,17 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
             % Considers maximum expansion size and maximum relative errors
             %
             % See also: MaxExpansionSize MaxRelErr
-            
+            vb = KerMor.App.Verbose;
             bool = false;
             if cnt == this.MaxExpansionSize
-                fprintf('BaseAdaptiveCWKA stopping criteria holds: Max expansion size %d reached.\n',this.MaxExpansionSize);
+                if vb > 1
+                    fprintf('BaseAdaptiveCWKA stopping criteria holds: Max expansion size %d reached.\n',this.MaxExpansionSize);
+                end
                 bool = true;
             elseif rel < this.MaxRelErr
-                fprintf('BaseAdaptiveCWKA stopping criteria holds: Relative error %.7e < %.7e\n',rel,this.MaxRelErr);
+                if vb > 1
+                    fprintf('BaseAdaptiveCWKA stopping criteria holds: Relative error %.7e < %.7e\n',rel,this.MaxRelErr);
+                end
                 bool = true;
             end
         end

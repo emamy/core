@@ -103,6 +103,12 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         %
         % @type matrix<double>
         Ma;
+        
+        %
+        % @propclass{optional}
+        %
+        % 
+        Base = 1;
     end
     
     properties(SetAccess=private, GetAccess=protected)
@@ -128,7 +134,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             % you are me :-)
 %             this.updateRotInv;
             
-            this.registerProps('Kernel','Centers');
+            this.registerProps('Kernel','Centers','Base');
         end
         
         function fx = evaluate(this, x, varargin)
@@ -143,7 +149,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             % fxi: The evaluation `f(x) = \sumi c_i \Phi(x,x_i)`
             
             %fx = this.Ma * this.fSK.evaluate(x, this.Centers.xi)';
-            fx = this.Ma * this.getKernelVector(x)';
+            fx = this.Ma * (this.Base \ this.getKernelVector(x)');
         end
         
         function phi = getKernelVector(this, x, varargin)
@@ -157,6 +163,19 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             % Return values:
             % phi: The kernel vector `\varphi(x) =\left(\Phi(x,x_i)\right)_{i}`.
             phi = this.fSK.evaluate(x, this.Centers.xi);
+        end
+        
+        function row = getKernelMatrixColumn(this, idx, x, varargin)
+            % Evaluates the kernel expansion.
+            %
+            % Parameters:
+            % x: The state space vector(s) to evaluate at @type matrix
+            % varargin: Dummy variable to also allow calls to this class
+            % with `t_i,\mu_i` parameters as in ParamTimeKernelExpansion.
+            %
+            % Return values:
+            % phi: The kernel vector `\varphi(x) =\left(\Phi(x,x_i)\right)_{i}`.
+            row = this.fSK.evaluate(x, x(:,idx));
         end
                 
         function J = getStateJacobian(this, x, varargin)
@@ -199,6 +218,11 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             end
         end
         
+        function ec = getDefaultExpansionConfig(this)
+            ec = kernels.config.ExpansionConfig;            
+            ec.StateConfig = this.Kernel.getDefaultConfig;
+        end
+        
         function v = scalarProductWith(this, f)
             if ~isa(f,'kernels.KernelExpansion')
                 error('f argument must be another KernelExpansion');
@@ -232,6 +256,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             % Copy local variables
             copy.Centers = this.Centers;
             copy.Ma = this.Ma;
+            copy.Base = this.Base;
             copy.fSK = this.fSK.clone;
         end
         

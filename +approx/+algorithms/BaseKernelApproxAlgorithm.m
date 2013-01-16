@@ -90,6 +90,16 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable & ICloneable
                 atd.fxi = atd.fxi ./ repmat(s,1,size(atd.fxi,2));
             end
             
+            if isempty(this.ExpConfig)
+                warning('approx:BaseKernelApprox',...
+                    'Warning, no expansion configurations set. Using default config.');
+                this.ExpConfig = kexp.getDefaultExpansionConfig;
+            else 
+                if this.ExpConfig.getNumConfigurations == 0
+                    error('Need at least one expansion configuration.');
+                end
+            end
+            
             % Call template method for component wise approximation
             this.templateComputeApproximation(kexp, atd);
             

@@ -1,5 +1,5 @@
-classdef GaussConfig < general.config.IClassConfig
-% GaussConfig: 
+classdef RBFConfig < general.config.IClassConfig
+% RBFConfig: 
 %
 % @docupdate
 %
@@ -20,8 +20,9 @@ classdef GaussConfig < general.config.IClassConfig
     end
     
     methods
-        function this = GaussConfig(varargin)
+        function this = RBFConfig(varargin)
             i = inputParser;
+            i.KeepUnmatched = true;
             i.addParamValue('G',1);
             i.addParamValue('D',[]);
             i.addParamValue('Eps',eps);

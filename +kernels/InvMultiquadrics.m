@@ -58,7 +58,7 @@ classdef InvMultiquadrics < kernels.ARBFKernel
             %
             % Return values:
             % K: An evaluation matrix `K \in \R^{n\times m}` of the evaluated multiquadrics
-            % with entries `K_{i,j} = 1/(c^2+\epsilon\norm{x_i-y_j}{G}^2)`.
+            % with entries `K_{i,j} = 1/(c^2+\epsilon^2\norm{x_i-y_j}{G}^2)`.
             K = (this.c^2 + this.epsilon^2*this.getSqDiffNorm(x,y)).^this.beta;
         end
         

@@ -63,8 +63,12 @@ classdef ExpansionConfig < general.config.IClassConfig
             end
         end
         
-        function setBestConfigIndices(this, idx)
+        function setBestConfig(this, idx, expansion)
             % @todo implement event listener for PostSet of vBestConfigIndex
+            
+            % Apply config
+            this.applyConfiguration(idx, expansion);
+            % Set best config indices
             this.vBestConfigIndex = idx;
             this.StateConfig.vBestConfigIndex = idx;
             if ~isempty(this.TimeConfig)
@@ -75,9 +79,9 @@ classdef ExpansionConfig < general.config.IClassConfig
             end
         end
         
-        function guessGaussConfigs(this, atd, ng, mf, Mf)
+        function guessGammaConfigs(this, atd, ng, mf, Mf)
             % Guesses 'ng' `\gamma` values that might be geometrically senseful and sets the
-            % applicable GaussConfig instances.
+            % applicable RBFConfig instances.
             %
             % Parameters:
             % atd: The approximation training data @type data.ApproxTrainData
