@@ -581,6 +581,33 @@ classdef Utils
             v = rand(1,n);
             [~, idx] = sort(v);
         end
+        
+        function success = ensureDir(dir)
+            % Ensures that a directory exists.
+            %
+            % If no return argument is wanted, an exception is thrown when creation of a
+            % nonexistent directory fails.
+            %
+            % Parameters:
+            % dir: The target directory @type char
+            %
+            % Return values:
+            % success: True if the directory exists or has been created, false otherwise @type
+            % logical
+            success = true;
+            if exist(dir,'dir') ~= 7
+                try
+                    mkdir(dir);
+                catch ME
+                    if nargout < 1
+                        me = MException('Utils:ensureDir','Could not create directory "%s"',dir);
+                        me.addCause(ME);
+                        me.throw;
+                    end
+                    success = false;
+                end
+            end
+        end
     end
     
     methods(Static)

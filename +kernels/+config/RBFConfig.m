@@ -13,34 +13,18 @@ classdef RBFConfig < general.config.IClassConfig
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
     
-    properties(SetAccess=private)
+    properties(SetAccess=protected)
         Gammas;
-        Distances;
-        DistEps;
     end
     
     methods
         function this = RBFConfig(varargin)
             i = inputParser;
             i.KeepUnmatched = true;
-            i.addParamValue('G',1);
-            i.addParamValue('D',[]);
-            i.addParamValue('Eps',eps);
+            i.addParamValue('G',[]);
             i.parse(varargin{:});
             r = i.Results;
-            if ~isempty(r.D)
-                ke = kernels.GaussKernel;
-                g = zeros(size(r.D));
-                for k = 1:length(r.D)
-                    g(k) = ke.setGammaForDistance(r.D(k),r.Eps);
-                end
-                this.Gammas = g;
-                this.Distances = r.D;
-                this.DistEps = r.Eps;
-            else
-                this.Gammas = r.G;
-                this.DistEps = [];
-            end
+            this.Gammas = r.G;
         end
         
         function n = getNumConfigurations(this)
@@ -52,20 +36,13 @@ classdef RBFConfig < general.config.IClassConfig
         end
         
         function applyConfiguration(this, nr, kernel)
-            if ~isempty(this.Distances)
-                this.Gammas(nr) = kernel.setGammaForDistance(this.Distances(nr),this.DistEps);
-            else
-                kernel.Gamma = this.Gammas(nr);
-            end
+            kernel.Gamma = this.Gammas(nr);
         end
         
         function str = getConfigurationString(this, nr)
             str = [];
             if ~isempty(this.Gammas)
                 str = sprintf('Gamma: %g',this.Gammas(nr));
-                if ~isempty(this.Distances)
-                    str = sprintf('%s (by dist %g)',str,this.Distances(nr));
-                end
             end
         end
         
@@ -73,7 +50,7 @@ classdef RBFConfig < general.config.IClassConfig
     
     methods(Static)
         function dists = getDists(atd, num)
-            % Computes the distances for the different Gaussian kernel
+            % Computes the distances for the different RBF kernel
             % Gamma configurations using the 'atd' data and the algorithms
             % configuration.
             %
@@ -82,11 +59,11 @@ classdef RBFConfig < general.config.IClassConfig
             % num: The number of gamma values to compute @type integer
             %
             % Return values:
-            % dists: A `3\times n` matrix with `\gamma` values for state,
+            % dists: A `3\times n` matrix with distance values for state,
             % time and parameter kernels (time and parameter if given, but
             % always 2nd and 3rd rows, respectively)
             
-            dfun = @logsp; % gamma distances comp fun (linsp / logsp)
+            dfun = @logsp; % distances comp fun (linsp / logsp)
             
             Mf = 2;
             mf = .5;

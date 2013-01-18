@@ -16,12 +16,10 @@ classdef FileData < handle
     properties(SetAccess=protected)
         % The root folder where the FileData's files are saved.
         %
-        % @type char @default KerMor.DataStoreDirectory
-        DataDirectory;
+        % @type char @default ''
+        DataDirectory = '';
         
         % The host machine this file data is created on.
-        %
-        % If the 
         %
         % @type char @default ''
         Host = '';
@@ -42,11 +40,9 @@ classdef FileData < handle
     
     methods
         function this = FileData(data_dir)
-            if nargin < 1
-               error('A root folder must be specified.');
+            if nargin == 1
+                this.DataDirectory = data_dir;
             end
-            this.DataDirectory = data_dir;
-            this.ensureDir;
             this.Host = KerMor.getHost;
         end
         
@@ -56,7 +52,7 @@ classdef FileData < handle
         end
         
         function delete(this)
-            if ~this.isSaved && exist(this.DataDirectory,'dir') == 7
+            if ~isempty(this.DataDirectory) && ~this.isSaved && exist(this.DataDirectory,'dir') == 7
                 if length(dir(this.DataDirectory)) ~= 2
                     warning('KerMor:FileData',...
                         'A FileData instance (%s) should be deleted but the DataDirectory "%s" is not empty. Not deleting.',...
@@ -65,6 +61,18 @@ classdef FileData < handle
                     rmdir(this.DataDirectory);
                 end
             end
+        end        
+        
+        function set.DataDirectory(this, value)
+            if ~isempty(value)
+                if general.Utils.ensureDir(value);
+                    this.DataDirectory = value;
+                    return;
+                else
+                    warning('KerMor:FileData','Could not make sure that the directory %s exists. Data access will probably not work.',value);
+                end    
+            end
+            this.DataDirectory = '';    
         end
     end
     
@@ -76,20 +84,6 @@ classdef FileData < handle
             end
         end
         
-        function ensureDir(this)
-            if exist(this.DataDirectory,'dir') ~= 7
-                try
-                    mkdir(this.DataDirectory);
-                catch ME
-                    me = MException('KerMor:FileData','Could not create directory "%s"',this.DataDirectory);
-                    me.addCause(ME);
-                    me.throw;
-                end
-            end
-        end
-    end
-    
-    methods(Access=protected)
         function this = saveobj(this)
             % Set saved flag so that the data files do not get deleted on the delete method
             this.isSaved = true;
@@ -113,9 +107,9 @@ classdef FileData < handle
                 this.Host = initfrom.Host;
                 this.isSaved = initfrom.isSaved;
             end
-            
-            if strcmp(this.Host,KerMor.getHost)
-                this.ensureDir;
+            if ~isempty(this.DataDirectory) && ~general.Utils.ensureDir(this.DataDirectory) && ~strcmp(this.Host,KerMor.getHost)
+                warning('KerMor:FileData',['Loading FileData on a different machine failed.\n'...
+                    'Created on: %s, local host: %s'],this.Host,KerMor.getHost);
             end
         end
     end

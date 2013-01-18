@@ -1,10 +1,7 @@
 classdef Wendland < kernels.ARBFKernel
-    % Wendland: Implementation of Wendland kernel `phi_{d,k}(r)=p_{d,k}(r)*(1-r)^e`
+    % Wendland: Implementation of various Wendland kernels
     %
-    % Further background e.g. in §9.4 of @cite{W05}.
-    %
-    % Original code from R. Schaback etc
-    % We use only those which are pos. def. in dimension at most 3.
+    % Further background e.g. in §9.4 of @cite{W05}, especially Corollary 9.14.
     %
     % @author Daniel Wirtz @date 2013-01-16
     %
@@ -24,7 +21,7 @@ classdef Wendland < kernels.ARBFKernel
         k;
     end
     
-    properties%(Access=private)
+    properties(Access=private)
         fd = 1;
         fk = 0;
         expo;
@@ -35,11 +32,11 @@ classdef Wendland < kernels.ARBFKernel
     
     methods
         function this = Wendland
-            this.updateCoeffs;
             this.polystr = {...
                 '@(r)(l+1)*r+1' ...
-                '@(r)(l^2+4*l+1)*r.^2+(3*l+6)*r+1' ...
-                '@(r)(l^3+9*l^2+25*l+15)*r.^3 + (6*l^2+36*l+45)*r.^2+(15*l+45)*r+15'};
+                '@(r)(l^2+4*l+3)*r.^2/3+(l+2)*r+1' ...
+                '@(r)((l^3+9*l^2+23*l+15)*r.^3 + (6*l^2+36*l+45)*r.^2)/15+(l+3)*r+1'};
+            this.updateCoeffs;
         end
         
         function Kxy = evaluate(this, x, y)
@@ -54,7 +51,8 @@ classdef Wendland < kernels.ARBFKernel
             Kxy=(rp.^this.expo).*p;
         end
         
-        function phir = evaluateScalar(this, r)
+        function Kxy = evaluateScalar(this, r)
+            error('not implemented');
             rp = max(1-r,0);
             %rp = (1-r).*(r <= 1);
             
@@ -75,6 +73,13 @@ classdef Wendland < kernels.ARBFKernel
         function c = getGlobalLipschitz(this)
             error('not implemented');
         end
+        
+        function copy = clone(this)
+            copy = clone@kernels.ARBFKernel(this, kernels.Wendland);
+            % Triggers update of coeffs
+            copy.d = this.fd;
+            copy.k = this.fk;
+        end
     end
     
     methods(Access=private)
@@ -82,24 +87,11 @@ classdef Wendland < kernels.ARBFKernel
             % calculates coefficients and exponent for polynomial
             % part p_{d,k}(r) of the Wendland kernel function.
             l = floor(this.fd/2) + this.fk + 1;
-            this.expo = l + (this.fk > 0);
+            this.expo = l + this.fk;
             this.polyfun = [];
             if (this.fk > 0)
                 this.polyfun = eval(this.polystr{this.fk});
             end
-%             expon = floor(this.fd/2)+this.fk+1;
-%             coeff = zeros(this.fk+1,1);
-%             coeff(1,1)=1;
-%             for n=0:this.fk-1
-%                 coeff(n+2,1)=coeff(n+1,1)/(n+expon+2);
-%                 for j=n+1:-1:2
-%                     coeff(j,1)=(j*coeff(j+1,1)+coeff(j-1,1))/(expon+j);
-%                 end
-%                 expon=expon+1;
-%                 coeff(1,1)=coeff(2,1)/expon;
-%             end
-%             this.expo = expon;
-%             this.co = coeff;
         end
     end
     
@@ -129,6 +121,38 @@ classdef Wendland < kernels.ARBFKernel
         
         function v = get.k(this)
             v = this.fk;
+        end
+    end
+    
+    methods(Static)
+        function res = test_WendlandKernel
+            c = 0;
+            x = (-1.5:.05:1.5)+c;
+            [X,Y] = meshgrid(x);
+            x2 = [X(:)'; Y(:)'];
+            k = kernels.Wendland;
+            kexp = kernels.KernelExpansion;
+            kexp.Kernel = k;
+            kexp.Centers.xi = c;
+            kexp.Ma = 1;
+            conf = general.Utils.createCombinations([1 2 3 4 5],[0 1 2 3]);
+            pm = PlotManager(false,3,3);
+            pm.LeaveOpen = true;
+            for n = 1:length(conf)
+                k.d = conf(1,n);
+                k.k = conf(2,n);
+                h = pm.nextPlot('1d',sprintf('Wendland kernel with d=%d,k=%d on 1D data',k.d,k.k));
+                plot(h,x,kexp.evaluate(x));
+            end
+            kexp.Centers.xi = [c; c];
+            for n = 1:length(conf)
+                k.d = conf(1,n);
+                k.k = conf(2,n);
+                h = pm.nextPlot('2d',sprintf('Wendland kernel with d=%d,k=%d on 2D data',k.d,k.k));
+                surf(h,X,Y,reshape(kexp.evaluate(x2),length(x),[]),'EdgeColor','none');
+            end
+            pm.done;
+            res = true;
         end
     end
 end

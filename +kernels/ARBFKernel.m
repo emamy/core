@@ -72,7 +72,7 @@ classdef ARBFKernel < kernels.BaseKernel
         
         function copy = clone(this, copy)
             copy = clone@kernels.BaseKernel(this, copy);
-            copy.epsilon = this.epsilon;
+            copy.Gamma = this.Gamma;
         end
     end
     

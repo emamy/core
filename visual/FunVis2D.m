@@ -536,18 +536,17 @@ end
 function plotCurrent(h, c)
 
 fx = getappdata(h.main,'fx');
-mi = min(fx(:));
-Ma = max(fx(:));
 X1 = getappdata(h.main,'X1');
 X2 = getappdata(h.main,'X2');
 cap = sprintf('Plot of %s against %s and %s',c.lbl.fx{c.dout},c.lbl.x{c.d1},c.lbl.x{c.d2});
-
+mi = Inf; Ma = -Inf;
 if get(h.chkPlotFun,'Value') == 1
     
-    fx2 = getappdata(h.main,'fx2');
     fx = reshape(fx(c.dout,:),size(X1,1),[]);
+%     fx = gradient(fx);
 
     txt = '';
+    fx2 = getappdata(h.main,'fx2');
     if ~isempty(fx2) && get(h.rbErr,'Value') == 1
         fx2 = reshape(fx2(c.dout,:),size(X1,1),[]);
         if ~any(isnan(fx2))
@@ -561,7 +560,9 @@ if get(h.chkPlotFun,'Value') == 1
         end
     end
     set(h.lblErr,'String',txt);
-
+    
+    mi = min(fx(:));
+    Ma = max(fx(:));
     if mi == 0 && Ma == 0
         mi = -eps; Ma = eps;
     elseif mi ~= 0 && abs((mi-Ma) / mi) < 1e-14
@@ -572,7 +573,7 @@ if get(h.chkPlotFun,'Value') == 1
     %% Plots
     cla(h.ax);
     hold(h.ax,'on');
-    s1 = surf(h.ax,X1,X2,fx);
+    s1 = surf(h.ax,X1,X2,fx,'FaceColor','interp');
 
     if ~isempty(fx2) && get(h.rbAdd,'Value') == 1
         fx2 = reshape(fx2(c.dout,:),size(X1,1),[]);
@@ -602,11 +603,14 @@ xsel = c.idxmap([c.d1 c.d2]);
 if c.iske
     C = c.curCenters;
     plot3(h.ax,C(xsel(1),:),C(xsel(2),:),c.curCenterFx(c.dout,:),'black.','MarkerSize',15);
-    % Also plot the centers at their original value
-    orig = c.centerfx(c.dout,c.curCenterSel);
-    plot3(h.ax,C(xsel(1),:),C(xsel(2),:),orig,'blackx','MarkerSize',15);
-    % Plot a connecting line
-    plot3(h.ax,[C(xsel(1),:); C(xsel(1),:)],[C(xsel(2),:); C(xsel(2),:)],[c.curCenterFx(c.dout,:); orig],'black');
+    % Only plot center at original points if no error is displayed
+    if get(h.rbErr,'Value') == 0
+        % Also plot the centers at their original value
+        orig = c.centerfx(c.dout,c.curCenterSel);
+        plot3(h.ax,C(xsel(1),:),C(xsel(2),:),orig,'blackx','MarkerSize',15);
+        % Plot a connecting line
+        plot3(h.ax,[C(xsel(1),:); C(xsel(1),:)],[C(xsel(2),:); C(xsel(2),:)],[c.curCenterFx(c.dout,:); orig],'black');
+    end
 end
 
 %% Add training data points to plot

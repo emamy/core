@@ -115,7 +115,7 @@ classdef VKOGA < approx.algorithms.BaseAdaptiveCWKA
             end
             
             %% Run loop for all desired distances
-            pi = tools.ProcessIndicator('VKOGA approximation for %d gamma values',nc,false,nc);
+            pi = tools.ProcessIndicator('VKOGA approximation for %d kernel configurations',nc,false,nc);
             for cidx = 1:nc
                 m = 1;
                 
@@ -136,7 +136,7 @@ classdef VKOGA < approx.algorithms.BaseAdaptiveCWKA
                 % Sum_j N_j^2(x_i) (for denominator)
                 sumNsq = (NV(:,1).^2)';
                 
-                cum_fresidual = fxi;
+                fresidual = fxi;
                 
                 free = true(1,N);
                 free(this.initialidx) = false;
@@ -147,9 +147,9 @@ classdef VKOGA < approx.algorithms.BaseAdaptiveCWKA
                 while true
                                         
                     %% Residual and error computation
-                    fresidual = fxi - c(:,1:m)*(NV(:,1:m))';
-                    cum_fresidual = cum_fresidual - c(:,m)*(NV(:,m))';
-                    e = this.ErrorFun(cum_fresidual);
+                    %fresidual = fxi - c(:,1:m)*(NV(:,1:m))'; % Complete computation
+                    fresidual = fresidual - c(:,m)*(NV(:,m))'; % Cumulative computation (eff.)
+                    e = this.ErrorFun(fresidual);
                     this.err(cidx,m) = max(e);
                     this.relerr(cidx,m) = max(e./fxinorm);
                     
@@ -170,19 +170,11 @@ classdef VKOGA < approx.algorithms.BaseAdaptiveCWKA
                             fprintf('VKOGA stopping criteria holds: Residual error %.7e < %.7e\n',this.err(cidx,m),this.MaxAbsResidualErr);
                         end
                         break;
-                    %% Emergency break: some 
-                    elseif any(sumNsq(free) > 1)
-                        if vb > 1
-                            fprintf('VKOGA roundoff emergency stop at iteration %d: Negative power function values detected.\nResidual error %.7e > %.7e, Max relative error %.7e > %.7e\n',...
-                                m,this.err(cidx,m-1),this.MaxAbsResidualErr,this.relerr(cidx,m-1),this.MaxRelErr);
-                        end
-                        break;
                     end
                     
                     %% Next basis point selection
                     if this.UsefPGreedy
-                        % % Cap too small norms!
-                        % phinormsq = this.PhiNormMin^2;
+                        % Cap too small norms!
                         div = Kdiag - sumNsq;
                         div(div <= 0) = 1;
                     else
@@ -191,6 +183,7 @@ classdef VKOGA < approx.algorithms.BaseAdaptiveCWKA
                     sum_fresidual = sum(fresidual.^2,1) ./ div;
                     
                     [~, maxidx] = max(sum_fresidual);
+                    tN = kexp.getKernelMatrixColumn(maxidx, xi) - NV(:,1:m)*NV(maxidx,1:m)';
                     
                     if exp_mode
                         pm.resetCount;
@@ -205,7 +198,17 @@ classdef VKOGA < approx.algorithms.BaseAdaptiveCWKA
                         pm.done;
                     end
                     
-                    tN = kexp.getKernelMatrixColumn(maxidx, xi) - NV(:,1:m)*NV(maxidx,1:m)';
+                    %% Emergency break:
+                    % An entry of the power function for which a value greater than one has
+                    % been summed up would be chosen, leading to imaginary norms.
+                    if sumNsq(maxidx) > 1
+                        if vb > 1
+                            fprintf('VKOGA emergency stop at iteration %d: Power function value > 1 detected.\nResidual error %.7e > %.7e, Max relative error %.7e > %.7e\n',...
+                                m,this.err(cidx,m-1),this.MaxAbsResidualErr,this.relerr(cidx,m-1),this.MaxRelErr);
+                        end
+                        break;
+                    end
+                    
                     m = m+1;
                     tNnorm = sqrt(Kdiag(maxidx)-sumNsq(maxidx));
                     NV(:,m) = tN/tNnorm;
@@ -238,6 +241,11 @@ classdef VKOGA < approx.algorithms.BaseAdaptiveCWKA
             kexp.Ma = bestc;
             % Extract partial cholesky matrix
             kexp.Base = bestNV(bestused,1:length(bestused));
+            
+            % Some cleanup
+            maxsize = max(this.expsizes);
+            this.err = this.err(:,1:maxsize);
+            this.relerr = this.relerr(:,1:maxsize);
             
             if vb > 1
                 og = 'off';

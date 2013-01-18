@@ -69,7 +69,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
         MaxValue = -Inf;
     end
     
-    properties(SetAccess=private)
+    properties(Access=private)
         % An index matrix, storing for each column both the block number and the relative
         % index.
         idx;
@@ -79,9 +79,13 @@ classdef FileMatrix < data.FileData & data.ABlockedData
         
         % The effective block size
         blocksize;
+
+        % A placeholder for the only block of the filematrix, if so. (dont need a folder etc if
+        % its small enough)
+        block1;
     end
     
-    properties(Access=private, Transient)
+    properties%(Access=private, Transient)
         % Cache-related stuff
         cachedBlock = [];
         cachedNr = 0;
@@ -124,7 +128,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 ip.addRequired('m');
             end
             ip.addParamValue('Dir',KerMor.App.TempDirectory,...
-                @(v)ischar(v) && exist(v,'dir') == 7);
+                @(v)isempty(v) || (ischar(v) && exist(v,'dir') == 7));
             ip.addParamValue('BlockSize',data.FileMatrix.BLOCK_SIZE,...
                 @(v)round(v) == v && isposrealscalar(v));
             ip.parse(varargin{:});
@@ -137,21 +141,34 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 error('Size arguments n, m must be integer values.');
             end
             
-            this = this@data.FileData(fullfile(ip.Results.Dir,...
-                sprintf('matrix_%s',general.IDGenerator.generateID)));
+            bsize = min(ip.Results.BlockSize,n*m*8);
+            bcols = max(floor(bsize/(8*n)),1);
+            nb = ceil(m / bcols);
+            args = {};
+            if nb > 1
+                ddir = ip.Results.Dir;
+                if isempty(ddir)
+                    ddir = KerMor.App.TempDirectory;
+                end
+                args{end+1} = fullfile(ddir,sprintf('matrix_%s',general.IDGenerator.generateID));
+            end
+            this = this@data.FileData(args{:});
             this.n = n;
             this.m = m;
-            this.blocksize = min(ip.Results.BlockSize,n*m*8);
-            this.bCols = max(floor(this.blocksize/(8*n)),1);
-            this.nBlocks = ceil(m / this.bCols);
-            this.created = false(1,this.nBlocks);
-            hlp = reshape(repmat(1:this.nBlocks,this.bCols,1),[],1);
-            hlp2 = reshape(repmat(1:this.bCols,this.nBlocks,1)',[],1);
+            this.blocksize = bsize;
+            this.bCols = bcols;
+            this.nBlocks = nb;
+            this.created = false(1,nb);
+            hlp = reshape(repmat(1:nb,bcols,1),[],1);
+            hlp2 = reshape(repmat(1:bcols,nb,1)',[],1);
             this.idx = [hlp(1:m) hlp2(1:m)];
             
             % Matrix case: Assign value directly
             if matrixin
                 this.subsasgn(struct('type',{'()'},'subs',{{':',':'}}),A);
+            elseif nb == 1
+                % Trigger creation & caching of the first and only block
+                this.loadBlock(1);
             end
         end
         
@@ -395,8 +412,15 @@ classdef FileMatrix < data.FileData & data.ABlockedData
         end
         
         function trans = ctranspose(this)
-            trans = data.FileMatrix(this.m, this.n, 'Dir', fileparts(this.DataDirectory),...
-                'BlockSize', this.blocksize);
+            trans = data.FileMatrix(this.m, this.n, 'BlockSize', this.blocksize, ...
+                'Dir', fileparts(this.DataDirectory));
+            % Special case for only one block
+            if this.nBlocks == 1
+                key = struct('type',{'()'},'subs',{{':',':'}});
+                trans.subsasgn(key,this.cachedBlock');
+                return;
+            end
+            % Else: multiple blocks
             if this.InPlaceTranspose
                 if this.nBlocks > 1
                     pi = tools.ProcessIndicator('Creating in-place transposed of %d-block matrix in %s' ,this.nBlocks,...
@@ -519,7 +543,10 @@ classdef FileMatrix < data.FileData & data.ABlockedData
         
         function this = saveobj(this)
             saveobj@data.FileData(this);
-            if this.cacheDirty
+            % Store the one-and-only block directly
+            if this.nBlocks == 1
+                this.block1 = this.cachedBlock;
+            elseif this.cacheDirty
                 A = this.cachedBlock;%#ok
                 save([this.DataDirectory filesep sprintf('block_%d.mat',this.cachedNr)], 'A');
                 this.created(this.cachedNr) = true;
@@ -596,8 +623,16 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 this.idx = initfrom.idx;
                 this.created = initfrom.created;
                 this.blocksize = initfrom.blocksize;
+                if this.nBlocks == 1
+                    this.cachedBlock = initfrom.block1;
+                end
                 this = loadobj@data.FileData(this, initfrom);
             else
+                % Set the currently cached block from the one-and-only block, if so
+                if this.nBlocks == 1
+                    this.cachedBlock = this.block1;
+                    this.cachedNr = 1;
+                end
                 this = loadobj@data.FileData(this);
             end
         end

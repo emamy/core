@@ -171,7 +171,11 @@ classdef GaussKernel < kernels.BellFunction
         
         function obj = loadobj(obj)
             obj = loadobj@kernels.BellFunction(obj);
-            obj.addlistener('Gamma','PostSet',@this.updateGammaDependants);
+            if isa(obj, 'kernels.GaussKernel')
+                obj.addlistener('Gamma','PostSet',@this.updateGammaDependants);
+            else
+                warning('KerMor:load','Error loading GaussKernel: Object passed is not a kernels.GaussKernel instance.');
+            end
         end
     end
         
