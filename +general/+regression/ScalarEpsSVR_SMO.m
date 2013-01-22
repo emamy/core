@@ -1,9 +1,9 @@
 classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
 % ScalarEpsSVR_SMO: 
 %
-% Implements the 1D and 2D SMO algorithm introduced in SHS11: 
-% 'I. Steinwart, D. Hush, and C. Scovel. Training svms without o?set. J. Mach. Learn. Res.,
-% 12:141?202, February 2011'
+% Implements the 1D and 2D SMO algorithm introduced in SHS11 \cite{SHS11}: 
+% 'I. Steinwart, D. Hush, and C. Scovel. Training svms without offset. J. Mach. Learn. Res.,
+% 12:141-202, February 2011'
 %
 % @author Daniel Wirtz @date 2011-08-09
 %

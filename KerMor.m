@@ -255,6 +255,15 @@ classdef KerMor < handle
     % @todo: possibility to add custom directories to PATH on startup (managed in kermor prefs)?
     %
     % @todo: incorporate /this.Gamma^2 already in getSqDiffNorm
+    %
+    % @todo:
+    % - remove kernel matrix stuff
+    % - remove redundant algorithms
+    % - remove tests for old stuff
+    % - remove kernel interpol as class?
+    % - beim setup von docmaker wird version abgefragt: redundant in kermor!
+    % - kermor-diary in data-folder unter windows
+    % - automatisch den temp-ordner im datadir anlegen
     
     properties(Constant)
         % The current KerMor main version number
