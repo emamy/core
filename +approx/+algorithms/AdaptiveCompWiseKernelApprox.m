@@ -49,42 +49,10 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseAdaptiveCWKA
 %
 % @todo Think about suitable stopping condition (relative error change?)
 
-    properties(SetObservable)
-        % The percentage over which the error has to improve compared to the mean error of
-        % the ImproveRange earlier steps.
-        %
-        % Set to empty to disable.
-        %
-        % @propclass{important} Higher improvement values may terminate the search too early
-        % and thus reduce the approximation quality. Too low values might not detect stallment
-        % of the approximation process early enough.
-        %
-        % @type double @default .05
-        %
-        % See also: ImproveRange
-        MinImprovePerc = .05;
-
-        % The range over which the error improvement is to be monitored.
-        %
-        % Set to empty to disable.
-        %
-        % @propclass{important} A too short monitoring range might stop the algorithm too
-        % early, whereas a too long range will detect stallment too late.
-        %
-        % @type integer @default 15
-        %
-        % See also: MinImprovePerc
-        ImproveRange = 15;
-    end
-    
     methods    
-        function this = AdaptiveCompWiseKernelApprox
-            error('Use currently not supported.');
-            this = this@approx.algorithms.BaseAdaptiveCWKA;%#ok
-            % Register default property changed listeners
-            this.registerProps('MaxExpansionSize','NumGammas',...
-                'gameps','MaxRelErr','MaxAbsErrFactor','ErrFun','MinImprovePerc','ImproveRange');
-        end
+%         function this = AdaptiveCompWiseKernelApprox
+%             this = this@approx.algorithms.BaseAdaptiveCWKA;%#ok
+%         end
                         
         function copy = clone(this)
             % Clones the instance.
@@ -98,38 +66,6 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseAdaptiveCWKA
         end
     end
     
-    methods(Access=protected)
-        function bool = checkStop(this, cnt, rel, val)
-            % Checks the stopping conditions for the adaptive approximation
-            % algorithm.
-            % Considers maximum expansion size, maximum relative and
-            % absolute error (absolute error is computed as
-            % 'MaxAbsErrFactor'`\times \max |fxi(:)|`)
-            %
-            % See also: MaxExpansionSize MaxRelErr MaxAbsErrFactor
-            
-            % Update lasterrs error improvement record
-            this.lasterrs(end+1) = val;
-            if numel(this.lasterrs) > this.ImproveRange
-                this.lasterrs(1) = [];
-            end
-            reqimpr = mean(this.lasterrs(1:end-1))*(1-this.MinImprovePerc);
-            
-            bool = checkStop@approx.algorithms.BaseAdaptiveCWKA(this, cnt, rel);
-            if ~bool
-                if val < this.effabs
-                    fprintf('AdaptiveCompWiseKernelApprox stopping criteria holds: Absolute error %.7e < %.7e\n',val,this.effabs);
-                    bool = true;
-                elseif numel(this.lasterrs) == this.ImproveRange && reqimpr < val
-                    fprintf('AdaptiveCompWiseKernelApprox stopping criteria holds: Error improvement over mean error of last %d iterations below %2.2f%% percent (required:%e, achieved:%e)\n',...
-                        this.ImproveRange, this.MinImprovePerc*100, reqimpr, val);
-                    bool = true;
-                    this.lasterrs = [];
-                end
-            end
-        end
-    end
-    
     methods(Access=protected, Sealed)
         function startAdaptiveExtension(this, kexp, atd)
             % Performs adaptive approximation generation.
@@ -138,105 +74,71 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseAdaptiveCWKA
             % kexp: The kernel expansion. @type kernels.KernelExpansion
             % atd: The approximation training data instance @type data.ApproxTrainData
             
-            %% Select initial data
-            [c, idx] = this.getInitialCenter(atd);
-            kexp.Centers.xi = c(1:size(atd.xi,1));
-            % Add points to nearest neighbor trackers (for gamma comp)
-            nx = general.NNTracker;
-            nx.addPoint(kexp.Centers.xi);
-            if this.pte
-                kexp.Centers.ti = [];
-                kexp.Centers.mui = [];
-                if atd.hasTime
-                    kexp.Centers.ti = c(atd.tOff);
-                    nt = general.NNTracker;
-                    nt.addPoint(c(atd.tOff));
-                end
-                if atd.hasParams
-                    kexp.Centers.mui = c(atd.muOff:end);
-                    np = general.NNTracker;
-                    np.addPoint(c(atd.muOff:end));
-                end
-            end
-            used = idx;
-            kexp.Ma = atd.fxi(:,idx);
-            bestMa = kexp.Ma;
+            ec = this.ExpConfig;
+            nc = ec.getNumConfigurations;
             
-            %% Choose initial gammas and select best one
-            dists = this.getDists(atd);
-            minerr = Inf;             
-            for idx = 1:size(dists,2)
-                g = this.setDistKernelConfig(kexp, dists(:,idx));
-                val = this.getError(kexp, atd);
-                if val < minerr
-                    minerr = val;
-                    bestg = g;
-                end
-            end
-            % Assign best values
-            this.setKernelConfig(kexp, bestg);
-            if KerMor.App.Verbose > 1
-                fprintf('Initial gammas: SK:%e, TK:%e, PK:%e\n',bestg);
-                if KerMor.App.Verbose > 2
-                    figure(1);
-                end
-            end
+            this.err = zeros(nc,this.MaxExpansionSize);
+            this.relerr = this.err;
+            this.expsizes = zeros(nc,1);
+
+            xi = atd.xi.toMemoryMatrix;
+            fxi = atd.fxi.toMemoryMatrix;
+            fxinorm = this.ErrorFun(fxi);
+            fxinorm(fxinorm == 0) = 1;
+            N = size(xi,2);
+            kexp.clear;
             
-            %% Outer control loop
-            cnt = 1;
+            minerr = Inf;
+            bestNV = [];
+            bestc = [];
             
-            % Keep track of maximum errors
-            this.MaxErrors = zeros(1,this.MaxExpansionSize);
-            globminerr = Inf;
-            while true
+            %% Run loop for all desired configurations
+            pi = tools.ProcessIndicator('Starting AdaptiveCompWiseKernelApprox for %d kernel configurations',nc,false,nc);
+            for cidx = 1:nc
+                cnt = 1;
+                this.initExpansion(kexp, atd);
                 
-                %% Determine maximum error over training data
-                [val, maxidx, errs] = this.getError(kexp, atd);
-                rel = val / (norm(atd.fxi(maxidx))+eps);
-                this.MaxErrors(cnt) = val;
-                if val < globminerr
-                    globbestg = bestg;
-                    globbestMa = bestMa;
-                    globbestcnt = cnt;
-                    globminerr = val;
-                end
-                
-                %% Verbose stuff
-                if KerMor.App.Verbose > 2
-                    doPlots;
-                end
-                
-                %% Stopping condition
-                if this.checkStop(cnt, rel, val)
-                    break;
-                end
-                
-                % Add maxidx to list of used centers
-                used(end+1) = maxidx;%#ok
-                
-                %% Extend centers
-                this.extendExpansion(kexp, atd, maxidx);
-                % Keep track of new centers
-                nx.addPoint(atd.xi(:,maxidx));
-                if atd.hasTime
-                    nt.addPoint(atd.ti(maxidx));
-                end
-                if atd.hasParams
-                    np.addPoint(atd.mui(:,maxidx));
-                end
-                
-                %% Compute new approximation
-                dt = []; dmu = [];
-                if atd.hasTime
-                    dt = nt.getMinNN;
-                end
-                if atd.hasParams
-                    dmu = atd.muiDia/this.NumGammas;
-                    if ~isinf(np.getMinNN)
-                        dmu = np.getMinNN;
+                while true 
+                    
+                    %% Determine maximum error over training data
+                    [val, maxidx, errs] = this.getError(kexp, atd);
+                    rel = val / (norm(atd.fxi(maxidx))+eps);
+                    this.MaxErrors(cidx,cnt) = val;
+                    if val < globminerr
+                        globbestg = bestg;
+                        globbestMa = bestMa;
+                        globbestcnt = cnt;
+                        globminerr = val;
                     end
-                end
-                dists = this.getDists(atd, nx.getMinNN, dt, dmu);
+
+                    %% Verbose stuff
+                    if KerMor.App.Verbose > 2
+                        doPlots;
+                    end
+
+                    %% Stopping condition
+                    if this.checkStop(cnt, rel, val)
+                        break;
+                    end
+
+                    % Add maxidx to list of used centers
+                    used(end+1) = maxidx;%#ok
+
+                    %% Extend centers
+                    this.extendExpansion(kexp, atd, maxidx);
+
+                    %% Compute new approximation
+                    dt = []; dmu = [];
+                    if atd.hasTime
+                        dt = nt.getMinNN;
+                    end
+                    if atd.hasParams
+                        dmu = atd.muiDia/this.NumGammas;
+                        if ~isinf(np.getMinNN)
+                            dmu = np.getMinNN;
+                        end
+                    end
+                    dists = this.getDists(atd, nx.getMinNN, dt, dmu);
                 
                 minerr = Inf;
                 for gidx = 1:size(dists,2)
@@ -352,21 +254,5 @@ classdef AdaptiveCompWiseKernelApprox < approx.algorithms.BaseAdaptiveCWKA
                 drawnow;
             end
         end 
-    end
-    
-    methods
-        function set.ImproveRange(this, value)
-            if ~isempty(value) && (round(value) ~= value || value <= 0)
-                error('ImproveRange must be a positive natural number.');
-            end
-            this.ImproveRange = value;
-        end
-        
-        function set.MinImprovePerc(this, value)
-            if ~isempty(value) && (value <= 0 || ~isscalar(value))
-                error('MinImprovePerc must be a positive double scalar.');
-            end
-            this.MinImprovePerc = value;
-        end
     end
 end
