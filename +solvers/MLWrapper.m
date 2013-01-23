@@ -1,4 +1,4 @@
-classdef MLWrapper < solvers.ode.BaseSolver
+classdef MLWrapper < solvers.BaseSolver
 % Allows to wrap a MatLab ODE solver into the KerMor framework.
 %
 % @author Daniel Wirtz @date 2010-08-09
@@ -60,7 +60,7 @@ classdef MLWrapper < solvers.ode.BaseSolver
     methods
         
         function this = MLWrapper(solver)
-            this = this@solvers.ode.BaseSolver;
+            this = this@solvers.BaseSolver;
             this.registerProps('MLSolver');
             if nargin > 0
                 this.MLSolver = solver;
@@ -79,7 +79,7 @@ classdef MLWrapper < solvers.ode.BaseSolver
             % Pass Mass Matrix to solver (only for non-ode15i solvers, the
             % latter one makes use of M in a different way, see the class
             % MLode15i)
-            if ~isempty(this.M) && ~isa(this, 'solvers.ode.MLode15i')
+            if ~isempty(this.M) && ~isa(this, 'solvers.MLode15i')
                 if ~this.M.TimeDependent
                     M = this.M.evaluate(0);
                     opts = odeset(opts,'MassConstant','true');
@@ -96,7 +96,7 @@ classdef MLWrapper < solvers.ode.BaseSolver
                 opts = odeset(opts,'OutputFcn',@this.ODEOutputFcn);
                 % Bug in Matlab 2009a: direct assignment crashes Matlab!
                 % Seems also not to work if created within the constructor.
-                ed = solvers.ode.SolverEventData;
+                ed = solvers.SolverEventData;
                 this.fED = ed;
                 this.solverCall(odefun, t, x0, opts);
                 t = []; y = [];

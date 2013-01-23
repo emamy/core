@@ -259,7 +259,7 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
         end
         
 %         function set.Iterations(this, value)
-%             if value > 0 && (isa(this.ReducedModel.ODESolver,'solvers.ode.MLWrapper') || isa(this.ReducedModel.ODESolver,'solvers.ode.MLode15i'))%#ok
+%             if value > 0 && (isa(this.ReducedModel.ODESolver,'solvers.MLWrapper') || isa(this.ReducedModel.ODESolver,'solvers.MLode15i'))%#ok
 %                 warning('errorEst:LocalLipEst',...
 %                     'Build-In Matlab solvers cannot be use with this Error Estimator if Iterations are turned on.\nSetting Iterations = 0.');
 %                 this.Iterations = 0;
@@ -290,14 +290,14 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
 %             r.ErrorEstimator = error.IterationCompLemmaEstimator(r);
 %             
 % %             try
-% %                 m.ODESolver = solvers.ode.sMLWrapper(@ode23);
+% %                 m.ODESolver = solvers.sMLWrapper(@ode23);
 % %                 r.ErrorEstimator = error.IterationCompLemmaEstimator(r);
 % %                 r.ErrorEstimator.Iterations = 1;
 % %             catch ME%#ok
 % %                 res = true;
 % %             end
 %             
-%             m.ODESolver = solvers.ode.Heun;
+%             m.ODESolver = solvers.Heun;
 %             r.ErrorEstimator = error.IterationCompLemmaEstimator(r);
 %             r.ErrorEstimator.Iterations = 4;
 %             

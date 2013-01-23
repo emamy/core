@@ -386,7 +386,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             m.offlineGenerations;
             r = m.buildReducedModel;
             
-            m.ODESolver = solvers.ode.Heun;
+            m.ODESolver = solvers.Heun;
             r.ErrorEstimator = error.IterationCompLemmaEstimator(r);
             r.ErrorEstimator.Iterations = 4;
             

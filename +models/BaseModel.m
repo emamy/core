@@ -183,14 +183,14 @@ classdef BaseModel < KerMorObject
         dt;
         
         % The solver to use for the ODE.
-        % Must be an instance of any solvers.ode.BaseSolver subclass.
+        % Must be an instance of any solvers.BaseSolver subclass.
         %
         % See also: solvers BaseSolver ode23 ode45 ode113
         %
         % @propclass{important} Choose an appropriate ODE solver for your
         % system.
         %
-        % @type solvers.ode.BaseSolver @default solvers.ode.MLWrapper(ode23)
+        % @type solvers.BaseSolver @default solvers.MLWrapper(ode23)
         ODESolver;
         
         % Determines if the simulation should plot intermediate steps
@@ -244,7 +244,7 @@ classdef BaseModel < KerMorObject
             this = this@KerMorObject;
             
             % Init defaults
-            this.ODESolver = solvers.ode.MLWrapper(@ode23);
+            this.ODESolver = solvers.MLWrapper(@ode23);
             
             % Register default properties
             this.registerProps('System','T','ODESolver','dt','G',...
@@ -405,7 +405,7 @@ classdef BaseModel < KerMorObject
             
             % Assign jacobian information if available and solver is
             % implicit
-            if isa(slv,'solvers.ode.AImplSolver')
+            if isa(slv,'solvers.AImplSolver')
                 % Set jacobian
                 slv.JPattern = [];
                 slv.JacFun = [];
@@ -609,7 +609,7 @@ classdef BaseModel < KerMorObject
         end
         
         function set.ODESolver(this, value)
-            this.checkType(value,'solvers.ode.BaseSolver');
+            this.checkType(value,'solvers.BaseSolver');
             % Add listener if new ODE solver is passed and real time
             % plotting is turned on.
             if this.frtp && this.fODEs ~= value
@@ -620,7 +620,7 @@ classdef BaseModel < KerMorObject
             end
             % Disable the MaxTimestep value if an implicit solver is used.
             if ~isempty(this.System) 
-                if isa(value,'solvers.ode.AImplSolver')
+                if isa(value,'solvers.AImplSolver')
                     if ~isempty(this.System.MaxTimestep)
                         fprintf('BaseModel: Disabling system''s MaxTimestep due to use of an implicit solver.\n');
                     end

@@ -1,4 +1,4 @@
-classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
+classdef SemiImplicitEuler < solvers.BaseCustomSolver
     % SemiImplicitEuler: Solves ODEs in KerMor using implicit euler for the
     % linear part and explicit euler for the nonlinear part.
     %
@@ -60,7 +60,7 @@ classdef SemiImplicitEuler < solvers.ode.BaseCustomSolver
             
             rtm = this.RealTimeMode;
             if rtm
-                ed = solvers.ode.SolverEventData;
+                ed = solvers.SolverEventData;
                 x = [];
             else
                 effsteps = length(find(outputtimes));

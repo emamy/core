@@ -163,7 +163,7 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
                 errmsg = 'Output error estimation for time dependent output not implemented yet.';
                 return;
             end
-            if ~isa(model.ODESolver,'solvers.ode.BaseCustomSolver');
+            if ~isa(model.ODESolver,'solvers.BaseCustomSolver');
                 errmsg = 'The reduced models ODE solver must be a subclass of BaseCustomSolver.';
             end
         end

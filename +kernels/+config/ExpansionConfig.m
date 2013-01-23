@@ -1,4 +1,4 @@
-classdef ExpansionConfig < general.config.IClassConfig
+classdef ExpansionConfig < general.IClassConfig
 % ExpansionConfig: Collects several IKernelConfigs to apply to a kernel expansion
 %
 % @todo implement setter etc and do checks

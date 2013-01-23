@@ -9,6 +9,14 @@ classdef KerMor < handle
     %
     % @author Daniel Wirtz @date 2011-03-04
     %
+    % @change{0,7,dw,2013-01-23} Done some restructuring in KerMor:
+    % - Removed thee QP-Solver packages and extern/ folders as they are effectively no longer
+    % used
+    % - Moved the ODE solvers from \c solvers.ode to \c solvers
+    % - Moved the IClassConfig interface to \c +general
+    % - Adopted the KerMor install script to the changes
+    % - Removed two no longer used approx.algorithms classes (MinMax and VectorialOMP2Step)
+    %
     % @change{0,7,dw,2012-11-16}
     % - Moved some tools from the extern folder into a new separate git repo "MatlabTools",
     % including the previous general.collections package
@@ -368,21 +376,6 @@ classdef KerMor < handle
     end
     
     properties(SetAccess=private,Dependent)
-        % Flag if 3rd party IPOPT is available
-        %
-        % @default false
-        HasIPOPT = false;
-        
-        % Flag if 3rd party qpOASES is available
-        %
-        % @default false
-        HasqpOASES = false;
-        
-        % Flag if 3rd party qpMosek is available
-        %
-        % @default false
-        HasqpMosek = false;
-        
         % Flag if rbmatlab wrapping functionalities are enabled
         %
         % @default false
@@ -567,18 +560,6 @@ classdef KerMor < handle
             else
                 h = this.JKerMorSourceDirectory;
             end
-        end
-        
-        function flag = get.HasIPOPT(this)%#ok
-            flag = ~isempty(which('ipopt'));
-        end
-        
-        function flag = get.HasqpOASES(this)%#ok
-            flag = ~isempty(which('qpOASES'));
-        end
-        
-        function flag = get.HasqpMosek(this)%#ok
-            flag = ~isempty(which('mosekopt'));
         end
         
         function flag = get.Hasrbmatlab(this)
@@ -806,27 +787,6 @@ classdef KerMor < handle
                 addpath(d);
                 if ~exist(fullfile(d,['typecastx.' mexext]),'file')
                     warning('KerMor:init','No compiled typecastx mex file found. Did you run KerMor.setup completely?\nKerMor might not run properly.');
-                end
-                
-                % ipopt
-                addpath(fullfile(p,'extern','ipopt'));
-                if ~this.HasIPOPT
-                    warning('KerMor:init','No IPOPT available!');
-                end
-                
-                % qpoases
-                addpath(fullfile(p,'extern','qpOASES'));
-                if ~this.HasqpOASES
-                    warning('KerMor:init','No qpOASES available!');
-                end
-                
-                % mosek
-                mosekdir = fullfile(p,'extern','mosek');
-                if exist(mosekdir,'dir') == 7
-                    addpath(mosekdir);
-                end
-                if ~this.HasqpMosek
-                    fprintf(2,'KerMor startup: No mosek solver available!\n');
                 end
                 
                 % rbmatlab

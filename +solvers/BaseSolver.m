@@ -134,10 +134,10 @@ classdef BaseSolver < KerMorObject
         
         function res = test_SolverSpeedTest
             m = models.synth.KernelTest(200);
-            perform(solvers.ode.ExplEuler);
-            perform(solvers.ode.MLWrapper(@ode23));
-            perform(solvers.ode.MLWrapper(@ode45));
-            perform(solvers.ode.Heun);
+            perform(solvers.ExplEuler);
+            perform(solvers.MLWrapper(@ode23));
+            perform(solvers.MLWrapper(@ode45));
+            perform(solvers.Heun);
             
             res = 1;
             

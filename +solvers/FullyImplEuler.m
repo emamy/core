@@ -1,4 +1,4 @@
-classdef FullyImplEuler < solvers.ode.BaseCustomSolver & solvers.ode.AImplSolver
+classdef FullyImplEuler < solvers.BaseCustomSolver & solvers.AImplSolver
 % FullyImplSolver: Solver for fully nonlinear ODE's (using Newton iterations)
 %
 %
@@ -39,7 +39,7 @@ classdef FullyImplEuler < solvers.ode.BaseCustomSolver & solvers.ode.AImplSolver
             % Initializations
             rtm = this.RealTimeMode;
             if rtm
-                ed = solvers.ode.SolverEventData;
+                ed = solvers.SolverEventData;
                 x = [];
             else
                 x = [x0 zeros(size(x0,1),steps-1)];

@@ -1,7 +1,8 @@
 classdef IClassConfig < handle
-% IClassConfig: 
+% IClassConfig: Abstract interface for a set of configurations that can be applied to a given
+% algorithm
 %
-% @docupdate
+% See also: kernels.RBFConfig general.regression.EpsSVRConfig
 %
 % @author Daniel Wirtz @date 2012-11-22
 %
@@ -25,10 +26,23 @@ classdef IClassConfig < handle
     end
     
     methods(Abstract)
+        % Returns the number of configurations that can be applied
+        %
+        % Return values:
+        % n: The number of configurations @type integer
         n = getNumConfigurations(this);
         
+        % Returns the number of configurations that can be applied
+        %
+        % Parameters:
+        % nr: The configuration number @type integer
+        % object: The class object for which to apply the configuration @type handle
         applyConfiguration(this, nr, object);
         
+        % Returns the number of configurations that can be applied
+        %
+        % Return values:
+        % str:  @type integer
         str = getConfigurationString(this, nr);
     end
     

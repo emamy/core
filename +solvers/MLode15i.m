@@ -1,4 +1,4 @@
-classdef MLode15i < solvers.ode.MLWrapper & solvers.ode.AImplSolver
+classdef MLode15i < solvers.MLWrapper & solvers.AImplSolver
 % MLode15i: Wrapper for MatLab's ode15i builtin implicit solver
 %
 % @author Daniel Wirtz @date 2011-04-14
@@ -58,8 +58,8 @@ classdef MLode15i < solvers.ode.MLWrapper & solvers.ode.AImplSolver
         
     methods
         function this = MLode15i
-            this = this@solvers.ode.MLWrapper(@ode15i);
-            this = this@solvers.ode.AImplSolver;
+            this = this@solvers.MLWrapper(@ode15i);
+            this = this@solvers.AImplSolver;
             this.Name = 'MatLab ode15i implicit solver wrapper';
             this.registerProps('RelTol','AbsTol');
             % "Disable" MaxStep DPCM warning as implicit solvers are stable

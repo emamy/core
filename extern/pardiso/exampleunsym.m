@@ -1,1 +1,0 @@
-/home/dwirtz/agh/shared_software/sourcecodes/pardiso-matlab/exampleunsym.m

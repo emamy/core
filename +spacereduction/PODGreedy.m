@@ -270,7 +270,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             tg.Eps = 1e-5;
             m.SpaceReducer = tg;
             
-            m.ODESolver = solvers.ode.ExplEuler(dt);
+            m.ODESolver = solvers.ExplEuler(dt);
             
             s = models.BaseDynSystem(m);
             s.B = [];

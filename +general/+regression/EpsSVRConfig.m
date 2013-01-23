@@ -1,4 +1,4 @@
-classdef EpsSVRConfig < general.config.IClassConfig
+classdef EpsSVRConfig < general.IClassConfig
 % EpsSVRConfig: 
 %
 % @docupdate

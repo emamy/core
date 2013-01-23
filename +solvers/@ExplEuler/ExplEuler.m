@@ -1,4 +1,4 @@
-classdef ExplEuler < solvers.ode.BaseCustomSolver
+classdef ExplEuler < solvers.BaseCustomSolver
 % Explicit forward euler ODE solver
 %
 % This solver uses the MaxStep property as timestep to be most
@@ -14,7 +14,7 @@ classdef ExplEuler < solvers.ode.BaseCustomSolver
 % @change{0,5,dw,2011-09-29} Added step-wise event implementation for real time
 % plotting.
 %
-% @change{0,4,dw,2011-05-31} Added a new middle class solvers.ode.BaseCustomSolver which
+% @change{0,4,dw,2011-05-31} Added a new middle class solvers.BaseCustomSolver which
 % extracts the getCompTimes into a new abstraction layer.
 %
 % @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
@@ -25,7 +25,7 @@ classdef ExplEuler < solvers.ode.BaseCustomSolver
 % @new{0,2,dw,2011-03-11} Added a c/mex implementation of the
 % algorithm. Turns out it is double the times slower than the matlab
 % native code version, so leaving it only in there for speed test
-% purposes (solvers.ode.ExplEuler.test_solveMex).
+% purposes (solvers.ExplEuler.test_solveMex).
 %
 % See also: solvers BaseSolver BaseCustomSolver Heun
 %
@@ -46,7 +46,7 @@ classdef ExplEuler < solvers.ode.BaseCustomSolver
             %
             % Parameters:
             % MaxStep: Maximum time step. @default [] @type double
-            this = this@solvers.ode.BaseCustomSolver;
+            this = this@solvers.BaseCustomSolver;
             
             this.Name = 'Explicit forward euler';
             if nargin == 1
@@ -81,7 +81,7 @@ classdef ExplEuler < solvers.ode.BaseCustomSolver
             
             rtm = this.RealTimeMode;
             if rtm
-                ed = solvers.ode.SolverEventData;
+                ed = solvers.SolverEventData;
                 x = [];
             else
                 x = [x0 zeros(size(x0,1),steps-1)];
@@ -126,7 +126,7 @@ classdef ExplEuler < solvers.ode.BaseCustomSolver
     
     methods(Static)
         function res = test_solveMex
-            s = solvers.ode.ExplEuler;
+            s = solvers.ExplEuler;
             
             times = 0:.05:1;
             iter = 100;

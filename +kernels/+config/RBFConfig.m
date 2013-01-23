@@ -1,4 +1,4 @@
-classdef RBFConfig < general.config.IClassConfig
+classdef RBFConfig < general.IClassConfig
 % RBFConfig: 
 %
 % @docupdate

@@ -1,4 +1,4 @@
-classdef Heun < solvers.ode.BaseCustomSolver
+classdef Heun < solvers.BaseCustomSolver
 % ODE solver implementing the method of heun
 %
 % Method description:
@@ -15,7 +15,7 @@ classdef Heun < solvers.ode.BaseCustomSolver
 % @change{0,5,dw,2011-09-29} Added step-wise event implementation for real time
 % plotting.
 %
-% @change{0,4,dw,2011-05-31} Added a new middle class solvers.ode.BaseCustomSolver which
+% @change{0,4,dw,2011-05-31} Added a new middle class solvers.BaseCustomSolver which
 % extracts the getCompTimes into a new abstraction layer.
 %
 % This class is part of the framework
@@ -36,7 +36,7 @@ classdef Heun < solvers.ode.BaseCustomSolver
             % Parameters:
             % MaxStep: Maximum time step. @default [] @type double
             
-            this = this@solvers.ode.BaseCustomSolver;
+            this = this@solvers.BaseCustomSolver;
             
             this.Name = 'Explicit Heun''s method';
             if nargin == 1
@@ -66,7 +66,7 @@ classdef Heun < solvers.ode.BaseCustomSolver
             
             rtm = this.RealTimeMode;
             if rtm
-                ed = solvers.ode.SolverEventData;
+                ed = solvers.SolverEventData;
                 x = [];
             else
                 x = [x0 zeros(size(x0,1),steps-1)];

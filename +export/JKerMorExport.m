@@ -42,7 +42,7 @@ classdef JKerMorExport < export.JaRMoSExport
                         
             % ODE solver type
             stype = 'explicit';
-            if isa(rm.ODESolver,'solvers.ode.AImplSolver')
+            if isa(rm.ODESolver,'solvers.AImplSolver')
                 stype = 'implicit';
             end 
             fprintf(f,'\t<solvertype>%s</solvertype>\n',stype);

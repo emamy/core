@@ -114,10 +114,10 @@ classdef ReducedModel < models.BaseModel
             this.dt = fullmodel.dt;
             this.tau = fullmodel.tau;
             fms = fullmodel.ODESolver;
-            if isa(fms,'solvers.ode.SemiImplicitEuler')
-                this.ODESolver = solvers.ode.SemiImplicitEuler(this);
-            elseif isa(fms,'solvers.ode.FullyImplEuler')
-                this.ODESolver = solvers.ode.FullyImplEuler(this);
+            if isa(fms,'solvers.SemiImplicitEuler')
+                this.ODESolver = solvers.SemiImplicitEuler(this);
+            elseif isa(fms,'solvers.FullyImplEuler')
+                this.ODESolver = solvers.FullyImplEuler(this);
             else
                 this.ODESolver = fms;
             end

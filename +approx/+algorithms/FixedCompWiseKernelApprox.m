@@ -49,7 +49,7 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
         %
         % @propclass{critical} Without this setting this algorithm makes little sense.
         %
-        % @type general.config.IClassConfig @default []
+        % @type general.IClassConfig @default []
         CoeffConfig = [];
         
         % Percentage `p` of the training data to use as validation data

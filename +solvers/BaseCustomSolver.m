@@ -1,4 +1,4 @@
-classdef BaseCustomSolver < solvers.ode.BaseSolver
+classdef BaseCustomSolver < solvers.BaseSolver
 % BaseCustomSolver: Base class for all self-implemented solvers.
 %
 % Adds another abstraction layer to distinguish between self-implemented ode solvers and third-party
@@ -16,7 +16,7 @@ classdef BaseCustomSolver < solvers.ode.BaseSolver
     
     methods
         function this = BaseCustomSolver
-            this = this@solvers.ode.BaseSolver;
+            this = this@solvers.BaseSolver;
             this.Name = 'Base Custom Solver';
         end
     
@@ -39,7 +39,7 @@ classdef BaseCustomSolver < solvers.ode.BaseSolver
             [times, outputtimes] = this.getCompTimes(t);
             
             % Fire PreSolve event
-            ed = solvers.ode.SolverEventData(times);
+            ed = solvers.SolverEventData(times);
             notify(this,'PreSolve',ed);
             
             x = this.customSolve(odefun, times, x0, outputtimes);
@@ -132,7 +132,7 @@ classdef BaseCustomSolver < solvers.ode.BaseSolver
     methods(Abstract, Access=protected)
         % The abstract solve function for custom ODE solver implementations.
         %
-        % In difference to the solvers.ode.BaseSolver.solve method the times passed here are already
+        % In difference to the solvers.BaseSolver.solve method the times passed here are already
         % matched to possible MaxStep restrictions (thus extended).
         %
         % Parameters:
