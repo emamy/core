@@ -1,9 +1,9 @@
-classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
-% FixedCompWiseKernelApprox: Component-wise kernel approximation with fixed center set.
+classdef Componentwise < approx.algorithms.ABase
+% Componentwise: Component-wise kernel approximation with fixed center set.
 %
 % @author Daniel Wirtz @date 2011-06-01
 %
-% @change{0,7,dw,2011-11-22} Moved FixedCompWiseKernelApprox.guessGammas to
+% @change{0,7,dw,2011-11-22} Moved Componentwise.guessGammas to
 % kernels.config.ExpansionConfig
 %
 % @change{0,5,dw,2011-11-02} 
@@ -13,13 +13,11 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
 % - Using the new data.ApproxTrainData for guessGammas
 %
 % @new{0,5,dw,2011-10-14}
-% - Added the method
-% FixedCompWiseKernelApprox.guessGammas as a helper
-% method to determine suitable Gaussian kernel configurations. The
-% algorithm used is basically the same as in AdaptiveCompWiseKernelApprox.
+% - Added the method Componentwise.guessGammas as a helper method to determine suitable
+% Gaussian kernel configurations.
 % - This algorithm now also works with kernels.ParamTimeKernelExpansion's
 % 
-% @new{0,5,dw,2011-07-07} Moved the old approx.FixedCompWiseKernelApprox class to this class.
+% @new{0,5,dw,2011-07-07} Moved the old approx.Componentwise class to this class.
 %
 % @new{0,4,dw,2011-06-01} Added this class.
 %
@@ -29,7 +27,7 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
 %
-% @todo think of new structure on how to combine this with the getDists in BaseAdaptiveCWKA (or
+% @todo think of new structure on how to combine this with the getDists in AAdaptiveBase (or
 % extract convenience methods further, general concept of "KernelConfig")
     
     properties(SetObservable)    
@@ -70,10 +68,11 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
     end
         
     methods    
-        function this = FixedCompWiseKernelApprox
-            this = this@approx.algorithms.BaseKernelApproxAlgorithm;
+        function this = Componentwise
+            this = this@approx.algorithms.ABase;
             
             this.CoeffComp = general.interpolation.KernelInterpol;
+            this.CoeffConfig = this.CoeffComp.getDefaultConfig;
             
             % Register default property changed listeners
             this.registerProps('CoeffComp','CoeffConfig');
@@ -85,9 +84,9 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
             % Create instance as this is the final class so far. If
             % subclassed, this clone method has to be given an additional
             % target argument.
-            copy = approx.algorithms.FixedCompWiseKernelApprox;
+            copy = approx.algorithms.Componentwise;
             
-            copy = clone@approx.algorithms.BaseKernelApproxAlgorithm(this, copy);
+            copy = clone@approx.algorithms.ABase(this, copy);
 
             % copy local props
             copy.CoeffComp = this.CoeffComp; % Dont clone the coefficient computation method
@@ -129,8 +128,7 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
                 ec.applyConfiguration(kcidx, kexp);
                 
                 % Call coeffcomp preparation method and pass kernel matrix
-                K = data.MemoryKernelMatrix(kexp.getKernelMatrix);
-                this.CoeffComp.init(K, kexp);
+                this.CoeffComp.init(kexp);
 
                 for coidx = 1:nco
                     if KerMor.App.Verbose > 2
@@ -141,11 +139,9 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
                     % Call protected method
                     this.computeCoeffs(kexp, atd.fxi, []);
 %                     this.computeCoeffs(kexp, atd.fxi, kexp.Ma);
-                    
-                    %FunVis2D(kexp, atd);
 
                     % Determine maximum error
-                    [val, maxidx] = max(this.ErrorFun(fxi - kexp.evaluate(xi, atd.ti, atd.mui)));
+                    [val, maxidx] = this.getError(kexp, atd);
                     rel = val / (norm(fxi(maxidx))+eps);
                     this.MaxErrors(cnt) = val;
                     
@@ -174,8 +170,7 @@ classdef FixedCompWiseKernelApprox < approx.algorithms.BaseKernelApproxAlgorithm
             %% Assign best values
             cc.vBestConfigIndex = bestcoidx;
             cc.applyConfiguration(bestcoidx, this.CoeffComp);
-            ec.setBestConfigIndices(bestcidx);
-            ec.applyConfiguration(bestcidx, kexp);
+            ec.setBestConfig(bestcidx, kexp);
             kexp.Ma = bestMa;
             
             if KerMor.App.Verbose > 1

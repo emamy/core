@@ -163,12 +163,13 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             hlp2 = reshape(repmat(1:bcols,nb,1)',[],1);
             this.idx = [hlp(1:m) hlp2(1:m)];
             
+            if nb == 1
+                % Trigger creation & caching of the first and only block
+                this.loadBlock(1);
+            end
             % Matrix case: Assign value directly
             if matrixin
                 this.subsasgn(struct('type',{'()'},'subs',{{':',':'}}),A);
-            elseif nb == 1
-                % Trigger creation & caching of the first and only block
-                this.loadBlock(1);
             end
         end
         
@@ -221,6 +222,11 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             if ~isa(this,'data.FileMatrix') && ~isscalar(expo)
                 error('FileMatrix power only defined for scalar values.');
             end
+            % Special case for one block
+            if this.nBlocks == 1
+                value = this.cachedBlock.^expo;
+                return;
+            end
             value = data.FileMatrix(this.n,this.m,'Dir', fileparts(this.DataDirectory),...
                 'BlockSize', this.blocksize);
             for k=1:this.nBlocks
@@ -252,6 +258,10 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             %
             % See also: subsref
             if strcmp(key(1).type,'()')
+                if this.nBlocks == 1
+                    [varargout{1:nargout}] = builtin('subsref', this.cachedBlock, key);
+                    return;
+                end
                 s = key.subs;
                 % Default case: row & column adressing
                 if length(s) == 2
@@ -288,6 +298,10 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             %
             % See also: subsasgn
             if strcmp(key(1).type,'()')
+                if this.nBlocks == 1
+                    this.cachedBlock = builtin('subsasgn', this.cachedBlock, key, value);
+                    return;
+                end
                 s = key.subs;
                 % Default case: row & column adressing
                 if length(s) == 2
@@ -327,6 +341,12 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                         %                             diff.subsasgn(key,A.loadBlock(i) - B(:,pos));
                         %                         end
                     else
+                        % Special case for one block
+                        if A.nBlocks == 1
+                            diff = A.cachedBlock - B;
+                            return;
+                        end
+                        %| @todo need FileMatrix as result type here 
                         diff = zeros(A.n, A.m);
                         for i=1:A.nBlocks
                             pos = A.getBlockPos(i);
@@ -341,6 +361,22 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             end
         end
         
+        function a = mldivide(L, R)
+            if isa(L,'data.FileMatrix')
+                if L.nBlocks == 1
+                    a = L.cachedBlock\R;
+                else
+                    error('Not yet implemented');
+                end
+            else
+                if R.nBlocks == 1
+                    a = L\R.cachedBlock;
+                else
+                    error('Not yet implemented');
+                end
+            end
+        end
+        
         function AB = mtimes(A, B)
             % Override of ABlockedData.mtimes
             if isa(A,'data.FileMatrix')
@@ -348,6 +384,11 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 if isa(B,'data.FileMatrix')
                     error('Not yet implemented.');
                 else
+                    % Special case for one block
+                    if A.nBlocks == 1
+                        AB = A.cachedBlock * B;
+                        return;
+                    end
                     if A.m ~= size(B,1)
                         error('Matrix dimensions must agree.');
                     end
@@ -384,6 +425,11 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 end
                 % [vec|mat] * FileMatrix case
             elseif isa(B,'data.FileMatrix')
+                % Special case for one block
+                if B.nBlocks == 1
+                    AB = A*B.cachedBlock;
+                    return;
+                end
                 AB = data.FileMatrix(size(A,1), B.m, 'Dir', fileparts(B.DataDirectory),...
                     'BlockSize', B.blocksize);
                 key = struct('type',{'()'},'subs',{{':'}});
@@ -411,13 +457,39 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             end
         end
         
+        function AB = times(A, B)
+            % Override of ABlockedData.mtimes
+            if isa(A,'data.FileMatrix')
+                % FileMatrix * FileMatrix case
+                if isa(B,'data.FileMatrix')
+                    error('Not yet implemented.');
+                else
+                    % Special case for one block
+                    if A.nBlocks == 1
+                        AB = A.cachedBlock .* B;
+                        return;
+                    end
+                    if A.n ~= size(B,1) || A.m ~= size(B,2)
+                        error('Matrix dimensions must agree.');
+                    end
+                    AB = data.FileMatrix(A.n,A.m,'Dir', fileparts(A.DataDirectory),...
+                        'BlockSize', A.blocksize);
+                    for k=1:A.nBlocks
+                        AB.saveBlock(k,A.loadBlock(k).*B(:,A.getBlockPos(k)));
+                    end
+                end
+            else
+                % Pointwise operation does not depend on which side it is done from.
+                AB = times(B,A);
+            end
+        end
+        
         function trans = ctranspose(this)
             trans = data.FileMatrix(this.m, this.n, 'BlockSize', this.blocksize, ...
                 'Dir', fileparts(this.DataDirectory));
             % Special case for only one block
             if this.nBlocks == 1
-                key = struct('type',{'()'},'subs',{{':',':'}});
-                trans.subsasgn(key,this.cachedBlock');
+                trans = this.cachedBlock';
                 return;
             end
             % Else: multiple blocks
@@ -795,7 +867,34 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             A(:,:) = a;
             B = rand(2000,50);
             BA = B*A;
-            res = res && BA == B*a;
+            res = res && isequal(BA,B*a);
+        end
+        
+        function res = test_FileMatrixScalarMult
+            % @todo need implementation for >1 nBlock matrices and scalar values
+            % @todo need separate test for each overridden operator
+            res = true;
+            a = rand(400,400);
+            A = data.FileMatrix(a);
+            B = 1*A;
+            res = res & isequal(a,B);
+            C = A*1;
+            res = res & isequal(a,C);
+        end
+        
+        function res = test_FileMatrix_Times
+            % @todo need implementation for >1 nBlock matrices and scalar values
+            % @todo need separate test for each overridden operator
+            res = true;
+            B = rand(100,1000)+.1;
+            A = data.FileMatrix(100,1000,'BlockSize',round(numel(B)*8/40));
+            key = struct('type',{'()'},'subs',{{':', ':'}});
+            A.subsasgn(key,B);
+            
+            AB = A.*B;
+            res = res & AB == B.*B;
+            AB = B.*A;
+            res = res & AB == B.*B;
         end
         
         function test_SpeedSVDTransp

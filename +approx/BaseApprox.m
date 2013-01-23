@@ -80,15 +80,24 @@ classdef BaseApprox < dscomponents.ACoreFun
     
     methods(Static)
         function res = test_ApproxProjections
-            a{1} = approx.algorithms.FixedCompWiseKernelApprox;
+            a{1} = approx.algorithms.Componentwise;
             a{1}.CoeffComp = general.interpolation.KernelInterpol;
-            a{2} = approx.algorithms.FixedCompWiseKernelApprox;
+            a{1}.CoeffConfig = a{1}.CoeffComp.getDefaultConfig;
+            
+            a{2} = approx.algorithms.Componentwise;
             a{2}.CoeffComp = general.regression.ScalarEpsSVR;
-            a{2} = approx.algorithms.FixedCompWiseKernelApprox;
-            a{2}.CoeffComp = general.regression.KernelLS;
-            a{3} = approx.algorithms.AdaptiveCompWiseKernelApprox;
-            a{3}.CoeffComp = general.interpolation.KernelInterpol;
-            a{3}.MaxExpansionSize = 20;
+            a{2}.CoeffConfig = a{2}.CoeffComp.getDefaultConfig;
+            
+            a{3} = approx.algorithms.Componentwise;
+            a{3}.CoeffComp = general.regression.ScalarNuSVR;
+            a{3}.CoeffConfig = a{3}.CoeffComp.getDefaultConfig;
+            
+            a{4} = approx.algorithms.Componentwise;
+            a{4}.CoeffComp = general.regression.KernelLS;
+            a{4}.CoeffConfig = a{4}.CoeffComp.getDefaultConfig;
+            
+            a{5} = approx.algorithms.VKOGA;
+            a{5}.MaxExpansionSize = 20;
             
             b = cell(length(a),0);
             
@@ -109,9 +118,13 @@ classdef BaseApprox < dscomponents.ACoreFun
             for idx=1:length(a)
                 try
                     app = a{idx};
-                    mc = metaclass(app);
-                    name = mc.Name;
-                    cprintf(testing.MUnit.GreenCol,['Testing ' name '...\n']);
+                    if isa(app,'approx.algorithms.Componentwise')
+                        name = sprintf('%s with %s',class(app),class(app.CoeffComp));
+                    else
+                        name = sprintf('%s with MaxExpansionSize=%d',class(app),app.MaxExpansionSize);
+                    end
+                    
+                    cprintf(testing.MUnit.GreenCol,'Testing %s...\n',name);
                     app.computeApproximation(kexp, atd);
                     b{idx} = kexp.project(v,v);
                     

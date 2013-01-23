@@ -1,4 +1,4 @@
-classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
+classdef AAdaptiveBase < approx.algorithms.ABase
 % Base class for adaptive component-wise kernel approximation algorithms
 %
 % @author Daniel Wirtz @date 2011-11-02
@@ -13,8 +13,7 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
 % - New interface for approximation computation: Passing an data.ApproxTrainData instance now
 % instead of 'xi,ti,mui' parameters.
 %
-% See also: BaseApprox KernelApprox approx.algorithms
-% BaseKernelApproxAlgorithm AdaptiveCompWiseKernelApprox
+% See also: BaseApprox KernelApprox approx.algorithms.ABase
 %
 % This class is part of the framework
 % KerMor - Model Order Reduction using Kernels:
@@ -45,7 +44,7 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
         % Determines how the initial center(s) are chosen.
         %
         % Possible values:
-        % - 'maxfx' The center with the largest (w.r.t. the BaseKernelApproxAlgorithm.ErrorFun
+        % - 'maxfx' The center with the largest (w.r.t. the ABase.ErrorFun
         % norm) associated `f(x_i)` value is chosen.
         % - 'center' The training point closest to the geometrical center
         % if the training data's bounding box is used.
@@ -63,11 +62,14 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
     end
     
     properties(SetAccess=protected)
-        % Contains the maximum errors for each iteration/center extension step performed by the last
-        % run of this algorithm.
+        % For each configuration, contains a row with the maximum errors for each
+        % iteration/center extension step performed by the last run of this algorithm.
         %
-        % @default [] @type rowvec
+        % @default [] @type matrix<double>
         MaxErrors = [];
+        
+        % @default [] @type colvec<double>
+        ExpansionSizes;
         
         % The indices of the effectively used centers during the
         Used = [];
@@ -78,8 +80,8 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
     end
     
     methods    
-        function this = BaseAdaptiveCWKA
-            this = this@approx.algorithms.BaseKernelApproxAlgorithm;
+        function this = AAdaptiveBase
+            this = this@approx.algorithms.ABase;
             
             % Register default property changed listeners
             this.registerProps('MaxExpansionSize','MaxRelErr','InitialCenter');
@@ -87,11 +89,15 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
                         
         function copy = clone(this, copy)
             % Clones the instance.
-            copy = clone@approx.algorithms.BaseKernelApproxAlgorithm(this, copy);
+            copy = clone@approx.algorithms.ABase(this, copy);
             
             % copy local props
             copy.MaxExpansionSize = this.MaxExpansionSize;
             copy.MaxRelErr = this.MaxRelErr;
+            copy.initialidx = this.initialidx;
+            copy.MaxErrors = this.MaxErrors;
+            copy.InitialCenter = this.InitialCenter;
+            copy.Used = this.Used;
         end
     end
     
@@ -105,16 +111,19 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
             
             %% Checks
             if size(atd.xi,2) < this.MaxExpansionSize
-                warning('BaseAdaptiveCWKA:expansionsize',...
+                warning('AAdaptiveBase:expansionsize',...
                     'Only %d training samples but having MaxExpansionSize=%d, changing to %d.',...
                     size(atd.xi,2),this.MaxExpansionSize,size(atd.xi,2));
                 this.MaxExpansionSize = size(atd.xi,2);
             end
             
-            this.MaxErrors = [];
+            % Init debug fields
+            nc = this.ExpConfig.getNumConfigurations;
+            this.MaxErrors = zeros(nc,this.MaxExpansionSize);
+            this.ExpansionSizes = zeros(nc,1);
             
+            % Compute initial center
             [~, this.initialidx] = this.getInitialCenter(atd);
-%             this.initExpansion(kexp, atd);
             
             % Start adaptive extension part of subclass
             this.startAdaptiveExtension(kexp, atd);
@@ -160,12 +169,12 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
             bool = false;
             if cnt == this.MaxExpansionSize
                 if vb > 1
-                    fprintf('BaseAdaptiveCWKA stopping criteria holds: Max expansion size %d reached.\n',this.MaxExpansionSize);
+                    fprintf('AAdaptiveBase stopping criteria holds: Max expansion size %d reached.\n',this.MaxExpansionSize);
                 end
                 bool = true;
             elseif rel < this.MaxRelErr
                 if vb > 1
-                    fprintf('BaseAdaptiveCWKA stopping criteria holds: Relative error %.7e < %.7e\n',rel,this.MaxRelErr);
+                    fprintf('AAdaptiveBase stopping criteria holds: Relative error %.7e < %.7e\n',rel,this.MaxRelErr);
                 end
                 bool = true;
             end
@@ -188,7 +197,7 @@ classdef BaseAdaptiveCWKA < approx.algorithms.BaseKernelApproxAlgorithm
             % Depending on the InitialCenter property, the following
             % strategy is pursued:
             % - 'maxfx' The center with the largest (w.r.t. the
-            % BaseKernelApproxAlgorithm.ErrorFun norm) associated `f(x_i)` value is chosen.
+            % ABase.ErrorFun norm) associated `f(x_i)` value is chosen.
             % - 'center' The training point closest to the geometrical center
             % if the training data's bounding box is used.
             % - 't0' Tries to find a training sample for time zero and uses

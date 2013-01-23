@@ -14,13 +14,15 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
     %
     % @author Daniel Wirtz @date 01.04.2010
     %
+    % @change{0,7,dw,2013-01-23} Re-added the LU decomposition stuff to this class from
+    % MemoryMatrix, as the class has been removed.
+    %
     % @new{0,6,dw,2012-01-23} Included preconditioning techniques for kernel interpolation
     % according to \cite S08.
     %
     % @change{0,5,dw,2011-09-12} Set the UseLU flag to true per default.
-    % Using IKernelMatrix instances now, along with flags of whether to
-    % successively build the inverse, too. Moved the UseLU property to
-    % MemoryKernelMatrix.
+    % Using FileMatrix instances now, along with flags of whether to
+    % successively build the inverse, too.
     %
     % @change{0,4,dw,2011-05-03} Removed the artificial offset term `b` from the interpolation
     % process (no longer used in kernel expansions)
@@ -36,12 +38,31 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
     % more efficient.
     % - Updated the documentation
     
+    properties(SetObservable)
+        % Flag that indicates whether to keep an LU decomposition of the kernel
+        % matrix or not.
+        %
+        % @propclass{optional} Speedup maybe gained if subsequent calls to interpolation using the
+        % same kernel matrix are made.
+        %
+        % @default false
+        UseLU = false;
+        
+        % Flag that indicates whether to apply the preconditioning technique from \cite{S08}.
+        %
+        % @propclass{optional} Stability maybe gained for solving the interpolation problem in
+        % the direct translate basis.
+        %
+        % @default false
+        UsePreconditioning = false;
+    end
+    
     properties(Dependent)
         % The kernel matrix K to use within interpolation.
         %
         % @propclass{data} Required for any interpolation computation.
         %
-        % @type data.IKernelMatrix
+        % @type data.FileMatrix
         K;
     end
     
@@ -50,6 +71,18 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
         
         % Preconditioning matrix
         P;
+        
+        % Private variable to store the lower left part of the optional LU
+        % decomp.
+        %
+        % See also: K UseLU
+        L;
+        
+        % Private variable to store the lower left part of the optional LU
+        % decomp.
+        %
+        % See also: K UseLU
+        U;
     end
     
     methods
@@ -57,7 +90,7 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
         function this = KernelInterpol
             this = this@KerMorObject;
             this.MultiTargetComputation = true;
-            this.registerProps('K');
+            this.registerProps('K','UseLU','UsePreconditioning');
         end
         
         function a = interpolate(this, fxi)
@@ -69,27 +102,9 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
             % Return values:
             % a: The coefficient vector `\alpha`
 
-            if isa(this.fK, 'data.MemoryKernelMatrix')
-                if this.fK.UseLU
-                    if ~isempty(this.P)
-                        warning('KerMor:interpol','Preconditioning matrix available, not applying as UseLU is set!');
-                    end
-                    a = this.fK.U\(this.fK.L\fxi');
-                    return;
-                elseif this.fK.BuildInverse
-%                     P = this.fK.Kinv * this.fK.K;
-%                     pfxi = this.fK.Kinv*fxi';
-%                     a = P\pfxi;
-                    if ~isempty(this.P)
-                        warning('KerMor:interpol','Preconditioning matrix available, not applying as BuildInverse is set!');
-                    end
-                    a = this.fK.Kinv * fxi';
-                    return;
-                end
-            end
-            %warning('MATLAB:nearlySingularMatrix','off');
-            if ~isempty(this.P)
-                % fK is already preconditioned, see init(..)
+            if this.UseLU
+                a = this.U\(this.L\fxi');
+            elseif this.UsePreconditioning && ~isempty(this.P) 
                 a = this.fK\(this.P*fxi');
             else
                 a = this.fK\fxi';
@@ -97,11 +112,8 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
         end
         
         function set.K(this, value)
-            if ismatrix(value) && isa(value,'double')
-                value = data.MemoryKernelMatrix(value);
-            end
-            if ~isa(value, 'data.IKernelMatrix')
-                error('K must be a data.IKernelMatrix or a double matrix.');
+            if (isa(value,'handle') && ~isa(value, 'data.FileMatrix')) || (~ismatrix(value) || ~isa(value,'double'))
+                error('Value must be a data.FileMatrix or a double matrix.');
             end
             this.fK = value;
         end
@@ -111,24 +123,21 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
         end
         
         %% approx.algorithms.IKernelCoeffComp interface members
-        function init(this, K, kexp)
+        function init(this, kexp)
             % Initializes the interpolation
             %
             % Parameters:
-            % K: The kernel matrix @type data.MemoryKernelMatrix
-            % kexp: If given, some preconditioning can be performed usign the kernel expansions
-            % information. @type kernels.KernelExpansion @default []
-            this.K = K;
+            % kexp: The kernel expansion @type kernels.KernelExpansion
+            this.K = kexp.getKernelMatrix;
             this.P = [];
-            if nargin > 2
-                if ~isa(this.fK,'data.MemoryKernelMatrix')
-                    error('Preconditioning with other than MemoryKernelMatrices not yet implemented.');
-                end
-                if isa(kexp.Kernel,'kernels.ARBFKernel') && kexp.Kernel.epsilon < .01
+            if this.UseLU
+                [this.L, this.U] = lu(this.K);
+            elseif this.UsePreconditioning
+                if isa(kexp.Kernel,'kernels.ARBFKernel')% && 1/kexp.Kernel.Gamma < .01
                     [this.P, k2] = this.getPreconditioner(kexp.Kernel, kexp.Centers.xi);
                     % Overwrite current matrix with preconditioned one
                     oldK = this.fK.K;
-                    this.fK = data.MemoryKernelMatrix(this.P*this.fK.K);
+                    this.fK = this.P*this.fK;
                     x = kexp.Centers.xi;
                     [m M] = general.Utils.getBoundingBox(x);
                     c1 = cond(oldK);
@@ -139,8 +148,10 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
                     end
                     if KerMor.App.Verbose > 3
                         fprintf('Cond(K)=%e, Cond(P*K)=%e, size(x)=[%d %d], %s! eps=%e, xdiag=%e, k2=%d\n',...
-                            c1,c2,size(x,1),size(x,2),pl,kexp.Kernel.epsilon,norm(M-m),k2);
+                            c1,c2,size(x,1),size(x,2),pl,1/kexp.Kernel.Gamma,norm(M-m),k2);
                     end
+                else
+                    warning('KernelInterpol:preconditioning','Cannot apply preconditioning technique to kernels of class %s',class(kexp.Kernel));
                 end
             end
         end
@@ -165,6 +176,10 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
     
     
     methods(Static)
+        function c = getDefaultConfig
+            c = general.interpolation.InterpolConfig;
+        end
+        
         function [P, k2] = getPreconditioner(k, x)
             % Computes the preconditioning matrix `D_\ep M` from the work \cite S08 given a kernel
             % expansion and the centers at which the function values are to be interpolated.
@@ -255,7 +270,7 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
             end
             
             %U = L*P*M;
-            D = diag(k.epsilon.^-tk);
+            D = diag(k.Gamma.^tk);
             %PM = P; % return accum. permutation matrix
             P = D * L* P; % compute preconditioning matrixl
             k2 = tk(end);
@@ -331,7 +346,7 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
 %             minb
 %         end
         
-        function test_KernelInterpolation()
+        function test_KernelInterpolation
             % Performs a test of this class
             
 %             x = -5:.05:5;

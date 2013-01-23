@@ -16,6 +16,9 @@ classdef Devel < handle
     %
     % @author Daniel Wirtz @date 2011-04-12
     %
+    % @change{0,7,dw,2013-01-23} Removed the overwrite flag and added option to specify a path
+    % in which the file should be created.
+    %
     % @change{0,4,sa,2011-06-02} Added comments to the function setup
     %
     % @new{0,3,dw,2011-04-12} Added this class to aid new class creation and offer customized class
@@ -86,47 +89,45 @@ classdef Devel < handle
             fprintf('Finished!\n');
         end
         
-        function newClass(name, overwrite)
+        function newClass(name, varargin)
             % Creates a new class using the template_class file
             %
             % Parameters:
             % name: The target class name
-            % overwrite: Overwrite any existing file @default false
+            % varargin: Additional parameters.
+            % dir: The target directory @type char @default pwd
             if ~isa(name,'char')
                 error('The class name must be a string');
             end
-            if nargin < 2
-                overwrite = false;
-            end
-            Devel.process(name, 'template_class', overwrite);
+            Devel.process(name, 'template_class', varargin{:});
         end
         
-        function newFun(name, overwrite)
+        function newFun(name, varargin)
             % Creates a new function using the template_fun file
             %
             % Parameters:
             % name: The target function name
-            % overwrite: [Optional] Overwrite any existing file
+            % varargin: Additional parameters.
+            % dir: The target directory @type char @default pwd
             %
             % @todo check fun name validity!
-            if nargin < 2
-                overwrite = false;
-            end
             
             if ~isa(name,'char')
                 error('The class name must be a string');
             end
             
-            Devel.process(name, 'template_fun', overwrite);
+            Devel.process(name, 'template_fun', varargin{:});
         end
         
     end
     
     methods(Static,Access=private)
-        function process(name, template_file, overwrite)
-            dir = pwd;
+        function process(name, template_file, dir)
+            if nargin < 3
+                dir = pwd;
+            end
             fname = fullfile(dir,[name '.m']);
-            if ~overwrite && exist(fname,'file')
+            if exist(fname,'file')
                 error('File %s already exists.',fname);
             end
             

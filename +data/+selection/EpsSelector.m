@@ -47,7 +47,7 @@ classdef EpsSelector < data.selection.ASelector
         
         function copy = clone(this)
             copy = data.selection.EpsSelector;
-            copy = clone@data.selection.ASelector(this, copy);
+            %copy = clone@data.selection.ASelector(this, copy);
             copy.EpsRad = this.EpsRad;
             copy.SubspaceProject = this.SubspaceProject;
         end
@@ -73,12 +73,17 @@ classdef EpsSelector < data.selection.ASelector
             % ti: The selected training times `t_i` @type rowvec
             % mui: The selected parameter samples `\mu_i` with which the states
             % `x_i` have been reached @type matrix
-            if model.Data.getNumTrajectories > 1
+            td = model.Data.TrajectoryData;
+            if td.getNumTrajectories > 1
                 warning('KerMor:approx:selection:EpsSelector','The epsilon-selector can only be used with one trajectory at the moment. Ignoring all but the first.');
             end
-            [x, mu] = model.Data.getTrajectoryNr(1); 
+            [x, mu] = td.getTrajectoryNr(1); 
             if this.SubspaceProject && ~isempty(model.SpaceReducer)
-                x = model.Data.V*(model.Data.W'*x);
+                W = model.Data.W;
+                if isempty(W)
+                    W = model.Data.V;
+                end
+                x = model.Data.V*(W'*x);
             end
             %[m,M] = general.Utils.getBoundingBox(x);
             %d = norm(M-m) / 10;

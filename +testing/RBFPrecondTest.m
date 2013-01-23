@@ -54,16 +54,18 @@ classdef RBFPrecondTest
             kexp.Kernel = k;
             kexp.Centers.xi = x;
             
-            K = kexp.getKernelMatrix;
             ki = general.interpolation.KernelInterpol;
-            ki.init(data.MemoryKernelMatrix(K));
+            ki.UsePreconditioning = false;
+            ki.init(kexp);
             kexp.Ma = ki.interpolate(f(x))';
-            
             pre_kexp = kexp.clone;
+            
+            ki.UsePreconditioning = true;
+            ki.init(kexp);
             P = ki.getPreconditioner(k, x);
-            ki.init(data.MemoryKernelMatrix(P*K));
             pre_kexp.Ma = ki.interpolate(f(x)*P')';
             
+            K = kexp.getKernelMatrix;
             condn(1) = cond(K);
             condn(2) = cond(P*K);
             

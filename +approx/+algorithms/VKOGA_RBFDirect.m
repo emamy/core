@@ -1,4 +1,4 @@
-classdef VKOGA_RBFDirect < approx.algorithms.BaseAdaptiveCWKA
+classdef VKOGA_RBFDirect < approx.algorithms.AAdaptiveBase
 % VKOGA: Vectorial kernel orthogonal greedy algorithm
 %
 %
@@ -38,13 +38,13 @@ classdef VKOGA_RBFDirect < approx.algorithms.BaseAdaptiveCWKA
     
     methods
         function this = VKOGA_RBFDirect
-            this = this@approx.algorithms.BaseAdaptiveCWKA;
+            this = this@approx.algorithms.AAdaptiveBase;
         end
 
         function copy = clone(this)
             % Clones the instance.
             copy = approx.algorithms.VKOGA;
-            copy = clone@approx.algorithms.BaseAdaptiveCWKA(this, copy);
+            copy = clone@approx.algorithms.AAdaptiveBase(this, copy);
             copy.PhiNormMin = this.PhiNormMin;
             copy.Gain = this.Gain;
             copy.UseOGA = this.UseOGA;

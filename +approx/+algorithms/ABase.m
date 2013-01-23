@@ -1,5 +1,5 @@
-classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable & ICloneable
-% BaseKernelApproxAlgorithm: Base class for any approximation generation algorithms for kernel
+classdef ABase < KerMorObject & IParallelizable & ICloneable
+% ABase: Base class for any approximation generation algorithms for kernel
 % expansions,
 %
 % @author Daniel Wirtz @date 2011-07-07
@@ -65,7 +65,7 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable & ICloneable
     end
     
     methods
-        function this = BaseKernelApproxAlgorithm
+        function this = ABase
             this = this@KerMorObject;
             
             this.registerProps('ExpConfig','UsefScaling');
@@ -135,27 +135,27 @@ classdef BaseKernelApproxAlgorithm < KerMorObject & IParallelizable & ICloneable
         end
     end
     
-%     methods(Access=protected)
-%         function [val, idx, errs] = getError(this, kexp, atd)
-%             % Computes the error according to the chosen error function
-%             % (see ErrorFun property) with respect to the current kernel
-%             % expansion and the `f(x_i)` values in the training data.
-%             %
-%             % Parameters:
-%             % kexp: The kernel expansion @type kernels.KernelExpansion
-%             % atd: The approximation training data @type data.ApproxTrainData
-%             %
-%             % Return values:
-%             % val: The maximum error `\max ||f(x_i,t_i,\mu_i) -
-%             % \hat{f}(x_i,t_i,\mu_i)||_{\{2,\infty\}}` @type double
-%             % idx: The index of the maximum error inside the errs vector @type integer
-%             % errs: A row vector of the errors for each sample @type rowvec
-%             %
-%             % See also: ErrorFun
-%             errs = this.ErrorFun(atd.fxi - kexp.evaluate(atd.xi, atd.ti, atd.mui));
-%             [val, idx] = max(errs);
-%         end
-%     end
+    methods(Access=protected)
+        function [val, idx, errs] = getError(this, kexp, atd)
+            % Computes the error according to the chosen error function
+            % (see ErrorFun property) with respect to the current kernel
+            % expansion and the `f(x_i)` values in the training data.
+            %
+            % Parameters:
+            % kexp: The kernel expansion @type kernels.KernelExpansion
+            % atd: The approximation training data @type data.ApproxTrainData
+            %
+            % Return values:
+            % val: The maximum error `\max ||f(x_i,t_i,\mu_i) -
+            % \hat{f}(x_i,t_i,\mu_i)||_{\{2,\infty\}}` @type double
+            % idx: The index of the maximum error inside the errs vector @type integer
+            % errs: A row vector of the errors for each sample @type rowvec
+            %
+            % See also: ErrorFun
+            errs = this.ErrorFun(atd.fxi - kexp.evaluate(atd.xi, atd.ti, atd.mui));
+            [val, idx] = max(errs);
+        end
+    end
     
     methods(Abstract, Access=protected)
         % Performs the actual approximation after scaling.

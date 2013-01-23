@@ -39,7 +39,7 @@ classdef IKernelCoeffComp < handle
         % and every time the kernel matrix changes.
         %
         % Parameters:
-        % K: The Kernel matrix for the centers `x_i` @type data.IKernelMatrix
+        % K: The Kernel matrix for the centers `x_i` @type data.FileMatrix
         %
         % See also: computeKernelCoefficients
         init(this, K);
@@ -67,6 +67,11 @@ classdef IKernelCoeffComp < handle
         %
         % See also: init
         [ci, svidx] = computeKernelCoefficients(this, yi, initialai);
+    end
+    
+    methods(Abstract, Static)
+        % Returns a default set of configurations for this IKernelCoeffComp
+        c = getDefaultConfig;
     end
     
 end

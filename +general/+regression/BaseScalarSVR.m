@@ -6,7 +6,7 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
     % @author Daniel Wirtz @date 2010-03-11
     %
     % @change{0,5,dw,2011-11-09} Also allowing to pass a double matrix to the setter for the K
-    % property. Automatically wraps the matrix into a data.MemoryKernelMatrix.
+    % property.
     %
     % @change{0,5,dw,2011-08-22} Added the regularization parameter Lambda and made the C constraint
     % dependent on that, as also done in literature. Moved the QPSolver to
@@ -41,12 +41,9 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
         % once a matrix is set multiple regressions for the same base
         % vector set can be performed easily.
         %
-        % This property may also be assigned a double matrix directly, and the wrapping into a
-        % data.MemoryKernelMatrix is done automatically.
-        %
         % @propclass{data} Needed for the SVR to run in the first place.
         %
-        % @type data.IKernelMatrix
+        % @type data.FileMatrix
         K;
     end
     
@@ -90,16 +87,10 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
         end
         
         function set.K(this, value)
-            if ~isa(value, 'data.IKernelMatrix')
-                if ~ismatrix(value) || ~isa(value,'double')
-                    error('Value must be a data.IKernelMatrix or a double matrix.');
-                else
-                    this.K = data.MemoryKernelMatrix(value);
-                end
+            if (isa(value,'handle') && ~isa(value, 'data.FileMatrix')) || (~ismatrix(value) || ~isa(value,'double'))
+                error('Value must be a data.FileMatrix or a double matrix.');
             end
-            % Make matrix symmetric (can be false due to rounding errors)
             this.K = value;
-            %this.K = .5*(value + value');
         end
         
         function set.Lambda(this, value)
@@ -122,13 +113,12 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
         end
         
         %% approx.algorithms.IKernelCoeffComp interface members
-        function init(this, K, varargin)
+        function init(this, kexp)
             % Sets the kernel matrix.
             %
             % Parameters:
-            % K: The kernel matrix @type data.IKernelMatrix
-            % varargin: Not used here.
-            this.K = K;
+            % kexp: The kernel expansion @type kernels.KernelExpansion
+            this.K = kexp.getKernelMatrix;
         end
         
         function [ci, svidx] = computeKernelCoefficients(this, yi, initialai)
@@ -167,6 +157,12 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
         % Return values:
         % ci: The kernel expansion coefficients `c_i`.
         ci = regress(this, fxi, initialai);
+    end
+    
+    methods(Static)
+        function c = getDefaultConfig
+            c = general.regression.EpsSVRConfig([1; 1]);
+        end
     end
     
 end

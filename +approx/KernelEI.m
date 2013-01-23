@@ -1,5 +1,4 @@
 classdef KernelEI < approx.BaseApprox
-% DEIM: 
 %
 %
 %
@@ -40,7 +39,7 @@ classdef KernelEI < approx.BaseApprox
     end
 %     
     properties%(Access=private)
-        fOrder = 10;
+        fOrder = 5;
         
         % The full approximation base
         u;
@@ -71,8 +70,8 @@ classdef KernelEI < approx.BaseApprox
         
         function approximateSystemFunction(this, model)
             this.f = model.System.f;
-            if ~isa(this.f,'dscomponents.IComponentEvaluable');
-                error('Cannot use DEIM with no IComponentEvaluable core functions.');
+            if ~isa(this.f,'dscomponents.ACompEvalCoreFun');
+                error('Cannot use DEIM with no ACompEvalCoreFun core functions.');
             end
             
             atd = model.Data.ApproxTrainData;
@@ -88,22 +87,25 @@ classdef KernelEI < approx.BaseApprox
             this.pts = this.getInterpolationPoints(this.u);
             
             % Compose argument indices arrays
+            SP = this.f.JSparsityPattern;
             jr = [];
-            this.jend = zeros(1,this.MaxOrder+1);
-            this.jend(1) = 0;
-            for i=1:this.MaxOrder
-                jr = [jr this.f.getComponentArgumentIndices(this.pts(i))];%#ok
-                this.jend(i+1) = length(jr);
+%             js = logical.empty(0,1);
+            je = zeros(1,length(this.pts));
+            for i=1:length(this.pts)
+                sprow = SP(this.pts(i),:);
+                inew = find(sprow);
+                jr = [jr inew];%#ok
+%                 js = [js inew == pts(i)];%#ok
+                je(i) = length(jr);
             end
             this.jrow = jr;
+%             this.jself{nr} = js;
+            this.jend = je;
             
             a = approx.algorithms.VKOGA;
-            a.CoeffComp = general.interpolation.KernelInterpol;
-            a.NumGammas = this.Gammas;
-            %a.Dists = 2;
             a.MaxExpansionSize = 300;
             a.UsefScaling = false;
-            a.UseOGA = false;
+            a.UsefPGreedy = false;
             
             k = kernels.ParamTimeKernelExpansion;
             k.Kernel = kernels.GaussKernel;
@@ -133,7 +135,11 @@ classdef KernelEI < approx.BaseApprox
                 pi = tools.ProcessIndicator(sprintf('KernelEI: Computing %d approximations',this.MaxOrder),this.MaxOrder);
                 for idx = 1:this.MaxOrder
                     % Select the elements of x that are effectively used in f
-                    xireq = atd.xi(this.jrow(this.jend(idx)+1:this.jend(idx+1)),:);
+                    off = 0;
+                    if idx > 1
+                        off = this.jend(idx-1);
+                    end
+                    xireq = atd.xi(this.jrow(off+1:this.jend(idx)),:);
                     latd = data.ApproxTrainData(xireq, atd.ti, atd.mui);
                     latd.fxi = atd.fxi(this.pts(idx),:);
                     a.computeApproximation(k, latd);
@@ -222,7 +228,7 @@ classdef KernelEI < approx.BaseApprox
                 this.U = this.W'*this.U;
             end
             
-            len = this.jend(this.fOrder+1);
+            len = this.jend(end);
             sel = this.jrow(1:len);
             if ~isempty(this.V)
                 this.S = this.V(sel,:);
@@ -252,24 +258,18 @@ classdef KernelEI < approx.BaseApprox
     end
     
     methods(Static)
-        function m = test_KernelEI
+        function res = test_KernelEI
             m = models.pcd.PCDModel(1);
-            %m.System.h = 1e-8;
-            m.T = 10;
-            m.EnableTrajectoryCaching = true;
+            m.T = 1;
+            m.EnableTrajectoryCaching = false;
             m.Approx = approx.KernelEI;
-            m.Approx.MaxOrder = 60;
-            m.Approx.Gammas = 30;
-            m.System.Params(1).Desired = 30;
+            m.Approx.MaxOrder = 5;
+            m.Approx.Gammas = 3;
+            m.System.Params(1).Desired = 2;
             m.SpaceReducer = spacereduction.PODGreedy;
-            m.SpaceReducer.Eps = 1e-10;
-            m.off1_createParamSamples;
-            m.off2_genTrainingData;
-            m.off3_computeReducedSpace;
-            m.off4_genApproximationTrainData;
-            save KernelEI m;
-            m.off5_computeApproximation;
-            save KernelEI m;
+            m.SpaceReducer.Eps = 1e-2;
+            m.offlineGenerations;
+            res = true;
         end
     end
     

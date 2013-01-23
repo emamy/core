@@ -68,7 +68,7 @@ classdef VKOGA
             plot(h2,x,alg.bestNewtonBasisValuesOnATD); 
             
             h3 = pm.nextPlot('err','Absolute error','x','|f(x)-f^m(x)|');
-            ph = tools.LogPlot.cleverPlot(h3,1:m,alg.err(:,1:m));
+            ph = tools.LogPlot.cleverPlot(h3,1:m,alg.MaxErrors(:,1:m));
             set(ph(alg.ExpConfig.vBestConfigIndex),'LineWidth',2);
             
             h4 = pm.nextPlot('relerr','Relative error','x','|(f(x)-f^m(x))/f(x)|');

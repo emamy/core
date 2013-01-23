@@ -28,7 +28,7 @@ s.m.Sampler.Samples = 10;
 s.m.ODESolver = solvers.ExplEuler;
 
 a = approx.KernelApprox;
-ap = approx.algorithms.AdaptiveCompWiseKernelApprox;
+ap = approx.algorithms.VKOGA;
 ap.MaxExpansionSize = 5; % Keep test run short!
 a.Algorithm = ap;
 %a.CoeffComp = general.regression.ScalarEpsSVR;

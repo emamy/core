@@ -12,7 +12,7 @@ classdef KernelLS < KerMorObject & approx.algorithms.IKernelCoeffComp
     % @change{0,4,sa,2011-05-07} Implemented Setter for the properties G and Epsilon
     
     properties(SetObservable)
-        % The kernel matrix to use für LS regression
+        % The kernel matrix to use for LS regression
         %
         % @propclass{data} Needed for LS to work in the first place.
         K;
@@ -55,12 +55,10 @@ classdef KernelLS < KerMorObject & approx.algorithms.IKernelCoeffComp
         end
         
         function a = regress(this, fx, ainit)%#ok
-            
-            % Ensure fxi is a column vector
-            fx = reshape(fx,this.K.Dim,[]);
-            
-            y = this.K'*fx;
-            M = this.K'*this.K + this.lambda*eye(this.K.Dim, this.K.Dim);
+            n = size(this.K,1);
+
+            y = (fx*this.K)';
+            M = this.K'*this.K + this.lambda*speye(n, n);
             
             if length(y) <= this.MaxStraightInvDim
                 a = M\y;
@@ -71,8 +69,12 @@ classdef KernelLS < KerMorObject & approx.algorithms.IKernelCoeffComp
         end
         
         %% approx.algorithms.IKernelCoeffComp interface members
-        function init(this, K)
-            this.K = K;
+        function init(this, kexp)
+            % Sets the kernel matrix.
+            %
+            % Parameters:
+            % kexp: The kernel expansion @type kernels.KernelExpansion
+            this.K = kexp.getKernelMatrix;
         end
         
         function [ai, svidx] = computeKernelCoefficients(this, yi, initialai)%#ok
@@ -82,8 +84,8 @@ classdef KernelLS < KerMorObject & approx.algorithms.IKernelCoeffComp
         
         %% Getter & setter
         function set.K(this, value)
-            if ~isa(value, 'data.IKernelMatrix')
-                error('value must be a data.IKernelMatrix instance');
+            if (isa(value,'handle') && ~isa(value, 'data.FileMatrix')) || (~ismatrix(value) || ~isa(value,'double'))
+                error('Value must be a data.FileMatrix or a double matrix.');
             end
             this.K = value;
         end
@@ -114,6 +116,12 @@ classdef KernelLS < KerMorObject & approx.algorithms.IKernelCoeffComp
                 error('value must be a positive integer scalar');                
             end
             this.MaxStraightInvDim = value;
+        end
+    end
+    
+    methods(Static)
+        function c = getDefaultConfig
+            c = general.regression.KernelLSConfig(.5:.5:1.5);
         end
     end
     

@@ -56,7 +56,7 @@ classdef ExplEuler < solvers.BaseCustomSolver
     end
     
     methods(Access=protected,Sealed)
-        function x = customSolve(this, odefun, t, x0)
+        function x = customSolve(this, odefun, t, x0, outputtimes)%#ok
             % Solves the ODE using the explicit Euler method.
             %
             % There is a mex-implementation of the explicit euler scheme,

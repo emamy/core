@@ -46,7 +46,7 @@ classdef KernelApprox < approx.BaseApprox & dscomponents.ParamTimeKernelCoreFun
 % which allows to use the strategy pattern for computing kernel
 % expansion coefficients.
 % - Moved some old methods into the new class
-% approx.algorithms.FixedCompWiseKernelApprox to retain the old functionality
+% approx.algorithms.Componentwise to retain the old functionality
 % which selects a subset of the projection training data by linspace
 % selection as approximation data.
 % - Changed method names for computeSerial/Parallel to

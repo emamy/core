@@ -164,15 +164,10 @@ classdef TPWLApprox < approx.BaseApprox
             % @todo update to new approximation interface
             
             atd = model.Data.ApproxTrainData;
-            this.xi = atd(4:end,:);
-            ti = atd(3,:);
-            muidx = atd(1,:);
-            if all(muidx == 0)
-                mui = [];
-            else
-                mui = model.Data.ParamSamples(:,muidx);
-            end
-            fxi = model.Data.ApproxfValues;
+            this.xi = atd.xi;
+            ti = atd.ti;
+            mui = atd.mui;
+            fxi = atd.fxi;
             
             as = size(this.xi,2);
             N = size(this.xi,1);
@@ -220,7 +215,7 @@ classdef TPWLApprox < approx.BaseApprox
             %m.plot(t,y);
             
             r = m.buildReducedModel;
-            ApproxVisualizer(r);
+%             ApproxVisualizer(r);
             res = true;
         end
     end
