@@ -47,7 +47,7 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
         % @propclass{data} Needed for the SVR to run in the first place.
         %
         % @type data.IKernelMatrix
-        K;        
+        K;
     end
     
     properties(SetObservable, Dependent)

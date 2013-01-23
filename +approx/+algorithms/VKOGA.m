@@ -50,7 +50,7 @@ classdef VKOGA < approx.algorithms.BaseAdaptiveCWKA
 
         function copy = clone(this)
             % Clones the instance.
-            copy = approx.algorithms.VectorialKernelOMP;
+            copy = approx.algorithms.VKOGA;
             copy = clone@approx.algorithms.BaseAdaptiveCWKA(this, copy);
             copy.PhiNormMin = this.PhiNormMin;
             copy.Gain = this.Gain;
@@ -275,7 +275,7 @@ classdef VKOGA < approx.algorithms.BaseAdaptiveCWKA
             res = true;
         end
         
-        function res = test_VKOGA2D1D
+        function [res, d] = test_VKOGA2D1D
             % Tests the VKOGA algorithm
             
             %% Data setup
@@ -334,9 +334,11 @@ classdef VKOGA < approx.algorithms.BaseAdaptiveCWKA
             set(ph(alg.ExpConfig.vBestConfigIndex),'LineWidth',2);
             pm.done;
             
-            res.kexp = kexp;
-            res.atd = atd;
-            res.alg = alg;
+            d = struct;
+            d.kexp = kexp;
+            d.atd = atd;
+            d.alg = alg;
+            res = true;
         end
     end
 end

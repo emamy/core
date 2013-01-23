@@ -137,7 +137,7 @@ classdef POD < KerMorObject
                 % Subtract the space spanned by Vexclude if given
                 if ~isempty(Vexclude)
                     data = data - Vexclude*(Vexclude'*data);
-                    target_dim = min(target_dim, min(size(data))-size(Vexclude));
+                    target_dim = min(target_dim, min(size(data))-size(Vexclude,2));
                 end
                 
                 % Create full matrix out of sparse fxi sets to enable use of

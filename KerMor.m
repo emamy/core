@@ -12,6 +12,7 @@ classdef KerMor < handle
     % @change{0,7,dw,2013-01-23} Done some restructuring in KerMor:
     % - Removed thee QP-Solver packages and extern/ folders as they are effectively no longer
     % used
+    % - Removed associated tests
     % - Moved the ODE solvers from \c solvers.ode to \c solvers
     % - Moved the IClassConfig interface to \c +general
     % - Adopted the KerMor install script to the changes

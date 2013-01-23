@@ -80,11 +80,11 @@ classdef BaseApprox < dscomponents.ACoreFun
     
     methods(Static)
         function res = test_ApproxProjections
-            a{1} = approx.algorithms.DefaultCompWiseKernelApprox;
+            a{1} = approx.algorithms.FixedCompWiseKernelApprox;
             a{1}.CoeffComp = general.interpolation.KernelInterpol;
-            a{2} = approx.algorithms.DefaultCompWiseKernelApprox;
+            a{2} = approx.algorithms.FixedCompWiseKernelApprox;
             a{2}.CoeffComp = general.regression.ScalarEpsSVR;
-            a{2} = approx.algorithms.DefaultCompWiseKernelApprox;
+            a{2} = approx.algorithms.FixedCompWiseKernelApprox;
             a{2}.CoeffComp = general.regression.KernelLS;
             a{3} = approx.algorithms.AdaptiveCompWiseKernelApprox;
             a{3}.CoeffComp = general.interpolation.KernelInterpol;

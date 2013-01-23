@@ -1,4 +1,4 @@
-classdef ScalarEpsSVR < general.regression.BaseScalarSVR
+classdef ScalarEpsSVR < general.regression.BaseQPSVR
 %ScalarEpsSVR: Scalar support vector regression.
 %
 %  Implementation details can be found in Daniel's Scratch
@@ -9,6 +9,9 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
 % See also: ScalarNuSVR
 %
 % @author Daniel Wirtz @date 11.03.2010
+%
+% @change{0,7,dw,2013-01-23} Removed QP solvers and introduced intermediate class BaseQPSVR to
+% include qp stuff.
 %
 % @change{0,5,dw,2011-09-09} Moved the QPSolver property to this class.
 %
@@ -32,24 +35,14 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
         %
         % See also: C
         Eps = 0.05;
-        
-        % The quadratic solver internally used
-        %
-        % @propclass{optional} Different solvers should have different performance but should not
-        % change the result. qpOASES so far is the fastest solver available in KerMor.
-        %
-        % @default solvers.qp.qpMatlab
-        % @type solvers.qp.BaseQPSolver
-        QPSolver;
     end
     
     methods
         function this = ScalarEpsSVR
             % Default constructor. Calls superconstructor to initialize
             % properties
-            this = this@general.regression.BaseScalarSVR;
-            this.QPSolver = solvers.qp.qpMatlab;
-            this.registerProps('eps','QPSolver');
+            this = this@general.regression.BaseQPSVR;
+            this.registerProps('eps');
         end
         
         function ai = regress(this, fxi, ainit)
@@ -64,12 +57,10 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             % ai: The kernel expansion coefficients `\alpha_i`.
             m = size(this.K,1);
             T = [diag(ones(1,m)) -diag(ones(1,m))];
-            % Ensure fxi is a column vector
-            fxi = reshape(fxi,m,[]);
             
             % Problem setup
             Q = T'*this.K*T;
-            c = (this.Eps*ones(2*m,1) - T'*fxi);
+            c = (this.Eps*ones(2*m,1) - (fxi*T)');
             
             % Starting point
             if nargin < 3
@@ -82,7 +73,7 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             ub = ones(2*m,1)*(this.C/m);
             
             % Call solver
-            p = this.QPSolver.solve(Q,c,lb,ub,[],[],[],ainit);
+            p = this.solve(Q,c,lb,ub,[],[],[],ainit);
             
             % Convert results
             ai = T*p;
@@ -94,13 +85,6 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             end
             this.Eps = value;
         end
-        
-        function set.QPSolver(this, value)
-            if ~isa(value,'solvers.qp.BaseQPSolver')
-                error('The given value has to be a solvers.qp instance.');
-            end            
-            this.QPSolver = value;
-        end
     end
     
     methods(Sealed)
@@ -108,10 +92,9 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             % Create new instance
             copy = general.regression.ScalarEpsSVR;
             % Call superclass clone
-            copy = clone@general.regression.BaseScalarSVR(this, copy);
+            copy = clone@general.regression.BaseQPSVR(this, copy);
             % Copy local props
             copy.Eps = this.Eps;
-            copy.QPSolver = this.QPSolver.clone;
         end
     end
     
@@ -129,10 +112,8 @@ classdef ScalarEpsSVR < general.regression.BaseScalarSVR
             %svr.eps = 0.073648;
             svr.Eps = .1;
             svr.Lambda = 1/20;
-            %svr.QPSolver.MaxIterations = 1000;
-            svr.QPSolver = solvers.qp.qpMatlab;
-            %svr.QPSolver = solvers.qp.qpMosek;
-            %svr.QPSolver = solvers.qp.qpOASES;
+            %svr.MaxIterations = 1000;
+            
             %kernel = kernels.PolyKernel(2);
             %kernel = kernels.LinearKernel;
             kernel = kernels.GaussKernel(.5);

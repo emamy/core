@@ -198,7 +198,6 @@ classdef MatUtils
             V = [e v]';
             tmp = [Kinv zeros(oldn,1); zeros(1,oldn) 1];
             
-%             kh = vold'*Kinv*vold + v(end)^2;
             kh = vold'*Kinv*vold;
             det = (1 + v(end) - kh);
             if mode == 1
@@ -209,7 +208,6 @@ classdef MatUtils
             
             b = (1/det) * [1+v(end) -1; -kh-v(end)^2 1+v(end)];
             if mode == 2
-%                 Kinv = tmp - tmp*(U*b*V)*tmp; % verdammich ungünstige multiplikation/klammerung!
                 Kinv = tmp - (tmp*U)*b*(V*tmp);
                 return;
             end
@@ -260,7 +258,7 @@ classdef MatUtils
                 %fprintf('Using gamma = %f...\n',g.Gamma);
                 for exp=1:n
                     X = rand(s,s);
-                    A = g.evaluate(X);
+                    A = g.evaluate(X, X);
                     y = rand(s,1);
                     v = g.evaluate(X, y);
                     v(end+1) = g.evaluate(y,y);%#ok
@@ -302,7 +300,7 @@ classdef MatUtils
             for gam=1:w
                 g.Gamma = gammas(gam);
                 %fprintf('Using gamma = %f...\n',g.Gamma);
-                Am = g.evaluate(X);
+                Am = g.evaluate(X,X);
 %                 fx = rand(s,1);
                 Ai1 = 1/Am(1,1);
                 Ai2 = 1/Am(1,1);

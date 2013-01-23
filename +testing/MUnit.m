@@ -37,6 +37,9 @@ classdef MUnit
         
         % Green color (the default is hardly readable)
         GreenCol = [0 .5 0];
+        
+        % Blue color
+        BlueCol = '*[0 0 .8]';
     end
     
     methods(Static)
@@ -136,7 +139,7 @@ classdef MUnit
                             % check if the method is static [non-statics
                             % cant be run without instances.. :-)]
                             if m.Static
-                                cprintf(testing.MUnit.GreenCol,['Running test ' mc.Name ' -> ' m.Name(6:end) '...\n']);
+                                cprintf(testing.MUnit.BlueCol,['Running ' mc.Name ' -> ' m.Name(6:end) '...\n']);
                                 try
                                     eval(['outargs = nargout(@' mc.Name '.' m.Name ');']);
                                     if outargs > 0

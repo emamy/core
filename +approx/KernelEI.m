@@ -97,7 +97,7 @@ classdef KernelEI < approx.BaseApprox
             end
             this.jrow = jr;
             
-            a = approx.algorithms.VectorialKernelOMP;
+            a = approx.algorithms.VKOGA;
             a.CoeffComp = general.interpolation.KernelInterpol;
             a.NumGammas = this.Gammas;
             %a.Dists = 2;

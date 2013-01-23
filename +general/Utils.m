@@ -582,6 +582,16 @@ classdef Utils
             [~, idx] = sort(v);
         end
         
+        function closeAllFigures
+            while true
+                f = get(0,'CurrentFigure');
+                if isempty(f)
+                    return;
+                end
+                close(f); 
+            end
+        end
+        
         function success = ensureDir(dir)
             % Ensures that a directory exists.
             %

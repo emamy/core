@@ -671,7 +671,7 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
         
         function computeLogNormApprox(this)
             %             [res, mScale, MScale] = testing.LogNorm(this.ReducedModel.FullModel);
-            %             a = approx.algorithms.VectorialKernelOMP;
+            %             a = approx.algorithms.VKOGA;
             %             a.NumGammas = 60;
             %             a.MinGFactor = .5;
             %             a.MaxGFactor = 7;
