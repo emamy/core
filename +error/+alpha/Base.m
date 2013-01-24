@@ -18,12 +18,12 @@ classdef Base < handle
     end
     
     methods
-        function this = Base(fm)
-            error('todo: fix error estimator structure w.r.t offlineComputations and prepare model for estimator');
+        function this = Base(rm)
             % Obtain the correct snapshots
             % Standard case: the approx function is a kernel expansion. it
             % can also be that the system's core function is already a
             % kernel expansion
+            fm = rm.FullModel;
             if ~isempty(fm.Approx)
                 % Get full d x N coeff matrix of approx function
                 Ma = fm.Approx.Ma;
@@ -34,11 +34,11 @@ classdef Base < handle
             
             % Perform any offline computations/preparations
             % Only prepare matrices if projection is used
-            if ~isempty(fm.Data.V) && ~isempty(fm.Data.W)
+            if ~isempty(rm.V)
                 % Compute projection part matrices, without creating a
                 % d x d matrix (too big!)
-                M = Ma - fm.Data.V*(fm.Data.W'*Ma);
-                hlp = M'*(fm.GScaled*M);
+                M = Ma - rm.V*(rm.W'*Ma);
+                hlp = M'*(rm.G*M);
                 % Check if matrix needs to be made symmetric
                 if any(any(abs(hlp-hlp') > 1e-5))
                     hlp = (hlp + hlp')/2;
@@ -46,7 +46,7 @@ classdef Base < handle
                 end
                 this.M1 = hlp;
                 
-                this.inputOfflineComputations(fm, M);
+                this.inputOfflineComputations(rm, M);
                 clear M;
             else
                 % No projection means no projection error!

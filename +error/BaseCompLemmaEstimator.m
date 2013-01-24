@@ -51,13 +51,28 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
             
             % Call superclass
             offlineComputations@error.BaseEstimator(this, model);
-            
-            if isa(model.System.B,'dscomponents.AffLinInputConv')
-                this.aComp = error.alpha.AffineParametric(model);
-            else
-                this.aComp = error.alpha.Constant(model);
-            end
         end
+        
+         function prepared = prepareForReducedModel(this, rm)
+            % Prepares this estimator for use with a given reduced model.
+            % Basically uses the projection matrices and some other reduced quantities for
+            % local storage.
+            %
+            % Parameters:
+            % rm: The reduced model @type models.ReducedModel
+            %
+            % Return values:
+            % prepared: A clone of this estimator, with accordingly projected components
+            prepared = prepareForReducedModel@error.BaseEstimator(this, rm);
+            
+            if isa(rm.FullModel.System.B,'dscomponents.AffLinInputConv')
+                prepared.aComp = error.alpha.AffineParametric(rm);
+            else
+                prepared.aComp = error.alpha.Constant(rm);
+            end
+            
+            prepared.lstPreSolve = addlistener(rm.ODESolver,'PreSolve',@prepared.cbPreSolve);
+         end
         
         function e = evalODEPart(this, x, t, mu, ut)
             % Evaluates the auxiliary ode part for the comparison-lemma
@@ -101,8 +116,10 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
             copy.EstimationData = this.EstimationData;
             copy.aComp = this.aComp;
             copy.StepNr = this.StepNr;
-            copy.lstPreSolve = addlistener(copy.ReducedModel.ODESolver,'PreSolve',@copy.cbPreSolve);
-            copy.lstPreSolve.Enabled = this.lstPreSolve.Enabled;
+            if ~isempty(copy.ReducedModel)
+                copy.lstPreSolve = addlistener(copy.ReducedModel.ODESolver,'PreSolve',@copy.cbPreSolve);
+                copy.lstPreSolve.Enabled = this.lstPreSolve.Enabled;
+            end
         end
         
         function clear(this)

@@ -8,6 +8,9 @@ classdef BaseCustomSolver < solvers.BaseSolver
 %
 % @new{0,4,dw,2011-05-31} Added this class.
 %
+% @todo implement more efficient memory allocation for other custom solvers (like in
+% semi-implicit euler)
+%
 % This class is part of the framework
 % KerMor - Model Order Reduction using Kernels:
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html

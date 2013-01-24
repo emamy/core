@@ -79,7 +79,7 @@ classdef PointerCoreFun < dscomponents.ACoreFun
         function test_PointerCoreFun
             m = models.BaseFullModel;
             fun = @(x,t,mu)x*3.*t;
-            m.System.f = dscomponents.PointerCoreFun(fun);
+            m.System.f = dscomponents.PointerCoreFun(fun,1);
             m.simulate();
             clear m;
         end

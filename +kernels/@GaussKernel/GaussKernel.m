@@ -36,9 +36,8 @@ classdef GaussKernel < kernels.BellFunction
             
             if nargin == 1
                 this.Gamma = Gamma;
-            else
-                this.updateGammaDependants;
             end
+            this.updateGammaDependants;
             this.addlistener('Gamma','PostSet',@this.updateGammaDependants);
         end
         
@@ -155,8 +154,9 @@ classdef GaussKernel < kernels.BellFunction
         end
         
         function copy = clone(this)
-            copy = clone@kernels.BellFunction(this, kernels.GaussKernel);
+            copy = kernels.GaussKernel;
             copy.Gamma = this.Gamma;
+            copy = clone@kernels.BellFunction(this, copy);
         end
     end
     

@@ -20,11 +20,11 @@ classdef AffineParametric < error.alpha.Base
     
     methods
         
-        function this = AffineParametric(fm)
-            this = this@error.alpha.Base(fm);
+        function this = AffineParametric(rm)
+            this = this@error.alpha.Base(rm);
         end
         
-        function inputOfflineComputations(this, fm, M)
+        function inputOfflineComputations(this, rm, M)
             % Performs the offline stage for the error estimators regarding
             % the inputs.
             %
@@ -32,12 +32,12 @@ classdef AffineParametric < error.alpha.Base
             % fm: The full model @type models.BaseFullModel
             % M: The projected coefficient matrix `\vM_{\alpha} - \vV\vW^T\vM_{\alpha})` @type
             % matrix<double>
-            if ~isempty(fm.Data.V) && ~isempty(fm.Data.W)
-                % Please see the AffParamMatrix overridden operators to understand what's going on
-                % here :-)
-                B = fm.System.B - fm.Data.V*(fm.Data.W'*fm.System.B);
-                this.mb = (M'*fm.GScaled)*B;
-                this.bb = B'*(fm.GScaled*B);
+            fm = rm.FullModel;
+            if ~isempty(rm.V)
+                % For details see the AffParamMatrix overridden operators
+                B = fm.System.B - rm.V*(rm.W'*fm.System.B);
+                this.mb = (M'*rm.G)*B;
+                this.bb = B'*(rm.G*B);
             end
         end
         

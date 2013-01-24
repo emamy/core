@@ -205,7 +205,9 @@ classdef ModelAnalyzer < handle;
             t.addRow('Relative L2 time and Linf space error','L^2(||(y(t) - yr(t)) / y(t)||_inf,[0,T])',l2lirelyli);
             t.addRow('Mean Linf error','Mean(||y(t) - yr(t)||_inf,[0,T])',meanli);
             t.addRow('Mean relative Linf error','Mean(||(y(t) - yr(t)) / y(t)||_inf,[0,T])',meanrelli);
-            t.display;
+            if nargout < 1
+                t.display;
+            end
             
             %% Plotting
             if nargout > 1

@@ -125,21 +125,23 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             copy.errEst = this.errEst;
             copy.tstep = this.tstep;
             copy.mu = this.mu;
-            copy.lstPreSolve = addlistener(copy.ReducedModel.ODESolver,'PreSolve',@copy.cbPreSolve);
-            copy.lstPreSolve.Enabled = this.lstPreSolve.Enabled;
-            copy.lstPostSolve = addlistener(copy.ReducedModel.ODESolver,'PostSolve',@copy.cbPostSolve);
-            copy.lstPostSolve.Enabled = this.lstPostSolve.Enabled;
+            if ~isempty(copy.ReducedModel)
+                copy.lstPreSolve = addlistener(copy.ReducedModel.ODESolver,'PreSolve',@copy.cbPreSolve);
+                copy.lstPreSolve.Enabled = this.lstPreSolve.Enabled;
+                copy.lstPostSolve = addlistener(copy.ReducedModel.ODESolver,'PostSolve',@copy.cbPostSolve);
+                copy.lstPostSolve.Enabled = this.lstPostSolve.Enabled;
+            end
             copy.G = this.G;
             copy.smallz_flag = this.smallz_flag;
         end
         
         function offlineComputations(this, fm)
-            error('no yet repaired. need to check and move projection-related stuff to prepareForReducedModel');
-            % Overrides the setReducedModel method from error.BaseEstimator
-            % and performs additional offline computations.
+            % Overrides the method from BaseEstimator and performs
+            % additional computations.
+            %
+            % Parameters:
+            % fm: The full model. @type models.BaseFullModel
             
-            % Call superclass method to perform standard estimator
-            % computations
             offlineComputations@error.BaseCompLemmaEstimator(this, fm);
             
             % Obtain the correct snapshots
@@ -154,27 +156,46 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             this.c = f.Centers;
             this.Ma_norms = f.Ma_norms;
             
-            this.G = fm.GScaled;
-            if f.Kernel.IsRBF && ~isempty(r.V)
-                % Use the projected centers z_i from the reduces system with x_i = Vz_i in this
-                % case.
-                hlp = f.project(r.V, r.W);
-                this.c = hlp.Centers;
-                delete hlp;
-                % The norm is then ||Vz - x_i||_G = ||z-z_i||_V'GV
-                this.G = r.V'*(this.G*r.V);
-                % Set flag for small z state vectors to true
-                this.smallz_flag = true;
-            end
-            
-            ker = this.ReducedModel.System.f.Kernel;
             % Assign Lipschitz function
-            lfcn = error.lipfun.ImprovedLocalSecantLipschitz(ker);
+            lfcn = error.lipfun.ImprovedLocalSecantLipschitz(f.Kernel);
             % Pre-Compute bell function xfeats if applicable
             [x,X] = general.Utils.getBoundingBox(this.c.xi);
             d = norm(X-x);
             lfcn.precompMaxSecants(d*2,200);
             this.LocalLipschitzFcn = lfcn;
+        end
+        
+        function prepared = prepareForReducedModel(this, rm)
+            % Prepares this estimator for use with a given reduced model.
+            % Basically uses the projection matrices and some other reduced quantities for
+            % local storage.
+            %
+            % Parameters:
+            % rm: The reduced model @type models.ReducedModel
+            %
+            % Return values:
+            % prepared: A clone of this estimator, with accordingly projected components
+            prepared = prepareForReducedModel@error.BaseCompLemmaEstimator(this, rm);
+            
+            prepared.lstPreSolve = addlistener(rm.ODESolver,'PreSolve',@prepared.cbPreSolve);    
+            prepared.lstPostSolve = addlistener(rm.ODESolver,'PostSolve',@prepared.cbPostSolve);
+            prepared.G = rm.G;
+            
+            f = rm.FullModel.Approx;
+            if isempty(f)
+                f = rm.FullModel.System.f;
+            end
+            if f.Kernel.IsRBF && ~isempty(rm.V)
+                % Use the projected centers z_i from the reduces system with x_i = Vz_i in this
+                % case.
+                hlp = f.project(rm.V, rm.W);
+                prepared.c = hlp.Centers;
+                clear hlp;
+                % The norm is then ||Vz - x_i||_G = ||z-z_i||_V'GV
+                prepared.G = rm.V'*(prepared.G*rm.V);
+                % Set flag for small z state vectors to true
+                prepared.smallz_flag = true;
+            end
         end
         
         function clear(this)
@@ -216,7 +237,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
         end
         
         function set.Iterations(this, value)
-            if ~isnonnegintscalar(value)
+            if ~isscalar(value) || value < 0
                 error('Iterations value must be a non-negative integer.');
             end
             if this.fTDC && value > 0

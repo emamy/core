@@ -18,6 +18,8 @@ classdef ReducedModel < models.BaseModel
     % KerMor.TempDirectory. This is used for example in general.AppExport
     % to create an representing image for a reduced model.
     %
+    % @todo maybe make W dependent and return V if W has not been explicitly set
+    %
     % This class is part of the framework
     % KerMor - Model Order Reduction using Kernels:
     % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
@@ -138,7 +140,6 @@ classdef ReducedModel < models.BaseModel
                 this.W = this.V;
             end
             
-            
             this.ParamSamples = fullmodel.Data.ParamSamples;
             
             % Create a new reducedSystem passing this reduced model
@@ -166,13 +167,13 @@ classdef ReducedModel < models.BaseModel
             % x: The state variables at the corresponding times t. @type matrix<double>
             % ctime: The time needed for computation. @type double
             
-            % Clear possibly old data in error estimators
-            this.ErrorEstimator.clear;
-            
             % Call constat pre-computations
             cpre = 0;
-            if this.ErrorEstimator.Enabled
-                cpre = this.ErrorEstimator.prepareConstants(mu, inputidx);
+            if ~isempty(this.ErrorEstimator)
+                this.ErrorEstimator.clear;
+                if this.ErrorEstimator.Enabled
+                    cpre = this.ErrorEstimator.prepareConstants(mu, inputidx);
+                end
             end
             
             % Call inherited method (actual work)
@@ -181,7 +182,7 @@ classdef ReducedModel < models.BaseModel
             % Split up results; the last rows of the ode solution contain
             % any online-computable errors
             cpost = 0;
-            if this.ErrorEstimator.Enabled
+            if ~isempty(this.ErrorEstimator) && this.ErrorEstimator.Enabled
                 x = xext(1:end-this.ErrorEstimator.ExtraODEDims,:);
                 cpost = this.ErrorEstimator.postProcess(xext, t, mu, inputidx);
             else
@@ -218,8 +219,8 @@ classdef ReducedModel < models.BaseModel
             % components of the error estimator.
             
             x0 = getX0@models.BaseModel(this, mu);
-            %x0 = this.System.x0.evaluate(mu);
-            if this.ErrorEstimator.Enabled
+            
+            if ~isempty(this.ErrorEstimator) && this.ErrorEstimator.Enabled
                 x0 = [x0; this.ErrorEstimator.getE0(mu)];
             end
         end

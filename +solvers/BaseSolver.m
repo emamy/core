@@ -134,24 +134,26 @@ classdef BaseSolver < KerMorObject
         
         function res = test_SolverSpeedTest
             m = models.synth.KernelTest(200);
+            m.ErrorEstimator = [];
+            m.offlineGenerations;
             perform(solvers.ExplEuler);
             perform(solvers.MLWrapper(@ode23));
             perform(solvers.MLWrapper(@ode45));
             perform(solvers.Heun);
+            perform(solvers.FullyImplEuler(m));
             
             res = 1;
             
             function perform(solver)
                 m.ODESolver = solver;
                 tic;
-                m.offlineGenerations;
                 r = m.buildReducedModel;
-                r.ErrorEstimator.Iterations = 0;
                 t = toc;
-                fprintf('Using solver %s\n',m.ODESolver.Name);
-                fprintf('Offline generations time: %f\n',t);
-                [~,~,~,t,tr,tr_noerr] = r.getTrajectories;
-                fprintf('Online simulations time\nFull detail: %fs\nReduced with error estimator: %fs\nReduced without error estimation:%fs\n\n',t,tr,tr_noerr);
+                fprintf('Using solver %s (red. model build time %gs)\n',solver.Name,t);
+                ma = tools.ModelAnalyzer(r);
+                ma.compareRedFull(r.getRandomParam);
+%                 [~,~,~,t,tr,tr_noerr] = r.getTrajectories;
+%                 fprintf('Online simulations time\nFull detail: %fs\nReduced with error estimator: %fs\nReduced without error estimation:%fs\n\n',t,tr,tr_noerr);
             end
         end
         

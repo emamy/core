@@ -80,13 +80,12 @@ classdef CombinationKernel < kernels.BaseKernel
             fx = sinc(x);
             
             svr = general.regression.ScalarEpsSVR;
-            svr.QPSolver = solvers.qp.qpMatlab;
-            svr.eps = .3;
+            svr.Eps = .3;
             svr.Lambda = 1/4;
             svr.K = k.evaluate(x,x);
             
             figure(1);
-            plot(x,fx,'r',x,[fx-svr.eps; fx+svr.eps],'r--');
+            plot(x,fx,'r',x,[fx-svr.Eps; fx+svr.Eps],'r--');
             
             [ai,svidx] = svr.computeKernelCoefficients(fx,[]);
             sv = x(svidx);
@@ -97,7 +96,7 @@ classdef CombinationKernel < kernels.BaseKernel
             hold on;
             
             % Plot approximated function
-            plot(x,fsvr,'b',x,[fsvr-svr.eps; fsvr+svr.eps],'b--');
+            plot(x,fsvr,'b',x,[fsvr-svr.Eps; fsvr+svr.Eps],'b--');
             skipped = setdiff(1:length(x),svidx);
             plot(sv,fx(svidx),'.r',x(skipped),fx(skipped),'xr');
             

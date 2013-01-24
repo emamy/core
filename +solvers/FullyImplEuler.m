@@ -27,7 +27,7 @@ classdef FullyImplEuler < solvers.BaseCustomSolver & solvers.AImplSolver
     end
     
     methods(Access=protected)
-        function x = customSolve(this, odefun, t, x0)
+        function x = customSolve(this, odefun, t, x0, outputtimes)
            
             % Checks
             steps = length(t);
@@ -96,15 +96,15 @@ classdef FullyImplEuler < solvers.BaseCustomSolver & solvers.AImplSolver
 %                 newton_it
 %                 newx = actx;
                 %% Matlab fsolve
-                dis = 'iter';
-                %dis = 'final-detailed';
+                %dis = 'iter';
+                dis = 'final-detailed';
                 options_fsolve = optimset('Display', dis, 'Jacobian', 'on', ...
                     'MaxIter', 2000, ...
                     'MaxFunEvals', 10000, ...
                     'TolFun', 1e-3);
                 options_fsolve = optimset(options_fsolve, ...
-                    'DerivativeCheck', 'on',...
-                    'Diagnostics','on');
+                    'DerivativeCheck', 'off',...
+                    'Diagnostics','off');
                 %options_fsolve = optimset(options_fsolve, 'JacobPattern', s.f.JSparsityPattern);
                 
 %                 nonlin_fun_h = @(x) deal(M * (x - oldx) - dt*odefun(t(idx+1), x),...
