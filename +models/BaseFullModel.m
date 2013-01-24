@@ -598,23 +598,17 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % the property Times
             % x: The state variables at the corresponding times t.
             
-            if ~isempty(mu) && size(mu,2) > 1
-                if size(mu,1) > 1
-                    error('The mu parameter must be a single column vector.');
-                else
-                    warning('KerMor:BaseDynSystem','Please use column vectors for parameters. Reshaping.');
-                    mu = reshape(mu,[],1);
-                end
-            end
-            
             if KerMor.App.UseDPCM
                 DPCM.criticalsCheck(this);
             end
             
-            % Try local model data first
-            [x, time] = this.Data.TrajectoryData.getTrajectory(mu, inputidx);
-            if isempty(x) && this.EnableTrajectoryCaching
-                [x, time] = this.Data.SimCache.getTrajectory([this.T; this.dt; mu], inputidx);
+            x = [];
+            if this.EnableTrajectoryCaching
+                % Try local model data first
+                [x, time] = this.Data.TrajectoryData.getTrajectory(mu, inputidx);
+                if isempty(x)
+                    [x, time] = this.Data.SimCache.getTrajectory([this.T; this.dt; mu], inputidx);
+                end
             end
             if ~isempty(x)
                 t = this.scaledTimes;

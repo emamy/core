@@ -23,8 +23,8 @@ classdef ConstInitialValue < dscomponents.AInitialValue
             this.x0 = x0;
         end
         
-        function x0 = evaluate(this, ~)
-            x0 = this.x0;
+        function x0 = evaluate(this, mu)
+            x0 = repmat(this.x0,1,size(mu,2));
         end
         
         function projected = project(this, V, W)
