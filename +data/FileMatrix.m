@@ -228,7 +228,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 value = this.cachedBlock.^expo;
                 return;
             end
-            value = data.FileMatrix(this.n,this.m,'Dir', fileparts(this.DataDirectory),...
+            value = data.FileMatrix(this.n,this.m,'Dir',fileparts(this.DataDirectory),...
                 'BlockSize', this.blocksize);
             for k=1:this.nBlocks
                 value.saveBlock(k,this.loadBlock(k).^expo);

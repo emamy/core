@@ -32,6 +32,10 @@ classdef NoKernel < kernels.ARBFKernel
         function c = getGlobalLipschitz(this)%#ok
             c = 1;
         end
+        
+        function dc = getDefaultConfig(this)
+            dc = [];
+        end
     end
 end
 

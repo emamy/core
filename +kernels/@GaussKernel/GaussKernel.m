@@ -120,7 +120,7 @@ classdef GaussKernel < kernels.BellFunction
         end
         
         function dc = getDefaultConfig(this)
-            dc = kernels.config.RBFConfig('G',this.Gamma);
+            dc = kernels.config.GaussConfig('G',this.Gamma);
         end
         
         function g = setGammaForDistance(this, dist, ep)

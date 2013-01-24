@@ -874,7 +874,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             ts = testing.testsettings;
             m = ts.m;
             s = m.System;
-            s.f = dscomponents.PointerCoreFun(ts.fnlin);
+            s.f = dscomponents.PointerCoreFun(ts.fnlin,ts.testdim);
             s.x0 = ts.x0;
             m.simulate();
             m.offlineGenerations;
@@ -888,7 +888,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             m = ts.m;
             m.Approx.ParamKernel = ts.ParamKernel;
             s = m.System;
-            s.f = dscomponents.PointerCoreFun(ts.fnlin_p);
+            s.f = dscomponents.PointerCoreFun(ts.fnlin_p,ts.testdim);
             s.x0 = ts.x0_p;
             for idx = 1:length(ts.params)
                 p = ts.params(idx);
@@ -906,7 +906,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             m = ts.m;
             s = m.System;
             s.B = dscomponents.PointerInputConv(ts.B);
-            s.f = dscomponents.PointerCoreFun(ts.fnlin);
+            s.f = dscomponents.PointerCoreFun(ts.fnlin,ts.testdim);
             s.x0 = ts.x0;
             s.Inputs = ts.Inputs;
             m.simulate([],1);
@@ -921,7 +921,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             m = ts.m;
             m.Approx.ParamKernel = ts.ParamKernel;
             s = m.System;
-            s.f = dscomponents.PointerCoreFun(ts.fnlin_p);
+            s.f = dscomponents.PointerCoreFun(ts.fnlin_p,ts.testdim);
             s.B = dscomponents.PointerInputConv(ts.B_p);
             s.x0 = ts.x0_p;
             for idx = 1:length(ts.params)
@@ -940,7 +940,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             ts = testing.testsettings;
             m = ts.m;
             s = m.System;
-            s.f = dscomponents.PointerCoreFun(ts.flin);
+            s.f = dscomponents.PointerCoreFun(ts.flin,ts.testdim);
             s.x0 = ts.x0;
             s.C = dscomponents.PointerOutputConv(@(t,mu)t,true);
             m.simulate();

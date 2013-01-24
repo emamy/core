@@ -200,6 +200,7 @@ classdef TPWLApprox < approx.BaseApprox
             epsrad = .05;
             
             m = models.synth.KernelTest(dims,false);
+            m.ErrorEstimator = [];
             m.Approx = approx.TPWLApprox;
             m.Approx.Beta = 25;
             %m.Approx.EpsRad = epsrad;

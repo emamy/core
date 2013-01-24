@@ -800,7 +800,7 @@ classdef DEIM
         end
         
         %% General test methods
-        function [m, r] = test_DEIM
+        function [res, m, r] = test_DEIM
             m = models.pcd.PCDModel(1);
             m.EnableTrajectoryCaching = false;
             m.Approx = approx.DEIM;
@@ -810,7 +810,8 @@ classdef DEIM
             m.offlineGenerations;
             m.Approx.Order = [20 4];
             r = m.buildReducedModel;
-            save approx.test_DEIM m r;
+            %save approx.test_DEIM m r;
+            res = true;
         end
     end    
 end

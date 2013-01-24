@@ -49,6 +49,10 @@ classdef SigmoidKernel < kernels.BaseKernel
             error('Not implemented yet!');
         end
         
+        function dc = getDefaultConfig(this)%#ok
+            error('Not implemented yet!');
+        end
+        
         function K = evaluate(this, x, y)
             if ~isempty(this.P)
                 x = x(this.P,:);

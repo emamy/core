@@ -142,7 +142,9 @@ classdef MUnit
                             % check if the method is static [non-statics
                             % cant be run without instances.. :-)]
                             if m.Static
-                                cprintf(testing.MUnit.BlueCol,['Running ' mc.Name ' -> ' m.Name(6:end) '...\n']);
+                                lines = '-----------------------------';
+                                cprintf(testing.MUnit.BlueCol,[lines ' running '...
+                                    mc.Name ' -> ' m.Name(6:end) '... ' lines '\n']);
                                 try
                                     eval(['outargs = nargout(@' mc.Name '.' m.Name ');']);
                                     if outargs > 0

@@ -89,8 +89,8 @@ classdef LinspaceSelector < data.selection.ASelector
             traj = unique(tidx);
             
             [xd, mud] = td.getTrajectoryDoFs;
-            xi = data.FileMatrix(xd,s,'Dir',md.DataDirectory,...
-                'BlockSize',512*1024^2); % Use 512 MB chunks for approx train data
+            % Use 512 MB chunks for approx train data
+            xi = data.FileMatrix(xd,s,'Dir',md.DataDirectory,'BlockSize',512); 
             ti = zeros(1,s);
             mui = zeros(mud,s);
             

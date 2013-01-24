@@ -21,6 +21,13 @@ classdef PolyConfig
     end
     
     methods
+        
+        function this = PolyConfig(values)
+            if nargin == 1
+                this.Degrees = values;
+            end
+        end
+        
         function n = getNumConfigurations(this)
             n = length(this.Degrees);
         end

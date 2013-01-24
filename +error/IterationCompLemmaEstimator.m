@@ -364,8 +364,12 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             else
                 hlp = this.Ma_norms;
             end
+            try
             b = hlp * this.LocalLipschitzFcn.evaluate(...
                 this.d_iValues(idx,:), this.errEst(idx))';
+            catch ME
+                a = 4;
+            end
             
             e = b*eold + this.EstimationData(2,idx);
             
@@ -401,17 +405,18 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
         end
         
         function res = test_IterationCompLemmaEstimator
-            error('not checked yet');
-            res = true;
             m = models.synth.KernelTest(10);
+            e = error.IterationCompLemmaEstimator;
+            e.UseTimeDiscreteC = false;
+            e.Iterations = 4;
+            
+            m.ErrorEstimator = e;
             m.offlineGenerations;
+            %m.ODESolver = solvers.Heun;
             r = m.buildReducedModel;
             
-            m.ODESolver = solvers.Heun;
-            r.ErrorEstimator = error.IterationCompLemmaEstimator(r);
-            r.ErrorEstimator.Iterations = 4;
-            
             [t,y] = r.simulate(r.getRandomParam,[]);%#ok
+            res = true;
         end
     end
     

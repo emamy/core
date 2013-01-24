@@ -279,16 +279,7 @@ classdef BaseEstimator < KerMorObject & ICloneable
                 est = error.DefaultEstimator;
                 fprintf('BaseEstimator::getEstimator: No suitable error estimator found for given model. Using the default estimator (disabled).\n');
             end
-        end
-        
-        function res = test_ErrorEstimators
-            % Quick test for estimators.
-            demo = tools.EstimatorAnalyzer;
-            demo.Dims = 3;
-            demo.start;
-            res = true;
-        end
-        
+        end        
     end
     
     methods(Static, Abstract)
