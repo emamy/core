@@ -83,7 +83,7 @@ classdef AffParamMatrix < general.AProjectable
                 M = [];
                 return;
             end
-            M = reshape(sum(this.Matrices * this.cfun(t,mu),2),this.dims);
+            M = reshape(this.Matrices * sparse(this.cfun(t,mu)),this.dims(1),[]);
         end
                 
         function copy = clone(this, copy)
