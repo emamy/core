@@ -169,4 +169,17 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
         templateComputeApproximation(this, kexp, atd);
     end
     
+     methods(Static,Access=protected)
+        function this = loadobj(this, initfrom)
+            if nargin > 1
+                this.ErrorFun = initfrom.ErrorFun;
+                this.LastCompTime  = initfrom.LastCompTime;
+                this.UsefScaling = initfrom.UsefScaling;
+                if isfield(initfrom,'ExpConfig')
+                    this.ExpConfig = initfrom.ExpConfig;
+                end
+                this = loadobj@KerMorObject(this, initfrom);
+            end
+        end
+    end
 end

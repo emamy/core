@@ -168,14 +168,14 @@ classdef GaussKernel < kernels.BellFunction
     end
     
     methods(Static,Access=protected)
-        
         function obj = loadobj(obj)
-            obj = loadobj@kernels.BellFunction(obj);
-            if isa(obj, 'kernels.GaussKernel')
-                obj.addlistener('Gamma','PostSet',@this.updateGammaDependants);
-            else
-                warning('KerMor:load','Error loading GaussKernel: Object passed is not a kernels.GaussKernel instance.');
+            if ~isa(obj, 'kernels.GaussKernel')
+                newinst = kernels.GaussKernel;
+                newinst.Gamma  = obj.Gamma;
+                newinst.updateGammaDependants;
+                obj = loadobj@kernels.BellFunction(newinst, obj);
             end
+            obj.addlistener('Gamma','PostSet',@this.updateGammaDependants);
         end
     end
         
@@ -213,6 +213,7 @@ classdef GaussKernel < kernels.BellFunction
             disp(dlog);
             [val, idx] = min(dlog(2,:));
             fprintf('Min distance: %f at ep=%f\n',dlog(2,idx),dlog(1,idx));
+            res = true;
         end
         
         function res = test_GaussMexSpeedTest1Arg(sx,sy,iter)
