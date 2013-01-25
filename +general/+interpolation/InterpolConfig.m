@@ -35,8 +35,12 @@ classdef InterpolConfig < general.IClassConfig
         %
         % Return values:
         % str:  @type integer
-        function str = getConfigurationString(this, nr)%#ok
+        function str = getConfigurationString(this, nr, asCell)%#ok
             str = '';
+        end
+        
+        function str = getConfiguredPropertiesString(this)
+            str = 'none';
         end
     end
     

@@ -39,11 +39,22 @@ classdef RBFConfig < general.IClassConfig
             kernel.Gamma = this.Gammas(nr);
         end
         
-        function str = getConfigurationString(this, nr)
-            str = [];
-            if ~isempty(this.Gammas)
-                str = sprintf('Gamma: %g',this.Gammas(nr));
+        function str = getConfigurationString(this, nr, asCell)
+            if asCell
+                str = {};
+                if ~isempty(this.Gammas)
+                    str{1} = sprintf('%g',this.Gammas(nr));
+                end
+            else
+                str = [];
+                if ~isempty(this.Gammas)
+                    str = sprintf('Gamma: %g',this.Gammas(nr));
+                end
             end
+        end
+        
+        function str = getConfiguredPropertiesString(~)
+            str = 'Gamma';
         end
         
     end

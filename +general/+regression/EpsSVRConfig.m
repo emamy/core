@@ -35,11 +35,15 @@ classdef EpsSVRConfig < general.IClassConfig
             svr.Lambda = this.Lambdas(nr);
         end
         
-        function str = getConfigurationString(this, nr)
+        function str = getConfigurationString(this, nr, asCell)
             str = [];
             if ~isempty(this.Epsilons)
                 str = sprintf('Eps: %g, Lambda: %g',this.Epsilons(nr),this.Lambdas(nr));
             end
+        end
+        
+        function str = getConfiguredPropertiesString(this)
+            str = 'Eps, Lambda';
         end
     end
     

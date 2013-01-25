@@ -61,13 +61,7 @@ classdef AAdaptiveBase < approx.algorithms.ABase
         InitialCenter = 'maxfx';
     end
     
-    properties(SetAccess=protected)
-        % For each configuration, contains a row with the maximum errors for each
-        % iteration/center extension step performed by the last run of this algorithm.
-        %
-        % @default [] @type matrix<double>
-        MaxErrors = [];
-        
+    properties(SetAccess=protected)        
         % @default [] @type colvec<double>
         ExpansionSizes;
         
@@ -95,9 +89,26 @@ classdef AAdaptiveBase < approx.algorithms.ABase
             copy.MaxExpansionSize = this.MaxExpansionSize;
             copy.MaxRelErr = this.MaxRelErr;
             copy.initialidx = this.initialidx;
-            copy.MaxErrors = this.MaxErrors;
             copy.InitialCenter = this.InitialCenter;
             copy.Used = this.Used;
+        end
+        
+        function pm = plotErrors(this, pm)
+            if nargin < 2
+                pm = PlotManager(false,1,2);
+                pm.LeaveOpen = true;
+            end
+            
+            h = pm.nextPlot('abs','Absolute errors','step','value');
+            ph = semilogy(h,1:size(this.MaxErrors,2),this.MaxErrors');
+            set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
+            h = pm.nextPlot('rel','Relative errors','step','value');
+            ph = semilogy(h,1:size(this.MaxRelErrors,2),this.MaxRelErrors');
+            set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
+            
+            if nargin < 2
+                pm.done;
+            end
         end
     end
     
@@ -120,6 +131,7 @@ classdef AAdaptiveBase < approx.algorithms.ABase
             % Init debug fields
             nc = this.ExpConfig.getNumConfigurations;
             this.MaxErrors = zeros(nc,this.MaxExpansionSize);
+            this.MaxRelErrors = this.MaxErrors;
             this.ExpansionSizes = zeros(nc,1);
             
             % Compute initial center
@@ -269,18 +281,13 @@ classdef AAdaptiveBase < approx.algorithms.ABase
             if nargin > 1
                 this.MaxExpansionSize = initfrom.MaxExpansionSize;
                 this.InitialCenter  = initfrom.InitialCenter;
-                this.MaxRelErr = initfrom.MaxRelErr;
-                if isfield(initfrom,'MaxErrors') && ~isempty(initfrom.MaxErrors)
-                    this.MaxErrors = initfrom.MaxErrors;
-                elseif isfield(initfrom,'err')
-                    this.MaxErrors = initfrom.err;
-                end
                 if isfield(initfrom,'initialidx')
                     this.initialidx = initfrom.initialidx;
                 end
                 if isfield(initfrom,'Used')
                     this.Used = initfrom.Used;
                 end
+                this.MaxRelErr = initfrom.MaxRelErr;
                 this = loadobj@approx.algorithms.ABase(this, initfrom);
             end
         end

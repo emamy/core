@@ -62,6 +62,20 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
         %
         % @type double @default []
         LastCompTime = [];
+        
+        % For each configuration, contains a row with the maximum errors on the
+        % training data.
+        % The number of columns depends on the type of algorithm implemented by the subclasses.
+        %
+        % @default [] @type matrix<double>
+        MaxErrors = [];
+        
+        % For each configuration, contains a row with the maximum relative errors on the
+        % training data.
+        % The number of columns depends on the type of algorithm implemented by the subclasses.
+        %
+        % @default [] @type matrix<double>
+        MaxRelErrors = [];
     end
     
     methods
@@ -75,6 +89,8 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
             copy.ExpConfig = this.ExpConfig;
             copy.UsefScaling = this.UsefScaling;
             copy.ErrorFun = this.ErrorFun;
+            copy.MaxErrors = this.MaxErrors;
+            copy.MaxRelErrors = this.MaxRelErrors;
             copy.LastCompTime = this.LastCompTime;
         end
         
@@ -162,6 +178,18 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
         end
     end
     
+    methods(Abstract)
+        % Plots the errors computed during the last run.
+        %
+        % Parameters:
+        % pm: A PlotManager instance @type PlotManager @default PlotManager
+        %
+        % Return values:
+        % pm: The PlotManager instance, created if none is passed, otherwise the same. @type
+        % PlotManager
+        pm = plotErrors(this, pm);
+    end
+    
     methods(Abstract, Access=protected)
         % Performs the actual approximation after scaling.
         %
@@ -177,6 +205,16 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
                 this.UsefScaling = initfrom.UsefScaling;
                 if isfield(initfrom,'ExpConfig')
                     this.ExpConfig = initfrom.ExpConfig;
+                end
+                if isfield(initfrom,'MaxErrors') && ~isempty(initfrom.MaxErrors)
+                    this.MaxErrors = initfrom.MaxErrors;
+                elseif isfield(initfrom,'err')
+                    this.MaxErrors = initfrom.err;
+                end
+                if isfield(initfrom,'MaxRelErrors') && ~isempty(initfrom.MaxRelErrors)
+                    this.MaxRelErrors = initfrom.MaxRelErrors;
+                elseif isfield(initfrom,'relerr')
+                    this.MaxRelErrors = initfrom.relerr;
                 end
                 this = loadobj@KerMorObject(this, initfrom);
             end
