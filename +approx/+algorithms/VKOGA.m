@@ -18,7 +18,6 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
     properties
         UsefPGreedy = false;
         MaxAbsResidualErr = 1e-5;
-        relerr;
         
 %         Gain;
 %         HerrDecay;
@@ -53,29 +52,11 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             copy.UsefPGreedy = this.UsefPGreedy;
 %             copy.Gain = this.Gain;
 %             copy.HerrDecay = this.HerrDecay;
-            copy.relerr = this.relerr;
+            copy.MaxRelErrors = this.MaxRelErrors;
 %             copy.used = this.used;
 %             copy.f = this.f;
 %             copy.VKOGABound = this.VKOGABound;
 %             copy.PhiNormMin = this.PhiNormMin;
-        end
-        
-        function plotErrors(this, pm)
-            if nargin < 2
-                pm = PlotManager(false,1,2);
-                pm.LeaveOpen = true;
-            end
-            
-            h = pm.nextPlot('abs','Absolute errors','step','value');
-            ph = semilogy(h,1:size(this.MaxErrors,2),this.MaxErrors');
-            set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
-            h = pm.nextPlot('rel','Relative errors','step','value');
-            ph = semilogy(h,1:size(this.relerr,2),this.relerr');
-            set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
-            
-            if nargin < 2
-                pm.done;
-            end
         end
     end
     
@@ -90,7 +71,6 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             ec = this.ExpConfig;
             nc = ec.getNumConfigurations;
             
-            this.relerr = this.MaxErrors;
             this.basis_norms = this.MaxErrors;
 
             xi = atd.xi.toMemoryMatrix;
@@ -146,16 +126,16 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     fresidual = fresidual - c(:,m)*(NV(:,m))'; % Cumulative computation (eff.)
                     e = this.ErrorFun(fresidual);
                     this.MaxErrors(cidx,m) = max(e);
-                    this.relerr(cidx,m) = max(e./fxinorm);
+                    this.MaxRelErrors(cidx,m) = max(e./fxinorm);
                     
                     %% Check stopping conditions
                     if m == this.MaxExpansionSize
                         if vb > 1
                             fprintf('VKOGA stopping criteria holds: Max expansion size %d reached.\nResidual error %.7e > %.7e, Max relative error %.7e > %.7e\n',...
-                                m,this.MaxErrors(cidx,m-1),this.MaxAbsResidualErr,this.relerr(cidx,m-1),this.MaxRelErr);
+                                m,this.MaxErrors(cidx,m-1),this.MaxAbsResidualErr,this.MaxRelErrors(cidx,m-1),this.MaxRelErr);
                         end
                         break;
-                    elseif this.relerr(cidx,m) < this.MaxRelErr
+                    elseif this.MaxRelErrors(cidx,m) < this.MaxRelErr
                         if vb > 1
                             fprintf('VKOGA stopping criteria holds: Relative error %.7e < %.7e\n',rel,this.MaxRelErr);
                         end
@@ -188,8 +168,8 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                         plot(h2,xi,NV(:,1:m)); 
                         h3 = pm.nextPlot('err','Absolute error','x','|f(x)-f^m(x)|');
                         tools.LogPlot.cleverPlot(h3,1:m,this.MaxErrors(:,1:m)); 
-                        h4 = pm.nextPlot('relerr','Relative error','x','|(f(x)-f^m(x))/f(x)|');
-                        tools.LogPlot.cleverPlot(h4,1:m,this.relerr(:,1:m)); 
+                        h4 = pm.nextPlot('MaxRelErrors','Relative error','x','|(f(x)-f^m(x))/f(x)|');
+                        tools.LogPlot.cleverPlot(h4,1:m,this.MaxRelErrors(:,1:m)); 
                         pm.done;
                     end
                     
@@ -199,7 +179,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     if sumNsq(maxidx) > 1
                         if vb > 1
                             fprintf('VKOGA emergency stop at iteration %d: Power function value > 1 detected.\nResidual error %.7e > %.7e, Max relative error %.7e > %.7e\n',...
-                                m,this.MaxErrors(cidx,m-1),this.MaxAbsResidualErr,this.relerr(cidx,m-1),this.MaxRelErr);
+                                m,this.MaxErrors(cidx,m-1),this.MaxAbsResidualErr,this.MaxRelErrors(cidx,m-1),this.MaxRelErr);
                         end
                         break;
                     end
@@ -240,7 +220,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             % Some cleanup
             maxsize = max(this.ExpansionSizes);
             this.MaxErrors = this.MaxErrors(:,1:maxsize);
-            this.relerr = this.relerr(:,1:maxsize);
+            this.MaxRelErrors = this.MaxRelErrors(:,1:maxsize);
             
             if vb > 1
                 og = 'off';
@@ -267,7 +247,6 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                 if isfield(this,'UsefPGreedy')
                     a.MaxAbsResidualErr = this.MaxAbsResidualErr;
                 end
-                a.relerr = this.relerr;
                 if isfield(this,'bestNewtonBasisValuesOnATD')
                     a.bestNewtonBasisValuesOnATD = this.bestNewtonBasisValuesOnATD;
                 end
@@ -349,8 +328,8 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             ph = tools.LogPlot.cleverPlot(h,1:m,alg.MaxErrors(:,1:m));
             set(ph(alg.ExpConfig.vBestConfigIndex),'LineWidth',2);
             
-            h = pm.nextPlot('relerr','Relative error','x','|(f(x)-f^m(x))/f(x)|');
-            ph = tools.LogPlot.cleverPlot(h,1:m,alg.relerr(:,1:m));
+            h = pm.nextPlot('MaxRelErrors','Relative error','x','|(f(x)-f^m(x))/f(x)|');
+            ph = tools.LogPlot.cleverPlot(h,1:m,alg.MaxRelErrors(:,1:m));
             set(ph(alg.ExpConfig.vBestConfigIndex),'LineWidth',2);
             pm.done;
             

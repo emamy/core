@@ -50,17 +50,35 @@ classdef ExpansionConfig < general.IClassConfig
             end
         end
         
-        function str = getConfigurationString(this, nr)
+        function str = getConfigurationString(this, nr, asCell)
             str = [];
             if ~isempty(this.StateConfig)
-                str = [str sprintf('state: %s',this.StateConfig.getConfigurationString(nr))];
+                str = [str sprintf('state: %s',this.StateConfig.getConfigurationString(nr, asCell))];
             end
             if ~isempty(this.TimeConfig)
-                str = [str sprintf('time: %s',this.TimeConfig.getConfigurationString(nr))];
+                str = [str sprintf('time: %s',this.TimeConfig.getConfigurationString(nr, asCell))];
             end
             if ~isempty(this.ParamConfig)
-                str = [str sprintf('param: %s',this.ParamConfig.getConfigurationString(nr))];
+                str = [str sprintf('param: %s',this.ParamConfig.getConfigurationString(nr, asCell))];
             end
+        end
+        
+        function str = getConfiguredPropertiesString(this)
+            e = {};
+            if ~isempty(this.StateConfig)
+                if isempty(this.ParamConfig) && isempty(this.TimeConfig)
+                    e(end+1) = {this.StateConfig.getConfiguredPropertiesString};
+                else
+                    e(end+1) = {['State: ' this.StateConfig.getConfiguredPropertiesString]};
+                end
+            end
+            if ~isempty(this.TimeConfig)
+                e(end+1) = {['Time: ' this.TimeConfig.getConfiguredPropertiesString]};
+            end
+            if ~isempty(this.ParamConfig)
+                e(end+1) = {['Param: ' this.ParamConfig.getConfiguredPropertiesString]};
+            end
+            str = general.Utils.implode(e,', ');
         end
         
         function setBestConfig(this, idx, expansion)

@@ -1,4 +1,4 @@
-classdef IClassConfig < handle
+classdef IClassConfig < KerMorObject
 % IClassConfig: Abstract interface for a set of configurations that can be applied to a given
 % algorithm
 %
@@ -25,6 +25,20 @@ classdef IClassConfig < handle
         vBestConfigIndex = [];
     end
     
+    methods(Sealed)
+        function lbl = getAxisLabels(this, nrs)
+            if nargin < 2
+                nrs = 1:this.getNumConfigurations;
+            end
+            lbl = arrayfun(@convert,nrs,'Unif',false);
+            
+            function o = convert(e)
+                tmp = this.getConfigurationString(e, true);
+                o = general.Utils.implode(tmp,sprintf('/'));
+            end
+        end
+    end
+    
     methods(Abstract)
         % Returns the number of configurations that can be applied
         %
@@ -41,9 +55,44 @@ classdef IClassConfig < handle
         
         % Returns the number of configurations that can be applied
         %
+        % Parameters:
+        % nr: The configuration number @type integer
+        % asCell: Flag to indicate that each setting that can be done should be placed in a
+        % cell of a cell array. @type logical
+        %
         % Return values:
         % str:  @type integer
-        str = getConfigurationString(this, nr);
+        str = getConfigurationString(this, nr, asCell);
+        
+        % Returns a string of the changed properties by this IClassConfig instance
+        %
+        % Return values:
+        % str: The string @type char
+        str = getConfiguredPropertiesString(this);
+    end
+    
+    methods(Static)
+        function test_ClassConfigPlots
+            
+            pm = PlotManager(false,2,2);
+            pm.LeaveOpen = true;
+            runTest(kernels.config.RBFConfig('G',.4:.01:.6));
+            runTest(kernels.config.GaussConfig('G',1:10));
+            runTest(kernels.config.WendlandConfig('G',1:5,'S',(1:5)/2,'D',2));
+            
+            pm.done;
+            
+            function runTest(c)
+                fprintf('%s: %s',c.getClassName,c.getConfiguredPropertiesString);
+                nc = c.getNumConfigurations;
+                x = 1:nc;
+                fx = ones(size(x));
+                h = pm.nextPlot(c.getClassName,c.getClassName);
+                plot(h,x,fx);
+                set(h,'XTick',1:nc,'XTickLabel',c.getAxisLabels);
+                disp(c.getAxisLabels);
+            end            
+        end
     end
     
 end

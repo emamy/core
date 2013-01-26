@@ -62,11 +62,12 @@ classdef Componentwise < approx.algorithms.ABase
     end
     
     properties(SetAccess=private)
-        % Contains the maximum errors for each iteration/center extension step performed by the last
-        % run of this algorithm.
-        MaxErrors = [];
+        % The times needed for the coefficients to compute for each exp/coeffcomp configuration.
+        %
+        % @type matrix<double> @default []
+        SingleRuntimes;
     end
-        
+            
     methods    
         function this = Componentwise
             this = this@approx.algorithms.ABase;
@@ -92,6 +93,28 @@ classdef Componentwise < approx.algorithms.ABase
             copy.CoeffComp = this.CoeffComp; % Dont clone the coefficient computation method
             copy.CoeffConfig = this.CoeffConfig;
         end
+        
+        function pm = plotErrors(this, pm)
+            if nargin < 2
+                pm = PlotManager(false,1,2);
+                pm.LeaveOpen = true;
+            end
+            
+            nc = this.ExpConfig.getNumConfigurations;
+            nco = this.CoeffConfig.getNumConfigurations;
+            [X,Y] = meshgrid(1:nc,1:nco);
+            
+            h = pm.nextPlot('abs','Absolute errors','expansion config','coeff comp config');
+            ph = tools.LogPlot.logsurf(h,X,Y,this.MaxErrors);
+            set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
+            h = pm.nextPlot('rel','Relative errors','expansion config','coeff comp config');
+            ph = tools.LogPlot.logsurf(h,X,Y,this.MaxRelErrors);
+            set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
+            
+            if nargin < 2
+                pm.done;
+            end
+        end
     end
     
     methods(Access=protected, Sealed)
@@ -100,9 +123,7 @@ classdef Componentwise < approx.algorithms.ABase
             % @docupdate
              
             % Set centers
-            xi = atd.xi.toMemoryMatrix;
-            fxi = atd.fxi.toMemoryMatrix;
-            kexp.Centers.xi = xi;
+            kexp.Centers.xi = atd.xi.toMemoryMatrix;
             kexp.Centers.ti = atd.ti;
             kexp.Centers.mui = atd.mui;
             
@@ -111,19 +132,20 @@ classdef Componentwise < approx.algorithms.ABase
             cc = this.CoeffConfig;
             nco = cc.getNumConfigurations;
             
-            total = max(nc,1)*max(nco,1);
-            % Keep track of maximum errors
-            this.MaxErrors = zeros(1,total);
+            % Keep track of maximum errors (matrix-wise for expansion config / coeff config)
+            this.MaxErrors = zeros(nc,nco);
+            this.MaxRelErrors = zeros(nc,nco);
+            this.SingleRuntimes = zeros(nc,nco);
+            
             minerr = Inf;
             bestcidx = [];
             bestcoidx = [];
             bestMa = [];
             pi = tools.ProcessIndicator('Trying %d configurations (%d kernel, %d coeffcomp)',...
-                total,false,total,nc,nco);
-            cnt = 1;
+                nc*nco,false,nc*nco,nc,nco);
             for kcidx = 1:nc
                 if KerMor.App.Verbose > 2
-                    fprintf('Applying expansion config %s\n',ec.getConfigurationString(kcidx));
+                    fprintf('Applying expansion config %s\n',ec.getConfigurationString(kcidx, false));
                 end
                 ec.applyConfiguration(kcidx, kexp);
                 
@@ -132,18 +154,21 @@ classdef Componentwise < approx.algorithms.ABase
 
                 for coidx = 1:nco
                     if KerMor.App.Verbose > 2
-                        fprintf('Applying %s config %s\n',class(this.CoeffComp),cc.getConfigurationString(coidx));
+                        fprintf('Applying %s config %s\n',class(this.CoeffComp),cc.getConfigurationString(coidx, false));
                     end
                     cc.applyConfiguration(coidx, this.CoeffComp);
                     
                     % Call protected method
+                    time = tic;
                     this.computeCoeffs(kexp, atd.fxi, []);
 %                     this.computeCoeffs(kexp, atd.fxi, kexp.Ma);
 
                     % Determine maximum error
                     [val, maxidx] = this.getError(kexp, atd);
-                    rel = val / (norm(fxi(maxidx))+eps);
-                    this.MaxErrors(cnt) = val;
+                    rel = val / (norm(atd.fxi(:,maxidx))+eps);
+                    this.MaxErrors(kcidx,coidx) = val;
+                    this.MaxRelErrors(kcidx,coidx) = rel;
+                    this.SingleRuntimes(kcidx,coidx) = toc(time);
                     
                     if val < minerr
                         minerr = val;
@@ -163,7 +188,6 @@ classdef Componentwise < approx.algorithms.ABase
                         fprintf(' ||Ma||:%.5e\n',sum(kexp.Ma_norms));
                     end
                     pi.step;
-                    cnt = cnt+1;
                 end
             end
             
@@ -274,11 +298,17 @@ classdef Componentwise < approx.algorithms.ABase
         end
     end
     
-%     methods(Static, Access=protected)
-%         function this = loadobj(this)
-%             a = 5;
-%         end
-%     end
+    methods(Static, Access=protected)
+        function this = loadobj(this)
+            if ~isa(this,'approx.algorithms.Componentwise')
+                newinst = approx.algorithms.Componentwise;
+                if isfield(this, 'SingleRuntimes')
+                    newinst.SingleRuntimes = this.SingleRuntimes;
+                end
+                this = loadobj@approx.algorithms.ABase(newinst, this);
+            end
+        end
+    end
 end
 
 

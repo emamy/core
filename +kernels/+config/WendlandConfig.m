@@ -27,7 +27,7 @@ classdef WendlandConfig < kernels.config.RBFConfig
             i = inputParser;
             i.KeepUnmatched = true;
             i.addParamValue('S',1);
-            i.addParamValue('Dim',1);
+            i.addParamValue('Dim',1,@(v)isscalar(v));
             i.parse(varargin{:});
             r = i.Results;
             this.Smoothnesses = r.S;
@@ -43,10 +43,18 @@ classdef WendlandConfig < kernels.config.RBFConfig
             kernel.d = this.Dimension;
         end
         
-        function str = getConfigurationString(this, nr)
-            str = getConfigurationString@kernels.config.RBFConfig(this, nr);
-            str = sprintf('%s, k: %d, d:%d',str,this.Smoothnesses(nr),this.Dimension);
+        function str = getConfigurationString(this, nr, asCell)
+            str = getConfigurationString@kernels.config.RBFConfig(this, nr, asCell);
+            if asCell
+                str = [str {sprintf('%d',this.Smoothnesses(nr))}]; %sprintf('%d',this.Dimension)
+            else
+                str = sprintf('%s, k: %d, d:%d',str,this.Smoothnesses(nr),this.Dimension);
+            end
         end
         
+        function str = getConfiguredPropertiesString(this)
+            str = getConfiguredPropertiesString@kernels.config.RBFConfig(this);
+            str = sprintf('%s, k with fixed d=%d',str,this.Dimension);
+        end
     end    
 end
