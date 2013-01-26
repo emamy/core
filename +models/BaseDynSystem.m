@@ -405,7 +405,7 @@ classdef BaseDynSystem < KerMorObject
                 if this.C.TimeDependent
                     % Evaluate the output conversion at each time t
                     % Figure out resulting size of C*x evaluation
-                    t = this.scaledTimes;
+                    t = this.Model.scaledTimes;
                     hlp = this.C.evaluate(t(1),this.mu)*x(:,1);
                     y = zeros(size(hlp,1),length(t));
                     y(:,1) = hlp;

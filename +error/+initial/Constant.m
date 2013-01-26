@@ -18,13 +18,14 @@ classdef Constant < error.initial.Base
     end
     
     methods
-        function this = Constant(model)
-            x0 = model.System.x0.evaluate([]) ./ model.System.StateScaling;
+        function prepareForReducedModel(this, rm)
+            fs = rm.FullModel.System;
+            x0 = fs.x0.evaluate([]) ./ fs.StateScaling;
             % Only project if projection is used
-            if ~isempty(model.Data.V)
-                x0 = x0 - model.Data.V*(model.Data.W'*x0);
+            if ~isempty(rm.V)
+                x0 = x0 - rm.V*(rm.W'*x0);
             end
-            this.e0 = Norm.LG(x0,model.G);
+            this.e0 = Norm.LG(x0,rm.G);
         end
         
         function e0 = getE0(this, mu)%#ok

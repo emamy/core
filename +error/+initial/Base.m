@@ -1,7 +1,5 @@
 classdef Base < handle
-% Base: 
-%
-%
+% Base: Interface for initial error computing classes.
 %
 % @author Daniel Wirtz @date 2011-07-04
 %
@@ -18,6 +16,9 @@ classdef Base < handle
         %
         % Template method.
         e0 = getE0(this, mu);
+        
+        % Sets the effectively used reduced model.
+        prepareForReducedModel(this, rm);
     end
     
 end

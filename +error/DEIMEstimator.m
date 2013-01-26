@@ -437,7 +437,7 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
         
         function eint = evalODEPart(this, x, t, mu, ut)
             % Compose the ode function
-            eint = this.getBeta(x, t, mu)*x(end) + this.getAlpha(x, t, mu, ut);
+            eint = this.getBeta(x(1:end-1), t, mu)*x(end) + this.getAlpha(x(1:end-1), t, mu, ut);
         end
         
         function copy = clone(this)
@@ -564,7 +564,7 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
 
                 d = fm.System.f.xDim;
                 n = size(jtd.fxi,2);
-                v = data.FileMatrix(d,n,'Dir',fm.Data.DataDirectory,'BlockSize',512*1024^2);
+                v = data.FileMatrix(d,n,'Dir',fm.Data.DataDirectory,'BlockSize',512);
                 ln = zeros(1,n);
                 times = ln;
                 pi = tools.ProcessIndicator('Computing Jacobian similarity transform data for %d jacobians',n,false,n);

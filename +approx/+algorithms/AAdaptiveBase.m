@@ -263,6 +263,28 @@ classdef AAdaptiveBase < approx.algorithms.ABase
             this.MaxRelErr = value;
         end
     end
+    
+    methods(Static,Access=protected)
+        function this = loadobj(this, initfrom)
+            if nargin > 1
+                this.MaxExpansionSize = initfrom.MaxExpansionSize;
+                this.InitialCenter  = initfrom.InitialCenter;
+                this.MaxRelErr = initfrom.MaxRelErr;
+                if isfield(initfrom,'MaxErrors') && ~isempty(initfrom.MaxErrors)
+                    this.MaxErrors = initfrom.MaxErrors;
+                elseif isfield(initfrom,'err')
+                    this.MaxErrors = initfrom.err;
+                end
+                if isfield(initfrom,'initialidx')
+                    this.initialidx = initfrom.initialidx;
+                end
+                if isfield(initfrom,'Used')
+                    this.Used = initfrom.Used;
+                end
+                this = loadobj@approx.algorithms.ABase(this, initfrom);
+            end
+        end
+    end
 end
 
 

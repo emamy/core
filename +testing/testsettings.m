@@ -25,6 +25,7 @@ s.m.T = 3;
 s.m.dt = .2;
 s.m.Sampler = sampling.RandomSampler;
 s.m.Sampler.Samples = 10;
+s.m.System.MaxTimestep = s.m.dt;
 s.m.ODESolver = solvers.ExplEuler;
 
 a = approx.KernelApprox;

@@ -46,7 +46,7 @@ classdef Heun < solvers.BaseCustomSolver
     end
     
     methods(Access=protected,Sealed)
-        function x = customSolve(this, odefun, t, x0)
+        function x = customSolve(this, odefun, t, x0, outputtimes)%#ok
             % Solves the ode using Heuns method.
             %
             % Parameters:

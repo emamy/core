@@ -63,11 +63,14 @@ classdef BellFunction < kernels.ARBFKernel
     end
     
     properties(Access=private, Transient)
-        fr0;
         p;
         sc;
         d1;
         d2;
+    end
+    
+    properties(Access=private)
+        fr0;
     end
     
     methods
@@ -470,16 +473,25 @@ classdef BellFunction < kernels.ARBFKernel
     end
     
     methods(Static,Access=protected)
-        function s = loadobj(s)
+        function this = loadobj(this, from)
             % As the constant properties are transient, they have to be re-computed upon loading.
             %
             % Any subclasser MUST call this superclasses loadobj function explicitly!
-            s = loadobj@KerMorObject(s);
-            if isa(s, 'kernels.BellFunction')
-                s.setConstants;
-            else
-                warning('KerMor:load','Error loading BellFunction: Object passed is not a kernels.BellFunction instance.');
+            if nargin > 1
+                % NOTE: r0 must be set via setter in subclass at some stage.
+                if isfield(from,'fr0') && ~isempty(from.fr0)
+                    this.fr0 = from.fr0;
+                end
+                this.MaxNewtonIterations = from.MaxNewtonIterations;
+                this.NewtonTolerance = from.NewtonTolerance;
+                this = loadobj@KerMorObject(this, from);
+            elseif ~isa(this, 'kernels.BellFunction')
+                error('Object passed is not a kernels.BellFunction instance and no init struct is given.');
             end
+            if isempty(this.fr0)
+                error('Internal r0 field not persisted yet and not initialized in subclass loadobj method.');
+            end
+            this.setConstants;
         end
     end
     

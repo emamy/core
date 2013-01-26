@@ -425,4 +425,30 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         end
     end
     
+    methods(Static,Access=protected)
+        function this = loadobj(this, from)
+            % As the constant properties are transient, they have to be re-computed upon loading.
+            %
+            % Any subclasser MUST call this superclasses loadobj function explicitly!
+            if nargin > 1
+                this.Kernel = from.Kernel;
+                this.Ma = this.Ma;
+                this.Centers = from.Centers;
+                if isfield(from,'Base')
+                    this.Base = from.Base;
+                end
+                this = loadobj@KerMorObject(this, from);
+            elseif ~isa(this, 'kernels.KernelExpansion')
+                newinst = kernels.KernelExpansion;
+                newinst.Kernel = this.Kernel;
+                newinst.Ma = this.Ma;
+                newinst.Centers = this.Centers;
+                if isfield(this,'Base')
+                    newinst.Base = this.Base;
+                end
+                this = loadobj@KerMorObject(newinst, this);
+            end
+        end
+    end
+    
 end

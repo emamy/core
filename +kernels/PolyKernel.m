@@ -37,6 +37,10 @@ classdef PolyKernel < kernels.BaseKernel
             Nabla = this.Degree*bsxfun(@times, y, x'*y.^(this.Degree-1));
         end
         
+        function dc = getDefaultConfig(this)
+            dc = kernels.config.PolyConfig(this.Degree);
+        end
+        
         function K = evaluate(this, x, y)
             if ~isempty(this.fP)
                 x = x(this.fP,:);

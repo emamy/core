@@ -36,6 +36,10 @@ classdef InvMultiquadrics < kernels.ARBFKernel
             end
         end
         
+        function dc = getDefaultConfig(this)%#ok
+            error('Not implemented yet');
+        end
+        
         function c = getGlobalLipschitz(this)%#ok
             % @todo implement
             error('Not implemented yet');

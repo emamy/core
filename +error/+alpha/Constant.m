@@ -24,7 +24,7 @@ classdef Constant < error.alpha.Base
             this = this@error.alpha.Base(model);
         end
         
-        function inputOfflineComputations(this, fm, M)
+        function inputOfflineComputations(this, rm, M)
             % Performs the offline stage for the error estimators regarding
             % the inputs.
             %
@@ -32,25 +32,21 @@ classdef Constant < error.alpha.Base
             % fm: The full model @type models.BaseFullModel
             % M: The projected coefficient matrix `\vM_{\alpha} - \vV\vW^T\vM_{\alpha})` @type
             % matrix<double>
-            
+            fm = rm.FullModel;
             if ~isempty(fm.System.B)
                 try
                     B = fm.System.B.evaluate([],[]);
                 catch ME%#ok
-                    B = fm.System.B.evaluate(0,fm.getRandomParam);
+                    B = fm.System.B.evaluate(0,rm.getRandomParam);
                     warning('Some:Id','Error estimator for current system will not work correctly! (B is not linear and mu-independent!');
                 end
             
-                if ~isempty(fm.Data.V) && ~isempty(fm.Data.W)
-                    % Only linear input conversion (B = const. matrix) allowed so
-                    % far! mu,0 is only to let
-                    
-                    B2 = B - fm.Data.V*(fm.Data.W'*B);
-                    this.M2 = M'*(fm.GScaled*B2);
-                    this.M3 = B2'*(fm.GScaled*B2);
+                if ~isempty(rm.V)
+                    B2 = B - rm.V*(rm.W'*B);
+                    this.M2 = M'*(rm.G*B2);
+                    this.M3 = B2'*(rm.G*B2);
                     clear B2;
                 else
-                    % No projection means no projection error!
                     n = size(this.M1,2);
                     b = size(B,2);
                     this.M2 = zeros(n,b);

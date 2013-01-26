@@ -40,6 +40,9 @@ classdef MUnit
         
         % Blue color
         BlueCol = '*[0 0 .8]';
+        
+        % Warning color
+        WarnCol = '*[1 .4 0]';
     end
     
     methods(Static)
@@ -139,7 +142,9 @@ classdef MUnit
                             % check if the method is static [non-statics
                             % cant be run without instances.. :-)]
                             if m.Static
-                                cprintf(testing.MUnit.BlueCol,['Running ' mc.Name ' -> ' m.Name(6:end) '...\n']);
+                                lines = '-----------------------------';
+                                cprintf(testing.MUnit.BlueCol,[lines ' running '...
+                                    mc.Name ' -> ' m.Name(6:end) '... ' lines '\n']);
                                 try
                                     eval(['outargs = nargout(@' mc.Name '.' m.Name ');']);
                                     if outargs > 0
@@ -157,13 +162,14 @@ classdef MUnit
                                     end
                                 catch ME
                                     f = f+1;
-                                    cprintf('Red',['Test' mc.Name ' -> ' m.Name(6:end) ' failed!\nExeption information:\n']);
+                                    cprintf(testing.MUnit.WarnCol,['Test' mc.Name ' -> ' m.Name(6:end) ' failed!\nExeption information:\n']);
                                     disp(getReport(ME));
                                 end
                             else
-                                warning('MUnit:NonstaticTest',...
-                                    ['Found non-static test function "' m.Name '" in ' mc.Name '\n'...
-                                    'Maybe forgot to declare static?']);
+                                cprintf(testing.MUnit.WarnCol,['Non-static test "%s" in %s found.'...
+                                    'Should this be static?\n'],...
+                                    m.Name((length(testing.MUnit.TestFunctionPrefix)+1):end),...
+                                    mc.Name);
                             end
                         end
                     end

@@ -24,8 +24,10 @@ classdef FileMatrix < data.FileData & data.ABlockedData
     properties(Constant)
         % The default block size to use for new FileMatrix instances.
         %
+        % The block size unit is Megabyte.
+        %
         % @type integer @default 256MB
-        BLOCK_SIZE = 256*1024^2;
+        BLOCK_SIZE = 256; %[MB]
     end
     
     properties
@@ -106,7 +108,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             % required argument. @type integer
             % Dir: A char array denoting the target root folder where the file-containing
             % data folder should be stored.
-            % BlockSize: The maximum block size in Bytes. @type integer
+            % BlockSize: The maximum block size in MegaBytes. @type integer
             
             if isempty(var)
                 error('Cannot create a FileMatrix with empty first argument. Must either be a row number or a matrix.');
@@ -129,8 +131,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             end
             ip.addParamValue('Dir',KerMor.App.TempDirectory,...
                 @(v)isempty(v) || (ischar(v) && exist(v,'dir') == 7));
-            ip.addParamValue('BlockSize',data.FileMatrix.BLOCK_SIZE,...
-                @(v)round(v) == v && isposrealscalar(v));
+            ip.addParamValue('BlockSize',data.FileMatrix.BLOCK_SIZE,@(v)isposrealscalar(v));
             ip.parse(varargin{:});
             % Latest at here we have an m value
             if isfield(ip.Results,'m')
@@ -140,9 +141,9 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             if ~(round(n) == n && round(m) == m)
                 error('Size arguments n, m must be integer values.');
             end
-            
-            bsize = min(ip.Results.BlockSize,n*m*8);
-            bcols = max(floor(bsize/(8*n)),1);
+            BYTEPERDOUBLE = 8;
+            bsize = min(ip.Results.BlockSize*1024^2,n*m*BYTEPERDOUBLE);
+            bcols = max(floor(bsize/(BYTEPERDOUBLE*n)),1);
             nb = ceil(m / bcols);
             args = {};
             if nb > 1
@@ -155,7 +156,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             this = this@data.FileData(args{:});
             this.n = n;
             this.m = m;
-            this.blocksize = bsize;
+            this.blocksize = bsize/1024^2;
             this.bCols = bcols;
             this.nBlocks = nb;
             this.created = false(1,nb);
@@ -227,7 +228,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 value = this.cachedBlock.^expo;
                 return;
             end
-            value = data.FileMatrix(this.n,this.m,'Dir', fileparts(this.DataDirectory),...
+            value = data.FileMatrix(this.n,this.m,'Dir',fileparts(this.DataDirectory),...
                 'BlockSize', this.blocksize);
             for k=1:this.nBlocks
                 value.saveBlock(k,this.loadBlock(k).^expo);
@@ -769,10 +770,27 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             end
         end
         
+        function bs = blockSizeOf(arg1, arg2)
+            % Computes the block size in Megabytes for a given matrix of matrix
+            % dimensions.
+            %
+            % The matrices are assumed to contain double values.
+            %
+            % Parameters:
+            % arg1: Either a double matrix or the row number
+            % arg2: The column number @type integer @default []
+            if nargin < 2
+                n = numel(arg1);
+            else
+                n = arg1*arg2;
+            end
+            bs = n*8/1024^2;
+        end
+        
         function res = test_FileMatrix
             res = true;
             B = rand(99,100);
-            A = data.FileMatrix(99,100,'Dir',KerMor.App.TempDirectory,'BlockSize',99*20*8);
+            A = data.FileMatrix(99,100,'BlockSize',data.FileMatrix.blockSizeOf(B)/5);
             key = struct('type',{'()'},'subs',[]);
             % col-wise setting (fast)
             for k=1:100
@@ -806,7 +824,89 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             At = A';
             res = res && all(all(At.toMemoryMatrix == B'));
             
-            % Multiply test
+            % Bounding box test
+            [bm, bM] = general.Utils.getBoundingBox(B);
+            [am, aM] = A.getColBoundingBox;
+            res = res && isequal(bm,am) && isequal(bM,aM);
+        end
+        
+        function res = test_SVD
+            [A,B] = data.FileMatrix.getTestPair(99,100,5);
+            % SVD test
+            p = sqrt(eps);
+            [u,s,v] = svd(B,'econ');
+            [U,S,V] = A.getSVD;
+            V = V.toMemoryMatrix;
+            res = norm(U*S*V-B,'fro') < p;
+            [U5,S5,V5] = A.getSVD(5);
+            V5 = V5.toMemoryMatrix;
+            res = res && norm(abs(V)-abs(v'),'fro') < p && norm(abs(U)-abs(u),'fro') < p &&...
+                norm(diag(S)-diag(s)) < p;
+            res = res && norm(abs(V5)-abs(v(:,1:5)'),'fro') < p ...
+                && norm(abs(U5)-abs(u(:,1:5)),'fro') < p ...
+                && norm(diag(S5)-diag(s(1:5,1:5))) < p;
+            
+            % Exclude test
+            o = general.Orthonormalizer;
+            exclu = o.orthonormalize(rand(size(B,1),5));
+            [U,~,~] = A.getSVD(10,exclu);
+            res = res && norm(exclu'*U) < 1e-12;
+        end
+        
+        function res = test_SaveLoad
+            [A,B] = data.FileMatrix.getTestPair(100,10000,10);
+            
+            % Load/save
+            save Atmp A;
+            clear A;
+            load Atmp;
+            res = A == B;
+            rmdir(A.DataDirectory,'s');
+            delete Atmp.mat;
+        end
+        
+        function res = test_SumPower
+            [A,B] = data.FileMatrix.getTestPair(100,10000,40);
+            
+            % Sum test
+            bs = sum(B,2);
+            as = sum(A,2);
+            res = isequal(sum(B,1),sum(A,1)) && all(abs((as-bs) ./ bs)) < sqrt(eps);
+            
+            % Power test
+            res = res && A.^2 == B.^2;%#ok
+        end
+        
+        function res = test_ScalarMult
+            % @todo need implementation for >1 nBlock matrices and scalar values
+            % @todo need separate test for each overridden operator
+            res = true;
+            [A,a] = data.FileMatrix.getTestPair(400,400);
+            B = 4*A;
+            res = res & isequal(4*a,B);
+            C = A*1;
+            res = res & isequal(a,C);
+        end
+        
+        function res = test_Times_MTimes
+            % @todo need implementation for >1 nBlock matrices and scalar values
+            % @todo need separate test for each overridden operator
+           
+            % No blocks
+            [A,B] = data.FileMatrix.getTestPair(100,1000);
+            AB = A.*B;
+            res = isequal(AB,B.*B);
+            AB = B.*A;
+            res = res & isequal(AB,B.*B);
+            
+            % With blocks
+            [A,B] = data.FileMatrix.getTestPair(100,1000,4);
+            AB = A.*B;
+            res = res & AB == B.*B;
+            AB = B.*A;
+            res = res & AB == B.*B;
+            
+            % Vector Multiplication test
             v = rand(size(A,2),1);
             res = res && norm(A*v-B*v) < 1e-10;
             v = rand(size(A,2),100);
@@ -816,95 +916,32 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             v = rand(100,size(A,1));
             res = res && all(Norm.L2(v*A-v*B) < 1e-10);
             
-            % SVD test
-            p = sqrt(eps);
-            [u,s,v] = svd(B,'econ');
-            [U,S,V] = A.getSVD;
-            V = V.toMemoryMatrix;
-            res = res && norm(U*S*V-B,'fro') < p;
-            [U5,S5,V5] = A.getSVD(5);
-            V5 = V5.toMemoryMatrix;
-            res = res && norm(abs(V)-abs(v'),'fro') < p && norm(abs(U)-abs(u),'fro') < p &&...
-                norm(diag(S)-diag(s)) < p;
-            res = res && norm(abs(V5)-abs(v(:,1:5)'),'fro') < p ...
-                && norm(abs(U5)-abs(u(:,1:5)),'fro') < p ...
-                && norm(diag(S5)-diag(s(1:5,1:5))) < p;
-            % Exclude test
-            o = general.Orthonormalizer;
-            exclu = o.orthonormalize(rand(size(B,1),5));
-            [U,~,~] = A.getSVD(10,exclu);
-            res = res && norm(exclu'*U) < 1e-12;
-            
-            % Bounding box test
-            [bm, bM] = general.Utils.getBoundingBox(B);
-            [am, aM] = A.getColBoundingBox;
-            res = res && isequal(bm,am) && isequal(bM,aM);
-            
-            B = rand(100,10000)+.1;
-            A = data.FileMatrix(100,10000,'BlockSize',round(numel(B)*8/40));
-            key.subs = {':', ':'};
-            A.subsasgn(key,B);
-            
-            % Sum test
-            bs = sum(B,2);
-            as = sum(A,2);
-            res = res && isequal(sum(B,1),sum(A,1)) && all(abs((as-bs) ./ bs)) < sqrt(eps);
-            
-            % Power test
-            res = res && A.^2 == B.^2;%#ok
-            
-            % Load/save
-            save Atmp A;
-            clear A;
-            load Atmp;
-            res = res && A == B;
-            rmdir(A.DataDirectory,'s');
-            delete Atmp.mat;
-            
-            % Multiply for large result matrices
-            A = data.FileMatrix(50,1000,'BlockSize',50*200*8);
-            a = rand(50,1000);
-            A(:,:) = a;
-            B = rand(2000,50);
-            BA = B*A;
-            res = res && isequal(BA,B*a);
+            % Left / right multiplication test
+            R = rand(1000,200);
+            L = rand(2000,50);
+            % With no blocks
+            [A, Amat] = data.FileMatrix.getTestPair(50,1000);
+            LA = L*A;
+            AR = A*R;
+            res = res && isequal(LA,L*Amat);
+            res = res && isequal(AR,Amat*R);
+            % With blocks
+            [A, Amat] = data.FileMatrix.getTestPair(50,1000,4);
+            LA = L*A;
+            AR = A*R;
+            % Left multiplication is exact as whole blocks can be used
+            res = res && LA == L*Amat;
+            % Right multiplication requires accumulation of values -> rounding errors
+            res = res && norm(AR - Amat*R) < 1e-12;
         end
         
-        function res = test_FileMatrixScalarMult
-            % @todo need implementation for >1 nBlock matrices and scalar values
-            % @todo need separate test for each overridden operator
-            res = true;
-            a = rand(400,400);
-            A = data.FileMatrix(a);
-            B = 1*A;
-            res = res & isequal(a,B);
-            C = A*1;
-            res = res & isequal(a,C);
-        end
-        
-        function res = test_FileMatrix_Times
-            % @todo need implementation for >1 nBlock matrices and scalar values
-            % @todo need separate test for each overridden operator
-            res = true;
-            B = rand(100,1000)+.1;
-            A = data.FileMatrix(100,1000,'BlockSize',round(numel(B)*8/40));
-            key = struct('type',{'()'},'subs',{{':', ':'}});
-            A.subsasgn(key,B);
-            
-            AB = A.*B;
-            res = res & AB == B.*B;
-            AB = B.*A;
-            res = res & AB == B.*B;
-        end
-        
-        function test_SpeedSVDTransp
+        function res = test_SpeedSVDTransp
             % Test results for 100000x100 matrix:
             % BlockSVD: Computing truncated 50-SVD on 100x1000000 matrix (3 blocks)...
             % Direct time: 2475.53, Transposed time: 756.023, transposed SVD time: 661.171
             %
             % Thus: Auto-transpose for matrices with nBlocks > 1
-            A = data.FileMatrix(100,10,'BlockSize',100*10*8/20);
-            A(:,:) = rand(size(A));
+            A = data.FileMatrix.getTestPair(100,1000,5);
             ti = tic;
             [u,s,v] = A.getSVD(5);
             t(1) = toc(ti);
@@ -918,7 +955,22 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             t(3) = toc(ti);
             t(2) = t(2) + t(3);
             
-            fprintf('Direct time: %g, Transposed time: %g, transposed SVD time: %g\n',t);
+            fprintf('Direct SVD time: %g, Transposition time: %g, Transposed SVD time: %g\n',t);
+            res = true;
+        end
+    end
+    
+    methods(Static,Access=private)
+        function [A,B] = getTestPair(n,m,nb)
+            if nargin < 3
+                nb = 1;
+            end
+            B = rand(n,m);
+            A = data.FileMatrix(n,m,'BlockSize',data.FileMatrix.blockSizeOf(B)/nb);
+            % Tedious formulation as use of direct operators inside the defining class of
+            % overloads will not work.
+            % See http://www.mathworks.com/help/matlab/matlab_oop/indexed-reference-and-assignment.html#br09nsm
+            A.subsasgn(struct('type',{'()'},'subs',{{':', ':'}}),B);            
         end
     end
 end

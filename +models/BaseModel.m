@@ -132,17 +132,6 @@ classdef BaseModel < KerMorObject
         %
         % @default T @type double
         Tscaled;
-        
-        % The scaled version of G.
-        %
-        % Equals `\tilde{\vG} = \vD^T\vG\vD` for `\vD=diag(s)` and `s` being the System.StateScaling property.
-        %
-        % Use this whenever having to take the real `\vG`-norm of some scaled state variables
-        %
-        % See also: G System.StateScaling
-        %
-        % @type matrix @default G
-        GScaled;
     end
     
     properties(Dependent, SetObservable)
@@ -538,11 +527,6 @@ classdef BaseModel < KerMorObject
             else
                 value = this.T/this.tau;
             end
-        end
-        
-        function gs = get.GScaled(this)%#ok
-            % @todo move GScaled to BaseDynSystem
-            gs = 'Using this value is no longer necessary. fix places where occurring and use G';
         end
         
         function dt = get.dt(this)

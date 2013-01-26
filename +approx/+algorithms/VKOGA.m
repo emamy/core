@@ -255,7 +255,32 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
         end
     end
     
+    methods(Static,Access=protected)
+        function this = loadobj(this)
+            if ~isa(this, 'approx.algorithms.VKOGA')
+                a = approx.algorithms.VKOGA;
+                if isfield(this,'UsefPGreedy') && ~isempty(this.UsefPGreedy)
+                    a.UsefPGreedy = this.UsefPGreedy;
+                elseif isfield(this,'UseOGA')
+                    a.UsefPGreedy = this.UseOGA;
+                end
+                if isfield(this,'UsefPGreedy')
+                    a.MaxAbsResidualErr = this.MaxAbsResidualErr;
+                end
+                a.relerr = this.relerr;
+                if isfield(this,'bestNewtonBasisValuesOnATD')
+                    a.bestNewtonBasisValuesOnATD = this.bestNewtonBasisValuesOnATD;
+                end
+                if isfield(this,'basis_norms')
+                    a.basis_norms = this.basis_norms;
+                end
+                this = loadobj@approx.algorithms.AAdaptiveBase(a, this);
+            end
+        end
+    end
+    
     methods(Static)
+        
         function res = test_VKOGA1DnD
             % Tests the VKOGA algorithm
             

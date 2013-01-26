@@ -90,10 +90,10 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
                 atd.fxi = atd.fxi ./ repmat(s,1,size(atd.fxi,2));
             end
             
+            remove_conf = false;
             if isempty(this.ExpConfig)
-                warning('approx:BaseKernelApprox',...
-                    'Warning, no expansion configurations set. Using default config.');
                 this.ExpConfig = kexp.getDefaultExpansionConfig;
+                remove_conf = true;
             else 
                 if this.ExpConfig.getNumConfigurations == 0
                     error('Need at least one expansion configuration.');
@@ -102,6 +102,11 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
             
             % Call template method for component wise approximation
             this.templateComputeApproximation(kexp, atd);
+            
+            % Remove temp config
+            if remove_conf
+                this.ExpConfig = [];
+            end
             
             % Rescale if set
             if this.UsefScaling
@@ -164,4 +169,17 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
         templateComputeApproximation(this, kexp, atd);
     end
     
+     methods(Static,Access=protected)
+        function this = loadobj(this, initfrom)
+            if nargin > 1
+                this.ErrorFun = initfrom.ErrorFun;
+                this.LastCompTime  = initfrom.LastCompTime;
+                this.UsefScaling = initfrom.UsefScaling;
+                if isfield(initfrom,'ExpConfig')
+                    this.ExpConfig = initfrom.ExpConfig;
+                end
+                this = loadobj@KerMorObject(this, initfrom);
+            end
+        end
+    end
 end

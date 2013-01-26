@@ -48,8 +48,7 @@ classdef PointerCoreFun < dscomponents.ACoreFun
             this.TimeDependent = timedep;
             this.target = funPtr;
             this.xDim = xdim;
-            warning('KerMor:PointerCoreFun','PointerCoreFun not yet tested with fDim setting.');
-            this.fDim = xdim;
+            this.fDim = size(funPtr(rand(xdim,1),0,rand(100,1)),1);
         end
         
         function fx = evaluateCoreFun(this, x, t, mu)
@@ -79,7 +78,7 @@ classdef PointerCoreFun < dscomponents.ACoreFun
         function test_PointerCoreFun
             m = models.BaseFullModel;
             fun = @(x,t,mu)x*3.*t;
-            m.System.f = dscomponents.PointerCoreFun(fun);
+            m.System.f = dscomponents.PointerCoreFun(fun,1);
             m.simulate();
             clear m;
         end

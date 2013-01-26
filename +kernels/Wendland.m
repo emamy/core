@@ -67,6 +67,10 @@ classdef Wendland < kernels.ARBFKernel
             error('not implemented');
         end
         
+        function dc = getDefaultConfig(this)
+            dc = kernels.config.WendlandConfig('S',this.k,'Dim',this.d);
+        end
+        
         % Returns the global lipschitz constant of this kernel.
         %
         % Exprimental state as not implemented & checked for all kernels.

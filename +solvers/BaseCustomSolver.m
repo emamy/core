@@ -123,7 +123,7 @@ classdef BaseCustomSolver < solvers.BaseSolver
                     end
                     outputtimes(end) = 1;
                 end
-
+                
                 
                 %                     % Find refinement indices
                 %                     idx = fliplr(find(t(2:end)-t(1:end-1)-this.MaxStep>100*eps));
@@ -143,52 +143,50 @@ classdef BaseCustomSolver < solvers.BaseSolver
             end
         end
     end
-end
-
-
-methods(Abstract, Access=protected)
-% The abstract solve function for custom ODE solver implementations.
-%
-% In difference to the solvers.BaseSolver.solve method the times passed here are already
-% matched to possible MaxStep restrictions (thus extended).
-%
-% Parameters:
-% odefun: A function handle to the ode's function. Signature is
-% 'odefun(t,x)'
-% t: Either a two dimensional vector with t(1) < t(2) specifiying
-% the start and end time, or a greater or equal to three
-% dimensional, strictly monotoneously increasing vector explicitly
-% setting the desired output times. Depending on the MaxStep
-% property, the solver can work with a finer time step internally.
-% x0: The initial value
-%
-% See also: getCompTimes
-%
-% @change{0,7,dw,2013-01-11} Passing the outputtimes parameter to the customSolve
-% method in order to allow for more memory-efficient implementations.
-x = customSolve(this, odefun, t, x0, outputtimes);
-end
-
-events
-% Gets fired before the solver starts.
-%
-% Carries an SolverEventData instance with the Times field set to the actual times being
-% used during solving.
-%
-% @attention This event is not fired when using a Matlab builtin solver.
-%
-% See also: solver.ode.SolverEventData
-PreSolve;
-
-% Gets fired after the solver has finished.
-%
-% Carries an SolverEventData instance with the Times field set to the actual times being
-% used during solving and the States field set to the corresponding state variable values.
-%
-% @attention This event is not fired when using a Matlab builtin solver.
-%
-% See also: solver.ode.SolverEventData
-PostSolve;
-end
-
+    
+    methods(Abstract, Access=protected)
+        % The abstract solve function for custom ODE solver implementations.
+        %
+        % In difference to the solvers.BaseSolver.solve method the times passed here are already
+        % matched to possible MaxStep restrictions (thus extended).
+        %
+        % Parameters:
+        % odefun: A function handle to the ode's function. Signature is
+        % 'odefun(t,x)'
+        % t: Either a two dimensional vector with t(1) < t(2) specifiying
+        % the start and end time, or a greater or equal to three
+        % dimensional, strictly monotoneously increasing vector explicitly
+        % setting the desired output times. Depending on the MaxStep
+        % property, the solver can work with a finer time step internally.
+        % x0: The initial value
+        %
+        % See also: getCompTimes
+        %
+        % @change{0,7,dw,2013-01-11} Passing the outputtimes parameter to the customSolve
+        % method in order to allow for more memory-efficient implementations.
+        x = customSolve(this, odefun, t, x0, outputtimes);
+    end
+    
+    events
+        % Gets fired before the solver starts.
+        %
+        % Carries an SolverEventData instance with the Times field set to the actual times being
+        % used during solving.
+        %
+        % @attention This event is not fired when using a Matlab builtin solver.
+        %
+        % See also: solver.ode.SolverEventData
+        PreSolve;
+        
+        % Gets fired after the solver has finished.
+        %
+        % Carries an SolverEventData instance with the Times field set to the actual times being
+        % used during solving and the States field set to the corresponding state variable values.
+        %
+        % @attention This event is not fired when using a Matlab builtin solver.
+        %
+        % See also: solver.ode.SolverEventData
+        PostSolve;
+    end
+    
 end

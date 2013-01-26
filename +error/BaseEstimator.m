@@ -92,9 +92,9 @@ classdef BaseEstimator < KerMorObject & ICloneable
             % any additional offline computations
             
             if isa(model.System.x0,'dscomponents.AffineInitialValue')
-                this.e0Comp = error.initial.AffineParametric(model);
+                this.e0Comp = error.initial.AffineParametric;
             else
-                this.e0Comp = error.initial.Constant(model);
+                this.e0Comp = error.initial.Constant;
             end
         end
         
@@ -166,9 +166,10 @@ classdef BaseEstimator < KerMorObject & ICloneable
             copy.StateError = this.StateError;
             copy.OutputError = this.OutputError;
             copy.Enabled = this.Enabled;
+            % no cloning; components are only used in reduced models.
+            copy.e0Comp = this.e0Comp; 
             % No cloning of the associated reduced model.
             copy.ReducedModel = this.ReducedModel;
-            copy.e0Comp = this.e0Comp;
         end
         
         function e0 = getE0(this, mu)
@@ -190,6 +191,7 @@ classdef BaseEstimator < KerMorObject & ICloneable
                 error('The given value has to be a models.ReducedModel instance.');
             end
             prepared.ReducedModel = rmodel;
+            this.e0Comp.prepareForReducedModel(rmodel);
         end
     end
     
@@ -277,16 +279,7 @@ classdef BaseEstimator < KerMorObject & ICloneable
                 est = error.DefaultEstimator;
                 fprintf('BaseEstimator::getEstimator: No suitable error estimator found for given model. Using the default estimator (disabled).\n');
             end
-        end
-        
-        function res = test_ErrorEstimators
-            % Quick test for estimators.
-            demo = tools.EstimatorAnalyzer;
-            demo.Dims = 3;
-            demo.start;
-            res = true;
-        end
-        
+        end        
     end
     
     methods(Static, Abstract)

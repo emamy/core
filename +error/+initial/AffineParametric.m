@@ -22,25 +22,25 @@ classdef AffineParametric < error.initial.Base
     end
     
     methods
-        function this = AffineParametric(model)
+        function prepareForReducedModel(this, rm)
             % Operates on affine-parametric matrices, see general.AffParamMatrix
-            this.m = model;
+            this.m = rm;
             % Consider scaling, the state space variables are scaled if set, so need the
             % correct scaled x0 value here.
-            s = model.System.StateScaling;
-            if s ~= 1
-                warning('KerMor:unchecked','Functionality not yet checked for scaled systems.');
-                if isscalar(s)
-                    dim = size(model.System.x0.getMatrix(1),2);
-                    s(1:dim,1) = s;
-                else
-                    dim = length(s);
-                end
-                x0 = model.System.x0 * spdiags(1./s,0,dim,dim);
-            else
-                x0 = model.System.x0;
-            end
-            this.af = x0 - model.Data.V*(model.Data.W'*x0);
+%             s = model.System.StateScaling;
+%             if s ~= 1
+%                 warning('KerMor:unchecked','Functionality not yet checked for scaled systems.');
+%                 if isscalar(s)
+%                     dim = size(model.System.x0.getMatrix(1),2);
+%                     s(1:dim,1) = s;
+%                 else
+%                     dim = length(s);
+%                 end
+%                 x0 = model.System.x0 * spdiags(1./s,0,dim,dim);
+%             else
+                x0 = rm.FullModel.System.x0;
+%             end
+            this.af = x0 - rm.V*(rm.W'*x0);
         end
         
         function e0 = getE0(this, mu)

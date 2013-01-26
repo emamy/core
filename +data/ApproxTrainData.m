@@ -208,11 +208,6 @@ classdef ApproxTrainData < handle
 %             atd = model.Data.ApproxTrainData;
 
             % Compute f-Values at training data
-            if isempty(atd.mui)
-                atdmui = double.empty(0,length(atd.ti));
-            else
-                atdmui = atd.mui;
-            end
 
             if parallel
                 error('Not yet implemented for FileMatrix atd.xi');
@@ -235,14 +230,18 @@ classdef ApproxTrainData < handle
                     fprintf('Serial computation of f-values at %d points (%d xi-blocks) ...\n',size(atd.xi,2),xi.nBlocks);
                 end
                 fxi = data.FileMatrix(f.fDim,size(xi,2),...
-                    'Dir',fileparts(xi.DataDirectory),'BlockSize',128*1024^2);
+                    'Dir',fileparts(xi.DataDirectory),'BlockSize',256);
                 if KerMor.App.Verbose > 1
                     pi = tools.ProcessIndicator('Computing %d %dx%d-block f evaluations on %d %dx%d-blocks of xi snapshots',...
                         fxi.nBlocks,false,fxi.nBlocks,fxi.n,fxi.bCols,xi.nBlocks,xi.n,xi.bCols);
                 end
                 for i=1:fxi.nBlocks
                     pos = fxi.getBlockPos(i);
-                    hlp = f.evaluate(xi(:,pos), atd.ti(pos), atdmui(:,pos));
+                    mui = [];
+                    if ~isempty(atd.mui)
+                        mui = atd.mui(:,pos);
+                    end
+                    hlp = f.evaluate(xi(:,pos), atd.ti(pos), mui);
                     fxi(:,pos) = hlp;
                     if KerMor.App.Verbose > 1
                         pi.step;
