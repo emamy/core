@@ -31,8 +31,10 @@ classdef ConstInitialValue < dscomponents.AInitialValue
             end
         end
         
-        function projected = project(this, V, W)
-            projected = project@general.AProjectable(this, V, W, this.clone);
+        function projected = project(this, V, W)%#ok
+            % Dont store V,W due to hard drive space saving (not really needed here)
+            %projected = project@general.AProjectable(this, V, W, this.clone);
+            projected = this.clone;
             projected.x0 = W'*this.x0;
         end
         

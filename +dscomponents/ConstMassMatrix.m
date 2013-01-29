@@ -53,7 +53,8 @@ classdef ConstMassMatrix < dscomponents.AMassMatrix
         
         function projected = project(this, V, W)
             projected = dscomponents.ConstMassMatrix(W'*(this.M*V));
-            projected = project@general.AProjectable(this, V, W, projected);
+            % Dont store V,W due to hard drive space saving (not really needed here)
+            %projected = project@general.AProjectable(this, V, W, projected);
         end
         
         function copy = clone(this)

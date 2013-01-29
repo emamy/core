@@ -49,13 +49,15 @@ classdef AffLinInputConv < general.AffParamMatrix & dscomponents.AInputConv
             B = this.compose(t, mu);
         end
         
-        function projected = project(this, V, W)
+        function projected = project(this, V, W)%#ok
             % Projects the affine parametric input conversion matrix B into the subspace spanned by
             % `V,W`.
             
             % Uses the overridden operators in AffParamMatrix to create a copy.
             projected = W'*this;
-            projected = project@general.AProjectable(this, V, W, projected);
+            
+            % Dont need to store V,W for disk space reasons
+            %projected = project@general.AProjectable(this, V, W, projected);
         end
         
         function copy = clone(this)

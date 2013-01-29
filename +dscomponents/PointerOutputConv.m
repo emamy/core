@@ -40,13 +40,15 @@ classdef PointerOutputConv < dscomponents.AOutputConv
             B = this.Target(t,mu);
         end
         
-        function proj = project(this, V, W)
+        function proj = project(this, V, W)%#ok
             % Projects the core function into the reduced space.
             % Creates a new PointerOutputConv and computes `C^r(t,\mu) =
             % C(t,\mu)V`
             newfun = @(t,mu)this.Target(t,mu) * V;
             proj = dscomponents.PointerOutputConv(newfun, this.TimeDependent);
-            proj = project@general.AProjectable(this, V, W, proj);
+            % Dont store V,W due to hard drive space saving (not really needed here, V will be
+            % stored in function handle anyways)
+            %proj = project@general.AProjectable(this, V, W, proj);
         end
     end
     

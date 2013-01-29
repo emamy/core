@@ -34,13 +34,15 @@ classdef PointerInputConv < dscomponents.AInputConv
             B = this.Target(t,mu);
         end
       
-        function proj = project(this, V, W)
+        function proj = project(this, V, W)%#ok
             % Projects the core function into the reduced space.
             % Creates a new PointerInputConv and computes `B^r(t,\mu) =
             % V^tB(t,\mu)`
             newfun = @(t,mu)W' * this.Target(t,mu);
             proj = dscomponents.PointerInputConv(newfun);
-            proj = project@general.AProjectable(this, V, W, proj);
+            % Dont store V,W due to hard drive space saving (not really needed here, W will be
+            % stored in function handle anyways)
+            %proj = project@general.AProjectable(this, V, W, proj);
         end
         
         function copy = clone(this)

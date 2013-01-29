@@ -37,13 +37,15 @@ classdef PointerInitialValue < dscomponents.AInitialValue
             x0 = this.target(mu);
         end
         
-        function proj = project(this, V, W)
+        function proj = project(this, V, W)%#ok
             % Projects the initial value function into the reduced space.
             % Creates a new PointerInitialValue and computes `W^tx_0(\mu)`
             
             newfun = @(mu)W' * this.target(mu);
             proj = dscomponents.PointerInitialValue(newfun);
-            proj = project@general.AProjectable(this, V, W, proj);
+            % Dont store V,W due to hard drive space saving (not really needed here, W will be
+            % stored in function handle anyways)
+            %proj = project@general.AProjectable(this, V, W, proj);
         end
         
         function copy = clone(this)

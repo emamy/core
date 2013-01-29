@@ -7,8 +7,11 @@ classdef AffLinOutputConv < general.AffParamMatrix & dscomponents.AOutputConv
             C = this.compose(t,mu);
         end
         
-        function projected = project(this, V, W)
-            projected = project@general.AProjectable(this, V, W, this.clone);
+        function projected = project(this, V, W)%#ok
+            % Dont store V,W due to hard drive space saving (not really needed here)
+            %projected = project@general.AProjectable(this, V, W, this.clone);
+            
+            projected = this.clone;
             % RHS multiplication of the matrices for correct conversion.
             for idx=1:this.N
                 projected.Matrices(:,:,idx) = this.Matrices(:,:,idx)*V;

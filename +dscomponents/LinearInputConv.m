@@ -15,9 +15,10 @@ classdef LinearInputConv < dscomponents.AInputConv
             res = this.B;
         end
         
-        function proj = project(this, V, W)
+        function proj = project(this, V, W)%#ok
             proj = dscomponents.LinearInputConv(W' * this.B);
-            proj = project@general.AProjectable(this, V, W, proj);
+            % Dont store V,W due to hard drive space saving (not really needed here)
+            %proj = project@general.AProjectable(this, V, W, proj);
         end
         
         function copy = clone(this)

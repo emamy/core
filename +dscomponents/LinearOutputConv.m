@@ -26,10 +26,13 @@ classdef LinearOutputConv < dscomponents.AOutputConv
             this.TimeDependent = false;
         end
         
-        function proj = project(this, V, W)
+        function proj = project(this, V, W)%#ok
             % Performs projection for the standard output conversion.
-            proj = project@general.AProjectable(this, V, W,...
-                dscomponents.LinearOutputConv(this.C*V));
+            
+            % Dont store V,W due to hard drive space saving (not really needed here)
+%             proj = project@general.AProjectable(this, V, W,...
+%                 dscomponents.LinearOutputConv(this.C*V));
+            proj = dscomponents.LinearOutputConv(this.C*V);
         end
         
         function copy = clone(this)
