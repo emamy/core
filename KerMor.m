@@ -985,20 +985,20 @@ classdef KerMor < handle
             host = regexprep(strtrim(host),'[^\d\w]','');
         end
         
-        function m = getGitBranch
+        function b = getGitBranch
             % Returns the current git commit in a descriptive string
             olddir = pwd;
             cd(KerMor.App.HomeDirectory);
-            [s, m] = system(sprintf('export TERM=%s; git log -n 1 --pretty=format:"%%H: %%s%%+ai by %%an<%%ae>"',getenv('TERM')));
+            %[s, m] = system(sprintf('export TERM=%s; git log -n 1 --pretty=format:"%%H: %%s%%+ai by %%an<%%ae>"',getenv('TERM')));
+            [s, msg] = system('git log -n 1 --pretty=format:"%H: %s%+ai by %an<%ae>" > .gitbranch');
+            if s == 0
+                b = fileread('.gitbranch');
+                delete .gitbranch;
+            else
+                warning('KerMor:Env','An error occurred retrieving the git commit: %s',msg);
+                b = [];
+            end            
             cd(olddir);
-            % Odd fix to remove UTF-8 chars (display in editor breaks)
-            if m(1) == char(27)
-                m = strrep(m(9:end-16),[char(27) '[m'],'');
-            end
-            if s ~= 0
-                warning('KerMor:Env','An error occurred retrieving the git commit: %s',m);
-                m = [];
-            end
         end
         
         function d = DocumentationLocation

@@ -335,13 +335,16 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             this.fDim = value;
         end
         
-        function res = test_MultiArgEval(this, sdim, mudim)
+        function res = test_MultiArgEval(this, mudim)
             % Convenience function that tests if a custom
             % MultiArgumentEvaluation works as if called with single
             % arguments.
             %
+            if nargin < 2
+                mudim = 100;
+            end
             if true || (this.MultiArgumentEvaluations)
-                x = rand(sdim,200);
+                x = rand(this.xDim,200);
                 mu = rand(mudim,200);
                 fxm = this.evaluate(x,1:200,mu);
                 fxs = zeros(size(x));
