@@ -67,8 +67,8 @@ classdef FileDataCollection < data.FileData
             key = general.Utils.getHash(keydata);
             data = [];
             if this.hm.containsKey(key)
-                file = this.hm.get(key); 
-                data = load(this.getfile(file), varargin{:});
+                data = load([this.DataDirectory filesep this.hm.get(key)], varargin{:});
+                %data = load(this.getfile(file), varargin{:});
             else
                 % "Backup" function. In case some trajectories are created and then the model
                 % is not saved, the existing trajectory files are recognized and loaded.
@@ -99,7 +99,8 @@ classdef FileDataCollection < data.FileData
                 error('Invalid data position number: %d',nr);
             end
             keys = this.hm.keySet.toArray(java_array('java.lang.String',1));
-            data = load(this.getfile(this.hm.get(keys(nr))), varargin{:});
+            data = load([this.DataDirectory filesep this.hm.get(keys(nr))], varargin{:});
+            %data = load(this.getfile(this.hm.get(keys(nr))), varargin{:});
         end
         
         function res = hasData(this, keydata)
