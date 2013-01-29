@@ -74,6 +74,7 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
                 % x(1,1,:) = state(1) at t=1 for all mu
                 [dim1,dim3] = size(x0);
                 dim2 = effsteps;
+                mucol = size(s.mu,2);  % number of columns of mu
                 x = zeros(dim1,dim2,dim3);
                 x(:,1,:) = x0;
                 % Initialize output index counter
@@ -107,30 +108,55 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
             end
             
             % Precompute lu decomp for iteration steps if all components are not time-dependent
-%             l = zeros(dim1,dim1);
-%             u = zeros(size(A));
             if ~mdep && ~fdep
-%                 for index = 1:dim3
-%                     [l(:,:,index), u(:,:,index)] = lu(M - dt * A(:,:,index));
-%                 end
-                [l,u] = lu(repmat(M,1,dim3) - dt*A);  % if dim3>1: (repmat(M,1,dim3) - dt*A) consists of invertible square blocks 
+                % lu decomposition in for loop in for loop over blocks of M-dt*A, significantly faster than lu decomposition of everything
+                % at once
+                l = zeros(dim1,dim1*mucol);
+                u = zeros(dim1,dim1*mucol);
+                for index = 1:mucol
+                    [l(:,(index-1)*dim1+1:index*dim1),u(:,(index-1)*dim1+1:index*dim1)] = lu(M - dt * A(:,(index-1)*dim1+1:index*dim1));
+                end
             end
             
             % Solve for each time step
             oldx = x0(1:end-edim,:);
+            newx = zeros(size(oldx));
+            if ~isempty(s.u) 
+                [urow,ucol] = size(s.u);
+                if (ucol ~= mucol) && (ucol ~= 1)
+                    error('u and mu must have same number of columns or u must be column vector')
+                end
+            end
             for idx = 2:steps;
                 RHS = M*oldx;
                 if ~isempty(s.f)
                     RHS = RHS + dt*s.f.evaluate(oldx, t(idx-1), s.mu);
                 end
-                if ~isempty(s.u)
-                    RHS = RHS + dt*s.B.evaluate(t(idx-1), s.mu)*s.u(t(idx-1));
+                if ~isempty(s.u)                       
+                    if mucol == 1
+                        RHS = RHS + dt*s.B.evaluate(t(idx-1), s.mu)*s.u(t(idx-1));
+                    else
+                        B = s.B.evaluate(t(idx-1), s.mu);
+                        input = zeros(dim1,mucol);
+                        if ucol == 1   % u is column-vector
+                            for index = 1:mucol
+                                input(:,index) = B(:,(index-1)*urow+1:index*urow)*s.u(t(idx-1));
+                            end
+                        else  % u is matrix with mucol columns
+                            for index = 1:mucol
+                                input(:,index) = B(:,(index-1)*urow+1:index*urow)*s.u(t(idx-1),:,index);   % todo: indexing of u ???
+                            end
+                        end
+                        RHS = RHS + dt*input;
+                    end
+
                 end
                 
                 % Time-independent case: constant
                 if ~fdep && ~mdep
-                    newx = u\(l\RHS);   % if RHS is matrix: solution in least square sense, see docu of \  
-                    newx = newx((dim3-1)*dim1:end,:);   % remove rows with only zero entries
+                    for index = 1:mucol
+                        newx(:,index) = u(:,(index-1)*dim1+1:index*dim1)\(l(:,(index-1)*dim1+1:index*dim1)\RHS(:,index));  
+                    end
                     % Time-dependent case: compute time-dependent components with updated time
                 else
                     if fdep
@@ -139,8 +165,10 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
                     if mdep
                         M = s.M.evaluate(t(idx));
                     end
-                    newx = (repmat(M,1,dim3) - dt * A)\RHS;
-                    newx = newx((dim3-1)*dim1:end,:);
+                    for index = 1:mucol
+                        [l,u] = lu(M - dt * A(:,(index-1)*dim1+1:index*dim1));
+                        newx(:,index) = u\(l\RHS(:,index));  
+                    end
                 end
                 
                 % Implicit error estimation computation
