@@ -1,5 +1,5 @@
 classdef FileMatrix < data.FileData & data.ABlockedData
-    % FileMatrix: File-based matrix which stores sets of rows in separate files.
+    % FileMatrix: File-based matrix which stores sets of columns in separate files.
     %
     % This class features a caching functionality for the last accessed block, so that for
     % subsequent calls to loadBlock with the same number no new hard drive access is necessary.

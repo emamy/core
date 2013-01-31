@@ -123,7 +123,7 @@ classdef BaseCustomSolver < solvers.BaseSolver
                     end
                     outputtimes(end) = 1;
                 end
-                
+                outputtimes = logical(outputtimes);
                 
                 %                     % Find refinement indices
                 %                     idx = fliplr(find(t(2:end)-t(1:end-1)-this.MaxStep>100*eps));
