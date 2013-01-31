@@ -47,12 +47,12 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
             % more memory-efficient implementation.
             s = this.model.System;
             if isempty(s.A)
-               error('This solver requires an (affine) linear system component A.'); 
+                error('This solver requires an (affine) linear system component A.');
             end
-%             if isa(s.Model,'models.ReducedModel') && ~isempty(s.Model.ErrorEstimator)...
-%                     && s.Model.ErrorEstimator.Enabled && s.Model.ErrorEstimator.ExtraODEDims > 0
-%                 error('Cannot use this solver with reduced models that have an error estimator enabled with ExtraODEDims > 0 (this solver overrides the odefun handle)');
-%             end
+            %             if isa(s.Model,'models.ReducedModel') && ~isempty(s.Model.ErrorEstimator)...
+            %                     && s.Model.ErrorEstimator.Enabled && s.Model.ErrorEstimator.ExtraODEDims > 0
+            %                 error('Cannot use this solver with reduced models that have an error estimator enabled with ExtraODEDims > 0 (this solver overrides the odefun handle)');
+            %             end
             % Initialize result
             steps = length(t);
             
@@ -62,21 +62,28 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
             end
             
             rtm = this.RealTimeMode;
-            if rtm
+            if rtm  % not implemented
                 ed = solvers.ode.SolverEventData;
                 x = [];
             else
                 effsteps = length(find(outputtimes));
                 % Create return matrix in size of effectively desired timesteps
                 % x = [x0 zeros(size(x0,1),effsteps-1)];
-                % x(:,1,1) = states at t=1, mu(1), 
+                % x(:,1,1) = states at t=1, mu(1),
                 % x(1,:,1) = trajectory of state(1), mu(1)
                 % x(1,1,:) = state(1) at t=1 for all mu
                 [dim1,dim3] = size(x0);
                 dim2 = effsteps;
                 mucol = size(s.mu,2);  % number of columns of mu
-                x = zeros(dim1,dim2,dim3);
-                x(:,1,:) = x0;
+                t_per_block = floor(0.5*1024^3 /(8*dim1/dim3));   % blocksize approx. 0.5 GB
+                blocksize = 8*dim1*dim3*t_per_block/(1024^2);
+                x = data.FileMatrix(dim1,dim2*dim3,'BlockSize',blocksize);
+                %                 key = struct('type',{'()'},'subs',[]);
+                %                 key.subs = {':', 1:dim3};
+                %                 x.subsasgn(key,x0);
+                x(:,1:dim3) = x0;
+                % x = zeros(dim1,dim2,dim3);
+                % x(:,1,:) = x0;
                 % Initialize output index counter
                 outidx = 2;
             end
@@ -121,7 +128,7 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
             % Solve for each time step
             oldx = x0(1:end-edim,:);
             newx = zeros(size(oldx));
-            if ~isempty(s.u) 
+            if ~isempty(s.u)
                 [urow,ucol] = size(s.u);
                 if (ucol ~= mucol) && (ucol ~= 1)
                     error('u and mu must have same number of columns or u must be column vector')
@@ -132,7 +139,7 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
                 if ~isempty(s.f)
                     RHS = RHS + dt*s.f.evaluate(oldx, t(idx-1), s.mu);
                 end
-                if ~isempty(s.u)                       
+                if ~isempty(s.u)
                     if mucol == 1
                         RHS = RHS + dt*s.B.evaluate(t(idx-1), s.mu)*s.u(t(idx-1));
                     else
@@ -149,13 +156,13 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
                         end
                         RHS = RHS + dt*input;
                     end
-
+                    
                 end
                 
                 % Time-independent case: constant
                 if ~fdep && ~mdep
                     for index = 1:mucol
-                        newx(:,index) = u(:,(index-1)*dim1+1:index*dim1)\(l(:,(index-1)*dim1+1:index*dim1)\RHS(:,index));  
+                        newx(:,index) = u(:,(index-1)*dim1+1:index*dim1)\(l(:,(index-1)*dim1+1:index*dim1)\RHS(:,index));
                     end
                     % Time-dependent case: compute time-dependent components with updated time
                 else
@@ -167,7 +174,7 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
                     end
                     for index = 1:mucol
                         [l,u] = lu(M - dt * A(:,(index-1)*dim1+1:index*dim1));
-                        newx(:,index) = u\(l\RHS(:,index));  
+                        newx(:,index) = u\(l\RHS(:,index));
                     end
                 end
                 
@@ -187,21 +194,23 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
                     % Implicit
                     %newex = (dt*al+oldex)/(1-dt*bet);
                     
-%                     fun = @(y)y-dt*est.evalODEPart([oldx; y], t(idx), s.mu, ut)-oldex/dt;
-%                     opts = optimset('Display','off');
-%                     newex2 = fsolve(fun, oldex, opts);
+                    %                     fun = @(y)y-dt*est.evalODEPart([oldx; y], t(idx), s.mu, ut)-oldex/dt;
+                    %                     opts = optimset('Display','off');
+                    %                     newex2 = fsolve(fun, oldex, opts);
                 end
                 
                 % Only produce output at wanted timesteps
                 if outputtimes(idx)
-                    if rtm
+                    if rtm  % not implemented
                         % Real time mode: Fire StepPerformed event
                         ed.Times = t(idx);
                         ed.States = [newx; newex];
                         this.notify('StepPerformed',ed);
                         % Normal mode: Collect solution in result vector
                     else
-                        x(:,outidx,:) = [newx; newex];%#ok
+                        x(:,(outidx-1)*dim3+1:outidx*dim3) = [newx; newex];
+                        
+                        % x(:,outidx,:) = [newx; newex];%#ok
                         % squeeze(x(:,t,:)) == x at timeindex t
                         outidx = outidx+1;
                     end
@@ -209,6 +218,15 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
                 oldx = newx;
                 oldex = newex;
             end
+            
+            blocksize = 8*dim1*dim2/(1024^2);
+            trajectory = data.FileMatrix(dim1,dim2*dim3,'BlockSize',blocksize);
+            
+            for idx = 1:dim3
+                indices = idx:dim3:dim3*dim2;
+                trajectory(:,(idx-1)*dim2+1:idx*dim2) = x(:,indices);
+            end
+            x = trajectory;
         end
     end
 end

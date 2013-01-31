@@ -81,7 +81,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
         
         % The effective block size
         blocksize;
-
+        
         % A placeholder for the only block of the filematrix, if so. (dont need a folder etc if
         % its small enough)
         block1;
@@ -347,7 +347,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                             diff = A.cachedBlock - B;
                             return;
                         end
-                        %| @todo need FileMatrix as result type here 
+                        %| @todo need FileMatrix as result type here
                         diff = zeros(A.n, A.m);
                         for i=1:A.nBlocks
                             pos = A.getBlockPos(i);
@@ -390,35 +390,39 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                         AB = A.cachedBlock * B;
                         return;
                     end
-                    if A.m ~= size(B,1)
-                        error('Matrix dimensions must agree.');
-                    end
-                    % FileMatrix * vec case
-                    if size(B,2) == 1
-                        AB = zeros(A.n,1);
-                        for bidx = 1:A.nBlocks
-                            % Only multiply if nonzero
-                            if A.created(bidx)
-                                ABlock = A.loadBlock(bidx);
-                                AB = AB + ABlock*B(A.getBlockPos(bidx),:);
-                            end
-                        end
-                        % FileMatrix * matrix case
+                    if isscalar(B)  % Matrix*scalar case
+                        AB = mtimes(B,A);
                     else
-                        AB = data.FileMatrix(A.n, size(B,2), 'Dir', fileparts(A.DataDirectory),...
-                            'BlockSize', A.blocksize);
-                        ABcols = AB.bCols;
-                        key = struct('type',{'()'},'subs',{{':'}});
-                        for i=1:A.nBlocks
-                            if A.created(i)
-                                b = A.loadBlock(i);
-                                posm = A.getBlockPos(i);
-                                % Split up the additions into the block size of AB
-                                for j=1:ceil(size(B,2)/ABcols)
-                                    key.subs{2} = AB.getBlockPos(j);
-                                    % This is reasonably fast as the same block in AB is loaded all
-                                    % the time.
-                                    AB.subsasgn(key,AB.subsref(key) + b*B(posm,key.subs{2}));
+                        if A.m ~= size(B,1)
+                            error('Matrix dimensions must agree.');
+                        end
+                        % FileMatrix * vec case
+                        if size(B,2) == 1
+                            AB = zeros(A.n,1);
+                            for bidx = 1:A.nBlocks
+                                % Only multiply if nonzero
+                                if A.created(bidx)
+                                    ABlock = A.loadBlock(bidx);
+                                    AB = AB + ABlock*B(A.getBlockPos(bidx),:);
+                                end
+                            end
+                            % FileMatrix * matrix case
+                        else
+                            AB = data.FileMatrix(A.n, size(B,2), 'Dir', fileparts(A.DataDirectory),...
+                                'BlockSize', A.blocksize);
+                            ABcols = AB.bCols;
+                            key = struct('type',{'()'},'subs',{{':'}});
+                            for i=1:A.nBlocks
+                                if A.created(i)
+                                    b = A.loadBlock(i);
+                                    posm = A.getBlockPos(i);
+                                    % Split up the additions into the block size of AB
+                                    for j=1:ceil(size(B,2)/ABcols)
+                                        key.subs{2} = AB.getBlockPos(j);
+                                        % This is reasonably fast as the same block in AB is loaded all
+                                        % the time.
+                                        AB.subsasgn(key,AB.subsref(key) + b*B(posm,key.subs{2}));
+                                    end
                                 end
                             end
                         end
@@ -431,28 +435,45 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                     AB = A*B.cachedBlock;
                     return;
                 end
-                AB = data.FileMatrix(size(A,1), B.m, 'Dir', fileparts(B.DataDirectory),...
-                    'BlockSize', B.blocksize);
-                key = struct('type',{'()'},'subs',{{':'}});
-                % If AB has more blocks than B, the resulting matrix is larger than B.
-                % Thus, we need A*b to be as most as big as blocksize, which is why slices of B
-                % in the size of ABs blocks are taken.
-                if AB.nBlocks > B.nBlocks
-                    for i=1:AB.nBlocks
-                        key.subs{2} = AB.getBlockPos(i);
-                        b = B.subsref(key);
-                        AB.subsasgn(key,A*b);
-                    end
-                else
-                    for i=1:B.nBlocks
-                        if B.created(i)
-                            key.subs{2} = B.getBlockPos(i);
-                            AB.subsasgn(key,A*B.loadBlock(i));
+                
+                if isscalar(A)  % scalar*Matrix
+                    AB = data.FileMatrix(B.n, B.m, 'Dir', fileparts(B.DataDirectory),...
+                        'BlockSize', B.blocksize);
+                    key = struct('type',{'()'},'subs',{{':'}});
+                    for bidx = 1:B.nBlocks
+                        % Only multiply if nonzero
+                        if B.created(bidx)
+                            key.subs{2} = B.getBlockPos(bidx);
+                            AB.subsasgn(key,A*B.loadBlock(bidx));
+                            %AB(:,B.getBlockPos(bidx)) = A*B.loadBlock(bidx);
                         end
                     end
-                    % Return a matrix if the A argument was a transposed vector
-                    if size(A,1) == 1
-                        AB = AB.toMemoryMatrix;
+                    
+                else
+                    
+                    AB = data.FileMatrix(size(A,1), B.m, 'Dir', fileparts(B.DataDirectory),...
+                        'BlockSize', B.blocksize);
+                    key = struct('type',{'()'},'subs',{{':'}});
+                    % If AB has more blocks than B, the resulting matrix is larger than B.
+                    % Thus, we need A*b to be as most as big as blocksize, which is why slices of B
+                    % in the size of ABs blocks are taken.
+                    if AB.nBlocks > B.nBlocks
+                        for i=1:AB.nBlocks
+                            key.subs{2} = AB.getBlockPos(i);
+                            b = B.subsref(key);
+                            AB.subsasgn(key,A*b);
+                        end
+                    else
+                        for i=1:B.nBlocks
+                            if B.created(i)
+                                key.subs{2} = B.getBlockPos(i);
+                                AB.subsasgn(key,A*B.loadBlock(i));
+                            end
+                        end
+                        % Return a matrix if the A argument was a transposed vector
+                        if size(A,1) == 1
+                            AB = AB.toMemoryMatrix;
+                        end
                     end
                 end
             end
@@ -891,7 +912,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
         function res = test_Times_MTimes
             % @todo need implementation for >1 nBlock matrices and scalar values
             % @todo need separate test for each overridden operator
-           
+            
             % No blocks
             [A,B] = data.FileMatrix.getTestPair(100,1000);
             AB = A.*B;
@@ -970,7 +991,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             % Tedious formulation as use of direct operators inside the defining class of
             % overloads will not work.
             % See http://www.mathworks.com/help/matlab/matlab_oop/indexed-reference-and-assignment.html#br09nsm
-            A.subsasgn(struct('type',{'()'},'subs',{{':', ':'}}),B);            
+            A.subsasgn(struct('type',{'()'},'subs',{{':', ':'}}),B);
         end
     end
 end
