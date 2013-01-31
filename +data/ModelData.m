@@ -102,6 +102,8 @@ classdef ModelData < data.FileData
             this = this@data.FileData(data_dir);
             this.TrajectoryData = data.MemoryTrajectoryData;
             this.SimCache = data.FileTrajectoryData(fullfile(data_dir,'simcache'));
+            % Dont force uniform trajectory lengths for simulation cache
+            this.SimCache.UniformTrajectories = false;
         end
         
         function mu = getParams(this, idx)
