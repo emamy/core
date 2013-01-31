@@ -10,6 +10,9 @@ classdef BaseCustomSolver < solvers.BaseSolver
     %
     % @new{0,4,dw,2011-05-31} Added this class.
     %
+    % @todo checkout code at
+    % http://www.mymathlib.com/diffeq/embedded_runge_kutta/embedded_prince_dormand_v1_4_5.html
+    %
     % This class is part of the framework
     % KerMor - Model Order Reduction using Kernels:
     % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html

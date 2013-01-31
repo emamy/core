@@ -28,6 +28,24 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
+
+    properties
+        % Flag that indicates if a warning should be issued if a trajectory already exists
+        % and is about to be replaced
+        %
+        % @type logical @default false
+        ReplaceExisting = false;
+        
+        % Flag that checks if newly added trajectories must have the size of already existing
+        % trajectories.
+        %
+        % So far, if you add an non-uniform trajectory when temporarily switching the check off
+        % will not check for this inconsistency when turning it back on again. (This setting
+        % has effect only as long as it is turned on)
+        %
+        % @type logical @default true
+        UniformTrajectories = true;
+    end
     
     properties(Access=private)
         % Stores the DoFs of the trajectories and parameter sizes
@@ -120,14 +138,17 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
                 error('Invalid parameter dimension. Existing: %d, new: %d',this.sizes(2),newmu);
             end
             
-            if isempty(this.trajlen)
-                this.trajlen = size(x,2);
-            elseif this.trajlen ~= size(x,2)
-                error('Invalid trajectory length. Existing: %d, new: %d',this.trajlen,size(x,2));
+            if this.UniformTrajectories
+                if isempty(this.trajlen)
+                    this.trajlen = size(x,2);
+                elseif this.trajlen ~= size(x,2)
+                    error('Invalid trajectory length. Existing: %d, new: %d',this.trajlen,size(x,2));
+                end
             end
             
-            if this.hasData([mu; inputidx])
-                warning('KerMor:MemoryTrajectoryData','Trajectory already present. Replacing.');
+            if ~this.ReplaceExisting && this.hasData([mu; inputidx])
+                warning('KerMor:FileTrajectoryData','Trajectory already present and replacing is disabled.');
+                return;
             end
             traj.x = x;
             traj.ctime = ctime;
