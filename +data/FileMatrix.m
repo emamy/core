@@ -435,7 +435,6 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                     AB = A*B.cachedBlock;
                     return;
                 end
-                
                 if isscalar(A)  % scalar*Matrix
                     AB = data.FileMatrix(B.n, B.m, 'Dir', fileparts(B.DataDirectory),...
                         'BlockSize', B.blocksize);
@@ -490,14 +489,19 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                     if A.nBlocks == 1
                         AB = A.cachedBlock .* B;
                         return;
-                    end
-                    if A.n ~= size(B,1) || A.m ~= size(B,2)
-                        error('Matrix dimensions must agree.');
-                    end
-                    AB = data.FileMatrix(A.n,A.m,'Dir', fileparts(A.DataDirectory),...
-                        'BlockSize', A.blocksize);
-                    for k=1:A.nBlocks
-                        AB.saveBlock(k,A.loadBlock(k).*B(:,A.getBlockPos(k)));
+                    elseif isscalar(B)
+                        % Call matrix multiplication with scalar value
+                        AB = mtimes(B,A);
+                    else
+                        if  A.n ~= size(B,1) || A.m ~= size(B,2)
+                            error('Matrix dimensions must agree.');
+                        end
+                        AB = data.FileMatrix(A.n,A.m,'Dir', fileparts(A.DataDirectory),...
+                            'BlockSize', A.blocksize);
+
+                        for k=1:A.nBlocks
+                            AB.saveBlock(k,A.loadBlock(k).*B(:,A.getBlockPos(k)));
+                        end
                     end
                 end
             else
@@ -907,6 +911,22 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             res = res & isequal(4*a,B);
             C = A*1;
             res = res & isequal(a,C);
+            
+            B = 4.*A;
+            res = res & isequal(4*a,B);
+            C = A.*1;
+            res = res & isequal(a,C);
+            
+            [A,a] = data.FileMatrix.getTestPair(400,400,4);
+            B = 4*A;
+            res = res & 4*a == B;
+            C = A*1;
+            res = res & a == C;
+            
+            B = 4.*A;
+            res = res & 4*a == B;
+            C = A.*1;
+            res = res & a == C;
         end
         
         function res = test_Times_MTimes
