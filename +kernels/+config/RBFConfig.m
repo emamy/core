@@ -1,4 +1,4 @@
-classdef RBFConfig < general.IClassConfig
+classdef RBFConfig < general.IClassConfig & ICloneable
 % RBFConfig: 
 %
 % @docupdate
@@ -57,6 +57,14 @@ classdef RBFConfig < general.IClassConfig
             str = 'Gamma';
         end
         
+        function conf = getSubPart(this, partNr, totalParts)
+            conf = this.clone;
+            conf.Gammas = this.Gammas(this.getPartIndices(partNr, totalParts));
+        end
+        
+        function copy = clone(this, copy)
+            copy.Gammas = this.Gammas;
+        end
     end
     
     methods(Static)

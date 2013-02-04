@@ -51,6 +51,9 @@ classdef ExpansionConfig < general.IClassConfig
         end
         
         function str = getConfigurationString(this, nr, asCell)
+            if nargin < 3
+                asCell = false;
+            end
             str = [];
             if ~isempty(this.StateConfig)
                 str = [str sprintf('state: %s',this.StateConfig.getConfigurationString(nr, asCell))];
@@ -94,6 +97,19 @@ classdef ExpansionConfig < general.IClassConfig
             end
             if ~isempty(this.ParamConfig)
                 this.ParamConfig.vBestConfigIndex = idx;
+            end
+        end
+        
+        function conf = getSubPart(this, partNr, totalParts)
+            conf = kernels.config.ExpansionConfig;
+            if ~isempty(this.StateConfig)
+                conf.StateConfig = this.StateConfig.getSubPart(this, partNr, totalParts);
+            end
+            if ~isempty(this.TimeConfig)
+                conf.TimeConfig = this.TimeConfig.getSubPart(this, partNr, totalParts);
+            end
+            if ~isempty(this.ParamConfig)
+                conf.ParamConfig = this.ParamConfig.getSubPart(this, partNr, totalParts);
             end
         end
         

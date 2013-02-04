@@ -57,5 +57,21 @@ classdef GaussConfig < kernels.config.RBFConfig
                 applyConfiguration@kernels.config.RBFConfig(this, nr, kernel);
             end
         end
+        
+        function conf = getSubPart(this, partNr, totalParts)
+            conf = getSubPart@kernels.config.RBFConfig(this, partNr, totalParts);
+            if ~isempty(this.Distances)
+                idx = this.getPartIndices(partNr, totalParts);
+                conf.Distances = this.Distances(:,idx);
+                conf.DistEps = this.DistEps;
+            end
+        end
+        
+        function copy = clone(this)
+            copy = kernels.config.GaussConfig('G',[]);
+            copy = clone@kernels.config.RBFConfig(this, copy);
+            copy.Distances = this.Distances;
+            copy.DistEps = this.DistEps;
+        end
     end
 end

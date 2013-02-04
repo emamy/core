@@ -68,7 +68,10 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
     methods
         function ai = regress(this, fxi, initialai)
             % Make sure it's a row vector.
-            fxi = reshape(fxi,1,[]);
+            %fxi = reshape(fxi,1,[]);
+            if any(abs(fxi) > 1)
+                error('This SVR implementation requires fxi values in [-1,1]');
+            end
 %             initialai = reshape(initialai,1,[]);
             if this.Version == 1
                 % Call 1D-Optimizer
@@ -78,6 +81,13 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
                 ai = this.regress2D(fxi, initialai);
             end
         end
+        
+%         function set.Eps(this, value)
+%             if value < 0 || value >= 1
+%                 error('Epsilon value must be in [0,1[');
+%             end
+%             this.Eps = value;
+%         end
     end
     
     methods(Access=private)

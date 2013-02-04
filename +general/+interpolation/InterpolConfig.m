@@ -39,8 +39,12 @@ classdef InterpolConfig < general.IClassConfig
             str = '';
         end
         
-        function str = getConfiguredPropertiesString(this)
+        function str = getConfiguredPropertiesString(this)%#ok
             str = 'none';
+        end
+        
+        function conf = getSubPart(this, partNr, totalParts)%#ok
+            conf = this;
         end
     end
     

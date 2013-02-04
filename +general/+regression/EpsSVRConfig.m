@@ -45,6 +45,17 @@ classdef EpsSVRConfig < general.IClassConfig
         function str = getConfiguredPropertiesString(this)
             str = 'Eps, Lambda';
         end
+        
+        function conf = getSubPart(this, partNr, totalParts)
+            v = [this.Epsilons; this.Lambdas];
+            v = v(:,this.getPartIndices(partNr, totalParts));
+            conf = general.regression.EpsSVRConfig(v);
+        end
+        
+%         function copy = clone(this)
+%             copy = general.regression.EpsSVRConfig([this.Epsilons; this.Lambdas]);
+%             copy = clone@general.IClassConfig(this, copy);
+%         end
     end
     
 end

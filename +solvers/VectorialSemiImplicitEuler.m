@@ -27,6 +27,10 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
     % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
     % - \c License @ref licensing
     
+    properties
+       FileMatrixCacheBlockSizeGB = 1; 
+    end
+    
     properties(Access=private)
         model;
     end
@@ -34,12 +38,12 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
     methods
         function this = VectorialSemiImplicitEuler(model)
             this.model = model;
-            this.Name = 'vectorial Semi-implicit euler method';
+            this.Name = 'Vectorial semi-implicit Euler''s method';
         end
     end
     
     methods(Access=protected)
-        function x = customSolve(this, ~, t, x0, outputtimes)
+        function td = customSolve(this, ~, t, x0, outputtimes)
             % Implements the actual semi-implicit solving of the given ODE system.
             %
             %
@@ -49,44 +53,28 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
             if isempty(s.A)
                 error('This solver requires an (affine) linear system component A.');
             end
-            %             if isa(s.Model,'models.ReducedModel') && ~isempty(s.Model.ErrorEstimator)...
-            %                     && s.Model.ErrorEstimator.Enabled && s.Model.ErrorEstimator.ExtraODEDims > 0
-            %                 error('Cannot use this solver with reduced models that have an error estimator enabled with ExtraODEDims > 0 (this solver overrides the odefun handle)');
-            %             end
+            
             % Initialize result
             steps = length(t);
+            n = size(x0,1);
+            starttime = tic;
             
             dt = t(2)-t(1);
             if ~isempty(find((abs(t(2:end)-t(1:end-1) - dt)) / dt > 1e-6,1)) %any(t(2:end)-t(1:end-1) - dt > 100*eps)
                 error('non-equidistant dt timesteps.');
             end
             
-            rtm = this.RealTimeMode;
-            if rtm  % not implemented
-                ed = solvers.ode.SolverEventData;
-                x = [];
-            else
-                effsteps = length(find(outputtimes));
-                % Create return matrix in size of effectively desired timesteps
-                % x = [x0 zeros(size(x0,1),effsteps-1)];
-                % x(:,1,1) = states at t=1, mu(1),
-                % x(1,:,1) = trajectory of state(1), mu(1)
-                % x(1,1,:) = state(1) at t=1 for all mu
-                [dim1,dim3] = size(x0);
-                dim2 = effsteps;
-                mucol = size(s.mu,2);  % number of columns of mu
-                t_per_block = floor(0.5*1024^3 /(8*dim1/dim3));   % blocksize approx. 0.5 GB
-                blocksize = 8*dim1*dim3*t_per_block/(1024^2);
-                x = data.FileMatrix(dim1,dim2*dim3,'BlockSize',blocksize);
-                %                 key = struct('type',{'()'},'subs',[]);
-                %                 key.subs = {':', 1:dim3};
-                %                 x.subsasgn(key,x0);
-                x(:,1:dim3) = x0;
-                % x = zeros(dim1,dim2,dim3);
-                % x(:,1,:) = x0;
-                % Initialize output index counter
-                outidx = 2;
-            end
+            effsteps = length(find(outputtimes));
+            numSolves = size(s.mu,2);  % number of columns of mu
+            numTimestepsPerBlock = min(effsteps,floor(this.FileMatrixCacheBlockSizeGB*1024^3/(8*n*numSolves)));
+            blocksize = 8*n*numSolves*numTimestepsPerBlock/(1024^2);
+            x = data.FileMatrix(n,effsteps*numSolves,'BlockSize',blocksize);
+
+            % Assign initial values
+            x(:,1:numSolves) = x0;
+
+            % Initialize output index counter
+            outidx = 2;
             
             oldex = []; newex = []; edim = 0; est = [];
             if isa(this.model,'models.ReducedModel')
@@ -99,7 +87,7 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
             
             % Check if a mass matrix is present, otherwise assume identity matrix
             % M is independent from mu
-            M = speye(size(x0,1)-edim);
+            M = speye(n-edim);
             mdep = false;
             if ~isempty(s.M)
                 mdep = s.M.TimeDependent;
@@ -118,10 +106,10 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
             if ~mdep && ~fdep
                 % lu decomposition in for loop in for loop over blocks of M-dt*A, significantly faster than lu decomposition of everything
                 % at once
-                l = zeros(dim1,dim1*mucol);
-                u = zeros(dim1,dim1*mucol);
-                for index = 1:mucol
-                    [l(:,(index-1)*dim1+1:index*dim1),u(:,(index-1)*dim1+1:index*dim1)] = lu(M - dt * A(:,(index-1)*dim1+1:index*dim1));
+                l = zeros(n,n*numSolves);
+                u = zeros(n,n*numSolves);
+                for index = 1:numSolves
+                    [l(:,(index-1)*n+1:index*n),u(:,(index-1)*n+1:index*n)] = lu(M - dt * A(:,(index-1)*n+1:index*n));
                 end
             end
             
@@ -130,7 +118,7 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
             newx = zeros(size(oldx));
             if ~isempty(s.u)
                 [urow,ucol] = size(s.u);
-                if (ucol ~= mucol) && (ucol ~= 1)
+                if (ucol ~= numSolves) && (ucol ~= 1)
                     error('u and mu must have same number of columns or u must be column vector')
                 end
             end
@@ -140,17 +128,17 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
                     RHS = RHS + dt*s.f.evaluate(oldx, t(idx-1), s.mu);
                 end
                 if ~isempty(s.u)
-                    if mucol == 1
+                    if numSolves == 1
                         RHS = RHS + dt*s.B.evaluate(t(idx-1), s.mu)*s.u(t(idx-1));
                     else
                         B = s.B.evaluate(t(idx-1), s.mu);
-                        input = zeros(dim1,mucol);
+                        input = zeros(n,numSolves);
                         if ucol == 1   % u is column-vector
-                            for index = 1:mucol
+                            for index = 1:numSolves
                                 input(:,index) = B(:,(index-1)*urow+1:index*urow)*s.u(t(idx-1));
                             end
                         else  % u is matrix with mucol columns
-                            for index = 1:mucol
+                            for index = 1:numSolves
                                 input(:,index) = B(:,(index-1)*urow+1:index*urow)*s.u(t(idx-1),:,index);   % todo: indexing of u ???
                             end
                         end
@@ -161,8 +149,8 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
                 
                 % Time-independent case: constant
                 if ~fdep && ~mdep
-                    for index = 1:mucol
-                        newx(:,index) = u(:,(index-1)*dim1+1:index*dim1)\(l(:,(index-1)*dim1+1:index*dim1)\RHS(:,index));
+                    for index = 1:numSolves
+                        newx(:,index) = u(:,(index-1)*n+1:index*n)\(l(:,(index-1)*n+1:index*n)\RHS(:,index));
                     end
                     % Time-dependent case: compute time-dependent components with updated time
                 else
@@ -172,8 +160,8 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
                     if mdep
                         M = s.M.evaluate(t(idx));
                     end
-                    for index = 1:mucol
-                        [l,u] = lu(M - dt * A(:,(index-1)*dim1+1:index*dim1));
+                    for index = 1:numSolves
+                        [l,u] = lu(M - dt * A(:,(index-1)*n+1:index*n));
                         newx(:,index) = u\(l\RHS(:,index));
                     end
                 end
@@ -201,32 +189,71 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
                 
                 % Only produce output at wanted timesteps
                 if outputtimes(idx)
-                    if rtm  % not implemented
-                        % Real time mode: Fire StepPerformed event
-                        ed.Times = t(idx);
-                        ed.States = [newx; newex];
-                        this.notify('StepPerformed',ed);
-                        % Normal mode: Collect solution in result vector
-                    else
-                        x(:,(outidx-1)*dim3+1:outidx*dim3) = [newx; newex];
-                        
-                        % x(:,outidx,:) = [newx; newex];%#ok
-                        % squeeze(x(:,t,:)) == x at timeindex t
-                        outidx = outidx+1;
-                    end
+                    x(:,(outidx-1)*numSolves+1:outidx*numSolves) = [newx; newex];
+
+                    % x(:,outidx,:) = [newx; newex];%#ok
+                    % squeeze(x(:,t,:)) == x at timeindex t
+                    outidx = outidx+1;
                 end
                 oldx = newx;
                 oldex = newex;
             end
             
-            blocksize = 8*dim1*dim2/(1024^2);
-            trajectory = data.FileMatrix(dim1,dim2*dim3,'BlockSize',blocksize);
+            % "Guess" computation time by dividing by the number of simultaneous solves
+            ctime = toc(starttime)/numSolves;
+            td = this.transformFileMatrixCache(x, numTimestepsPerBlock, ctime);
+        end
+    end
+    
+    methods(Access=private)
+        function td = transformFileMatrixCache(this, x, numTimestepsPerBlock, ctime)
+            s = this.model.System;
+            numSolves = size(s.mu,2);
             
-            for idx = 1:dim3
-                indices = idx:dim3:dim3*dim2;
-                trajectory(:,(idx-1)*dim2+1:idx*dim2) = x(:,indices);
+            % Extend input indices if necessary
+            inidx = s.inputidx;
+            if isscalar(inidx)
+                inidx = repmat(inidx,1,numSolves);
             end
-            x = trajectory;
+            muhash = general.Utils.getHash([s.mu; inidx]);
+            savedir = fullfile(this.model.Data.DataDirectory,sprintf('simres_%s',muhash));
+            td = data.FileTrajectoryData(savedir);
+            td.UniformTrajectories = false;
+            td.ReplaceExisting = true;
+            
+            % This "equation" holds as the FileMatrix used for caching the results was designed
+            % that way.
+            nCols = numSolves*numTimestepsPerBlock;
+            
+            for k = 1:x.getNumBlocks % Loop through block number for correct positions
+                for idx = 1:numSolves % Extract timesteps for each solve
+                    mu = s.mu(:,idx);
+                    % These indices effectively only access one block
+                    xpos = (k-1)*nCols + (idx:numSolves:nCols);
+                    if k == 1 % At first block, just add as there is not existing data
+                        td.addTrajectory(x(:,xpos),mu,inidx(idx),ctime);
+                    else % Else: Load existing data, extend, save
+                        % Caution! The last block of the FileMatrix cache may not have full
+                        % size, thus cut all indices that would exceed it.
+                        if k == x.getNumBlocks
+                            xpos(xpos > x.m) = [];
+                        end
+                        % Get existing data
+                        xold = td.getTrajectory(mu,inidx(idx));
+                        % Extend
+                        xold = [xold x(:,xpos)]; %#ok
+                        % Store
+                        td.addTrajectory(xold,mu,inidx(idx),ctime);
+                    end
+                end
+            end
+            
+            mu_values = s.mu; input_indices = s.inputidx; themodel = this.model;%#ok
+            save(savedir,'mu_values','input_indices','themodel');
+            
+%             Forgot that timesteps are not even stored with trajectory data!
+%             t = t(outputtimes);
+%             tpos = (k-1)*numTimestepsPerBlock + (1:numTimestepsPerBlock);
         end
     end
 end

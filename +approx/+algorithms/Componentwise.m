@@ -105,11 +105,11 @@ classdef Componentwise < approx.algorithms.ABase
             [X,Y] = meshgrid(1:nc,1:nco);
             
             h = pm.nextPlot('abs','Absolute errors','expansion config','coeff comp config');
-            ph = tools.LogPlot.logsurf(h,X,Y,this.MaxErrors);
-            set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
+            ph = tools.LogPlot.logsurf(h,X,Y,this.MaxErrors');
+%             set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
             h = pm.nextPlot('rel','Relative errors','expansion config','coeff comp config');
-            ph = tools.LogPlot.logsurf(h,X,Y,this.MaxRelErrors);
-            set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
+            ph = tools.LogPlot.logsurf(h,X,Y,this.MaxRelErrors');
+%             set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
             
             if nargin < 2
                 pm.done;

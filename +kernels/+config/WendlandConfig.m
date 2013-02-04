@@ -56,5 +56,19 @@ classdef WendlandConfig < kernels.config.RBFConfig
             str = getConfiguredPropertiesString@kernels.config.RBFConfig(this);
             str = sprintf('%s, k with fixed d=%d',str,this.Dimension);
         end
+        
+        function conf = getSubPart(this, partNr, totalParts)
+            conf = getSubPart@kernels.config.RBFConfig(this, partNr, totalParts);
+            idx = this.getPartIndices(partNr, totalParts);
+            conf.Smoothnesses = this.Smoothnesses(:,idx);
+            conf.Dimension = this.Dimension;
+        end
+        
+        function copy = clone(this)
+            copy = kernels.config.WendlandConfig('G',[]);
+            copy = clone@kernels.config.RBFConfig(this, copy);
+            copy.Smoothnesses = this.Smoothnesses;
+            copy.Dimension = this.Dimension;
+        end
     end    
 end

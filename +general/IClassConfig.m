@@ -39,6 +39,24 @@ classdef IClassConfig < KerMorObject
         end
     end
     
+%     methods
+%         function copy = clone(this, copy)
+%             copy = clone@KerMorObject(this, copy);
+%             copy.vBestConfigIndex = this.vBestConfigIndex;
+%         end
+%     end
+    
+    methods(Access=protected)
+        function idx = getPartIndices(this, partNr, totalParts)
+            if partNr > totalParts
+                error('partNr <= totalParts required.');
+            end
+            n = this.getNumConfigurations;
+            ptsize = ceil(n/totalParts);
+            idx = ((partNr-1)*ptsize+1):min((partNr*ptsize),n);
+        end
+    end
+    
     methods(Abstract)
         % Returns the number of configurations that can be applied
         %
@@ -69,6 +87,19 @@ classdef IClassConfig < KerMorObject
         % Return values:
         % str: The string @type char
         str = getConfiguredPropertiesString(this);
+        
+        % Returns a sub-part of this configuration as a new instance.
+        %
+        % Use the helper method getPartIndices to obtain the correct indices of the
+        % configurations that belong to a specific part.
+        %
+        % Parameters:
+        % partNr: The part number @type integer
+        % totalParts: The total number of parts @type integer
+        %
+        % Return values:
+        % conf: A copy containing the configurations of the specified part @type IClassConfig
+        conf = getSubPart(this, partNr, totalParts);
     end
     
     methods(Static)

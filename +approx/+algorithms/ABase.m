@@ -102,8 +102,8 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
                 [fm,fM] = atd.fxi.getColBoundingBox;
                 s = max(abs(fm),abs(fM));
                 s(s==0) = 1;
-                oldfxi = atd.fxi;
-                atd.fxi = atd.fxi ./ repmat(s,1,size(atd.fxi,2));
+                oldfxi = atd.fxi.toMemoryMatrix;
+                atd.fxi(:,:) = oldfxi ./ repmat(s,1,size(atd.fxi,2));
             end
             
             remove_conf = false;
@@ -127,7 +127,7 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
             % Rescale if set
             if this.UsefScaling
                 kexp.Ma = diag(s)*kexp.Ma;
-                atd.fxi = oldfxi;
+                atd.fxi(:,:) = oldfxi;
             end
             
             % Reduce the snapshot array and coeff data to the
@@ -135,7 +135,7 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
             % not used in any dimension, it is kicked out at this
             % stage.
             n = size(kexp.Centers.xi,2);
-            hlp = sum(kexp.Ma ~= 0,1);
+            hlp = sum(abs(kexp.Ma) ~= 0,1);
             usedidx = find(hlp > 0);
             if length(usedidx) < n
                 kexp.Ma = kexp.Ma(:,usedidx);
