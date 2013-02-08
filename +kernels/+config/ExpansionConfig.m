@@ -162,4 +162,18 @@ classdef ExpansionConfig < general.IClassConfig
         end
     end
     
+    methods(Access=protected)
+        function collectRanges(this, proppath)
+            if ~isempty(this.StateConfig)
+                this.StateConfig.collectRanges([proppath {'StateConfig'}]);
+            end
+            if ~isempty(this.TimeConfig)
+                this.TimeConfig.collectRanges([proppath {'TimeConfig'}]);
+            end
+            if ~isempty(this.ParamConfig)
+                this.ParamConfig.collectRanges([proppath {'ParamConfig'}]);
+            end
+        end
+    end
+    
 end

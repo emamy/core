@@ -25,6 +25,10 @@ classdef IClassConfig < KerMorObject
         vBestConfigIndex = [];
     end
     
+    properties%(SetAccess=private, GetAccess=protected, Transient)
+        pt;
+    end
+    
     methods(Sealed)
         function lbl = getAxisLabels(this, nrs)
             if nargin < 2
@@ -36,6 +40,15 @@ classdef IClassConfig < KerMorObject
                 tmp = this.getConfigurationString(e, true);
                 o = general.Utils.implode(tmp,sprintf('/'));
             end
+        end
+        
+        function t = getValueRanges(this)
+            t = PrintTable;
+            t.HasHeader = true;
+            t.HasRowHeader = true;
+            t.addRow('Location','Min','Max');
+            this.pt = t;
+            this.collectRanges({this.getClassName});
         end
     end
     
@@ -54,6 +67,11 @@ classdef IClassConfig < KerMorObject
             n = this.getNumConfigurations;
             ptsize = ceil(n/totalParts);
             idx = ((partNr-1)*ptsize+1):min((partNr*ptsize),n);
+        end
+        
+        function addRange(this, proppath, minval, maxval)
+            head = general.Utils.implode(proppath,'.');
+            this.pt.addRow(head,minval,maxval);
         end
     end
     
@@ -100,6 +118,10 @@ classdef IClassConfig < KerMorObject
         % Return values:
         % conf: A copy containing the configurations of the specified part @type IClassConfig
         conf = getSubPart(this, partNr, totalParts);
+    end
+    
+    methods(Abstract, Access=protected)
+        collectRanges(this, proppath);
     end
     
     methods(Static)

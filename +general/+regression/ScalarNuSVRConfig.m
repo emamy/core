@@ -48,6 +48,13 @@ classdef ScalarNuSVRConfig < general.IClassConfig
         function str = getConfigurationString(this, nr)
             str = sprintf('nu=%g',this.nuvals(nr));
         end
+        
+    end
+    
+    methods(Access=protected)        
+        function collectRanges(this, proppath)
+            this.addRange([proppath {'Nu'}],min(this.nuvals),max(this.nuvals));
+        end        
     end
     
 end

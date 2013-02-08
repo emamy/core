@@ -52,6 +52,15 @@ classdef EpsSVRConfig < general.IClassConfig
             conf = general.regression.EpsSVRConfig(v);
         end
         
+    end
+    
+    methods(Access=protected)    
+        
+        function collectRanges(this, proppath)
+            this.addRange([proppath {'Epsilons'}],min(this.Epsilons),max(this.Epsilons));
+            this.addRange([proppath {'Lambdas'}],min(this.Dimension),max(this.Lambdas));
+        end
+        
 %         function copy = clone(this)
 %             copy = general.regression.EpsSVRConfig([this.Epsilons; this.Lambdas]);
 %             copy = clone@general.IClassConfig(this, copy);

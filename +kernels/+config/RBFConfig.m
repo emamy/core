@@ -38,7 +38,7 @@ classdef RBFConfig < general.IClassConfig & ICloneable
         function applyConfiguration(this, nr, kernel)
             kernel.Gamma = this.Gammas(nr);
         end
-        
+
         function str = getConfigurationString(this, nr, asCell)
             if asCell
                 str = {};
@@ -64,6 +64,12 @@ classdef RBFConfig < general.IClassConfig & ICloneable
         
         function copy = clone(this, copy)
             copy.Gammas = this.Gammas;
+        end
+    end
+    
+    methods(Access=protected)
+        function collectRanges(this, proppath)
+            this.addRange([proppath {'Gamma'}],min(this.Gammas),max(this.Gammas));
         end
     end
     

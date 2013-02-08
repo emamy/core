@@ -46,6 +46,14 @@ classdef InterpolConfig < general.IClassConfig
         function conf = getSubPart(this, partNr, totalParts)%#ok
             conf = this;
         end
+        
+    end
+    
+    methods(Access=protected)    
+        
+        function collectRanges(this, proppath)
+            % do nothing
+        end
     end
     
 end

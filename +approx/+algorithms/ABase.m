@@ -154,6 +154,19 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
             end
             this.LastCompTime = toc(time);
         end
+        
+        function str = getApproximationSummary(this)
+            str = sprintf('Algorithm: %s\n',this.getClassName);
+            % Computation time
+            str = sprintf('%sTotal computation time for %d configurations: %g\n',str,...
+                this.ExpConfig.getNumConfigurations,this.LastCompTime);
+            % Configuration
+            str = sprintf('%s\n',str);
+            
+            if nargout < 1
+                disp(str);
+            end
+        end
     end
     
     methods(Access=protected)

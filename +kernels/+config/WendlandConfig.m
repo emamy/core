@@ -1,17 +1,17 @@
 classdef WendlandConfig < kernels.config.RBFConfig
-% WendlandConfig: Configuration settings for Wendland kernels
-%
-% @docupdate
-%
-% @author Daniel Wirtz @date 2012-11-22
-%
-% @new{0,7,dw,2012-11-22} Added this class.
-%
-% This class is part of the framework
-% KerMor - Model Order Reduction using Kernels:
-% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
-% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
-% - \c License @ref licensing
+    % WendlandConfig: Configuration settings for Wendland kernels
+    %
+    % @docupdate
+    %
+    % @author Daniel Wirtz @date 2012-11-22
+    %
+    % @new{0,7,dw,2012-11-22} Added this class.
+    %
+    % This class is part of the framework
+    % KerMor - Model Order Reduction using Kernels:
+    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % - \c License @ref licensing
     
     properties(SetAccess=private)
         Smoothnesses;
@@ -70,5 +70,13 @@ classdef WendlandConfig < kernels.config.RBFConfig
             copy.Smoothnesses = this.Smoothnesses;
             copy.Dimension = this.Dimension;
         end
-    end    
+    end
+    
+    methods(Access=protected)
+        function collectRanges(this, proppath)
+            collectRanges@kernels.config.RBFConfig(this, proppath);
+            this.addRange([proppath {'Smoothnesses'}],min(this.Smoothnesses),max(this.Smoothnesses));
+            this.addRange([proppath {'Dimension'}],min(this.Dimension),max(this.Dimension));
+        end
+    end
 end

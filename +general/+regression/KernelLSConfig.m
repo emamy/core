@@ -48,6 +48,13 @@ classdef KernelLSConfig < general.IClassConfig
         function str = getConfigurationString(this, nr)%#ok
             str = '';
         end
+        
+    end
+    
+    methods(Access=protected)        
+        function collectRanges(this, proppath)
+            this.addRange([proppath {'Lambdas'}],min(this.Dimension),max(this.Lambdas));
+        end        
     end
     
 end

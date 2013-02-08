@@ -42,6 +42,14 @@ classdef PolyConfig
                 str = sprintf('Degree: %g',this.Degrees(nr));
             end
         end
+        
+    end
+    
+    methods(Access=protected)
+        
+        function collectRanges(this, proppath)
+            this.addRange([proppath {'Degrees'}],min(this.Degrees),max(this.Degrees));
+        end
     end
     
 end
