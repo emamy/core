@@ -51,7 +51,7 @@ classdef InterpolConfig < general.IClassConfig
     
     methods(Access=protected)    
         
-        function collectRanges(this, proppath)
+        function collectRanges(this, ptable, proppath)
             % do nothing
         end
     end

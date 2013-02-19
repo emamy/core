@@ -741,7 +741,7 @@ function varargout = FunVis2D_OutputFcn(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Get default command line output from handles structure
-varargout{1} = handles.main;
+varargout{1} = FunVis2DHandler(handles.main);
 
 function dim1_Callback(hObject, eventdata, handles) %#ok<*INUSL,*DEFNU>
 conf = getappdata(handles.main,'conf');
@@ -835,7 +835,7 @@ end
 
 
 % --- Executes on slider movement.
-function slPerc_Callback(hObject, eventdata, handles)
+function slPerc_Callback(hObject, ~, handles)
 conf = getappdata(handles.main,'conf');
 conf.tperc = get(hObject,'Value');
 set(handles.lblTP,'String',sprintf('Select %2.2f%% nearest training points',conf.tperc));
@@ -880,7 +880,7 @@ function uipushtool2_ClickedCallback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 general.Utils.saveAxes(handles.ax);
 
-function slCenters_Callback(hObject, eventdata, handles)
+function slCenters_Callback(hObject, ~, handles)
 % hObject    handle to slCenters (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)

@@ -52,8 +52,8 @@ classdef ScalarNuSVRConfig < general.IClassConfig
     end
     
     methods(Access=protected)        
-        function collectRanges(this, proppath)
-            this.addRange([proppath {'Nu'}],min(this.nuvals),max(this.nuvals));
+        function collectRanges(this, ptable, proppath)
+            this.addRange(ptable, [proppath {'Nu'}],min(this.nuvals),max(this.nuvals));
         end        
     end
     

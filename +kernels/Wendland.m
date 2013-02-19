@@ -129,9 +129,13 @@ classdef Wendland < kernels.ARBFKernel
     end
     
     methods(Static)
-        function res = test_WendlandKernel
+        function res = test_WendlandKernel(pm)
+            if nargin < 1
+                pm = PlotManager(false,3,3);
+                pm.LeaveOpen = true;
+            end
             c = 0;
-            x = (-1.5:.05:1.5)+c;
+            x = (-1.2:.01:1.2)+c;
             [X,Y] = meshgrid(x);
             x2 = [X(:)'; Y(:)'];
             k = kernels.Wendland;
@@ -140,22 +144,24 @@ classdef Wendland < kernels.ARBFKernel
             kexp.Centers.xi = c;
             kexp.Ma = 1;
             conf = general.Utils.createCombinations([1 2 3 4 5],[0 1 2 3]);
-            pm = PlotManager(false,3,3);
-            pm.LeaveOpen = true;
             for n = 1:length(conf)
                 k.d = conf(1,n);
                 k.k = conf(2,n);
-                h = pm.nextPlot('1d',sprintf('Wendland kernel with d=%d,k=%d on 1D data',k.d,k.k));
+                tag = sprintf('w_1d_d%d_k%d',k.d,k.k);
+                h = pm.nextPlot(tag,sprintf('Wendland kernel with d=%d,k=%d on 1D data',k.d,k.k));
                 plot(h,x,kexp.evaluate(x));
             end
             kexp.Centers.xi = [c; c];
             for n = 1:length(conf)
                 k.d = conf(1,n);
                 k.k = conf(2,n);
-                h = pm.nextPlot('2d',sprintf('Wendland kernel with d=%d,k=%d on 2D data',k.d,k.k));
+                tag = sprintf('w_2d_d%d_k%d',k.d,k.k);
+                h = pm.nextPlot(tag,sprintf('Wendland kernel with d=%d,k=%d on 2D data',k.d,k.k));
                 surf(h,X,Y,reshape(kexp.evaluate(x2),length(x),[]),'EdgeColor','none');
             end
-            pm.done;
+            if nargin < 1
+                pm.done;
+            end
             res = true;
         end
     end

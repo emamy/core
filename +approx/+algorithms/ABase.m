@@ -24,6 +24,11 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
+
+    properties(Constant)
+        STOP_FLAG_ABS_ERR = 1;
+        STOP_FLAG_REL_ERR = 2;
+    end
     
     properties(SetObservable)
         % The different kernel expansion configurations to try
@@ -156,12 +161,19 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
         end
         
         function str = getApproximationSummary(this)
-            str = sprintf('Algorithm: %s\n',this.getClassName);
+            % Setup
+            str = [object2str(this,1) char(13)];
+            
+            ec = this.ExpConfig;
             % Computation time
-            str = sprintf('%sTotal computation time for %d configurations: %g\n',str,...
-                this.ExpConfig.getNumConfigurations,this.LastCompTime);
+            str = [str sprintf('Total computation time for %d configurations: %gs (%gmin,%gh)\n',...
+                ec.getNumConfigurations,this.LastCompTime,...
+                this.LastCompTime/60,this.LastCompTime/3600)];
             % Configuration
-            str = sprintf('%s\n',str);
+            str = [str sprintf('Expansion configuration ranges:\n%s\n',...
+                ec.getValueRanges.toString)];
+            str = [str sprintf('Best configuration at index %d:\n%s\n',ec.vBestConfigIndex,...
+                ec.getConfigurationString(ec.vBestConfigIndex))];
             
             if nargout < 1
                 disp(str);

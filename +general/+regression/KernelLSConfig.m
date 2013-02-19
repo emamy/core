@@ -52,8 +52,8 @@ classdef KernelLSConfig < general.IClassConfig
     end
     
     methods(Access=protected)        
-        function collectRanges(this, proppath)
-            this.addRange([proppath {'Lambdas'}],min(this.Dimension),max(this.Lambdas));
+        function collectRanges(this, ptable, proppath)
+            this.addRange(ptable, [proppath {'Lambdas'}],min(this.Dimension),max(this.Lambdas));
         end        
     end
     

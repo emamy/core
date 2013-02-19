@@ -36,7 +36,10 @@ classdef PolyConfig
             kernel.Degree = this.Degress(nr);
         end
         
-        function str = getConfigurationString(this, nr)
+        function str = getConfigurationString(this, nr, asCell)
+            if nargin < 3
+                asCell = false;
+            end
             str = [];
             if ~isempty(this.Degrees)
                 str = sprintf('Degree: %g',this.Degrees(nr));
@@ -48,7 +51,7 @@ classdef PolyConfig
     methods(Access=protected)
         
         function collectRanges(this, proppath)
-            this.addRange([proppath {'Degrees'}],min(this.Degrees),max(this.Degrees));
+            this.addRange(ptable, [proppath {'Degrees'}],min(this.Degrees),max(this.Degrees));
         end
     end
     

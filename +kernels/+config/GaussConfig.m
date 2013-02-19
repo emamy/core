@@ -43,12 +43,15 @@ classdef GaussConfig < kernels.config.RBFConfig
             end
         end
         
-        function str = getConfigurationString(this, nr, asCell)
-            str = getConfigurationString@kernels.config.RBFConfig(this, nr, asCell);
-            if ~asCell && ~isempty(this.Distances)
-                str = sprintf('%s (by dist %g)',str,this.Distances(nr));
-            end
-        end
+%         function str = getConfigurationString(this, nr, asCell)
+%             if nargin < 3
+%                 asCell = false;
+%             end
+%             str = getConfigurationString@kernels.config.RBFConfig(this, nr, asCell);
+%             if ~asCell && ~isempty(this.Distances)
+%                 str = sprintf('%s (by dist %g)',str,this.Distances(nr));
+%             end
+%         end
         
         function applyConfiguration(this, nr, kernel)
             if ~isempty(this.Distances)

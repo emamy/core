@@ -25,10 +25,6 @@ classdef IClassConfig < KerMorObject
         vBestConfigIndex = [];
     end
     
-    properties%(SetAccess=private, GetAccess=protected, Transient)
-        pt;
-    end
-    
     methods(Sealed)
         function lbl = getAxisLabels(this, nrs)
             if nargin < 2
@@ -47,8 +43,7 @@ classdef IClassConfig < KerMorObject
             t.HasHeader = true;
             t.HasRowHeader = true;
             t.addRow('Location','Min','Max');
-            this.pt = t;
-            this.collectRanges({this.getClassName});
+            this.collectRanges(t,{this.getClassName});
         end
     end
     
@@ -69,9 +64,9 @@ classdef IClassConfig < KerMorObject
             idx = ((partNr-1)*ptsize+1):min((partNr*ptsize),n);
         end
         
-        function addRange(this, proppath, minval, maxval)
+        function addRange(~, ptable, proppath, minval, maxval)
             head = general.Utils.implode(proppath,'.');
-            this.pt.addRow(head,minval,maxval);
+            ptable.addRow(head,minval,maxval);
         end
     end
     
@@ -121,7 +116,7 @@ classdef IClassConfig < KerMorObject
     end
     
     methods(Abstract, Access=protected)
-        collectRanges(this, proppath);
+        collectRanges(this, ptable, proppath);
     end
     
     methods(Static)

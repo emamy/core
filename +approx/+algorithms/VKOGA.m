@@ -14,10 +14,23 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
+
+    properties(Constant)
+        STOP_FLAG_NEGATIVE_POWFUN = 4;
+    end
     
     properties
         UsefPGreedy = false;
+        
         MaxAbsResidualErr = 1e-5;
+        
+        % Determines which error measure is to use to select a solution if the algorithm stops
+        % for any reason but matching one of the MaxRelErr or MaxAbsResidualErr tolerances.
+        %
+        % Allowed values are 'abs' and 'rel'
+        %
+        % @type char @default 'abs'
+        FailureErrorMeasure = 'abs';
         
 %         Gain;
 %         HerrDecay;
@@ -38,6 +51,8 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
         
         % debug props
         basis_norms;
+        
+        stopFlags;
     end
     
     methods
@@ -53,6 +68,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
 %             copy.Gain = this.Gain;
 %             copy.HerrDecay = this.HerrDecay;
             copy.MaxRelErrors = this.MaxRelErrors;
+            copy.FailureErrorMeasure = this.FailureErrorMeasure;
 %             copy.used = this.used;
 %             copy.f = this.f;
 %             copy.VKOGABound = this.VKOGABound;
@@ -72,6 +88,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             nc = ec.getNumConfigurations;
             
             this.basis_norms = this.MaxErrors;
+            this.stopFlags = zeros(nc,1);
 
             xi = atd.xi.toMemoryMatrix;
             fxi = atd.fxi.toMemoryMatrix;
@@ -81,6 +98,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             kexp.clear;
             
             minerr = Inf;
+            minrelerr = Inf;
             bestNV = [];
             bestc = [];
 
@@ -121,9 +139,12 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                 %% Main extension loop
                 while true
                                         
-                    %% Residual and error computation
-                    %fresidual = fxi - c(:,1:m)*(NV(:,1:m))'; % Complete computation
+                    %% Residual and error computation                    
                     fresidual = fresidual - c(:,m)*(NV(:,m))'; % Cumulative computation (eff.)
+%                     fresidual1 = fxi - c(:,1:m)*(NV(:,1:m))'; % Complete computation
+%                     figure(1);
+%                     semilogy(abs(fresidual1 - fresidual));
+
                     e = this.ErrorFun(fresidual);
                     this.MaxErrors(cidx,m) = max(e);
                     this.MaxRelErrors(cidx,m) = max(e./fxinorm);
@@ -134,16 +155,19 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                             fprintf('VKOGA stopping criteria holds: Max expansion size %d reached.\nResidual error %.7e > %.7e, Max relative error %.7e > %.7e\n',...
                                 m,this.MaxErrors(cidx,m-1),this.MaxAbsResidualErr,this.MaxRelErrors(cidx,m-1),this.MaxRelErr);
                         end
+                        stopflag = this.STOP_FLAG_MAXSIZE;
                         break;
                     elseif this.MaxRelErrors(cidx,m) < this.MaxRelErr
                         if vb > 1
                             fprintf('VKOGA stopping criteria holds: Relative error %.7e < %.7e\n',rel,this.MaxRelErr);
                         end
+                        stopflag = this.STOP_FLAG_REL_ERR;
                         break;
                     elseif this.MaxErrors(cidx,m) < this.MaxAbsResidualErr
                         if vb > 1
                             fprintf('VKOGA stopping criteria holds: Residual error %.7e < %.7e\n',this.MaxErrors(cidx,m),this.MaxAbsResidualErr);
                         end
+                        stopflag = this.STOP_FLAG_ABS_ERR;
                         break;
                     end
                     
@@ -151,7 +175,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     if this.UsefPGreedy
                         % Cap too small norms!
                         div = Kdiag - sumNsq;
-                        div(div <= 0) = 1;
+                        div(div <= 0) = Inf;
                     else
                         div = 1;
                     end
@@ -163,14 +187,13 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     if exp_mode
                         pm.resetCount;
                         h1 = pm.nextPlot('fun','Function','x','f(x)');
-                        plot(h1,xi,[fxi; c(:,1:m)*(NV(:,1:m))']');
+                        plot(h1,xi(1,:),[fxi; c(:,1:m)*(NV(:,1:m))']');
                         h2 = pm.nextPlot('nfun','Newton Basis Function','x','N_i(x)');
-                        plot(h2,xi,NV(:,1:m)); 
+                        plot(h2,xi(1,:),NV(:,1:m)); 
                         h3 = pm.nextPlot('err','Absolute error','x','|f(x)-f^m(x)|');
                         tools.LogPlot.cleverPlot(h3,1:m,this.MaxErrors(:,1:m)); 
                         h4 = pm.nextPlot('MaxRelErrors','Relative error','x','|(f(x)-f^m(x))/f(x)|');
                         tools.LogPlot.cleverPlot(h4,1:m,this.MaxRelErrors(:,1:m)); 
-                        pm.done;
                     end
                     
                     %% Emergency break:
@@ -181,6 +204,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                             fprintf('VKOGA emergency stop at iteration %d: Power function value > 1 detected.\nResidual error %.7e > %.7e, Max relative error %.7e > %.7e\n',...
                                 m,this.MaxErrors(cidx,m-1),this.MaxAbsResidualErr,this.MaxRelErrors(cidx,m-1),this.MaxRelErr);
                         end
+                        stopflag = this.STOP_FLAG_NEGATIVE_POWFUN;
                         break;
                     end
                     
@@ -192,17 +216,50 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     this.basis_norms(cidx,m) = tNnorm;
                     free(maxidx) = false;
                     used(m) = maxidx;
+                    if exp_mode
+                        h = pm.nextPlot('sumNSq','Power fun','x','P(x)');
+                        tools.LogPlot.cleverPlot(h,xi(1,:),sumNsq); 
+                        pm.done;
+                    end
                 end
                 
-                [val, bestm] = min(this.MaxErrors(cidx,1:m));
+                better = false;
+                if stopflag == this.STOP_FLAG_ABS_ERR
+                    bestm = m;
+                    if this.MaxErrors(cidx,m) < minerr
+                        better = true;
+                        minerr = this.MaxErrors(cidx,m);
+                    end
+                elseif stopflag == this.STOP_FLAG_REL_ERR
+                    bestm = m;
+                    if this.MaxRelErrors(cidx,m) < minrelerr
+                        better = true;
+                        minrelerr = this.MaxRelErrors(cidx,m);
+                    end
+                elseif stopflag == this.STOP_FLAG_NEGATIVE_POWFUN ...
+                        || stopflag == this.STOP_FLAG_MAXSIZE
+                    if strcmp(this.FailureErrorMeasure,'rel')
+                        [val, bestm] = min(this.MaxRelErrors(cidx,1:m));
+                        if val < minrelerr
+                            better = true;
+                            minrelerr = val;
+                        end
+                    else
+                        [val, bestm] = min(this.MaxErrors(cidx,1:m));
+                        if val < minerr
+                            better = true;
+                            minerr = val;
+                        end
+                    end
+                end
                 this.ExpansionSizes(cidx) = bestm;
-                if val < minerr
+                if better
                     bestused = used(1:bestm);
                     bestNV = NV(:,1:bestm);
                     bestc = c(:,1:bestm);
-                    minerr = val;
                     bestcidx = cidx;
                 end
+                this.stopFlags(cidx) = stopflag;
                 pi.step;
             end
             
@@ -254,6 +311,9 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     a.basis_norms = this.basis_norms;
                 end
                 this = loadobj@approx.algorithms.AAdaptiveBase(a, this);
+            end
+            if isempty(this.stopFlags)
+                this.stopFlags = zeros(this.ExpConfig.getNumConfigurations,1);
             end
         end
     end

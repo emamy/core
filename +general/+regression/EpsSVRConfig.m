@@ -56,9 +56,9 @@ classdef EpsSVRConfig < general.IClassConfig
     
     methods(Access=protected)    
         
-        function collectRanges(this, proppath)
-            this.addRange([proppath {'Epsilons'}],min(this.Epsilons),max(this.Epsilons));
-            this.addRange([proppath {'Lambdas'}],min(this.Dimension),max(this.Lambdas));
+        function collectRanges(this, ptable, proppath)
+            this.addRange(ptable, [proppath {'Epsilons'}],min(this.Epsilons),max(this.Epsilons));
+            this.addRange(ptable, [proppath {'Lambdas'}],min(this.Dimension),max(this.Lambdas));
         end
         
 %         function copy = clone(this)

@@ -21,6 +21,10 @@ classdef AAdaptiveBase < approx.algorithms.ABase
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
 
+    properties(Constant)
+        STOP_FLAG_MAXSIZE = 3;
+    end
+
     properties(SetObservable)
         % The maximum size of the expansion to produce.
         %
@@ -269,7 +273,7 @@ classdef AAdaptiveBase < approx.algorithms.ABase
         end
                               
         function set.MaxRelErr(this, value)
-            if ~isposrealscalar(value)
+            if ~isempty(value) && ~isposrealscalar(value)
                 error('The value must be a positive scalar');
             end
             this.MaxRelErr = value;

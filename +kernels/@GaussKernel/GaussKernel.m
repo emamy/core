@@ -316,6 +316,42 @@ classdef GaussKernel < kernels.BellFunction
             
             res = true;
         end
+        
+        function [res, pm] = test_GaussKernel(pm)
+            if nargin < 1
+                pm = PlotManager(false,2,3);
+                pm.LeaveOpen = true;
+            end
+            c = 0;
+            x = (-1.2:.01:1.2)+c;
+            [X,Y] = meshgrid(x);
+            x2 = [X(:)'; Y(:)'];
+            k = kernels.GaussKernel;
+            kexp = kernels.KernelExpansion;
+            kexp.Kernel = k;
+            kexp.Centers.xi = c;
+            kexp.Ma = 1;
+            conf = [1 2 3];
+            for n = 1:length(conf)
+                d = conf(n);
+                g = k.setGammaForDistance(d,eps);
+                tag = sprintf('g_1d_d%d_g%g',d,g);
+                h = pm.nextPlot(tag,sprintf('Gauss kernel with dist=%d,\\gamma=%g on 1D data',d,g));
+                plot(h,x,kexp.evaluate(x));
+            end
+            kexp.Centers.xi = [c; c];
+            for n = 1:length(conf)
+                d = conf(n);
+                g = k.setGammaForDistance(d,eps);
+                tag = sprintf('g_2d_d%d_g%g',d,g);
+                h = pm.nextPlot(tag,sprintf('Gauss kernel with dist=%d,\\gamma=%g on 2D data',d,g));
+                surf(h,X,Y,reshape(kexp.evaluate(x2),length(x),[]),'EdgeColor','none');
+            end
+            if nargin < 1
+                pm.done;
+            end
+            res = true;
+        end
     end
     
 end

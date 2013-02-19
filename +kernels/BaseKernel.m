@@ -15,6 +15,7 @@ classdef BaseKernel < KerMorObject & ICloneable
     % - Implement cloning for kernels
     % - write universal tests for kernels that check the interface functions (IJacobian etc)
     % - Implement eq-method for all kernels
+    % - implement HOCT4-Kernels http://onlinelibrary.wiley.com/doi/10.1111/j.1365-2966.2010.16577.x/full
     
     properties(SetObservable)
         % The matrix `\vG` that induces the state space scalar product

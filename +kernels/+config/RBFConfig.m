@@ -40,6 +40,9 @@ classdef RBFConfig < general.IClassConfig & ICloneable
         end
 
         function str = getConfigurationString(this, nr, asCell)
+            if nargin < 3
+                asCell = false;
+            end
             if asCell
                 str = {};
                 if ~isempty(this.Gammas)
@@ -48,13 +51,13 @@ classdef RBFConfig < general.IClassConfig & ICloneable
             else
                 str = [];
                 if ~isempty(this.Gammas)
-                    str = sprintf('Gamma: %g',this.Gammas(nr));
+                    str = sprintf('\\gamma: %g',this.Gammas(nr));
                 end
             end
         end
         
         function str = getConfiguredPropertiesString(~)
-            str = 'Gamma';
+            str = '\gamma';
         end
         
         function conf = getSubPart(this, partNr, totalParts)
@@ -68,8 +71,8 @@ classdef RBFConfig < general.IClassConfig & ICloneable
     end
     
     methods(Access=protected)
-        function collectRanges(this, proppath)
-            this.addRange([proppath {'Gamma'}],min(this.Gammas),max(this.Gammas));
+        function collectRanges(this, ptable, proppath)
+            this.addRange(ptable, [proppath {'gamma'}],min(this.Gammas),max(this.Gammas));
         end
     end
     

@@ -272,6 +272,26 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             end
         end
         
+        function subexp = getSubExpansion(this, arg)
+            subexp = this.clone;
+            if isscalar(arg)
+                sel = 1:arg;
+            else
+                sel = arg;
+            end
+            subexp.Ma = subexp.Ma(:,sel);
+            subexp.Centers.xi = subexp.Centers.xi(:,sel);
+            if isfield(this.Centers,'ti') && ~isempty(this.Centers.ti)
+                subexp.Centers.ti = this.Centers.ti(sel);
+            end
+            if isfield(this.Centers,'mui') && ~isempty(this.Centers.mui)
+                subexp.Centers.mui = this.Centers.mui(:,sel);
+            end
+            if subexp.HasCustomBase
+                subexp.Base = subexp.Base(sel,sel);
+            end
+        end
+        
         function c = getGlobalLipschitz(this, t, mu)%#ok          
             c = sum(this.Ma_norms) * this.Kernel.getGlobalLipschitz;
         end
@@ -440,7 +460,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
                 this = loadobj@KerMorObject(this, from);
             elseif ~isa(this, 'kernels.KernelExpansion')
                 newinst = kernels.KernelExpansion;
-                newinst.Kernel = this.Kernel;
+                newinst.Kernel = this.fSK;
                 newinst.Ma = this.Ma;
                 newinst.Centers = this.Centers;
                 if isfield(this,'Base')

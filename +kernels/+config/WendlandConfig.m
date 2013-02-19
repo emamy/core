@@ -44,6 +44,9 @@ classdef WendlandConfig < kernels.config.RBFConfig
         end
         
         function str = getConfigurationString(this, nr, asCell)
+            if nargin < 3
+                asCell = false;
+            end
             str = getConfigurationString@kernels.config.RBFConfig(this, nr, asCell);
             if asCell
                 str = [str {sprintf('%d',this.Smoothnesses(nr))}]; %sprintf('%d',this.Dimension)
@@ -73,10 +76,10 @@ classdef WendlandConfig < kernels.config.RBFConfig
     end
     
     methods(Access=protected)
-        function collectRanges(this, proppath)
-            collectRanges@kernels.config.RBFConfig(this, proppath);
-            this.addRange([proppath {'Smoothnesses'}],min(this.Smoothnesses),max(this.Smoothnesses));
-            this.addRange([proppath {'Dimension'}],min(this.Dimension),max(this.Dimension));
+        function collectRanges(this, ptable, proppath)
+            collectRanges@kernels.config.RBFConfig(this, ptable, proppath);
+            this.addRange(ptable, [proppath {'Smoothnesses'}],min(this.Smoothnesses),max(this.Smoothnesses));
+            this.addRange(ptable, [proppath {'Dimension'}],min(this.Dimension),max(this.Dimension));
         end
     end
 end
