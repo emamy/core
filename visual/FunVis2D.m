@@ -128,7 +128,7 @@ function varargout = FunVis2D(varargin)
 
 % Edit the above text to modify the response to help FunVis2D
 
-% Last Modified by GUIDE v2.5 28-Nov-2012 17:39:54
+% Last Modified by GUIDE v2.5 20-Feb-2013 11:09:00
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -183,7 +183,7 @@ if isa(varargin{1},'models.BaseFullModel')
         if isempty(m.Data.ParamSamples)
             stop(h,'No param samples available yet. Have you run model.off1_generateParamSamples?');
         end
-        [mu, MU] = general.Utils.getBoundingBox(m.Data.ParamSamples);
+        [mu, MU] = Utils.getBoundingBox(m.Data.ParamSamples);
         ranges.murange = [mu MU];
     end
 elseif isa(varargin{1},'models.ReducedModel')
@@ -326,14 +326,9 @@ if isa(fun,'kernels.KernelExpansion')
     set(h.slCenters,'Visible','on');
     conf.cperc = 3;
     set(h.slCenters,'Value',conf.cperc);
-    
-    % Evaluate function also on centers
-    cent = conf.fun.Centers;
+   
     if isa(fun,'kernels.ParamTimeKernelExpansion')
         conf.isptke = true;
-        conf.centerfx = fun.evaluate(cent.xi,cent.ti,cent.mui);
-    else
-        conf.centerfx = fun.evaluate(cent.xi,[],[]);
     end
 end
 %% Visibilities for second function, if given
@@ -384,13 +379,13 @@ newMesh(h, conf);
 
 function ranges = rangesFromATD(atd)
     ranges = struct('xrange',[],'trange',[],'murange',[]);
-    [x, X] = general.Utils.getBoundingBox(atd.xi.toMemoryMatrix);
+    [x, X] = Utils.getBoundingBox(atd.xi.toMemoryMatrix);
     ranges.xrange = [x X];
     if isprop(atd,'ti') || isfield(atd,'ti')
         ranges.trange = [min(atd.ti) max(atd.ti)];
     end
     if isprop(atd,'mui') || isfield(atd,'mui')
-        [mu, MU] = general.Utils.getBoundingBox(atd.mui);
+        [mu, MU] = Utils.getBoundingBox(atd.mui);
         ranges.murange = [mu MU];
     end
     
@@ -488,7 +483,7 @@ if c.iske
     set(h.lblNumCenters,'String',sprintf('%d/%d',sum(sel),size(C,2)));
     C = C(:,sel);
     c.curCenters = C;
-    c.curCenterSel = sel;
+    c.curCenterSelInATD = Utils.findVecInMatrix(c.td.xi.toMemoryMatrix,C);
     xf = repmat(c.basex,1,size(C,2));
     xsel = c.idxmap([c.d1 c.d2]);
     xf(xsel,:) = C(xsel,:);
@@ -501,10 +496,10 @@ if c.iske
     end
     % compute error if second function is given
     if ~isempty(c.fun2) && get(h.rbErr,'Value') == 1
-        c.curCenterFx = c.curCenterFx - c.fun2.evaluate(xf,[],[]);
         if c.hastime || c.hasparams
-            warning('a:b','Evaluation is WRONG with params and time set. \todo.');
+            error('Error plots with centers for param/time kernel expansions not yet implemented');
         end
+        c.curCenterFx = c.curCenterFx - c.fun2.evaluate(xf,[],[]);
     end
     setappdata(h.main,'conf',c);
 end
@@ -599,20 +594,6 @@ if get(h.chkPlotFun,'Value') == 1
 end
 
 xsel = c.idxmap([c.d1 c.d2]);
-%% Plot center points if desired
-if c.iske
-    C = c.curCenters;
-    plot3(h.ax,C(xsel(1),:),C(xsel(2),:),c.curCenterFx(c.dout,:),'black.','MarkerSize',15);
-    % Only plot center at original points if no error is displayed
-    if get(h.rbErr,'Value') == 0
-        % Also plot the centers at their original value
-        orig = c.centerfx(c.dout,c.curCenterSel);
-        plot3(h.ax,C(xsel(1),:),C(xsel(2),:),orig,'blackx','MarkerSize',15);
-        % Plot a connecting line
-        plot3(h.ax,[C(xsel(1),:); C(xsel(1),:)],[C(xsel(2),:); C(xsel(2),:)],[c.curCenterFx(c.dout,:); orig],'black');
-    end
-end
-
 %% Add training data points to plot
 % With kernel expansions: option to include centers into mesh
 if ~isempty(c.td) && get(h.rbErr,'Value') == 0
@@ -629,10 +610,28 @@ if ~isempty(c.td) && get(h.rbErr,'Value') == 0
     if max(hlpfx) > Ma
         Ma = max(hlpfx);
     end
-    plot3(h.ax,C(1,sel),C(2,sel),hlpfx,'red.','MarkerSize',15);
+    plot3(h.ax,C(1,sel),C(2,sel),hlpfx,'red.','MarkerSize',12);
 end
-axis(h.ax,[X1(1,1) X1(1,end) X2(1,1) X2(end,1) mi Ma]);
 
+%% Plot center points if desired
+if c.iske
+    C = c.curCenters;
+    % Only plot center at original points if no error is displayed
+    if get(h.rbErr,'Value') == 0
+        % Also plot the centers at their original value
+        orig = c.td.fxi(c.dout,c.curCenterSelInATD);
+        plot3(h.ax,C(xsel(1),:),C(xsel(2),:),orig,'black.','MarkerSize',13);
+        % Plot a connecting line
+        if get(h.chkPlotCenterLines,'Value') == 1
+            plot3(h.ax,[C(xsel(1),:); C(xsel(1),:)],[C(xsel(2),:); C(xsel(2),:)],[c.curCenterFx(c.dout,:); orig],'black');
+            plot3(h.ax,C(xsel(1),:),C(xsel(2),:),c.curCenterFx(c.dout,:),'blackx','MarkerSize',5);
+        end
+    else
+        plot3(h.ax,C(xsel(1),:),C(xsel(2),:),c.curCenterFx(c.dout,:),'black.','MarkerSize',13);
+    end
+end
+% Adjustments and labelling
+axis(h.ax,[X1(1,1) X1(1,end) X2(1,1) X2(end,1) mi Ma]);
 xlabel(h.ax,c.lbl.x{c.d1});
 ylabel(h.ax,c.lbl.x{c.d2});
 zlabel(h.ax,c.lbl.fx{c.dout});
@@ -878,7 +877,7 @@ function uipushtool2_ClickedCallback(hObject, eventdata, handles)
 % hObject    handle to uipushtool2 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-general.Utils.saveAxes(handles.ax);
+Utils.saveAxes(handles.ax);
 
 function slCenters_Callback(hObject, ~, handles)
 % hObject    handle to slCenters (see GCBO)
@@ -925,4 +924,9 @@ plotCurrent(handles,getappdata(handles.main,'conf'));
 
 % --- Executes on button press in chkPlotFun.
 function chkPlotFun_Callback(hObject, eventdata, handles)
+plotCurrent(handles,getappdata(handles.main,'conf'));
+
+
+% --- Executes on button press in chkPlotCenterLines.
+function chkPlotCenterLines_Callback(hObject, ~, handles)
 plotCurrent(handles,getappdata(handles.main,'conf'));
