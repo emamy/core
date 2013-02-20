@@ -76,7 +76,7 @@ classdef GridSampler < sampling.BaseSampler
             if sys.ParamCount == 1
                 samples = ranges{1};
             else
-                samples = general.Utils.createCombinations(ranges);
+                samples = Utils.createCombinations(ranges);
             end
         end
     end

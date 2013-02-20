@@ -132,7 +132,7 @@ classdef KernelEI < approx.BaseApprox
             elseif this.variant == 2
                 % Compose x-entry selection matrix
                 this.exps = kernels.ParamTimeKernelExpansion.empty(0,this.MaxOrder);
-                pi = tools.ProcessIndicator(sprintf('KernelEI: Computing %d approximations',this.MaxOrder),this.MaxOrder);
+                pi = ProcessIndicator(sprintf('KernelEI: Computing %d approximations',this.MaxOrder),this.MaxOrder);
                 for idx = 1:this.MaxOrder
                     % Select the elements of x that are effectively used in f
                     off = 0;
@@ -215,7 +215,7 @@ classdef KernelEI < approx.BaseApprox
             end
             if KerMor.App.Verbose > 2
                 fprintf('DEIM interpolation points [%s] with values [%s]',...
-                    general.Utils.implode(pts,' ','%d'),general.Utils.implode(v,' ','%2.2e'));
+                    Utils.implode(pts,' ','%d'),Utils.implode(v,' ','%2.2e'));
             end
         end
         

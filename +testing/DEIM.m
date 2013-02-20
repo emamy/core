@@ -15,7 +15,7 @@ classdef DEIM
     
     methods(Static)
         function analysis_DEIM_approx(m)
-            ma = tools.ModelAnalyzer(m.buildReducedModel);
+            ma = ModelAnalyzer(m.buildReducedModel);
             
             mu = m.Data.ParamSamples(:,5);
 %             [t, pm] = ma.compareRedFull(mu);
@@ -104,7 +104,7 @@ classdef DEIM
             efun = @Norm.L2;
             
             nb = atd.xi.nBlocks;
-            pi = tools.ProcessIndicator(sprintf('Computing DEIM errors and estimates for %d Order/ErrOrder settings over %d xi-Blocks',n,nb),n*nb);
+            pi = ProcessIndicator(sprintf('Computing DEIM errors and estimates for %d Order/ErrOrder settings over %d xi-Blocks',n,nb),n*nb);
             co = [];
             m = atd.xi.m;
             for k = 1:nb
@@ -264,7 +264,7 @@ classdef DEIM
             pm.done;
             
             function p = doplot(h, tri, x, y, z, varargin)
-                p = tools.LogPlot.logtrisurf(h, tri, x, y, z, varargin{:});
+                p = LogPlot.logtrisurf(h, tri, x, y, z, varargin{:});
 %                 hold on;
 %                 [~, hc] = tricontour([x; y]', tri, z', get(h,'ZTick'));
 %                 set(hc,'EdgeColor','k');
@@ -375,7 +375,7 @@ classdef DEIM
             EE = zeros(mo-o,length(fm.Times),num_mu*num_in);
             ED = EE;
             
-            ma = tools.ModelAnalyzer(r);
+            ma = ModelAnalyzer(r);
             
             % Assume no parameters or inputs
             curmu = [];
@@ -414,7 +414,7 @@ classdef DEIM
         
         function pm = getTrajApproxErrorDEIMEstimates_plots(r, etrue, EE, ED, pm)
             % Visualizes the results of the
-            % tools.ModelAnalyzer.getTrajApproxErrorDEIMEstimates method.
+            % ModelAnalyzer.getTrajApproxErrorDEIMEstimates method.
             f = r.FullModel.Approx;
             o = f.Order(1);
             mo = f.MaxOrder;
@@ -427,17 +427,17 @@ classdef DEIM
             h = pm.nextPlot('est_err',sprintf('Estimated approximation errors on trajectory\nDEIM order = %d / max %d',f.Order(1),f.MaxOrder),...
                 'time', 'DEIM error order');
             [T,O] = meshgrid(t,1:mo-o);
-            tools.LogPlot.logsurf(h,T,O,EE,'EdgeColor','none');
+            LogPlot.logsurf(h,T,O,EE,'EdgeColor','none');
             view(-45,45);
             
             h = pm.nextPlot('abs_diff',sprintf('Difference true to estimated error\nDEIM order = %d / max %d',f.Order(1),f.MaxOrder),...
                 'time','DEIM error order');
-            tools.LogPlot.logsurf(h,T,O,ED,'EdgeColor','none');
+            LogPlot.logsurf(h,T,O,ED,'EdgeColor','none');
             view(-135,45);
             
             h = pm.nextPlot('rel_diff',sprintf('Relative error between true to estimated error\nDEIM order = %d / max %d',f.Order(1),f.MaxOrder),...
                 'time','DEIM error order');
-            tools.LogPlot.logsurf(h,T,O,ED./repmat(etrue,mo-o,1),'EdgeColor','none','FaceColor','interp');
+            LogPlot.logsurf(h,T,O,ED./repmat(etrue,mo-o,1),'EdgeColor','none','FaceColor','interp');
             hold on;
             p = surf(h,T,O,-ones(size(T))*2,'EdgeColor','red','FaceColor','k');
             alpha(p,.2);
@@ -532,7 +532,7 @@ classdef DEIM
             err = Norm.L2(fxi-afxi);
             h = pm.nextPlot('abserr','Absolute errors over mu range');
             %trisurf(tri,mui(1,:),mui(2,:),err,'Parent',h);
-            tools.LogPlot.logtrisurf(h,tri,mui(1,:),mui(2,:),err);
+            LogPlot.logtrisurf(h,tri,mui(1,:),mui(2,:),err);
             n = m.Data.SampleCount;
             hold on;
             plot3(mui(1,1:n),mui(2,1:n),log10(err(1:n)),'rx','MarkerSize',16);
@@ -542,7 +542,7 @@ classdef DEIM
             err = Norm.L2(fxi-afxi)./Norm.L2(fxi);
             h = pm.nextPlot('relerr','Relative errors over mu range');
             %trisurf(tri,mui(1,:),mui(2,:),err,'Parent',h);
-            tools.LogPlot.logtrisurf(h,tri,mui(1,:),mui(2,:),err);
+            LogPlot.logtrisurf(h,tri,mui(1,:),mui(2,:),err);
             n = m.Data.SampleCount;
             hold on;
             plot3(mui(1,1:n),mui(2,1:n),log10(err(1:n)),'rx','MarkerSize',16);
@@ -569,7 +569,7 @@ classdef DEIM
             times = zeros(no+1,1);
             [~, y, ct] = r.FullModel.simulate(mu, inidx);
             times(end) = ct;
-            pi = tools.ProcessIndicator('Computing DEIM-reduced model simulation errors for %d orders',no,false,no);
+            pi = ProcessIndicator('Computing DEIM-reduced model simulation errors for %d orders',no,false,no);
             for m = 1:no
                 r.System.f.Order = [deim_orders(m) r.System.f.Order(2)];
                 [~, ~, ct] = r.simulate(mu, inidx);
@@ -595,12 +595,12 @@ classdef DEIM
             h = pm.nextPlot([ftag 'abserr'],sprintf(['L2-absolute reduction errors\n'...
                 '(Linf in time for original view), tag:' tag]),...
                 'time','DEIM order');
-            tools.LogPlot.logsurf(h,X,Y,errs,'EdgeColor','interp');
+            LogPlot.logsurf(h,X,Y,errs,'EdgeColor','interp');
             view(90,0);
             
             h = pm.nextPlot([ftag 'relerr'],['L2-relative reduction errors, tag:' tag],...
                 'time','DEIM order');
-            tools.LogPlot.logsurf(h,X,Y,relerrs,'EdgeColor','interp');
+            LogPlot.logsurf(h,X,Y,relerrs,'EdgeColor','interp');
             view(-120,30);
             
 %             h = pm.nextPlot([ftag 'ctimes'],'Computation times for reduced models',...
@@ -639,7 +639,7 @@ classdef DEIM
             oldo = deim.Order;
             Qk = deim.Qk;
             deim.setSimilarityTransform([]);
-            pi = tools.ProcessIndicator('Computing matrix DEIM approximation error and log norm errors for %d orders',mo,false,mo);
+            pi = ProcessIndicator('Computing matrix DEIM approximation error and log norm errors for %d orders',mo,false,mo);
             JP = logical(m.System.f.JSparsityPattern);
             for o = 1:mo
                 deim.Order = o;
@@ -656,7 +656,7 @@ classdef DEIM
                     e(o,i,4) = var(diff);
 
                     % Get log norm
-                    aln(o,i) = general.Utils.logNorm(DJ);
+                    aln(o,i) = Utils.logNorm(DJ);
                 end
                 pi.step;
             end
@@ -675,25 +675,25 @@ classdef DEIM
             e = sort(e,2);
             h = pm.nextPlot('max_diff','Maximum absolute difference',...
                 'trajectory point','DEIM order');
-            tools.LogPlot.logsurf(h,X,Y,e(:,:,1),'EdgeColor',co);
+            LogPlot.logsurf(h,X,Y,e(:,:,1),'EdgeColor',co);
             h = pm.nextPlot('max_diff_mean','Mean maximum absolute difference','DEIM order');
             semilogy(h,orders,mean(e(:,:,1),2));
             
             h = pm.nextPlot('l2_diff','L2 vector difference',...
                 'trajectory point','DEIM order');
-            tools.LogPlot.logsurf(h,X,Y,e(:,:,2),'EdgeColor',co);
+            LogPlot.logsurf(h,X,Y,e(:,:,2),'EdgeColor',co);
             h = pm.nextPlot('l2_diff_mean','Mean L2 vector difference','DEIM order');
             semilogy(h,orders,mean(e(:,:,2),2));
             
             h = pm.nextPlot('mean_diff','Mean difference value',...
                 'trajectory point','DEIM order');
-            tools.LogPlot.logsurf(h,X,Y,e(:,:,3),'EdgeColor',co);
+            LogPlot.logsurf(h,X,Y,e(:,:,3),'EdgeColor',co);
             h = pm.nextPlot('mean_diff_mean','Mean mean difference value','DEIM order');
             semilogy(h,orders,mean(e(:,:,3),2));
             
             h = pm.nextPlot('var_diff','Variance of difference',...
                 'trajectory point','DEIM order');
-            tools.LogPlot.logsurf(h,X,Y,e(:,:,4),'EdgeColor',co);
+            LogPlot.logsurf(h,X,Y,e(:,:,4),'EdgeColor',co);
             h = pm.nextPlot('var_diff_mean','Mean variance of difference','DEIM order');
             semilogy(h,orders,mean(e(:,:,4),2));
             
@@ -705,12 +705,12 @@ classdef DEIM
             err = sort(abs(ln-aln),2);
             h = pm.nextPlot('log_norm_diff','Differences of logarithmic norms',...
                 'trajectory point','DEIM order');
-            tools.LogPlot.logsurf(h,X,Y,err,'EdgeColor','none');
+            LogPlot.logsurf(h,X,Y,err,'EdgeColor','none');
             
             err = sort(abs((ln-aln) ./ ln),2);
             h = pm.nextPlot('log_norm_diff','Differences of logarithmic norms',...
                 'trajectory point','DEIM order');
-            tools.LogPlot.logsurf(h,X,Y,err,'EdgeColor','none');
+            LogPlot.logsurf(h,X,Y,err,'EdgeColor','none');
             
             if nargout < 1
                 pm.done;
@@ -754,7 +754,7 @@ classdef DEIM
                     jdorders = [1 10];
                 end
             end
-            li = tools.LineSpecIterator(length(jdorders)*length(stsizes)+4,1);
+            li = LineSpecIterator(length(jdorders)*length(stsizes)+4,1);
             for i = 1:length(est)
                 li.excludeColor(est(i).Color);
             end
@@ -763,7 +763,7 @@ classdef DEIM
             e = rmodel.ErrorEstimator.clone;
             for j = 1:length(jdorders)
                 cl = li.nextLineStyle;
-                li2 = tools.LineSpecIterator;
+                li2 = LineSpecIterator;
                 for k = 1:length(stsizes)
                     str = sprintf('e.JacMDEIM.Order = %d; e.JacSimTransSize = %d;',...
                         jdorders(j),stsizes(k));
@@ -782,7 +782,7 @@ classdef DEIM
             if nargin < 2
                 errororders = [1 2 5];
             end
-            m = tools.LineSpecIterator(2+length(errororders));
+            m = LineSpecIterator(2+length(errororders));
             for i = 1:length(est)
                 m.excludeColor(est(i).Color);
             end

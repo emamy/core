@@ -50,7 +50,7 @@ classdef IDGenerator < handle
             % gen: A string ID
             persistent g;
             if isempty(g)
-                g = general.IDGenerator;
+                g = IDGenerator;
             end
             gen = g.genID;
         end

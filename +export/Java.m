@@ -88,7 +88,7 @@ classdef Java < handle
                     jfile = fullfile(fullfile(this.JProjectSource,pkgdir),[src '.java']);
                     cp = this.JProjectSource;
                     if ~isempty(this.AdditionalClassPath)
-                        cp = general.Utils.implode([{cp}, this.AdditionalClassPath],pathsep,'%s');
+                        cp = Utils.implode([{cp}, this.AdditionalClassPath],pathsep,'%s');
                     end
                     cmd = sprintf('javac -classpath "%s" -d %s %s', cp, this.TargetFolder, jfile);
                 end
@@ -109,14 +109,14 @@ classdef Java < handle
             if this.CreateJVM
                 javajar = fullfile(this.TargetFolder,this.JavaJarFile);
                 system(sprintf('jar -cf %s %s',javajar,...
-                    general.Utils.implode(outjava,' ','%s')));
+                    Utils.implode(outjava,' ','%s')));
             end
             % Create dex files for Android DalvikVM
             if this.CreateAndroid
                 dexjar = fullfile(this.TargetFolder,this.AndroidJarFile);
                 %system(sprintf('dx --dex --output="dexclasses.jar" %s',outcl));
                 system(sprintf('dx --dex --no-strict --output="%s" %s',dexjar,...
-                    general.Utils.implode(outdex,' ','%s')));
+                    Utils.implode(outdex,' ','%s')));
             end
             
             % Remove .class file - we're tidy :-)

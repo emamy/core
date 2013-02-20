@@ -243,7 +243,7 @@ if get(h.rbS,'Value') == 1
     else
         cen = [];
     end
-    centers = unique(general.Utils.findVecInMatrix(xi,cen));
+    centers = unique(Utils.findVecInMatrix(xi,cen));
     if ~isempty(centers) && centers(1) == 0
         centers(1) = [];
     end
@@ -554,7 +554,7 @@ function btnSave_Callback(hObject, eventdata, handles)
 % hObject    handle to btnSave (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-general.Utils.saveAxes(handles.image, '');
+Utils.saveAxes(handles.image, '');
 
 
 % --- Executes on slider movement.

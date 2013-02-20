@@ -198,7 +198,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
                     x = md.getBlock(idx);
                     x = x(:,1);
                     % Only add nonexisting vectors
-                    if isempty(general.Utils.findVecInMatrix(x0,x))
+                    if isempty(Utils.findVecInMatrix(x0,x))
                         x0 = [x0 x];%#ok
                     end
                 end

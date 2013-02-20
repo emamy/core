@@ -73,7 +73,7 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
             end
             if isempty(varargin)
                 data_dir = fullfile(KerMor.App.TempDirectory,sprintf('temp_ftd_%s',...
-                    general.IDGenerator.generateID));
+                    IDGenerator.generateID));
             elseif isa(varargin{1},'data.ModelData')
                 data_dir = fullfile(varargin{1}.DataDirectory,'trajectories');
             elseif ischar(varargin{1})
@@ -209,7 +209,7 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
                 end
                 for n=1:this.SampleCount
                     mu = this.ParamSamples(:,n);
-                    key = general.Utils.getHash([mu; ui]);
+                    key = Utils.getHash([mu; ui]);
                     file = [key '.mat'];
                     ffile = fullfile(this.DataDirectory, file);
                     if exist(ffile,'file') == 2
@@ -247,7 +247,7 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
     methods(Access=private)
         function updateBB(this, x)
             % Compute current bounding box
-            [m,M] = general.Utils.getBoundingBox(x);
+            [m,M] = Utils.getBoundingBox(x);
             if isempty(this.bbmin)
                 this.bbmin = m;
                 this.bbmax = M;

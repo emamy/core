@@ -143,7 +143,7 @@ classdef Wendland < kernels.ARBFKernel
             kexp.Kernel = k;
             kexp.Centers.xi = c;
             kexp.Ma = 1;
-            conf = general.Utils.createCombinations([1 2 3 4 5],[0 1 2 3]);
+            conf = Utils.createCombinations([1 2 3 4 5],[0 1 2 3]);
             for n = 1:length(conf)
                 k.d = conf(1,n);
                 k.k = conf(2,n);

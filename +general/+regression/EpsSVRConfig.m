@@ -1,4 +1,4 @@
-classdef EpsSVRConfig < general.IClassConfig
+classdef EpsSVRConfig < IClassConfig
 % EpsSVRConfig: 
 %
 % @docupdate
@@ -58,12 +58,12 @@ classdef EpsSVRConfig < general.IClassConfig
         
         function collectRanges(this, ptable, proppath)
             this.addRange(ptable, [proppath {'Epsilons'}],min(this.Epsilons),max(this.Epsilons));
-            this.addRange(ptable, [proppath {'Lambdas'}],min(this.Dimension),max(this.Lambdas));
+            this.addRange(ptable, [proppath {'Lambdas'}],min(this.Lambdas),max(this.Lambdas));
         end
         
 %         function copy = clone(this)
 %             copy = general.regression.EpsSVRConfig([this.Epsilons; this.Lambdas]);
-%             copy = clone@general.IClassConfig(this, copy);
+%             copy = clone@IClassConfig(this, copy);
 %         end
     end
     

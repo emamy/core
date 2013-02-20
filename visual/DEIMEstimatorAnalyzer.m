@@ -287,7 +287,7 @@ fprintf('done.\n');
 
 function doPlot(h, x, y, varargin)
 startidx = getappdata(get(h,'Parent'),'startidx');
-tools.LogPlot.cleverPlot(h,x(startidx:end),y(startidx:end),varargin{:});
+LogPlot.cleverPlot(h,x(startidx:end),y(startidx:end),varargin{:});
 
 function getDEIMErrorsOnTraj(h)
 r = getappdata(h.main,'r');
@@ -445,7 +445,7 @@ getDEIMErrorsOnTraj(handles);
 % --- Executes on button press in btnRedSummary.
 function btnRedSummary_Callback(hObject, eventdata, h)
 r = getappdata(h.main,'r');
-ma = tools.ModelAnalyzer(r);
+ma = ModelAnalyzer(r);
 pm = ma.plotReductionOverview;
 pm.setFigureNames(sprintf('Reduction summary of "%s"',get(h.main,'Name')));
 
@@ -534,7 +534,7 @@ v = Norm.L2(getappdata(h.main,'x')-r.V*(r.V'*getappdata(h.main,'x')));
 pm = PlotManager;
 pm.LeaveOpen = true;
 h = pm.nextPlot('','Trajectory subspace projection L2(state) error','time','error');
-tools.LogPlot.cleverPlot(h,t,v,'r','LineWidth',2);
+LogPlot.cleverPlot(h,t,v,'r','LineWidth',2);
 pm.done;
 
 

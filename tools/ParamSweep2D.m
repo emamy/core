@@ -20,7 +20,7 @@ function [h, Y, E] = ParamSweep2D(rmodel, mu, inputidx, params, range1, range2, 
 %
 % @author Daniel Wirtz @date 2011-07-13
 %
-% @change{0,6,dw,2011-12-05} Moved this class from the \c visual/PlotParamSweep to tools.ParamSweep
+% @change{0,6,dw,2011-12-05} Moved this class from the \c visual/PlotParamSweep to ParamSweep
 %
 % @new{0,5,dw,2011-07-13} Added this function.
 %
@@ -46,7 +46,7 @@ end
 p = 0;
 [MU1, MU2] = meshgrid(range1,range2);
 
-pi = tools.ProcessIndicator('Starting parameter sweep for "%s" and "%s" (%d runs)... ',numel(MU1),false,...
+pi = ProcessIndicator('Starting parameter sweep for "%s" and "%s" (%d runs)... ',numel(MU1),false,...
     pname{1},pname{2},numel(MU1));
 
 mu(params(1)) = range1(1);

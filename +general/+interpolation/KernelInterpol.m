@@ -1,4 +1,4 @@
-classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
+classdef KernelInterpol < KerMorObject & IKernelCoeffComp
     % Provides kernel interpolation.
     %
     % The basic interpolation form is 
@@ -122,7 +122,7 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
             K = this.fK;
         end
         
-        %% approx.algorithms.IKernelCoeffComp interface members
+        %% IKernelCoeffComp interface members
         function init(this, kexp)
             % Initializes the interpolation
             %
@@ -139,7 +139,7 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
                     oldK = this.fK.K;
                     this.fK = this.P*this.fK;
                     x = kexp.Centers.xi;
-                    [m M] = general.Utils.getBoundingBox(x);
+                    [m M] = Utils.getBoundingBox(x);
                     c1 = cond(oldK);
                     c2 = cond(this.fK.K);
                     pl = '-';
@@ -203,7 +203,7 @@ classdef KernelInterpol < KerMorObject & approx.algorithms.IKernelCoeffComp
             cols = 1;
             L = I_N; P = I_N;
             tk = zeros(1,N);
-            mi = general.MonomialIterator(size(x,1));
+            mi = MonomialIterator(size(x,1));
             
             while pivi <= N
                 % Compute next monomial

@@ -48,7 +48,7 @@ classdef ModelAnalyzer < handle;
             % in rows 1,2 and Linf-Linf absolute and relative errors in rows 3-4.
             %
             % See also:
-            % tools.ModelAnalyzer.getRedErrForParamSamples
+            % ModelAnalyzer.getRedErrForParamSamples
             if nargin < 4
                 in = [];
                 if nargin < 3
@@ -100,7 +100,7 @@ classdef ModelAnalyzer < handle;
             else
                 errs = zeros(6,num);
             end
-            pi = tools.ProcessIndicator('Computing reduction error details for %d param samples',...
+            pi = ProcessIndicator('Computing reduction error details for %d param samples',...
                 num,false,num);
             for pidx = 1:num
                 mu = params(:,pidx);
@@ -160,7 +160,7 @@ classdef ModelAnalyzer < handle;
             %% Text output
             str = sprintf('%s',fm.Name);
             if ~isempty(mu)
-                str = sprintf('%s, mu=[%s]',str,general.Utils.implode(mu,', ','%2.3f'));
+                str = sprintf('%s, mu=[%s]',str,Utils.implode(mu,', ','%2.3f'));
             end
             if ~isempty(inputidx)
                 str = sprintf('%s, u_%d',str,inputidx);
@@ -181,7 +181,7 @@ classdef ModelAnalyzer < handle;
             l2l2relyl2 = Norm.L2(l2relyl2');
             lil2relyl2 = max(l2relyl2);
             meanrell2 = mean(l2relyl2);
-            %fprintf('||y(t_i)||_2: %s',general.Utils.implode(l2,', ','%2.3f'));
+            %fprintf('||y(t_i)||_2: %s',Utils.implode(l2,', ','%2.3f'));
             t = PrintTable('Error comparison for %s:',str);
             t.addRow('L2 time and space error','L^2(||y(t) - yr(t)||_2,[0,T])',l2l2);
             t.addRow('Linf time and L2 space error','L^inf(||y(t) - yr(t)||_2,[0,T])',lil2);
@@ -299,7 +299,7 @@ classdef ModelAnalyzer < handle;
                 ti = sprintf('The full system (d=%d,time=%.3f)',size(x,1),time);
             end
             h = pm.nextPlot('fullsys',ti,'time','error');
-            plot(h,t,general.Utils.preparePlainPlot(x));
+            plot(h,t,Utils.preparePlainPlot(x));
             axis([t(1) t(end) ymin ymax]);
             
             if this.UseOutput
@@ -307,15 +307,15 @@ classdef ModelAnalyzer < handle;
                     sprintf('Full+reduced system outputs with error bounds\n(r=%d,self time:%.3f, time with err est:%.3f)',...
                     size(rmodel.V,2),timer_noerr,timer),...
                     'time','y(t) / y^r(t)');
-                plot(h, t,general.Utils.preparePlainPlot(x),'b',...
-                    t, general.Utils.preparePlainPlot(xr),'r',...
-                    t, general.Utils.preparePlainPlot(xrmin),...
-                    'r--',t,general.Utils.preparePlainPlot(xrplus),'r--');
+                plot(h, t,Utils.preparePlainPlot(x),'b',...
+                    t, Utils.preparePlainPlot(xr),'r',...
+                    t, Utils.preparePlainPlot(xrmin),...
+                    'r--',t,Utils.preparePlainPlot(xrplus),'r--');
                 legend('Full system','Reduced system','Lower bound','Upper bound');
             else
                 h = pm.nextPlot('redsys',sprintf('Reduced system (r=%d,self time:%.3f,\ntime with err est:%.3f)',size(rmodel.V,2),timer_noerr,timer),...
                     'time','x^r(t)');
-                plot(h, t, general.Utils.preparePlainPlot(xr),'r');
+                plot(h, t, Utils.preparePlainPlot(xr),'r');
             end
             axis([t(1) t(end) ymin ymax]);
             
@@ -356,7 +356,7 @@ classdef ModelAnalyzer < handle;
                 pm = PlotManager(false,2,2);
                 pm.LeaveOpen = true;
             end
-            [~,m,~,l] = FindInstance(this.rm.FullModel,'general.IReductionSummaryPlotProvider');
+            [~,m,~,l] = FindInstance(this.rm.FullModel,'IReductionSummaryPlotProvider');
             for k=1:length(m)
                 context = sprintf('%s (%s)',l{k},class(m{k}));
                 m{k}.plotSummary(pm,context);

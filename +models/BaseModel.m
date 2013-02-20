@@ -51,7 +51,7 @@ classdef BaseModel < KerMorObject
 %
 % @change{0,3,dw,2011-04-05} 
 % - Removed the getConfigStr-Method and moved it to
-% general.Utils.getObjectConfig
+% Utils.getObjectConfig
 % - Added a setter for System checking for self-references
 %
 % @new{0,2,dw,2011-03-08} Implemented time scaling via addition of the
@@ -308,7 +308,7 @@ classdef BaseModel < KerMorObject
                 ax = varargin{1};
                 f = get(ax,'Parent');
             end
-            y = general.Utils.preparePlainPlot(y);
+            y = Utils.preparePlainPlot(y);
             plot(ax,t,y);
             title(ax,sprintf('Output plot for model "%s"', this.Name));
             xlabel(ax,'Time'); ylabel(ax,'Output values');
@@ -333,7 +333,7 @@ classdef BaseModel < KerMorObject
                 ax = varargin{1};
                 f = get(ax,'Parent');
             end
-            x = general.Utils.preparePlainPlot(x);
+            x = Utils.preparePlainPlot(x);
             plot(ax,t,x);
             title(ax,sprintf('State space plot for model "%s"', this.Name));
             xlabel(ax,'Time'); ylabel(ax,'State space values');

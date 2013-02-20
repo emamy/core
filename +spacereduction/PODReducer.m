@@ -1,4 +1,4 @@
-classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & general.IReductionSummaryPlotProvider
+classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & IReductionSummaryPlotProvider
     %PODREDUCER Uses POD for reduced space generation.
     %
     % Internally the SVD decomposition of the snapshot array is used.

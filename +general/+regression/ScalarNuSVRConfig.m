@@ -1,4 +1,4 @@
-classdef ScalarNuSVRConfig < general.IClassConfig
+classdef ScalarNuSVRConfig < IClassConfig
     % ScalarNuSVRConfig:
     %
     % @docupdate

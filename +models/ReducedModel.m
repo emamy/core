@@ -255,7 +255,7 @@ classdef ReducedModel < models.BaseModel
             text(-6,5,1.05,n,'FontSize',14,'FontWeight','bold');
             folder = KerMor.App.TempDirectory;
             file = 'modelimage';
-            general.Utils.saveFigure(h, fullfile(folder,file),'png');
+            Utils.saveFigure(h, fullfile(folder,file),'png');
             file = [file '.png'];
             close(h);
         end

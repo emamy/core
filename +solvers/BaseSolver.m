@@ -150,7 +150,7 @@ classdef BaseSolver < KerMorObject
                 r = m.buildReducedModel;
                 t = toc;
                 fprintf('Using solver %s (red. model build time %gs)\n',solver.Name,t);
-                ma = tools.ModelAnalyzer(r);
+                ma = ModelAnalyzer(r);
                 ma.compareRedFull(r.getRandomParam);
 %                 [~,~,~,t,tr,tr_noerr] = r.getTrajectories;
 %                 fprintf('Online simulations time\nFull detail: %fs\nReduced with error estimator: %fs\nReduced without error estimation:%fs\n\n',t,tr,tr_noerr);

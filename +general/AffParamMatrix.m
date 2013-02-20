@@ -298,7 +298,7 @@ classdef AffParamMatrix < general.AProjectable
             % Creates the coefficient function handle from the recorded funStr values. This function
             % was exported here in order to create a new function handle upon cloning, which ensures
             % a clean workspace for the new handle at cloning.
-            this.cfun = eval(['@(t,mu)[' general.Utils.implode(this.funStr,'; ') ']']);
+            this.cfun = eval(['@(t,mu)[' Utils.implode(this.funStr,'; ') ']']);
         end
     end
     

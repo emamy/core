@@ -151,7 +151,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 if isempty(ddir)
                     ddir = KerMor.App.TempDirectory;
                 end
-                args{end+1} = fullfile(ddir,sprintf('matrix_%s',general.IDGenerator.generateID));
+                args{end+1} = fullfile(ddir,sprintf('matrix_%s',IDGenerator.generateID));
             end
             this = this@data.FileData(args{:});
             this.n = n;
@@ -521,7 +521,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             % Else: multiple blocks
             if this.InPlaceTranspose
                 if this.nBlocks > 1
-                    pi = tools.ProcessIndicator('Creating in-place transposed of %d-block matrix in %s' ,this.nBlocks,...
+                    pi = ProcessIndicator('Creating in-place transposed of %d-block matrix in %s' ,this.nBlocks,...
                         false,this.nBlocks,trans.DataDirectory);
                 end
                 key = struct('type',{'()'},'subs',{{[],':'}});
@@ -535,7 +535,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 end
             else
                 if this.nBlocks > 1
-                    pi = tools.ProcessIndicator('Creating transposed of %d-block matrix in %s',2*this.nBlocks,...
+                    pi = ProcessIndicator('Creating transposed of %d-block matrix in %s',2*this.nBlocks,...
                         false,this.nBlocks,trans.DataDirectory);
                 end
                 % Write out blocks in small chunks
@@ -850,7 +850,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             res = res && all(all(At.toMemoryMatrix == B'));
             
             % Bounding box test
-            [bm, bM] = general.Utils.getBoundingBox(B);
+            [bm, bM] = Utils.getBoundingBox(B);
             [am, aM] = A.getColBoundingBox;
             res = res && isequal(bm,am) && isequal(bM,aM);
         end

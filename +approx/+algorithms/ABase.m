@@ -160,7 +160,7 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
             this.LastCompTime = toc(time);
         end
         
-        function str = getApproximationSummary(this)
+        function [str, rangetab] = getApproximationSummary(this)
             % Setup
             str = [object2str(this,1) char(13)];
             
@@ -170,13 +170,15 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
                 ec.getNumConfigurations,this.LastCompTime,...
                 this.LastCompTime/60,this.LastCompTime/3600)];
             % Configuration
-            str = [str sprintf('Expansion configuration ranges:\n%s\n',...
-                ec.getValueRanges.toString)];
-            str = [str sprintf('Best configuration at index %d:\n%s\n',ec.vBestConfigIndex,...
+            str = [str sprintf('Best expansion configuration at index %d:\n%s\n',ec.vBestConfigIndex,...
                 ec.getConfigurationString(ec.vBestConfigIndex))];
-            
-            if nargout < 1
-                disp(str);
+            rangetab = ec.getValueRanges;
+            if nargout < 2
+                str = [str sprintf('Expansion configuration ranges:\n%s\n',...
+                    rangetab.toString)];
+                if nargout < 1
+                    disp(str);
+                end
             end
         end
     end

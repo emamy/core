@@ -22,19 +22,19 @@ classdef Utils
 % - removeMargin now properly works, together with saveFigure or
 % saveAxes.
 %
-% @new{0,5,dw,2011-07-05} Added the general.Utils.implode function.
+% @new{0,5,dw,2011-07-05} Added the Utils.implode function.
 %
-% @new{0,3,dw,2011-04-20} Added a new function general.Utils.getHelpShort to extract the first
+% @new{0,3,dw,2011-04-20} Added a new function Utils.getHelpShort to extract the first
 % line(s) of a help text in matlab style (text until first emtpy line = short)
 %
 % @new{0,3,dw,2011-04-18} Added the 'saveFigure' and 'saveAxes' methods from SegMedix.
 %
-% @change{0,3,dw,2011-04-04} Moved the general.Utils.getObjectConfig
+% @change{0,3,dw,2011-04-04} Moved the Utils.getObjectConfig
 % method here from models.BaseModel
 %
 % @new{0,3,dw,2011-04-01}
-% - Added the general.Utils.getBoundingBox function.
-% - Added the general.Utils.findVecInMatrix function.
+% - Added the Utils.getBoundingBox function.
+% - Added the Utils.findVecInMatrix function.
 %
 % This class is part of the framework
 % KerMor - Model Order Reduction using Kernels:
@@ -150,7 +150,7 @@ classdef Utils
                     if isempty(target.(names{idx}))
                         target.(names{idx}) = struct;
                     end
-                    target.(names{idx}) = general.Utils.copyStructFields(source.(names{idx}),target.(names{idx}));
+                    target.(names{idx}) = Utils.copyStructFields(source.(names{idx}),target.(names{idx}));
                 % Else just copy the field values
                 else
                     target.(names{idx}) = source.(names{idx});
@@ -410,7 +410,7 @@ classdef Utils
             %
             % Parameters:
             % ax: The axes handle to save. @type handle
-            % varargin: Any additional parameters are passed to general.Utils.saveFigure
+            % varargin: Any additional parameters are passed to Utils.saveFigure
             
             fig = figure('Visible','off','MenuBar','none','ToolBar','none');
             %fig = figure('MenuBar','none','ToolBar','none');
@@ -424,7 +424,7 @@ classdef Utils
             %set(fig,'Colormap',get(get(ax,'Parent'),'Colormap'));
                         
             %% Save
-            general.Utils.saveFigure(fig, varargin{:});
+            Utils.saveFigure(fig, varargin{:});
             close(fig);
         end
         
@@ -629,7 +629,7 @@ classdef Utils
                 length = rand*100;
                 spread = rand/2;
                 
-                x = general.Utils.getTube(dim, num, length, spread);
+                x = Utils.getTube(dim, num, length, spread);
                 res = res & all(Norm.L2(x) <= length*(1+spread));
             end
         end
@@ -639,11 +639,11 @@ classdef Utils
             % @author Daniel Wirtz @date 11.10.2010
             res = true;
             
-            res = res && isequal([1 2 3 1 2 3; 1 1 1 2 2 2],general.Utils.createCombinations(1:3,1:2));
+            res = res && isequal([1 2 3 1 2 3; 1 1 1 2 2 2],Utils.createCombinations(1:3,1:2));
             
-            res = res && isempty(general.Utils.createCombinations(1:3,1:2,[],1:54));
+            res = res && isempty(Utils.createCombinations(1:3,1:2,[],1:54));
             
-            res = res && isequal(1:20,general.Utils.createCombinations(1:20));
+            res = res && isequal(1:20,Utils.createCombinations(1:20));
         end
         
         function res = test_findVec
@@ -661,7 +661,7 @@ classdef Utils
             % Add multiples
             a(:,end+1:end+2) = a(:,[idx(1) idx(5)]);
             
-            res = all(idx - general.Utils.findVecInMatrix(a,b) == 0);
+            res = all(idx - Utils.findVecInMatrix(a,b) == 0);
         end
     end
     

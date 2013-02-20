@@ -1,4 +1,4 @@
-classdef ExpansionConfig < general.IClassConfig
+classdef ExpansionConfig < IClassConfig
 % ExpansionConfig: Collects several IKernelConfigs to apply to a kernel expansion
 %
 % @todo implement setter etc and do checks
@@ -56,13 +56,13 @@ classdef ExpansionConfig < general.IClassConfig
             end
             str = [];
             if ~isempty(this.StateConfig)
-                str = [str sprintf('state: %s',this.StateConfig.getConfigurationString(nr, asCell))];
+                str = [str sprintf('State: %s',this.StateConfig.getConfigurationString(nr, asCell))];
             end
             if ~isempty(this.TimeConfig)
-                str = [str sprintf('time: %s',this.TimeConfig.getConfigurationString(nr, asCell))];
+                str = [str sprintf('Time: %s',this.TimeConfig.getConfigurationString(nr, asCell))];
             end
             if ~isempty(this.ParamConfig)
-                str = [str sprintf('param: %s',this.ParamConfig.getConfigurationString(nr, asCell))];
+                str = [str sprintf('Parameter: %s',this.ParamConfig.getConfigurationString(nr, asCell))];
             end
         end
         
@@ -81,7 +81,7 @@ classdef ExpansionConfig < general.IClassConfig
             if ~isempty(this.ParamConfig)
                 e(end+1) = {['Param: ' this.ParamConfig.getConfiguredPropertiesString]};
             end
-            str = general.Utils.implode(e,', ');
+            str = Utils.implode(e,', ');
         end
         
         function setBestConfig(this, idx, expansion)

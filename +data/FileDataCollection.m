@@ -32,7 +32,7 @@ classdef FileDataCollection < data.FileData
             if nargin < 1
                 data_dir = fullfile(KerMor.App.TempDirectory,...
                     sprintf('temp_fdc_%s',...
-                    general.IDGenerator.generateID));
+                    IDGenerator.generateID));
             end
             this = this@data.FileData(data_dir);
             this.hm = java.util.HashMap;
@@ -64,7 +64,7 @@ classdef FileDataCollection < data.FileData
             % data: A struct with the fields as specified in varargin. @type struct
             %
             % @todo make varargout instead of data struct
-            key = general.Utils.getHash(keydata);
+            key = Utils.getHash(keydata);
             data = [];
             if this.hm.containsKey(key)
                 data = load([this.DataDirectory filesep this.hm.get(key)], varargin{:});
@@ -104,11 +104,11 @@ classdef FileDataCollection < data.FileData
         end
         
         function res = hasData(this, keydata)
-            res = this.hm.containsKey(general.Utils.getHash(keydata));
+            res = this.hm.containsKey(Utils.getHash(keydata));
         end
         
         function addData(this, keydata, data)
-            key = general.Utils.getHash(keydata);
+            key = Utils.getHash(keydata);
             file = [key '.mat'];
             this.hm.put(key,file);
             

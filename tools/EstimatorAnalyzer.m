@@ -10,7 +10,7 @@ classdef EstimatorAnalyzer < handle
     % @change{0,6,dw,2012-06-08} Adopted to new settings for the DEIM error
     % estimator.
     %
-    % @change{0,6,dw,2011-12-05} Moved this class from the \c demos/EstimatorDemo to tools.EstimatorAnalyzer
+    % @change{0,6,dw,2011-12-05} Moved this class from the \c demos/EstimatorDemo to EstimatorAnalyzer
     %
     % @change{0,4,dw,2011-05-20} Adopted to the new strategy pattern implemented for the
     % LocalLipschitzFcn inside the LocalLipschitzErrorEstimator (now having a class instead of a function handle).
@@ -311,7 +311,7 @@ classdef EstimatorAnalyzer < handle
             if this.LogarithmicPlot
                 plotfun = @semilogx;
             end
-            ci = tools.LineSpecIterator;
+            ci = LineSpecIterator;
             for idx = 1:length(this.Est)
                 e = this.Est(idx);
                 if isfield(e,'Color')
@@ -353,7 +353,7 @@ classdef EstimatorAnalyzer < handle
             pt = PrintTable('%s for model "%s"',str,this.Model.Name);
             pt.HasRowHeader = true;
             pt.addRow('Name',sprintf('$\\Delta(%g)$',this.Model.T),'Time','Efficiency');
-            sfun = @(v)general.Utils.getLatexStr(v,3);
+            sfun = @(v)Utils.getLatexStr(v,3);
             for id = 1:length(this.Est)
                   pt.addRow(this.Est(idx(id)).Name,errs(idx(id),end),ctimes(idx(id)),...
                     errs(idx(id),end)/errs(1,end),{sfun,'%2.2fs',sfun});
@@ -365,7 +365,7 @@ classdef EstimatorAnalyzer < handle
         
         function ts = createStatsTables(this, sort)
             % Creates LaTeX tables with each the 'Errors','Relative errors','Overestimations' and
-            % 'Computation times' for the demos started since creation of the tools.EstimatorAnalyzer.
+            % 'Computation times' for the demos started since creation of the EstimatorAnalyzer.
             %
             % Uses the current model's name and param/input values as identification.
             %
@@ -458,7 +458,7 @@ classdef EstimatorAnalyzer < handle
             % Select extra marker places
             nt = length(times);
             sel = round(1:nt/this.NumMarkers:nt);
-            ci = tools.LineSpecIterator;
+            ci = LineSpecIterator;
             for idx=1:length(this.Est)
                 e = this.Est(idx);
                 if isfield(e,'Color')

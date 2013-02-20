@@ -1,4 +1,4 @@
-classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProvider
+classdef DEIMEstimator < error.BaseEstimator & IReductionSummaryPlotProvider
     % DEIMEstimator: A-posteriori error estimation for DEIM reduced models.
     %
     % @author Daniel Wirtz @date 2012-05-10
@@ -206,11 +206,11 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
                 % Precompute logarithmic norm of A(t,\mu)
                 a = general.AffParamMatrix;
                 if isa(fA, 'dscomponents.LinearCoreFun')
-                    a.addMatrix('1',general.Utils.logNorm(fA.A));
+                    a.addMatrix('1',Utils.logNorm(fA.A));
                 else
                     for i=1:fA.N
                         a.addMatrix(['abs(' fA.funStr{i} ')'],...
-                            general.Utils.logNorm(fA.getMatrix(i)));
+                            Utils.logNorm(fA.getMatrix(i)));
                     end
                 end
                 this.Aln = a;
@@ -399,11 +399,11 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
                 if this.UseJacobianNorm
                     b = normest(J);
                 else
-                    b = general.Utils.logNorm(J);
+                    b = Utils.logNorm(J);
                 end
             else
                 DJ = this.JacMDEIM.evaluate(x,t,mu);
-                b = general.Utils.logNorm(DJ);
+                b = Utils.logNorm(DJ);
             end
             
             %             DFJ = fm.Approx.getStateJacobian(rx,t,mu);
@@ -415,7 +415,7 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
             %                 djtlc,abs(tlc-djtlc),abs((tlc-djtlc)/tlc));
             
             %             J = this.deim.getStateJacobian(x,t,mu);
-            %             jln = general.Utils.logNorm(J);
+            %             jln = Utils.logNorm(J);
             
             %             fprintf('Log norms - F: %g, SF: %g, SR: %g, R: %g\n',...
             %                 fjln,sfjln,dsjln,jln); %, FJN: %g
@@ -567,7 +567,7 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
                 v = data.FileMatrix(d,n,'Dir',fm.Data.DataDirectory,'BlockSize',512);
                 ln = zeros(1,n);
                 times = ln;
-                pi = tools.ProcessIndicator('Computing Jacobian similarity transform data for %d jacobians',n,false,n);
+                pi = ProcessIndicator('Computing Jacobian similarity transform data for %d jacobians',n,false,n);
                 hassparse = ~isempty(fm.System.f.JSparsityPattern);
                 if hassparse
                     [i,j] = find(fm.System.f.JSparsityPattern);
@@ -579,7 +579,7 @@ classdef DEIMEstimator < error.BaseEstimator & general.IReductionSummaryPlotProv
                         J = reshape(jtd.fxi(:,nr),d,d);
                     end
                     t = tic;
-                    [ln(nr), v(:,nr)] = general.Utils.logNorm(J);
+                    [ln(nr), v(:,nr)] = Utils.logNorm(J);
                     times(nr) = toc(t);
                     pi.step;
                 end

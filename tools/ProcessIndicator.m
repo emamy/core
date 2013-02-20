@@ -55,7 +55,7 @@ classdef ProcessIndicator < handle
             % for the title string.
             %
             % Return values:
-            % this: The new ProcessIndicator @type tools.ProcessIndicator
+            % this: The new ProcessIndicator @type ProcessIndicator
             if nargin < 3
                 wb = false;
                 if nargin < 1

@@ -323,7 +323,7 @@ classdef BellFunction < kernels.ARBFKernel
                 set(lh,'FontSize',fs);
                 title(sprintf('Bell function demo, s=%f, rs=%f',s,rs(k)),'FontSize',fs);
                 pause;
-                general.Utils.saveFigure(h,sprintf('rsDemo%d',k),'eps');
+                Utils.saveFigure(h,sprintf('rsDemo%d',k),'eps');
                 %saveas(h,sprintf('rsDemo%ddirect.eps',k),'eps2c');
                 close(h);
             end

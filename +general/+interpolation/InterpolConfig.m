@@ -1,4 +1,4 @@
-classdef InterpolConfig < general.IClassConfig
+classdef InterpolConfig < IClassConfig
 % InterpolConfig: 
 %
 % @docupdate

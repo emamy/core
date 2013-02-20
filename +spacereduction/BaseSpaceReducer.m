@@ -1,4 +1,4 @@
-classdef BaseSpaceReducer < KerMorObject & general.IReductionSummaryPlotProvider
+classdef BaseSpaceReducer < KerMorObject & IReductionSummaryPlotProvider
     % Base class for all space reduction algorithms.
     %
     % @author Daniel Wirtz

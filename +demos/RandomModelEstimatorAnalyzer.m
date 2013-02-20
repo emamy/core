@@ -1,4 +1,4 @@
-classdef RandomModelEstimatorAnalyzer < tools.EstimatorAnalyzer
+classdef RandomModelEstimatorAnalyzer < EstimatorAnalyzer
     % Demo class for the error estimators.
     % Creates a random model using a kernel expansion that can be
     % configured with the provided properties.

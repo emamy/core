@@ -70,8 +70,8 @@ classdef LogPlot
             iszero = Z == 0;
             Z(iszero) = .5*min(Z(:));
             Z = log10(Z);
-            p = tools.LogPlot.nicesurf(h,X,Y,Z,varargin{:});
-            tools.LogPlot.postprocess(h);
+            p = LogPlot.nicesurf(h,X,Y,Z,varargin{:});
+            LogPlot.postprocess(h);
         end
         
         function p = logsurfc(h,X,Y,Z,varargin)
@@ -97,8 +97,8 @@ classdef LogPlot
             iszero = Z == 0;
             Z(iszero) = .5*min(Z(:));
             Z = log10(Z);
-            p = tools.LogPlot.nicesurfc(h,X,Y,Z,varargin{:});
-            tools.LogPlot.postprocess(h);
+            p = LogPlot.nicesurfc(h,X,Y,Z,varargin{:});
+            LogPlot.postprocess(h);
         end
         
         function p = logtrisurf(h, tri, x, y, z, varargin)
@@ -118,7 +118,7 @@ classdef LogPlot
             % See also: trisurf
             z = log10(z);
             p = trisurf(tri, x, y, z,'Parent',h,'FaceColor','interp','EdgeColor','k',varargin{:});
-            tools.LogPlot.postprocess(h);
+            LogPlot.postprocess(h);
         end
         
         function p = cleverPlot(ax,x,y,varargin)

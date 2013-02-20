@@ -21,7 +21,7 @@ function [pm, Y, E] = ParamSweep(rmodel, mu, inputidx, param, paramvals, pm)
 %
 % @author Daniel Wirtz @date 2011-07-13
 %
-% @change{0,6,dw,2011-12-05} Moved this class from the \c visual/PlotParamSweep to tools.ParamSweep
+% @change{0,6,dw,2011-12-05} Moved this class from the \c visual/PlotParamSweep to ParamSweep
 %
 % @new{0,5,dw,2011-07-13} Added this function.
 %
@@ -55,7 +55,7 @@ E = [];
 if rmodel.ErrorEstimator.Enabled
     E = Y;
 end
-pi = tools.ProcessIndicator('Starting parameter sweep with %d parameter sets for %s...',npar,false,npar,pname);
+pi = ProcessIndicator('Starting parameter sweep with %d parameter sets for %s...',npar,false,npar,pname);
 for idx = 1:npar
     mu(pidx) = paramvals(idx);
     [t, y] = rmodel.simulate(mu, inputidx);

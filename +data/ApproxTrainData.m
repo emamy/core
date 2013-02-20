@@ -119,7 +119,7 @@ classdef ApproxTrainData < handle
             end   
             if ~isempty(mui)
                 this.hasParams = true;
-                [box.mumin, box.mumax] = general.Utils.getBoundingBox(mui);
+                [box.mumin, box.mumax] = Utils.getBoundingBox(mui);
                 this.muiDia = norm(box.mumax - box.mumin);
 
                 this.Center = [this.Center; (box.mumin + box.mumax)/2];
@@ -232,7 +232,7 @@ classdef ApproxTrainData < handle
                 fxi = data.FileMatrix(f.fDim,size(xi,2),...
                     'Dir',fileparts(xi.DataDirectory),'BlockSize',256);
                 if KerMor.App.Verbose > 1
-                    pi = tools.ProcessIndicator('Computing %d %dx%d-block f evaluations on %d %dx%d-blocks of xi snapshots',...
+                    pi = ProcessIndicator('Computing %d %dx%d-block f evaluations on %d %dx%d-blocks of xi snapshots',...
                         fxi.nBlocks,false,fxi.nBlocks,fxi.n,fxi.bCols,xi.nBlocks,xi.n,xi.bCols);
                 end
                 for i=1:fxi.nBlocks

@@ -44,7 +44,7 @@ classdef WeightedRandomSampler < sampling.RandomSampler
             if sys.ParamCount == 1
                 samples = ranges{pidx};
             else
-                samples = general.Utils.createCombinations(ranges);
+                samples = Utils.createCombinations(ranges);
             end
         end
     end

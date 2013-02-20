@@ -31,7 +31,7 @@ classdef Componentwise < approx.algorithms.ABase
 % extract convenience methods further, general concept of "KernelConfig")
     
     properties(SetObservable)    
-        % An instance of a class implementing the approx.algorithms.IKernelCoeffComp
+        % An instance of a class implementing the IKernelCoeffComp
         % interface.
         %
         % This properties class will be used to compute the kernel
@@ -47,7 +47,7 @@ classdef Componentwise < approx.algorithms.ABase
         %
         % @propclass{critical} Without this setting this algorithm makes little sense.
         %
-        % @type general.IClassConfig @default []
+        % @type IClassConfig @default []
         CoeffConfig = [];
         
         % Percentage `p` of the training data to use as validation data
@@ -105,14 +105,29 @@ classdef Componentwise < approx.algorithms.ABase
             [X,Y] = meshgrid(1:nc,1:nco);
             
             h = pm.nextPlot('abs','Absolute errors','expansion config','coeff comp config');
-            ph = tools.LogPlot.logsurf(h,X,Y,this.MaxErrors');
+            ph = LogPlot.logsurf(h,X,Y,this.MaxErrors');
 %             set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
             h = pm.nextPlot('rel','Relative errors','expansion config','coeff comp config');
-            ph = tools.LogPlot.logsurf(h,X,Y,this.MaxRelErrors');
+            ph = LogPlot.logsurf(h,X,Y,this.MaxRelErrors');
 %             set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
             
             if nargin < 2
                 pm.done;
+            end
+        end
+        
+        function [str, rangetab] = getApproximationSummary(this)
+            [str, rangetab] = getApproximationSummary@approx.algorithms.ABase(this);
+            cc = this.CoeffConfig;
+            str = [str sprintf('Best coefficient comp configuration at index %d:\n%s\n',cc.vBestConfigIndex,...
+                cc.getConfigurationString(cc.vBestConfigIndex))];
+            rangetab = rangetab.append(cc.getValueRanges);
+            if nargout < 2
+                str = [str sprintf('Configuration ranges:\n%s\n',...
+                    rangetab.toString)];
+                if nargout < 1
+                    disp(str);
+                end
             end
         end
     end
@@ -141,7 +156,7 @@ classdef Componentwise < approx.algorithms.ABase
             bestcidx = [];
             bestcoidx = [];
             bestMa = [];
-            pi = tools.ProcessIndicator('Trying %d configurations (%d kernel, %d coeffcomp)',...
+            pi = ProcessIndicator('Trying %d configurations (%d kernel, %d coeffcomp)',...
                 nc*nco,false,nc*nco,nc,nco);
             for kcidx = 1:nc
                 if KerMor.App.Verbose > 2
@@ -291,8 +306,8 @@ classdef Componentwise < approx.algorithms.ABase
     %% Getter & Setter
     methods
         function set.CoeffComp(this, value)
-            if ~isa(value,'approx.algorithms.IKernelCoeffComp')
-                error('Property value must implement the approx.algorithms.IKernelCoeffComp interface');
+            if ~isa(value,'IKernelCoeffComp')
+                error('Property value must implement the IKernelCoeffComp interface');
             end
             this.CoeffComp = value;
         end

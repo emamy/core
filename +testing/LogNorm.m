@@ -39,14 +39,14 @@ classdef LogNorm
             n = size(jtd.xi,2);
             aln = zeros(stn,n);
             times = zeros(stn,n);
-            pi = tools.ProcessIndicator('Computing approximated log norms for %d full jacobians and %d sim. trans. orders',...
+            pi = ProcessIndicator('Computing approximated log norms for %d full jacobians and %d sim. trans. orders',...
                 n*stn,false,n,stn);
             for nr = 1:n
                 J = f.getStateJacobian(jtd.xi(:,nr),jtd.ti(nr),jtd.mui(:,nr));
                 for snr = 1:stn
                     Qk = QFull(:,1:st_sizes(snr));
                     t = tic;
-                    aln(snr,nr) = general.Utils.logNorm(Qk'*J*Qk);
+                    aln(snr,nr) = Utils.logNorm(Qk'*J*Qk);
                     times(snr,nr) = toc(t);
                     pi.step;
                 end
@@ -79,12 +79,12 @@ classdef LogNorm
             else
                 h = pm.nextPlot('approx_ln','Approx logarithmic norms',...
                     'training sample','similarity transform size');
-                tools.LogPlot.nicesurf(h, X, Y, aln);
+                LogPlot.nicesurf(h, X, Y, aln);
             end
             
             h = pm.nextPlot('rel_err','Relative error','training sample',...
                 'similarity transform size');
-            tools.LogPlot.logsurf(h,X,Y,abs((LN-aln)./LN));
+            LogPlot.logsurf(h,X,Y,abs((LN-aln)./LN));
             
             sv = m.ErrorEstimator.QSingVals;
             s = m.ErrorEstimator.JacSimTransMaxSize;
@@ -157,7 +157,7 @@ classdef LogNorm
             aln = zeros(no,stn,n);
             times = aln;
             jtimes = aln;
-            pi = tools.ProcessIndicator('Computing approximated log norms over %d DEIM orders and %d sim. trans. sizes on %d training values',...
+            pi = ProcessIndicator('Computing approximated log norms over %d DEIM orders and %d sim. trans. sizes on %d training values',...
                 numel(aln),false,no,stn,n);
             for onr = 1:no
                 jd.Order = deim_orders(onr);
@@ -168,7 +168,7 @@ classdef LogNorm
                         J = jd.evaluate(jtd.xi(:,nr),jtd.ti(nr),jtd.mui(:,nr));
                         jtimes(onr,snr,nr) = toc(t);
                         t = tic;
-                        aln(onr,snr,nr) = general.Utils.logNorm(J);
+                        aln(onr,snr,nr) = Utils.logNorm(J);
                         times(onr,snr,nr) = toc(t);
                         pi.step;
                     end
@@ -208,26 +208,26 @@ classdef LogNorm
             
             h = pm.nextPlot('abs_err',sprintf('Mean absolute approximation error over %d samples',n),...
                 'Similarity transformation size','DEIM order');
-            tools.LogPlot.logsurf(h,X,Y,abserr);
+            LogPlot.logsurf(h,X,Y,abserr);
             
             h = pm.nextPlot('rel_err',sprintf('Mean relative approximation error over %d samples',n),...
                 'Similarity transformation size','DEIM order');
-            tools.LogPlot.logsurf(h,X,Y,relerr);
+            LogPlot.logsurf(h,X,Y,relerr);
             
             h = pm.nextPlot('comp_times_j',...
                 sprintf('Average computation times over %d values\nfor matrix DEIM jacobian evaluation',...
                     n),'Similarity transformation size','DEIM order');
-            tools.LogPlot.nicesurf(h,X,Y,jtimes);
+            LogPlot.nicesurf(h,X,Y,jtimes);
             
             h = pm.nextPlot('comp_times',...
                 sprintf('Average computation times over %d values\nfor log norm computation of sim.trans. matrix DEIM jacobian',...
                     n),'Similarity transformation size','DEIM order');
-            tools.LogPlot.nicesurf(h,X,Y,times);
+            LogPlot.nicesurf(h,X,Y,times);
             
             h = pm.nextPlot('comp_times_total',...
                 sprintf('Average total computation times over %d values\n(jac comp + log norm comp)',...
                     n),'Similarity transformation size','DEIM order');
-            tools.LogPlot.nicesurf(h,X,Y,ttimes);
+            LogPlot.nicesurf(h,X,Y,ttimes);
             
             if nargout < 1
                 pm.done;
@@ -283,14 +283,14 @@ classdef LogNorm
             aln = zeros(n,m);
             times = aln;
             jtimes = aln;
-            pi = tools.ProcessIndicator('Computing approximated log norms for %d parameter values at %d locations',n*m,false,m,n);
+            pi = ProcessIndicator('Computing approximated log norms for %d parameter values at %d locations',n*m,false,m,n);
             for i = 1:n
                 for j = 1:m
                     tc = tic;
                     J = jd.evaluate(x(:,i),t(i),mui(:,j));
                     jtimes(i,j) = toc(tc);
                     tc = tic;
-                    aln(i,j) = general.Utils.logNorm(J);
+                    aln(i,j) = Utils.logNorm(J);
                     times(i,j) = toc(tc);
                     pi.step;
                 end
@@ -310,7 +310,7 @@ classdef LogNorm
             if size(res.mui,1) == 1
                 if size(res.aln,1) == 1
                     h = pm.nextPlot('aln_min',['Log norms at given location' str],res.munames{1});
-                    tools.LogPlot.cleverPlot(h,res.mui,res.aln,'b');
+                    LogPlot.cleverPlot(h,res.mui,res.aln,'b');
                 else
                     [X,Y] = meshgrid(res.mui,1:size(res.aln,1));
                     h = pm.nextPlot('aln_min',['Log norms over all locations' str],res.munames{1},'location nr');
@@ -388,7 +388,7 @@ classdef LogNorm
             seli = unique(r.randi(N,1,numt));
             n = length(seli);
 
-            pi = tools.ProcessIndicator('Computing %d local log norms, maxed over %d training points',n,false,n,length(sel));
+            pi = ProcessIndicator('Computing %d local log norms, maxed over %d training points',n,false,n,length(sel));
             ln = zeros(1,n);
             l = ln;
             pos = l;

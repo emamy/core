@@ -215,7 +215,7 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
             if isscalar(inidx)
                 inidx = repmat(inidx,1,numSolves);
             end
-            muhash = general.Utils.getHash([s.mu; inidx]);
+            muhash = Utils.getHash([s.mu; inidx]);
             savedir = fullfile(this.model.Data.DataDirectory,sprintf('simres_%s',muhash));
             td = data.FileTrajectoryData(savedir);
             td.UniformTrajectories = false;

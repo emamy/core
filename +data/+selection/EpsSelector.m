@@ -85,7 +85,7 @@ classdef EpsSelector < data.selection.ASelector
                 end
                 x = model.Data.V*(W'*x);
             end
-            %[m,M] = general.Utils.getBoundingBox(x);
+            %[m,M] = Utils.getBoundingBox(x);
             %d = norm(M-m) / 10;
             %this.EpsRad = d;
             selidx = 1;

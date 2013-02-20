@@ -65,7 +65,7 @@ classdef FileData < handle
         
         function set.DataDirectory(this, value)
             if ~isempty(value)
-                if general.Utils.ensureDir(value);
+                if Utils.ensureDir(value);
                     this.DataDirectory = value;
                     return;
                 else
@@ -107,7 +107,7 @@ classdef FileData < handle
                 this.Host = initfrom.Host;
                 this.isSaved = initfrom.isSaved;
             end
-            if ~isempty(this.DataDirectory) && ~general.Utils.ensureDir(this.DataDirectory) && ~strcmp(this.Host,KerMor.getHost)
+            if ~isempty(this.DataDirectory) && ~Utils.ensureDir(this.DataDirectory) && ~strcmp(this.Host,KerMor.getHost)
                 warning('KerMor:FileData',['Loading FileData on a different machine failed.\n'...
                     'Created on: %s, local host: %s'],this.Host,KerMor.getHost);
             end

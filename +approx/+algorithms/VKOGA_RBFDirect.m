@@ -96,7 +96,7 @@ classdef VKOGA_RBFDirect < approx.algorithms.AAdaptiveBase
             total = 1:size(atd.xi,2);
             
             %% Run loop for all desired distances
-            pi = tools.ProcessIndicator('VKOGA approximation for %d gamma values',nc,false,nc);
+            pi = ProcessIndicator('VKOGA approximation for %d gamma values',nc,false,nc);
             for cidx = 1:nc
                 
                 % Re-init expansion from second run on

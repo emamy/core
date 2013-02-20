@@ -108,7 +108,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             end
             
             %% Run loop for all desired distances
-            pi = tools.ProcessIndicator('VKOGA approximation for %d kernel configurations',nc,false,nc);
+            pi = ProcessIndicator('VKOGA approximation for %d kernel configurations',nc,false,nc);
             for cidx = 1:nc
                 m = 1;
                 
@@ -191,9 +191,9 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                         h2 = pm.nextPlot('nfun','Newton Basis Function','x','N_i(x)');
                         plot(h2,xi(1,:),NV(:,1:m)); 
                         h3 = pm.nextPlot('err','Absolute error','x','|f(x)-f^m(x)|');
-                        tools.LogPlot.cleverPlot(h3,1:m,this.MaxErrors(:,1:m)); 
+                        LogPlot.cleverPlot(h3,1:m,this.MaxErrors(:,1:m)); 
                         h4 = pm.nextPlot('MaxRelErrors','Relative error','x','|(f(x)-f^m(x))/f(x)|');
-                        tools.LogPlot.cleverPlot(h4,1:m,this.MaxRelErrors(:,1:m)); 
+                        LogPlot.cleverPlot(h4,1:m,this.MaxRelErrors(:,1:m)); 
                     end
                     
                     %% Emergency break:
@@ -218,7 +218,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     used(m) = maxidx;
                     if exp_mode
                         h = pm.nextPlot('sumNSq','Power fun','x','P(x)');
-                        tools.LogPlot.cleverPlot(h,xi(1,:),sumNsq); 
+                        LogPlot.cleverPlot(h,xi(1,:),sumNsq); 
                         pm.done;
                     end
                 end
@@ -385,11 +385,11 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             
             m = length(alg.Used);
             h = pm.nextPlot('err','Absolute error','x','|f(x)-f^m(x)|');
-            ph = tools.LogPlot.cleverPlot(h,1:m,alg.MaxErrors(:,1:m));
+            ph = LogPlot.cleverPlot(h,1:m,alg.MaxErrors(:,1:m));
             set(ph(alg.ExpConfig.vBestConfigIndex),'LineWidth',2);
             
             h = pm.nextPlot('MaxRelErrors','Relative error','x','|(f(x)-f^m(x))/f(x)|');
-            ph = tools.LogPlot.cleverPlot(h,1:m,alg.MaxRelErrors(:,1:m));
+            ph = LogPlot.cleverPlot(h,1:m,alg.MaxRelErrors(:,1:m));
             set(ph(alg.ExpConfig.vBestConfigIndex),'LineWidth',2);
             pm.done;
             

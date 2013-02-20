@@ -159,7 +159,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             % Assign Lipschitz function
             lfcn = error.lipfun.ImprovedLocalSecantLipschitz(f.Kernel);
             % Pre-Compute bell function xfeats if applicable
-            [x,X] = general.Utils.getBoundingBox(this.c.xi);
+            [x,X] = Utils.getBoundingBox(this.c.xi);
             d = norm(X-x);
             lfcn.precompMaxSecants(d*2,200);
             this.LocalLipschitzFcn = lfcn;

@@ -1,4 +1,4 @@
-classdef DEIM < KerMorObject & general.AProjectable & general.IReductionSummaryPlotProvider
+classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvider
 % DEIM: Implements the DEIM-Algorithm from \cite{CS10}
 %
 % \cite{CS10} Chaturantabut, S. & Sorensen, D.
@@ -238,7 +238,7 @@ classdef DEIM < KerMorObject & general.AProjectable & general.IReductionSummaryP
             end
             if KerMor.App.Verbose > 2
                 fprintf('DEIM interpolation points [%s] with values [%s]\n',...
-                    general.Utils.implode(pts,' ','%d'),general.Utils.implode(v,' ','%2.2e'));
+                    Utils.implode(pts,' ','%d'),Utils.implode(v,' ','%2.2e'));
             end
         end
     end

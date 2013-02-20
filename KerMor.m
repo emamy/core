@@ -703,6 +703,8 @@ classdef KerMor < handle
             p = this.HomeDirectory;
             addpath(p);
             addpath(fullfile(p,'visual'));
+            addpath(fullfile(p,'interfaces'));
+            addpath(fullfile(p,'tools'));
             
             % Figure position settings
             if ~isempty(this.DefaultFigurePosition)

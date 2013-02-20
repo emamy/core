@@ -94,7 +94,7 @@ classdef LinspaceSelector < data.selection.ASelector
             ti = zeros(1,s);
             mui = zeros(mud,s);
             
-            pi = tools.ProcessIndicator('Selecting approximation training data from %d trajectories',nt,false,nt);
+            pi = ProcessIndicator('Selecting approximation training data from %d trajectories',nt,false,nt);
             atdpos = 0;
             for k=1:length(traj)
                 [x, mu] = md.TrajectoryData.getTrajectoryNr(traj(k));

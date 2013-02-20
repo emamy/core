@@ -12,7 +12,7 @@ classdef IKernelCoeffComp < handle
     % @change{0,5,dw,2011-09-12}
     % - Added initial values that can be passed to the CoeffComp algorithms.
     % - New Property
-    % approx.algorithms.IKernelCoeffComp.MultiTargetComputation that
+    % IKernelCoeffComp.MultiTargetComputation that
     % indicates of the algorithm at hand can handle a column vector matrix
     % instead of a single vector.
     %
@@ -49,7 +49,7 @@ classdef IKernelCoeffComp < handle
         % Here the concrete class performs the approximation calculation
         % for given function evaluation points `y_i = f(x_i)` at the
         % centers `x_i` also used to compute the kernel matrix passed to 
-        % the approx.algorithms.IKernelCoeffComp#init method.
+        % the IKernelCoeffComp#init method.
         %
         % Parameters:
         % yi: The function values `f(x_i)` as column vector. If

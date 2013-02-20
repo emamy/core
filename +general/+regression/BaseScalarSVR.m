@@ -1,4 +1,4 @@
-classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCoeffComp
+classdef BaseScalarSVR < KerMorObject & ICloneable & IKernelCoeffComp
     %SCALARSVR Scalar support vector regression.
     %
     % Base class for any scalar SVR algorithm.
@@ -112,7 +112,7 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & approx.algorithms.IKernelCo
             this.AlphaRelMinValue = value;
         end
         
-        %% approx.algorithms.IKernelCoeffComp interface members
+        %% IKernelCoeffComp interface members
         function init(this, kexp)
             % Sets the kernel matrix.
             %

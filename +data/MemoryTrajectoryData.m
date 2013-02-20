@@ -72,7 +72,7 @@ classdef MemoryTrajectoryData < data.ATrajectoryData
             end
             
             x = []; ctime = Inf;
-            key = general.Utils.getHash([mu; inputidx]);
+            key = Utils.getHash([mu; inputidx]);
             if this.hm.containsKey(key)
                 idx = this.hm.get(key);
                 x = this.TrajectoryData(:,:,idx);
@@ -125,7 +125,7 @@ classdef MemoryTrajectoryData < data.ATrajectoryData
                 error('New trajectory size mismatches the size of already stored TrajectoryData.');
             end
             
-            key = general.Utils.getHash([mu; inputidx]);
+            key = Utils.getHash([mu; inputidx]);
             if this.hm.containsKey(key)
                 warning('KerMor:MemoryTrajectoryData','Trajectory already present. Replacing');
                 this.TrajectoryData(:,:,this.hm.get(key)) = x;
@@ -152,7 +152,7 @@ classdef MemoryTrajectoryData < data.ATrajectoryData
         end
         
         function [x,X] = getBoundingBox(this)
-            [x, X] = general.Utils.getBoundingBox(this.TrajectoryData(:,:));
+            [x, X] = Utils.getBoundingBox(this.TrajectoryData(:,:));
         end
         
         function [d, mud] = getTrajectoryDoFs(this)

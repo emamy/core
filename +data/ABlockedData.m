@@ -101,7 +101,7 @@ classdef ABlockedData < handle
                 w = 0;
                 nb = this.getNumBlocks;
                 if vb
-                    pi = tools.ProcessIndicator('ABlockedData: Blockwise multiplication for %d-SVD on %d blocks',...
+                    pi = ProcessIndicator('ABlockedData: Blockwise multiplication for %d-SVD on %d blocks',...
                         nb,false,k,nb);
                 end
                 for j = 1:nb

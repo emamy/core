@@ -27,7 +27,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 % @new{0,6,dw,2012-10-08} Added a new read-only property models.BaseFullModel.OfflinePhaseTimes
 % that contains the last offline computation times in a row vector.
 %
-% @change{0,6,dw,2012-04-26} Using tools.ProcessIndicator for training data
+% @change{0,6,dw,2012-04-26} Using ProcessIndicator for training data
 % generation now.
 %
 % @change{0,6,dw,2011-12-14} Now listening for changes to T and dt of the model and clearing
@@ -335,7 +335,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             if this.ComputeParallel
                 error('Parallel computing not yet tested with new ModelData structure / model.Data.addTrajectory might not be thread-safe! not catered for: ComputeTrajectoryFxiData');
                 
-                idxmat = general.Utils.createCombinations(1:num_s,1:num_in);
+                idxmat = Utils.createCombinations(1:num_s,1:num_in);
                 
                 fprintf('Starting parallel projection training data computation of %d trajectories on %d workers...\n',size(idxmat,2),matlabpool('size'));
                 % Iterate through all param/input combinations
@@ -379,7 +379,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 inputidx = [];
                 
                 if KerMor.App.Verbose > 0
-                    pi = tools.ProcessIndicator(sprintf('Generating projection training data (%d trajectories)...',num_in*num_s),num_in*num_s);
+                    pi = ProcessIndicator(sprintf('Generating projection training data (%d trajectories)...',num_in*num_s),num_in*num_s);
                 end
                 if this.ComputeTrajectoryFxiData
                     %elems = num_in*num_s*length(this.Times)*this.Dimension;

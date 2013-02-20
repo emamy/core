@@ -1,4 +1,4 @@
-classdef KernelLSConfig < general.IClassConfig
+classdef KernelLSConfig < IClassConfig
 % KernelLSConfig: 
 %
 % @docupdate

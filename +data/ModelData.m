@@ -91,7 +91,7 @@ classdef ModelData < data.FileData
             % the KerMor.TempDirectory
             if isempty(varargin)
                 data_dir = fullfile(KerMor.App.TempDirectory,sprintf('temp_md_%s',...
-                    general.IDGenerator.generateID));
+                    IDGenerator.generateID));
             elseif isa(varargin{1},'models.BaseFullModel')
                 data_dir = fullfile(KerMor.App.DataStoreDirectory,sprintf('model_%s',varargin{1}.ID));
             elseif ischar(varargin{1})

@@ -397,7 +397,7 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                 perstep = floor((256*1024^2)/(8*d));
                 X = repmat(x,1,perstep); T = repmat(t,1,perstep); MU = repmat(mu,1,perstep);
                 steps = ceil(d/perstep);
-                pi = tools.ProcessIndicator('Comparing %dx%d jacobian with finite differences over %d blocks of size %d',...
+                pi = ProcessIndicator('Comparing %dx%d jacobian with finite differences over %d blocks of size %d',...
                     steps,false,this.fDim,this.xDim,steps,perstep);
                 for k = 1:steps
                     if k == steps

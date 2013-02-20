@@ -126,24 +126,24 @@ classdef MonomialIterator < handle
             % res: True if successful, false else @type logical
             for Dim = 1:3 %#ok<*PROP>
                 fprintf('Dim=%d:\n',Dim)
-                mi = general.MonomialIterator(Dim);
+                mi = MonomialIterator(Dim);
                 deg = 0;
                 while deg < 5
                     [alpha, deg, exps] = mi.nextMonomial;
-                    fprintf('p=%d, exps=[%s], alpha=[%s]\n',deg, general.Utils.implode(exps,',','%d'),...
-                        general.Utils.implode(alpha,',','%d'));
+                    fprintf('p=%d, exps=[%s], alpha=[%s]\n',deg, Utils.implode(exps,',','%d'),...
+                        Utils.implode(alpha,',','%d'));
                 end
             end
             res = true;
             % test for d=1 and p=1000
-            mi = general.MonomialIterator(1);
+            mi = MonomialIterator(1);
             for i=1:1000
                 [alpha, deg, exps] = mi.nextMonomial; %#ok<*PROP>
                 res = res && alpha == i && deg == i && all(exps==1);
             end
             
             % test for d=4 and p=3
-            mi = general.MonomialIterator(4);
+            mi = MonomialIterator(4);
             cmpp1 = [1; 2; 3; 4];
             cmpp2 = [1 1; 1 2; 1 3; 1 4; 2 2; 2 3; 2 4; 3 3; 3 4; 4 4];
             cmpp3 = [1 1 1; 1 1 2; 1 1 3; 1 1 4; 1 2 2; 1 2 3; 1 2 4; 1 3 3; 1 3 4; 1 4 4; 2 2 2;...

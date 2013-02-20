@@ -1,4 +1,4 @@
-classdef RBFConfig < general.IClassConfig & ICloneable
+classdef RBFConfig < IClassConfig & ICloneable
 % RBFConfig: 
 %
 % @docupdate

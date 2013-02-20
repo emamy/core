@@ -34,7 +34,7 @@ classdef IClassConfig < KerMorObject
             
             function o = convert(e)
                 tmp = this.getConfigurationString(e, true);
-                o = general.Utils.implode(tmp,sprintf('/'));
+                o = Utils.implode(tmp,sprintf('/'));
             end
         end
         
@@ -65,7 +65,7 @@ classdef IClassConfig < KerMorObject
         end
         
         function addRange(~, ptable, proppath, minval, maxval)
-            head = general.Utils.implode(proppath,'.');
+            head = Utils.implode(proppath,'.');
             ptable.addRow(head,minval,maxval);
         end
     end

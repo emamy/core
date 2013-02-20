@@ -4,7 +4,7 @@ function [Y,E] = EstimatorParamSweep(ea, mu, ~, param, paramvals)
 % This function may only be used if the output of the reduced models is one-dimensional.
 %
 % Parameters:
-% ea: A complete tools.EstimatorAnalyzer instance with reduced model already set
+% ea: A complete EstimatorAnalyzer instance with reduced model already set
 % mu: The current parameter `\mu`. Pass this if the model has more parameters than the one to sweep.
 % If set, the value at the index of the sweeped parameter will be overwritten.
 % param: Either a string containing the name of the parameter to sweep, or it's index in the
@@ -27,8 +27,8 @@ function [Y,E] = EstimatorParamSweep(ea, mu, ~, param, paramvals)
 % - \c License @ref licensing
 
 % Validity checks
-if ~isa(ea,'tools.EstimatorAnalyzer')
-    error('The first argument must be a tools.EstimatorAnalyzer instance.');
+if ~isa(ea,'EstimatorAnalyzer')
+    error('The first argument must be a EstimatorAnalyzer instance.');
 end
 if ischar(param)
     pidx = ea.ReducedModel.getParamIndexFromName(param);
