@@ -154,7 +154,7 @@ classdef MUnit
                                     end
                                     eval(command);
                                     if outargs == 0 || succ
-                                        cprintf(testing.MUnit.GreenCol,['Test' mc.Name ' -> ' m.Name(6:end) ' succeeded!\n']);
+                                        cprintf(testing.MUnit.GreenCol,['Test ' mc.Name ' -> ' m.Name(6:end) ' succeeded!\n']);
                                         s = s+1;
                                     elseif ~succ
                                         cprintf('Red','Failure!\n');
@@ -162,7 +162,7 @@ classdef MUnit
                                     end
                                 catch ME
                                     f = f+1;
-                                    cprintf(testing.MUnit.WarnCol,['Test' mc.Name ' -> ' m.Name(6:end) ' failed!\nExeption information:\n']);
+                                    cprintf(testing.MUnit.WarnCol,['Test ' mc.Name ' -> ' m.Name(6:end) ' failed!\nExeption information:\n']);
                                     disp(getReport(ME));
                                 end
                             else

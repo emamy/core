@@ -24,12 +24,7 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
-
-    properties(Constant)
-        STOP_FLAG_ABS_ERR = 1;
-        STOP_FLAG_REL_ERR = 2;
-    end
-    
+  
     properties(SetObservable)
         % The different kernel expansion configurations to try
         %
@@ -81,6 +76,13 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
         %
         % @default [] @type matrix<double>
         MaxRelErrors = [];
+        
+        % For each effective configuration, the stop flags are stored here.
+        %
+        % @default [] @type matrix<integer>
+        %
+        % See also: StopFlag
+        StopFlags = [];
     end
     
     methods

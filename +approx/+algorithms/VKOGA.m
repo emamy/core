@@ -14,10 +14,6 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
-
-    properties(Constant)
-        STOP_FLAG_NEGATIVE_POWFUN = 4;
-    end
     
     properties
         UsefPGreedy = false;
@@ -51,8 +47,6 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
         
         % debug props
         basis_norms;
-        
-        stopFlags;
     end
     
     methods
@@ -155,19 +149,19 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                             fprintf('VKOGA stopping criteria holds: Max expansion size %d reached.\nResidual error %.7e > %.7e, Max relative error %.7e > %.7e\n',...
                                 m,this.MaxErrors(cidx,m-1),this.MaxAbsResidualErr,this.MaxRelErrors(cidx,m-1),this.MaxRelErr);
                         end
-                        stopflag = this.STOP_FLAG_MAXSIZE;
+                        stopflag = StopFlag.MAX_SIZE;
                         break;
                     elseif this.MaxRelErrors(cidx,m) < this.MaxRelErr
                         if vb > 1
                             fprintf('VKOGA stopping criteria holds: Relative error %.7e < %.7e\n',rel,this.MaxRelErr);
                         end
-                        stopflag = this.STOP_FLAG_REL_ERR;
+                        stopflag = StopFlag.REL_ERROR;
                         break;
                     elseif this.MaxErrors(cidx,m) < this.MaxAbsResidualErr
                         if vb > 1
                             fprintf('VKOGA stopping criteria holds: Residual error %.7e < %.7e\n',this.MaxErrors(cidx,m),this.MaxAbsResidualErr);
                         end
-                        stopflag = this.STOP_FLAG_ABS_ERR;
+                        stopflag = StopFlag.ABS_ERROR;
                         break;
                     end
                     
@@ -204,7 +198,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                             fprintf('VKOGA emergency stop at iteration %d: Power function value > 1 detected.\nResidual error %.7e > %.7e, Max relative error %.7e > %.7e\n',...
                                 m,this.MaxErrors(cidx,m-1),this.MaxAbsResidualErr,this.MaxRelErrors(cidx,m-1),this.MaxRelErr);
                         end
-                        stopflag = this.STOP_FLAG_NEGATIVE_POWFUN;
+                        stopflag = StopFlag.NEGATIVE_POWFUN;
                         break;
                     end
                     
@@ -224,20 +218,19 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                 end
                 
                 better = false;
-                if stopflag == this.STOP_FLAG_ABS_ERR
+                if stopflag == StopFlag.ABS_ERROR
                     bestm = m;
                     if this.MaxErrors(cidx,m) < minerr
                         better = true;
                         minerr = this.MaxErrors(cidx,m);
                     end
-                elseif stopflag == this.STOP_FLAG_REL_ERR
+                elseif stopflag == StopFlag.REL_ERROR
                     bestm = m;
                     if this.MaxRelErrors(cidx,m) < minrelerr
                         better = true;
                         minrelerr = this.MaxRelErrors(cidx,m);
                     end
-                elseif stopflag == this.STOP_FLAG_NEGATIVE_POWFUN ...
-                        || stopflag == this.STOP_FLAG_MAXSIZE
+                elseif stopflag == StopFlag.NEGATIVE_POWFUN || stopflag == StopFlag.MAX_SIZE
                     if strcmp(this.FailureErrorMeasure,'rel')
                         [val, bestm] = min(this.MaxRelErrors(cidx,1:m));
                         if val < minrelerr
@@ -310,10 +303,10 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                 if isfield(this,'basis_norms')
                     a.basis_norms = this.basis_norms;
                 end
+                if isfield(this,'stopFlags')
+                    a.StopFlags = this.stopFlags;
+                end
                 this = loadobj@approx.algorithms.AAdaptiveBase(a, this);
-            end
-            if isempty(this.stopFlags)
-                this.stopFlags = zeros(this.ExpConfig.getNumConfigurations,1);
             end
         end
     end

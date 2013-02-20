@@ -21,10 +21,6 @@ classdef AAdaptiveBase < approx.algorithms.ABase
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
 
-    properties(Constant)
-        STOP_FLAG_MAXSIZE = 3;
-    end
-
     properties(SetObservable)
         % The maximum size of the expansion to produce.
         %
@@ -291,6 +287,8 @@ classdef AAdaptiveBase < approx.algorithms.ABase
                 if isfield(initfrom,'Used')
                     this.Used = initfrom.Used;
                 end
+                this.ExpansionSizes = initfrom.ExpansionSizes;
+                this.InitialCenter = initfrom.InitialCenter;
                 this.MaxRelErr = initfrom.MaxRelErr;
                 this = loadobj@approx.algorithms.ABase(this, initfrom);
             end

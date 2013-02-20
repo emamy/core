@@ -637,7 +637,7 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             
             x = -5:.1:5;
             fx = sinc(x)+.2*x;
-%             fx = sinc(x);
+            fx = fx ./ max(abs(fx));
             
             svr = general.regression.ScalarEpsSVR_SMO;
             svr.Version = version;

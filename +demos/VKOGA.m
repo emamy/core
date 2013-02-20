@@ -72,7 +72,7 @@ classdef VKOGA
             set(ph(alg.ExpConfig.vBestConfigIndex),'LineWidth',2);
             
             h4 = pm.nextPlot('relerr','Relative error','x','|(f(x)-f^m(x))/f(x)|');
-            ph = LogPlot.cleverPlot(h4,1:m,alg.relerr(:,1:m));
+            ph = LogPlot.cleverPlot(h4,1:m,alg.MaxRelErrors(:,1:m));
             set(ph(alg.ExpConfig.vBestConfigIndex),'LineWidth',2);
             pm.done;
             

@@ -82,7 +82,7 @@ classdef MatrixDEIM < general.DEIM
             % U, U_nonproj is of size length(J(J ~= 0)) instead of length(J(:))
             if isa(this.f,'general.JacCompEvalWrapper') && ~isempty(this.f.f.JSparsityPattern)
                 fsp = this.f.f.JSparsityPattern;
-                this.U_nonproj = general.MatUtils.toSparse(this.U_nonproj, find(fsp), numel(fsp)); %#ok<FNDSB>
+                this.U_nonproj = MatUtils.toSparse(this.U_nonproj, find(fsp), numel(fsp)); %#ok<FNDSB>
             end
             
             % Apply partial similarity transform (AFTER original DEIM order

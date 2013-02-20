@@ -37,24 +37,32 @@ classdef KernelLSConfig < IClassConfig
         % Parameters:
         % nr: The configuration number @type integer
         % object: The class object for which to apply the configuration @type handle
-        function applyConfiguration(this, nr, object)%#ok
-            % to nothing
+        function applyConfiguration(this, nr, object)
+            object.lambda = this.Lambdas(nr);
         end
         
         % Returns the number of configurations that can be applied
         %
         % Return values:
         % str:  @type integer
-        function str = getConfigurationString(this, nr)%#ok
-            str = '';
+        function str = getConfigurationString(this, nr)
+            str = sprintf('\lambda: %g',this.Lambdas(nr));
+        end
+        
+        function str = getConfiguredPropertiesString(~)
+            str = 'lambda';
+        end
+        
+        function conf = getSubPart(this, partNr, totalParts)
+            conf = general.regression.KernelLSConfig(this.Lambdas(this.getPartIndices(partNr, totalParts)));
         end
         
     end
     
     methods(Access=protected)        
         function collectRanges(this, ptable, proppath)
-            this.addRange(ptable, [proppath {'Lambdas'}],min(this.Dimension),max(this.Lambdas));
-        end        
+            this.addRange(ptable, [proppath {'lambda'}],min(this.Dimension),max(this.Lambdas));
+        end
     end
     
 end

@@ -265,9 +265,9 @@ classdef MatUtils
                     Bi = inv([A v(1:end-1); v']);
                     i = (gam-1)*n + exp;
                     Ai = inv(A);
-                    err(1,i) = errfun(Bi,general.MatUtils.getExtendedInverse(Ai, v, 1));
-                    err(2,i) = errfun(Bi,general.MatUtils.getExtendedInverse(Ai, v, 2));
-                    err(3,i) = errfun(Bi,general.MatUtils.getExtendedInverse(Ai, v, 3));
+                    err(1,i) = errfun(Bi,MatUtils.getExtendedInverse(Ai, v, 1));
+                    err(2,i) = errfun(Bi,MatUtils.getExtendedInverse(Ai, v, 2));
+                    err(3,i) = errfun(Bi,MatUtils.getExtendedInverse(Ai, v, 3));
                 end
             end
             e1best = sum(err(1,:) < min(err(2:3,:),[],1));
@@ -310,13 +310,13 @@ classdef MatUtils
                     %A = Am(1:part,1:part);
                     v = Am(1:part+1,part+1);
                     t = tic;
-                    Ai1 = general.MatUtils.getExtendedInverse(Ai1, v, 1);
+                    Ai1 = MatUtils.getExtendedInverse(Ai1, v, 1);
                     T(1,i) = toc(t);
                     t = tic;
-                    Ai2 = general.MatUtils.getExtendedInverse(Ai2, v, 2);
+                    Ai2 = MatUtils.getExtendedInverse(Ai2, v, 2);
                     T(2,i) = toc(t);
                     t = tic;
-                    Ai3 = general.MatUtils.getExtendedInverse(Ai3, v, 3);
+                    Ai3 = MatUtils.getExtendedInverse(Ai3, v, 3);
                     T(3,i) = toc(t);
                     t = tic;
                     Bi = inv(Am(1:part+1,1:part+1));

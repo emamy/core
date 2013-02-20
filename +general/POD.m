@@ -214,7 +214,7 @@ classdef POD < KerMorObject
                 % Re-create the sparse matrix structure after POD computation if input argument
                 % was a sparse matrix
                 if ~isempty(nonzero)
-                    u = general.MatUtils.toSparse(u, nonzero, fulldim);
+                    u = MatUtils.toSparse(u, nonzero, fulldim);
                 end
                 
                 podvec = u;

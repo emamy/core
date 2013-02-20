@@ -21,7 +21,7 @@ classdef KernelLS < KerMorObject & IKernelCoeffComp
         %
         % @propclass{important} If the data is badly conditioned increasing lambda can help.
         %
-        % @default 1
+        % @type double @default 1
         lambda = 1;
         
         % Maximum iteration count for the conjugate gradient method
@@ -91,8 +91,8 @@ classdef KernelLS < KerMorObject & IKernelCoeffComp
         end
         
         function set.lambda(this, value)
-            if ~isposintscalar(value)
-                error('value must be a positive integer scalar');
+            if ~isposrealscalar(value)
+                error('value must be a positive scalar');
             end
             this.lambda = value;
         end

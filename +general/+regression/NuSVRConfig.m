@@ -1,11 +1,11 @@
-classdef EpsSVRConfig < IClassConfig
-% EpsSVRConfig: 
+classdef NuSVRConfig < IClassConfig
+% NuSVRConfig: 
 %
 % @docupdate
 %
-% @author Daniel Wirtz @date 2012-11-22
+% @author Daniel Wirtz @date 2013-02-20
 %
-% @new{0,7,dw,2012-11-22} Added this class.
+% @new{0,7,dw,2013-02-20} Added this class.
 %
 % This class is part of the framework
 % KerMor - Model Order Reduction using Kernels:
@@ -14,40 +14,40 @@ classdef EpsSVRConfig < IClassConfig
 % - \c License @ref licensing
     
     properties(SetAccess=private)
-        Epsilons = [];
+        Nus = [];
         Lambdas = [];
     end
     
     methods
-        function this = EpsSVRConfig(values)
+        function this = NuSVRConfig(values)
             if nargin == 1 && size(values,1) == 2
-                this.Epsilons = values(1,:);
+                this.Nus = values(1,:);
                 this.Lambdas = values(2,:);
             end
         end
         
         function n = getNumConfigurations(this)
-            n = length(this.Epsilons);
+            n = length(this.Nus);
         end
         
         function applyConfiguration(this, nr, svr)
-            svr.Eps = this.Epsilons(nr);
+            svr.nu = this.Nus(nr);
             svr.Lambda = this.Lambdas(nr);
         end
         
         function str = getConfigurationString(this, nr, ~)
             str = [];
-            if ~isempty(this.Epsilons)
-                str = sprintf('\varepsilon: %g, \lambda: %g',this.Epsilons(nr),this.Lambdas(nr));
+            if ~isempty(this.Nus)
+                str = sprintf('\nu: %g, \lambda: %g',this.Nus(nr),this.Lambdas(nr));
             end
         end
         
         function str = getConfiguredPropertiesString(~)
-            str = 'Eps, Lambda';
+            str = 'nu, Lambda';
         end
         
         function conf = getSubPart(this, partNr, totalParts)
-            v = [this.Epsilons; this.Lambdas];
+            v = [this.Nus; this.Lambdas];
             v = v(:,this.getPartIndices(partNr, totalParts));
             conf = general.regression.EpsSVRConfig(v);
         end
@@ -56,7 +56,7 @@ classdef EpsSVRConfig < IClassConfig
     
     methods(Access=protected)
         function collectRanges(this, ptable, proppath)
-            this.addRange(ptable, [proppath {'Eps'}],min(this.Epsilons),max(this.Epsilons));
+            this.addRange(ptable, [proppath {'nu'}],min(this.Nus),max(this.Nus));
             this.addRange(ptable, [proppath {'Lambda'}],min(this.Lambdas),max(this.Lambdas));
         end
     end

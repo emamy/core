@@ -115,7 +115,7 @@ classdef ScalarNuSVR < general.regression.BaseQPSVR
     methods(Static)
     
         function c = getDefaultConfig
-            c = general.regression.ScalarNuSVRConfig([.3 .7]);
+            c = general.regression.NuSVRConfig([.3 .7; .5 .5]);
         end
         
         function res = test_ScalarNuSVR
