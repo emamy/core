@@ -321,6 +321,8 @@ classdef Componentwise < approx.algorithms.ABase
                     newinst.SingleRuntimes = this.SingleRuntimes;
                 end
                 this = loadobj@approx.algorithms.ABase(newinst, this);
+            else
+                this = loadobj@approx.algorithms.ABase(this);
             end
         end
     end

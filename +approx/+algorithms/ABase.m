@@ -245,7 +245,15 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
                 elseif isfield(initfrom,'relerr')
                     this.MaxRelErrors = initfrom.relerr;
                 end
+                if ~isfield(initfrom,'StopFlags') || isempty(initfrom.StopFlags)
+                    this.StopFlags = zeros(size(this.MaxErrors));
+                end
                 this = loadobj@KerMorObject(this, initfrom);
+            else
+                if isempty(this.StopFlags)
+                    this.StopFlags = zeros(size(this.MaxErrors));
+                end
+                this = loadobj@KerMorObject(this);
             end
         end
     end
