@@ -82,7 +82,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             nc = ec.getNumConfigurations;
             
             this.basis_norms = this.MaxErrors;
-            this.stopFlags = zeros(nc,1);
+            this.StopFlags = zeros(nc,1);
 
             xi = atd.xi.toMemoryMatrix;
             fxi = atd.fxi.toMemoryMatrix;
@@ -252,7 +252,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     bestc = c(:,1:bestm);
                     bestcidx = cidx;
                 end
-                this.stopFlags(cidx) = stopflag;
+                this.StopFlags(cidx) = stopflag;
                 pi.step;
             end
             

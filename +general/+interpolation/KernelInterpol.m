@@ -156,7 +156,7 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
             end
         end
         
-        function [ci, svidx] = computeKernelCoefficients(this, fxi, ~)
+        function [ci, svidx, sf] = computeKernelCoefficients(this, fxi, ~)
             % Implementation of the kernels.ICoeffComp interface
             %
             % Parameters:
@@ -170,6 +170,7 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
             % Transform to row vector
             ci = this.interpolate(fxi)';
             svidx = 1:size(ci,2);
+            sf = StopFlag.SUCCESS;
         end
     end
     

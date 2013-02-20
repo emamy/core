@@ -28,6 +28,16 @@ classdef StopFlag
         
         % Maximum number of iterations reached
         MAX_ITER = 5;
+        
+        % Algorithm terminated otherwisely successful
+        SUCCESS = 6;
+        
+        % SVR-specific flag that indicates that no support vectors have been found.
+        NO_SUPPORT_VECTORS_FOUND = 7;
+        
+        % SVR-SMO specific flag. Indicates that the E+T values are smaller than the prescribed
+        % tolerance.
+        TOL_OK = 8;
     end
   
 end

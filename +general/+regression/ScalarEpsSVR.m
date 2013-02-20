@@ -45,7 +45,7 @@ classdef ScalarEpsSVR < general.regression.BaseQPSVR
             this.registerProps('eps');
         end
         
-        function ai = regress(this, fxi, ainit)
+        function [ai, sf] = regress(this, fxi, ainit)
             % Performs epsilon-SVR regression.
             %
             % Parameters:
@@ -77,6 +77,9 @@ classdef ScalarEpsSVR < general.regression.BaseQPSVR
             
             % Convert results
             ai = T*p;
+            
+            %| @todo return correct stop flag
+            sf = StopFlag.SUCCESS;
         end
         
         function set.Eps(this, value)

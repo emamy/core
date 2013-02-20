@@ -150,6 +150,7 @@ classdef Componentwise < approx.algorithms.ABase
             % Keep track of maximum errors (matrix-wise for expansion config / coeff config)
             this.MaxErrors = zeros(nc,nco);
             this.MaxRelErrors = zeros(nc,nco);
+            this.StopFlags = zeros(nc,nco);
             this.SingleRuntimes = zeros(nc,nco);
             
             minerr = Inf;
@@ -175,8 +176,9 @@ classdef Componentwise < approx.algorithms.ABase
                     
                     % Call protected method
                     time = tic;
-                    this.computeCoeffs(kexp, atd.fxi, []);
-%                     this.computeCoeffs(kexp, atd.fxi, kexp.Ma);
+                    sf = this.computeCoeffs(kexp, atd.fxi, []);
+%                     sf = this.computeCoeffs(kexp, atd.fxi, kexp.Ma);
+                    this.StopFlags(kcidx,coidx) = sf;
 
                     % Determine maximum error
                     [val, maxidx] = this.getError(kexp, atd);
@@ -223,7 +225,7 @@ classdef Componentwise < approx.algorithms.ABase
     
     methods(Access=private)
     
-        function computeCoeffs(this, kexp, fxi, initialalpha)
+        function sf = computeCoeffs(this, kexp, fxi, initialalpha)
             % Computes the coefficients for all components.
             %
             % Convenience method that any subclasses may (must?) use in
@@ -238,6 +240,11 @@ classdef Componentwise < approx.algorithms.ABase
             % fxi: The `f(x_i)`values at the expansion centers
             % initialalpha: Initial `\alpha_i` value to use as
             % initialization (if applicable for the algorithm)
+            %
+            % Return values:
+            % sf: The stop flag. @type integer
+            %
+            % See also: StopFlag
             if nargin < 4 || isempty(initialalpha)
                 initialalpha = double.empty(size(fxi,1),0);
             end
@@ -245,24 +252,27 @@ classdef Componentwise < approx.algorithms.ABase
                 if KerMor.App.Verbose > 3
                     fprintf('Starting parallel component-wise coefficient computation\n');
                 end
-                this.computeCoeffsParallel(kexp, fxi, initialalpha);
+                sf = this.computeCoeffsParallel(kexp, fxi, initialalpha);
             else
                 if KerMor.App.Verbose > 3
                     fprintf('Starting component-wise coefficient computation\n');
                 end
-                this.computeCoeffsSerial(kexp, fxi, initialalpha);
+                sf = this.computeCoeffsSerial(kexp, fxi, initialalpha);
             end
         end
-    
         
-        function computeCoeffsSerial(this, kexp, fxi, initialalpha)
+        function sf = computeCoeffsSerial(this, kexp, fxi, initialalpha)
             % Computes the coefficients using the CoeffComp instance
             % serially.
             %
-            % @throws KerMor:coeffcomp_failed Forwarded from CoeffComp
             %
             % @todo remove waitbar and connect to verbose/messaging system
-            %% Non-parallel execution
+            %
+            % Return values:
+            % sf: The stop flag. @type integer
+            %
+            % See also: StopFlag
+            
             fdims = size(fxi,1);
             n = size(kexp.Centers.xi,2);
             kexp.Ma = zeros(fdims, n);
@@ -271,7 +281,7 @@ classdef Componentwise < approx.algorithms.ABase
                     fprintf('Computing approximation for all %d dimensions...\n',fdims);
                 end
                 % Call template method
-                [ai, svidx] = this.CoeffComp.computeKernelCoefficients(fxi,initialalpha);
+                [ai, svidx, sf] = this.CoeffComp.computeKernelCoefficients(fxi,initialalpha);
                 kexp.Ma(:,svidx) = ai;
             else
                 for fdim = 1:fdims
@@ -279,21 +289,26 @@ classdef Componentwise < approx.algorithms.ABase
                         fprintf('Computing approximation for dimension %d/%d ... %2.0f %%\n',fdim,fdims,(fdim/fdims)*100);
                     end
                     % Call template method
-                    [ai, svidx] = this.CoeffComp.computeKernelCoefficients(fxi(fdim,:),initialalpha(fdim,:)); 
+                    [ai, svidx, sf] = this.CoeffComp.computeKernelCoefficients(fxi(fdim,:),initialalpha(fdim,:)); 
                     kexp.Ma(fdim,svidx) = ai;
                 end
             end
         end
         
-        function computeCoeffsParallel(this, kexp, fxi, initialalpha)
-            %% Parallel execution
+        function sf = computeCoeffsParallel(this, kexp, fxi, initialalpha)
+            % Parallel execution
+            %
+            % Return values:
+            % sf: The stop flag. @type integer
+            %
+            % See also: StopFlag
             n = size(kexp.Centers.xi,2);
             fdims = size(fxi,1);
             fprintf('Starting parallel component-wise approximation computation of %d dimensions on %d workers...\n',fdims,matlabpool('size'));
             Ma = zeros(fdims, n);
             parfor fdim = 1:fdims
                 % Call template method
-                [ai, sv] = this.CoeffComp.computeKernelCoefficients(...
+                [ai, sv, sf] = this.CoeffComp.computeKernelCoefficients(...
                     fxi(fdim,:),initialalpha(fdim,:));%#ok
                 Ai = zeros(1,n);
                 Ai(sv) = ai;

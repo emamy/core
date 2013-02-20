@@ -47,7 +47,7 @@ classdef ScalarNuSVR < general.regression.BaseQPSVR
             this.registerProps('nu');
         end
         
-        function ai = regress(this, fxi, ainit)
+        function [ai, sf] = regress(this, fxi, ainit)
             % Performs scalar nu-support vector regression
             %
             % Parameters:
@@ -89,6 +89,9 @@ classdef ScalarNuSVR < general.regression.BaseQPSVR
             %% Convert results
             ai = T*p;
             this.LastEpsilon = d(end);
+            
+            %| @todo return correct stop flag
+            sf = StopFlag.SUCCESS;
         end
         
         function set.nu(this, value)

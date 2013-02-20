@@ -66,7 +66,7 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
     end
     
     methods
-        function ai = regress(this, fxi, initialai)
+        function [ai, sf] = regress(this, fxi, initialai)
             % Make sure it's a row vector.
             %fxi = reshape(fxi,1,[]);
             if any(abs(fxi) > 1)
@@ -75,24 +75,17 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
 %             initialai = reshape(initialai,1,[]);
             if this.Version == 1
                 % Call 1D-Optimizer
-                ai = this.regress1D(fxi, initialai);
+                [ai, sf] = this.regress1D(fxi, initialai);
             else
                 % Call 2D-Optimizer
-                ai = this.regress2D(fxi, initialai);
+                [ai, sf] = this.regress2D(fxi, initialai);
             end
         end
-        
-%         function set.Eps(this, value)
-%             if value < 0 || value >= 1
-%                 error('Epsilon value must be in [0,1[');
-%             end
-%             this.Eps = value;
-%         end
     end
     
     methods(Access=private)
         
-        function ai = regress1D(this, fxi, initialai)
+        function [ai, sf] = regress1D(this, fxi, initialai)
             
             if ~isempty(initialai)
                 % Init - warm start
@@ -127,8 +120,6 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
                     figure(h);
                     subplot(1,2,1);
                     plot(1:n,fxi,'r',1:n,[fxi-this.Eps; fxi+this.Eps],'r--',1:n,afxi,'b');
-                    %err = sum((fxi-afxi).^2);
-                    %title(sprintf('Current approximation, error: %e',err(cnt)));
                     legend('f(x_i) training values','+\epsilon','-\epsilon','approximation values');
                     axis tight;
                 end
@@ -173,9 +164,14 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             
             % \alpha = \alpha^+ - \alpha^-
             ai = (a(1:n)-a(n+1:end))';
+            
+            sf = StopFlag.TOL_OK;
+            if cnt == this.MaxCount
+                sf = StopFlag.MAX_ITER;
+            end
         end
         
-        function ai = regress2D(this, fxi, initialai)
+        function [ai, sf] = regress2D(this, fxi, initialai)
             
             if ~isempty(initialai)
                 % Init - warm start
@@ -257,8 +253,6 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
                     end
                     
                     hold off;
-%                     title(sprintf('Current approximation, error: %e',err(cnt)));
-                    %legend('f(x_i) training values','+\epsilon','-\epsilon','approximation values');
                     axis tight;
                     if this.Vis > 2
                         fprintf('alpha_{%d} change: %e, alpha_{%d} change: %e\n',i,r,j,s);
@@ -288,29 +282,20 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
                 E = this.C * sum(max(0,min(2-this.Eps,dW)));
                 
                 S = T + E;
-%                 Sall(cnt) = S;
-%                 Tall(cnt) = T;
-%                 Eall(cnt) = E;
                 cnt = cnt+1;
             end
             cnt = cnt-1;
             if this.Vis > 0 || KerMor.App.Verbose > 0
                 fprintf('ScalarEpsSVR_SMO: Finished after %d/%d iterations.\n',cnt,this.MaxCount);
             end
-%             if this.Vis > 0
-%                 figure;
-%                 semilogy(1:cnt,abs(Sall(1:cnt)),'r',1:cnt,abs(Tall(1:cnt)),'b',1:cnt,Eall(1:cnt),'g',1:cnt,ones(1,cnt)*stop,'black');
-%                 axis tight;
-%                 title('S, T, E and stopping values'); legend('S = T+E','T','E','stop cond');
-% 
-%                 figure;
-%                 semilogy(err(1:cnt));
-%                 axis tight;
-%                 title('Approximation error (by eps-insensitive loss fcn)');
-%             end
             
             % \alpha = \alpha^+ - \alpha^-
-            ai = (a(1:n)-a(n+1:end))';            
+            ai = (a(1:n)-a(n+1:end))';  
+            
+            sf = StopFlag.TOL_OK;
+            if cnt == this.MaxCount
+                sf = StopFlag.MAX_ITER;
+            end
         end
         
         function [i, M] = WSS0_1D_GetMaxGainIndex(this, a, dW)

@@ -121,7 +121,7 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & IKernelCoeffComp
             this.K = kexp.getKernelMatrix;
         end
         
-        function [ci, svidx] = computeKernelCoefficients(this, yi, initialai)
+        function [ci, svidx, sf] = computeKernelCoefficients(this, yi, initialai)
             % Implementation of the kernels.ICoeffComp interface
             %
             % Parameters:
@@ -134,13 +134,13 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & IKernelCoeffComp
             % that regarded to be support vectors. @type integer
             %
             % See also: AlphaRelMinValue
-            ci = this.regress(yi, initialai);
+            [ci, sf] = this.regress(yi, initialai);
             svidx = find(abs(ci) ./ max(abs(ci)) > this.AlphaRelMinValue);
             ci = ci(svidx);
-            
             if isempty(svidx)
                 ci = 0;
                 svidx = 1;
+                sf = StopFlag.NO_SUPPORT_VECTORS_FOUND;
             end
         end
     end
@@ -156,7 +156,10 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & IKernelCoeffComp
         %
         % Return values:
         % ci: The kernel expansion coefficients `c_i`.
-        ci = regress(this, fxi, initialai);
+        % sf: The stop flag @type integer
+        %
+        % See also: StopFlag
+        [ci, sf] = regress(this, fxi, initialai);
     end
     
     methods(Static)

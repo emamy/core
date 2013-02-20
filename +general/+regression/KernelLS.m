@@ -54,7 +54,7 @@ classdef KernelLS < KerMorObject & IKernelCoeffComp
             this.registerProps('K','lambda','CGMaxIt','CGTol','MaxStraightInvDim');
         end
         
-        function a = regress(this, fx, ainit)%#ok
+        function [a, sf] = regress(this, fx, ainit)%#ok
             n = size(this.K,1);
 
             y = (fx*this.K)';
@@ -62,9 +62,12 @@ classdef KernelLS < KerMorObject & IKernelCoeffComp
             
             if length(y) <= this.MaxStraightInvDim
                 a = M\y;
+                sf = StopFlag.SUCCESS;
             else
-                % @\todo: why doepcgs pcg not work here? matrix is symmetric!
+                %| @todo -why does pcgs pcg not work here? matrix is symmetric!
                 [a, flag] = bicg(M,y,this.CGTol, this.CGMaxIt);%#ok
+                %| @todo return correct stop flag
+                sf = StopFlag.SUCCESS;
             end
         end
         
@@ -77,8 +80,8 @@ classdef KernelLS < KerMorObject & IKernelCoeffComp
             this.K = kexp.getKernelMatrix;
         end
         
-        function [ai, svidx] = computeKernelCoefficients(this, yi, initialai)%#ok
-            ai = this.regress(yi);
+        function [ai, svidx, sf] = computeKernelCoefficients(this, yi, initialai)%#ok
+            [ai, sf] = this.regress(yi);
             svidx = 1:size(yi,2);
         end
         
