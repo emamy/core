@@ -3,6 +3,9 @@ classdef RandomSampler < sampling.BaseSampler
     %
     % @author Daniel Wirtz @date 2011-10-11
     %
+    % @new{0,7,dw,2013-02-22} Added a new property Spacing to also allow for logarithmical
+    % sampling over the parameter ranges.
+    %
     % @new{0,5,dw,2011-10-11} Added this class (former version renamed to
     % WeightedRandomSampler)
     
@@ -23,7 +26,18 @@ classdef RandomSampler < sampling.BaseSampler
         %
         % @type integer @default []
         Seed = [];
-    end
+        
+        % The spacing method.
+        %
+        % Available options are 'log' and 'lin' for logarithmic/linear grid
+        % sampling.
+        %
+        % @propclass{important} Different model/parameters require
+        % differently scaled sampling
+        %
+        % @type char @default lin
+        Spacing = 'lin';
+    end    
     
     methods
         
@@ -53,7 +67,14 @@ classdef RandomSampler < sampling.BaseSampler
             factor = r.rand(sys.ParamCount,this.Samples);
             miv = repmat([sys.Params(:).MinVal]',1,this.Samples);
             mav = repmat([sys.Params(:).MaxVal]',1,this.Samples);
+            if strcmp(this.Spacing,'log')
+                miv = log10(miv);
+                mav = log10(mav);
+            end
             samples = miv + factor.*(mav-miv);
+            if strcmp(this.Spacing,'log')
+                samples = 10.^samples;
+            end
             % Sort samples if one-dimensional
             if size(samples,1) == 1
                 samples = sort(samples);
