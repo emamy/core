@@ -535,6 +535,10 @@ X1 = getappdata(h.main,'X1');
 X2 = getappdata(h.main,'X2');
 cap = sprintf('Plot of %s against %s and %s',c.lbl.fx{c.dout},c.lbl.x{c.d1},c.lbl.x{c.d2});
 mi = Inf; Ma = -Inf;
+
+cla(h.ax);
+hold(h.ax,'on');
+
 if get(h.chkPlotFun,'Value') == 1
     
     fx = reshape(fx(c.dout,:),size(X1,1),[]);
@@ -566,8 +570,6 @@ if get(h.chkPlotFun,'Value') == 1
     end
 
     %% Plots
-    cla(h.ax);
-    hold(h.ax,'on');
     s1 = surf(h.ax,X1,X2,fx,'FaceColor','interp');
 
     if ~isempty(fx2) && get(h.rbAdd,'Value') == 1
@@ -687,7 +689,7 @@ for idx = 1:dispsliders
     ctrls.labels(end+1) = label;
     
     % Value label
-    label = uicontrol('Tag',['runtime_lbl_val_' name],'Style','text',...
+    label = uicontrol('Tag',sprintf('runtime_lbl_val_%d',idx),'Style','text',...
         'Parent',h.pnlBS,'HorizontalAlignment','left',...
         'TooltipString',['Value of ' name ' for current plot']);
     set(label,'String',sprintf('%2.4e',c.basex(dim)),'Units','pixels','Position',[60 top 90 14],...
@@ -703,7 +705,7 @@ for idx = 1:dispsliders
 %     ctrls.labels(end+1) = label;
         
     % Create slider
-    ctrl = uicontrol('Tag',['runtime_slide_' name],'Parent',...
+    ctrl = uicontrol('Tag',sprintf('runtime_slide_%d',idx),'Parent',...
         h.pnlBS,'HorizontalAlignment','left');
     set(ctrl,'Style','slider', 'Value', c.basex(dim),...
         'Min', m, 'Max', M);

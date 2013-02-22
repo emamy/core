@@ -47,6 +47,62 @@ classdef FunVis2DHandler < handle
             FunVis2D('slRefine_Callback',ch,[],this.handles);
         end
         
+        function setInputDim1(this, value)
+            l = this.handles.dim1;
+            set(l,'Value',value);
+            FunVis2D('dim1_Callback',l,[],this.handles);
+        end
+        
+        function setInputDim2(this, value)
+            l = this.handles.dim2;
+            set(l,'Value',value);
+            FunVis2D('dim2_Callback',l,[],this.handles);
+        end
+        
+        function setOutputDim(this, value)
+            l = this.handles.dout;
+            set(l,'Value',value);
+            FunVis2D('dout_Callback',l,[],this.handles);
+        end
+        
+        function setFreeDim(this, dim, value)
+            % Get app data and update
+            h = this.handles;
+            conf = getappdata(h.main,'conf');
+            if value < conf.box(dim,1)
+                value = conf.box(dim,1);
+                fprintf(2,'Minimum value of %g allowed.\n',conf.box(dim,1));
+            elseif value > conf.box(dim,2)
+                value = conf.box(dim,2);
+                fprintf(2,'Maximum value of %g allowed.\n',conf.box(dim,2));
+            end
+            
+            conf.basex(dim) = value;
+            setappdata(h.main,'conf',conf);
+
+            % Update GUI
+            ch = get(this.Figure,'Children');
+            sh = findobj(ch,'UserData',dim);
+            if ~isempty(sh)
+                set(sh,'Value',value);
+                tag = get(sh,'Tag');
+                pos = strfind(tag,'_');
+                lbltag = sprintf('runtime_lbl_val_%s',tag(pos(end)+1:end));
+                lbl = findobj(ch,'Tag',lbltag);
+                set(lbl,'String',sprintf('%2.4e',conf.basex(dim)));
+            end
+            
+            % Call other updating methods
+            FunVis2D('updateATDPoints',h,conf);
+            conf = FunVis2D('updateCenterPoints',h,conf);
+            FunVis2D('updateFX', h, conf);
+        end
+        
+        function setPlotCenterLines(this, value)
+            set(this.handles.chkPlotCenterLines,'Value',value);
+            this.updatePlot;
+        end
+        
         function copyAxesTo(this, ax)
             % Copy children
             copyobj(get(this.handles.ax,'Children'), ax);
