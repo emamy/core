@@ -35,6 +35,14 @@ classdef ModelParam < handle
         %
         % See also: sampling
         Desired = 1;
+        
+        % Sets the desired sampling type for random or grid sampling.
+        %
+        % Allowed values are 'lin' (linear) and 'log' (logarithmic w.r.t
+        % base 10)
+        %
+        % @type char @default 'lin'
+        Spacing = 'lin';
     end
     
     properties(Dependent)
@@ -101,7 +109,14 @@ classdef ModelParam < handle
                 error('Desired must be a positive integer greater than zero.');
             end
             this.Desired = value;
-        end     
+        end
+        
+        function set.Spacing(this, value)
+            if ~ischar(value) || ~any(strcmp(value,{'lin','log'}))
+                error('Spacing can either be "lin" or "log".');
+            end
+            this.Spacing = value;
+        end 
         
         function value = get.MinVal(this)
             value = this.Range(1);

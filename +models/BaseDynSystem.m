@@ -293,7 +293,7 @@ classdef BaseDynSystem < KerMorObject
             y = this.A.evaluate(x, t, this.mu) + this.f.evaluate(x, t, this.mu) + this.B.evaluate(t, this.mu)*this.u(t);
         end
         
-        function addParam(this, name, range, desired)
+        function p = addParam(this, name, range, desired)
             % Adds a parameter with the given values to the parameter
             % collection of the current dynamical system.
             %
@@ -301,12 +301,15 @@ classdef BaseDynSystem < KerMorObject
             % parameters for a specific dynamical system.
             %
             % Parameters:
-            % name: The name of the Parameter
+            % name: The name of the Parameter @type char
             % range: The range of the Parameter. Can be either a scalar or
             % a 1x2 double vector.
             % desired: The desired number of samples for that parameter.
-            % Defaults to 1.
+            % @type integer @default 1
             %
+            % Return values:
+            % p: The new ModelParam instance. @type ModelParam
+            % 
             % See also: ModelParam setParam
             
             if nargin < 4
@@ -315,10 +318,11 @@ classdef BaseDynSystem < KerMorObject
             if ~isempty(this.Params) && ~isempty(find(strcmpi(name,{this.Params(:).Name}),1))
                 error('Parameter with name %s already exists. Use setParam instead.',name);
             end
-            this.Params(end+1) = data.ModelParam(name, range, desired);
+            p = data.ModelParam(name, range, desired);
+            this.Params(end+1) = p;
         end
         
-        function setParam(this, name, range, desired)
+        function p = setParam(this, name, range, desired)
             % Sets values for a parameter with the name "name".
             % If no such parameter exists a new one is created using the
             % specified name and values.
@@ -328,7 +332,10 @@ classdef BaseDynSystem < KerMorObject
             % range: The range of the Parameter. Can be either a scalar or
             % a 1x2 double vector.
             % desired: The desired number of samples for that parameter.
-            % Optional; defaults to 1.
+            % @type integer @default 1
+            %
+            % Return values:
+            % p: The new ModelParam instance. @type ModelParam
             %
             % See also: addParam
             
@@ -342,10 +349,11 @@ classdef BaseDynSystem < KerMorObject
                     if ~isempty(desired)
                         this.Params(pidx).Desired = desired;
                     end
+                    p = this.Params(pidx);
                     return;
                 end
             end
-            this.addParam(name, range, desired);
+            p = this.addParam(name, range, desired);
         end
         
         function pidx = getParamIndexFromName(this, paramname)

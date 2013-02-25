@@ -26,17 +26,6 @@ classdef RandomSampler < sampling.BaseSampler
         %
         % @type integer @default []
         Seed = [];
-        
-        % The spacing method.
-        %
-        % Available options are 'log' and 'lin' for logarithmic/linear grid
-        % sampling.
-        %
-        % @propclass{important} Different model/parameters require
-        % differently scaled sampling
-        %
-        % @type char @default lin
-        Spacing = 'lin';
     end    
     
     methods
@@ -67,13 +56,14 @@ classdef RandomSampler < sampling.BaseSampler
             factor = r.rand(sys.ParamCount,this.Samples);
             miv = repmat([sys.Params(:).MinVal]',1,this.Samples);
             mav = repmat([sys.Params(:).MaxVal]',1,this.Samples);
-            if strcmp(this.Spacing,'log')
-                miv = log10(miv);
-                mav = log10(mav);
+            islog = strcmp({sys.Params(:).Spacing},'log')';
+            if any(islog)
+                miv(islog,:) = log10(miv(islog,:));
+                mav(islog,:) = log10(mav(islog,:));
             end
             samples = miv + factor.*(mav-miv);
-            if strcmp(this.Spacing,'log')
-                samples = 10.^samples;
+            if any(islog)
+                samples(islog,:) = 10.^samples(islog,:);
             end
             % Sort samples if one-dimensional
             if size(samples,1) == 1

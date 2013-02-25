@@ -19,26 +19,13 @@ classdef GridSampler < sampling.BaseSampler
 % @todo maybe move the Spacing property into ModelParam, to enable custom
 % spacing for each parameter
     
-    properties(SetObservable)
-        % The spacing method.
-        %
-        % Available options are 'log' and 'lin' for logarithmic/linear grid
-        % sampling.
-        %
-        % @propclass{important} Different model/parameters require
-        % differently scaled sampling
-        %
-        % @type char @default lin
-        Spacing = 'lin';
-    end
-    
     methods
         function this = GridSampler
             this = this@sampling.BaseSampler;
             this.registerProps('Spacing');
         end
         
-        function samples = performSampling(this, model)
+        function samples = performSampling(~, model)
             % Uses the given model and generates a training set by creating
             % a regular grid in joint time/parameter space
             % @ingroup s_grid
@@ -51,7 +38,7 @@ classdef GridSampler < sampling.BaseSampler
                 if (sys.Params(pidx).MinVal == sys.Params(pidx).MaxVal)
                     ranges{pidx} = sys.Params(pidx).MinVal;
                 else
-                    if strcmp(this.Spacing,'lin')
+                    if strcmp(sys.Params(pidx).Spacing,'lin')
                         ranges{pidx} = linspace(sys.Params(pidx).MinVal,...
                         sys.Params(pidx).MaxVal,...
                         sys.Params(pidx).Desired);
