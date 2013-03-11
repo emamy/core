@@ -71,7 +71,7 @@ classdef GaussConfig < kernels.config.RBFConfig
         end
         
         function copy = clone(this)
-            copy = kernels.config.GaussConfig('G',[]);
+            copy = kernels.config.GaussConfig('G',1);
             copy = clone@kernels.config.RBFConfig(this, copy);
             copy.Distances = this.Distances;
             copy.DistEps = this.DistEps;

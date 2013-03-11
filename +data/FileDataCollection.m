@@ -161,7 +161,7 @@ classdef FileDataCollection < data.FileData
             
             if exist(this.DataDirectory,'dir') ~= 7
                 this.hm.clear;
-                warning('FileDataCollection:load','This FileDataCollection instance was created on host "%s" and the DataDirectory cannot be found on the local machine "%s". Clearing FileDataCollection.',this.host,KerMor.getHost);
+                warning('FileDataCollection:load','This FileDataCollection instance was created on host "%s" and the DataDirectory cannot be found on the local machine "%s". Clearing FileDataCollection.',this.Host,KerMor.getHost);
             end
         end
     end

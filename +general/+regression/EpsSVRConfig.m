@@ -38,7 +38,7 @@ classdef EpsSVRConfig < IClassConfig
         function str = getConfigurationString(this, nr, ~)
             str = [];
             if ~isempty(this.Epsilons)
-                str = sprintf('\varepsilon: %g, \lambda: %g',this.Epsilons(nr),this.Lambdas(nr));
+                str = sprintf('\\epsilon: %g, \\lambda: %g',this.Epsilons(nr),this.Lambdas(nr));
             end
         end
         

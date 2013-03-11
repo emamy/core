@@ -80,7 +80,7 @@ setappdata(handles.main,'inputidx',in);
 
 % Care condition: dont simulate very expensive by default!
 e = r.ErrorEstimator;
-if e.JacSimTransMaxSize > 0 && e.JacSimTransSize == 0
+if ~isempty(e) && e.JacSimTransMaxSize > 0 && e.JacSimTransSize == 0
     e.JacSimTransSize = 1;
 end
 setappdata(handles.main,'r',r);
@@ -200,7 +200,7 @@ function modelToGUI(h, r)
     
     % m' estimates
     e = r.ErrorEstimator;
-    if e.UseTrueDEIMErr
+    if ~isempty(e) && e.UseTrueDEIMErr
         set(h.rbTrueDEIM,'Value',1);
     else
         set(h.rbMD,'Value',1);
@@ -211,19 +211,21 @@ function modelToGUI(h, r)
     set(h.lblMD,'String',sprintf('%d',r.System.f.Order(2)));
     
     % mj JacMDEIM
-    set(h.slJM,'Min',1,'Max',e.JacMatDEIMMaxOrder,'Value', e.JacMatDEIMOrder);
-    set(h.lblJM,'String',sprintf('%d',e.JacMatDEIMOrder));
-    % simtrans k
-    set(h.slK,'Min',0,'Max',e.JacSimTransMaxSize,'Value', e.JacSimTransSize);
-    set(h.lblK,'String',sprintf('%d',e.JacSimTransSize));
-    if e.UseTrueLogLipConst
-        set(h.rbtrueloclip,'Value',1);
-    elseif e.UseJacobianLogLipConst
-        set(h.rbjacloclip,'Value',1);
-    elseif e.UseFullJacobian
-        set(h.rbfulljac,'Value',1);
-    else
-        set(h.rbjmst,'Value',1);
+    if ~isempty(e)
+        set(h.slJM,'Min',1,'Max',e.JacMatDEIMMaxOrder,'Value', e.JacMatDEIMOrder);
+        set(h.lblJM,'String',sprintf('%d',e.JacMatDEIMOrder));
+        % simtrans k
+        set(h.slK,'Min',0,'Max',e.JacSimTransMaxSize,'Value', e.JacSimTransSize);
+        set(h.lblK,'String',sprintf('%d',e.JacSimTransSize));
+        if e.UseTrueLogLipConst
+            set(h.rbtrueloclip,'Value',1);
+        elseif e.UseJacobianLogLipConst
+            set(h.rbjacloclip,'Value',1);
+        elseif e.UseFullJacobian
+            set(h.rbfulljac,'Value',1);
+        else
+            set(h.rbjmst,'Value',1);
+        end
     end
     
 function reSimulate(h)
@@ -242,21 +244,26 @@ function rePlot(h)
 fprintf('plotting... ');
 r = getappdata(h.main,'r');
 s = getappdata(h.main,'s');
+esterr = zeros(size(r.Times));
 if get(h.rbOutput,'Value') % Output error plot
     Cn = normest(r.FullModel.System.C.C);
     err = Cn*1e-7*Norm.L2(s.x-r.V*s.xr);
     %err2 = Norm.L2(r.FullModel.System.computeOutput(s.x-r.V*s.xr));
     %trajnorm = Norm.L2(s.y-s.yr);
     trajnorm = Norm.L2(s.y);
-    esterr = r.ErrorEstimator.OutputError;
+    if ~isempty(r.ErrorEstimator)
+        esterr = r.ErrorEstimator.OutputError;
+    end
 else % State space error plot
     err = Norm.L2(s.x-r.V*s.xr);
     trajnorm = Norm.L2(s.x);
-    esterr = r.ErrorEstimator.StateError;
+    if ~isempty(r.ErrorEstimator)
+        esterr = r.ErrorEstimator.StateError;
+    end
 end
 doPlot(h.axerr,r.Times,err,'b');
 doPlot(h.axrel,r.Times,err./trajnorm,'b');
-if r.ErrorEstimator.Enabled
+if ~isempty(r.ErrorEstimator) && r.ErrorEstimator.Enabled
     hold(h.axerr,'on');
     doPlot(h.axerr,r.Times,esterr,'r');
     hold(h.axerr,'off');
@@ -275,13 +282,15 @@ str = sprintf('Times: Full %gs, Red.: %gs, Speedup: %g\n',s.tf,s.tr,s.tf/s.tr);
 str = [str sprintf('Errors(T=%g): True: %g, Est.: %g,\nRel: %g, Est.Rel.: %g, Eff.:%g',...
     r.Times(end),err(end),eest,err(end)/trajnorm(end),eest/trajnorm(end),eest/err(end))];
 set(h.lblRes,'String',str);
-doPlot(h.axhlp,r.Times,r.ErrorEstimator.LastAlpha,'m');
-doPlot(h.axhlp2,r.Times,r.ErrorEstimator.LastBeta,'c');
-axis(h.axerr,'tight');
-if r.ErrorEstimator.Enabled
-    axis(h.axeff,'tight');
-    axis(h.axhlp,'tight');
-    axis(h.axhlp2,'tight');
+if ~isempty(r.ErrorEstimator)
+    doPlot(h.axhlp,r.Times,r.ErrorEstimator.LastAlpha,'m');
+    doPlot(h.axhlp2,r.Times,r.ErrorEstimator.LastBeta,'c');
+    axis(h.axerr,'tight');
+    if r.ErrorEstimator.Enabled
+        axis(h.axeff,'tight');
+        axis(h.axhlp,'tight');
+        axis(h.axhlp2,'tight');
+    end
 end
 fprintf('done.\n');
 
