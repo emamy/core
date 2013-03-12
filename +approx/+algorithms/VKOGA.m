@@ -308,6 +308,9 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                 end
                 this = loadobj@approx.algorithms.AAdaptiveBase(a, this);
             end
+            if isempty(this.StopFlags)
+                this.StopFlags = zeros(size(this.MaxErrors));
+            end
         end
     end
     

@@ -42,8 +42,6 @@ classdef Wendland < kernels.ARBFKernel
         function Kxy = evaluate(this, x, y)
             r = sqrt(this.getSqDiffNorm(x, y))/this.Gamma;
             rp = max(1-r, 0);
-            %rp = (1 - r).*(r <= 1);
-            
             p = 1;
             if (this.fk > 0)
                 p = this.polyfun(r);

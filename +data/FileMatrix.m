@@ -648,8 +648,10 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 A = this.cachedBlock;%#ok
                 save([this.DataDirectory filesep sprintf('block_%d.mat',this.cachedNr)], 'A');
                 this.created(this.cachedNr) = true;
-                this.cacheDirty = false;
             end
+            this.cachedBlock = [];
+            this.cachedNr = [];
+            this.cacheDirty = false;
         end
     end
     
