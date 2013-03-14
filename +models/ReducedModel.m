@@ -27,7 +27,6 @@ classdef ReducedModel < models.BaseModel
     % - \c License @ref licensing     
     
     properties(SetAccess=private)
-        
         % The full model this reduced model was created from.
         %
         % Once an instance of a reduced model gets saved to disk, the
@@ -41,12 +40,14 @@ classdef ReducedModel < models.BaseModel
         
         % The matrix that has been used for projection
         %
-        % @type matrix
+        % @type matrix<double>
         V;
         
         % The biorthogonal matrix for V, i.e. `W^tV = I_d`
         %
-        % @type matrix
+        % If empty, and `V` is set, `W=V` is assumed.
+        %
+        % @type matrix<double> @default []
         W;
         
         % The originally used parameter samples.
@@ -54,7 +55,7 @@ classdef ReducedModel < models.BaseModel
         % The parameter samples that have been used for computation of the
         % reduced model.
         %
-        % @type matrix
+        % @type matrix<double>
         ParamSamples;
     end
     
@@ -126,18 +127,16 @@ classdef ReducedModel < models.BaseModel
             this.G = fullmodel.G;
             
             % Select the desired first target_dim vectors of the projection matrices
-            if target_dim > size(fullmodel.Data.V,2)
+            fd = fullmodel.Data;
+            if target_dim > size(fd.V,2)
                 warning('ReducedModel:build','Target dimension %d larger than available subspace size %d. Using %d.',...
-                    target_dim,size(fullmodel.Data.V,2),size(fullmodel.Data.V,2));
-                target_dim = size(fullmodel.Data.V,2);
+                    target_dim,size(fd.V,2),size(fd.V,2));
+                target_dim = size(fd.V,2);
             end
-            this.V = fullmodel.Data.V(:,1:target_dim);
+            this.V = data.FileMatrix(fd.V(:,1:target_dim),'Dir',fd.DataDirectory);
             % If petrov-galerkin projection, use W
-            if ~isempty(fullmodel.Data.W)
-                this.W = fullmodel.Data.W(:,1:target_dim);
-            else
-                % Else perform galerkin projection with W=V
-                this.W = this.V;
+            if ~isempty(fd.W)
+                this.W = data.FileMatrix(fd.W(:,1:target_dim),'Dir',fd.DataDirectory);
             end
             
             this.ParamSamples = fullmodel.Data.ParamSamples;

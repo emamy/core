@@ -467,8 +467,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 fprintf('Computing reduced space...\n');
                 [V, W] = this.SpaceReducer.generateReducedSpace(this);
             end
-            this.Data.V = V;
-            this.Data.W = W;
+            this.Data.V = data.FileMatrix(V,'Dir',this.Data.DataDirectory);
+            if ~isempty(W)
+                this.Data.W = data.FileMatrix(W,'Dir',this.Data.DataDirectory);
+            end
             this.OfflinePhaseTimes(3) = toc(time);
         end
         

@@ -70,16 +70,20 @@ classdef ReducedSystem < models.BaseDynSystem
             fullmodel = rmodel.FullModel;
             
             fullsys = fullmodel.System;
+                        
+            V = rmodel.V;
             
-            % Create local workspace copy (if pointers are used, dont store model.V in it..)
-            V = this.Model.V;
-            W = this.Model.W;
-            
-            if ~isempty(fullmodel.SpaceReducer) && (isempty(V) || isempty(W))
+            if ~isempty(fullmodel.SpaceReducer) && isempty(V)
                 error(['Model has a SpaceReducer but no projection'...
-                        'data V,W is given. Forgot to call offlineGenerations?']);
+                        'matrix V is given. Forgot to call offlineGenerations?']);
             end
             
+            W = rmodel.W;
+            % Use V if W is empty (Galerkin projection)
+            if ~isempty(V) && isempty(W)
+                W = V;
+            end
+                        
             % The state scaling for the reduced system is one, as the scaling matrices have been
             % incorporated into the V,W matrices via V := SV and W = S^-1W inside the ReducedModel
             % setModel method.

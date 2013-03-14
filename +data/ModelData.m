@@ -186,15 +186,15 @@ classdef ModelData < data.FileData
         end
         
         function set.V(this, value)
-            if ~isa(value, 'double') || ~ismatrix(value)
-                error('value must be a valid matrix of type double');
+            if ~isa(value,'data.FileMatrix') && (~isa(value, 'double') || ~ismatrix(value))
+                error('value must be a valid matrix of type double or a data.FileMatrix');
             end
             this.V = value;
         end
         
         function set.W(this, value)
-            if ~isa(value, 'double') || ~ismatrix(value)
-                error('value must be a valid matrix of type double');
+            if ~isa(value,'data.FileMatrix') && (~isa(value, 'double') || ~ismatrix(value))
+                error('value must be a valid matrix of type double or a data.FileMatrix');
             end
             this.W = value;
         end

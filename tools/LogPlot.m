@@ -5,6 +5,9 @@ classdef LogPlot
 %
 % @author Daniel Wirtz @date 2012-05-03
 %
+% @change{0,7,dw,2013-03-14} postprocessing does not call 'axis tight' if axis limits have
+% already been set manually.
+%
 % @new{0,6,dw,2012-05-03} Added this class.
 %
 % This class is part of the framework
@@ -148,7 +151,9 @@ classdef LogPlot
     
     methods(Static, Access=private)
         function postprocess(h)
-            axis(h,'tight');
+            if all(strcmp('auto',{get(h,'XLimMode'),get(h,'YLimMode'),get(h,'ZLimMode')}))
+                axis(h,'tight');
+            end
             lbl = arrayfun(@(e)sprintf('%1.1e',e),10.^get(h,'ZTick'),'Unif',false);
             set(h,'ZTickLabel',lbl,'ZTickMode','manual');
         end

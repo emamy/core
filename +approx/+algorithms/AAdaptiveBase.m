@@ -136,6 +136,9 @@ classdef AAdaptiveBase < approx.algorithms.ABase
             
             % Compute initial center
             [~, this.initialidx] = this.getInitialCenter(atd);
+            if isempty(this.initialidx)
+                keyboard;
+            end
             
             % Start adaptive extension part of subclass
             this.startAdaptiveExtension(kexp, atd);
