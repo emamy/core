@@ -127,7 +127,7 @@ classdef MatlabDocMaker
             % Return values:
             % name: The project name @type char
             
-            name = 'KerMor';
+            name = 'KerMor-2';
         end
     end
     

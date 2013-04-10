@@ -197,6 +197,13 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
                 end
             end
         end
+        
+        function nc = getTotalNumConfigurations(this)
+            nc = 1;
+            if ~isempty(this.ExpConfig)
+                nc = this.ExpConfig.StateConfig.getNumConfigurations;
+            end
+        end
     end
     
     methods(Access=protected)

@@ -66,7 +66,7 @@ classdef Wendland < kernels.ARBFKernel
         end
         
         function dc = getDefaultConfig(this)
-            dc = kernels.config.WendlandConfig('S',this.k,'Dim',this.d);
+            dc = kernels.config.WendlandConfig('S',this.k,'Dim',this.d,'G',this.Gamma);
         end
         
         % Returns the global lipschitz constant of this kernel.

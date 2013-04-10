@@ -363,7 +363,7 @@ updatePlot(xp,yp);
             plot3(X(maxi),Y(maxi),Zs(maxi),'black*','MarkerSize',15);
             
         catch ME
-            printErrorStack(ME);
+            ME.getReport;
         end
     end
 

@@ -130,6 +130,13 @@ classdef Componentwise < approx.algorithms.ABase
                 end
             end
         end
+        
+        function nc = getTotalNumConfigurations(this)
+            nc = getTotalNumConfigurations@approx.algorithms.ABase(this);
+            if ~isempty(this.CoeffConfig)
+                nc = nc * this.CoeffConfig.getNumConfigurations;
+            end
+        end
     end
     
     methods(Access=protected, Sealed)

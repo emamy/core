@@ -1,6 +1,5 @@
 classdef FileDataCollection < data.FileData
-% FileDataCollection: 
-%
+% FileDataCollection: Basic class for storing data given a hashable key value
 %
 %
 % @author Daniel Wirtz @date 2012-09-19
@@ -67,11 +66,11 @@ classdef FileDataCollection < data.FileData
             key = Utils.getHash(keydata);
             data = [];
             if this.hm.containsKey(key)
-                data = load([this.DataDirectory filesep this.hm.get(key)], varargin{:});
-                %data = load(this.getfile(file), varargin{:});
+                data = load(this.getfile(this.hm.get(key)), varargin{:});
             else
-                % "Backup" function. In case some trajectories are created and then the model
-                % is not saved, the existing trajectory files are recognized and loaded.
+                % "Backup" function. In case some data is stored and then the
+                % FileDataCollection is not saved, the existing trajectory files are recognized
+                % and loaded.
                 file = fullfile(this.DataDirectory,[key '.mat']);
                 if exist(file,'file') == 2
                     data = load(file,varargin{:});
@@ -99,8 +98,7 @@ classdef FileDataCollection < data.FileData
                 error('Invalid data position number: %d',nr);
             end
             keys = this.hm.keySet.toArray(java_array('java.lang.String',1));
-            data = load([this.DataDirectory filesep this.hm.get(keys(nr))], varargin{:});
-            %data = load(this.getfile(this.hm.get(keys(nr))), varargin{:});
+            data = load(this.getfile(this.hm.get(keys(nr))), varargin{:});
         end
         
         function res = hasData(this, keydata)
@@ -124,22 +122,20 @@ classdef FileDataCollection < data.FileData
         
         function clear(this)
             ks = this.hm.values.iterator;
-            fs = filesep;
             while ks.hasNext
-                file = [this.DataDirectory fs ks.next];
                 try
-                    if exist(file,'file') == 2
-                        delete(file);
-                    end
+                    file = this.getfile(ks.next);
                 catch ME
                     warning('KerMor:data:FileDataCollection',...
-                        'Could not delete file "%s": %s',file,ME.message);
+                        'Could not delete file "%s": %s\nPlease remove manually.',...
+                        file,ME.message);
                 end
+                delete(file);
             end
             this.hm.clear;
         end
     end
-    
+   
     methods(Static, Access=protected)
         function this = loadobj(this, initfrom)
             % Loads a FileTrajectoryData instance.
@@ -158,11 +154,40 @@ classdef FileDataCollection < data.FileData
             else
                this = loadobj@data.FileData(this);
             end
+        end
+    end
+    
+    methods(Static)
+        function res = test_FileDataCollection
+            % Quickly tests if the directory is persisted(deleted) when (not) saved to a mat
+            % file
+            res = true;
+            thedir = fullfile(KerMor.App.TempDirectory,'testFDC');
+            c = data.FileDataCollection(thedir);
+            num = 10;
+            keys = rand(num,1);
             
-            if exist(this.DataDirectory,'dir') ~= 7
-                this.hm.clear;
-                warning('FileDataCollection:load','This FileDataCollection instance was created on host "%s" and the DataDirectory cannot be found on the local machine "%s". Clearing FileDataCollection.',this.Host,KerMor.getHost);
+            for k=1:num
+                s.field = rand(200,300);
+                c.addData(keys(k),s);
             end
+            clear c;
+            
+            if exist(thedir,'file') ~= 0
+                res = false;
+            end
+            
+            c = data.FileDataCollection(thedir);
+            for k=1:num
+                s.field = rand(500,500);
+                c.addData(keys(k),s);
+            end
+            save(fullfile(thedir,'tmpsave.mat'),'c');
+            clear c;            
+            if exist(thedir,'file') ~= 7
+                res = false;
+            end
+            rmdir(thedir,'s');
         end
     end
     
