@@ -603,7 +603,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % space.
             %
             % Parameters:
-            % mu: The parameter `\mu` for the simulation
+            % mu: The parameter `\mu` for the simulation @type colvec<double>
             % inputidx: The integer index of the input function to use. If
             % more than one inputs are specified this is a necessary
             % argument.
@@ -654,10 +654,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             if this.ftcold.(src.Name) ~= this.(src.Name)
                 md = this.Data.TrajectoryData;
                 if md.getNumTrajectories > 0
-                    md.clearTrajectories;
-                    fprintf(2,'Deleted all old trajectories for %s=%f\n',src.Name,this.ftcold.(src.Name));
+                    %md.clearTrajectories;
+                    %fprintf(2,'Deleted all old trajectories for %s=%f\n',src.Name,this.ftcold.(src.Name));
                 end
-                this.Data.SimCache.clearTrajectories;
+                %this.Data.SimCache.clearTrajectories;
             end
         end
         
@@ -671,7 +671,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function autoSave(this)
             % Only save if in global offline phase
             if this.isGlobalOfflinePhase
-                save(fullfile(this.Data.DataDirectoy,'model_autosave.mat'),'this');
+                save(fullfile(this.Data.DataDirectory,'model_autosave.mat'),'this');
             end
         end
     end

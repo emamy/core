@@ -81,13 +81,9 @@ classdef FileMatrix < data.FileData & data.ABlockedData
         
         % The effective block size
         blocksize;
-        
-        % A placeholder for the only block of the filematrix, if so. (dont need a folder etc if
-        % its small enough)
-        block1;
     end
     
-    properties%(Access=private, Transient)
+    properties(Access=private)
         % Cache-related stuff
         cachedBlock = [];
         cachedNr = 0;
@@ -641,17 +637,17 @@ classdef FileMatrix < data.FileData & data.ABlockedData
     methods(Access=protected)
         
         function this = saveobj(this)
-            saveobj@data.FileData(this);
-            % Store the one-and-only block directly
-            if this.nBlocks == 1
-                this.block1 = this.cachedBlock;
-            elseif this.cacheDirty
-                A = this.cachedBlock;%#ok
-                save([this.DataDirectory filesep sprintf('block_%d.mat',this.cachedNr)], 'A');
-                this.created(this.cachedNr) = true;
+            this = saveobj@data.FileData(this);
+            % Only store stuff on disk if it's more than one block
+            if this.nBlocks > 1
+                if this.cacheDirty
+                    A = this.cachedBlock;%#ok
+                    save([this.DataDirectory filesep sprintf('block_%d.mat',this.cachedNr)], 'A');
+                    this.created(this.cachedNr) = true;
+                end
+                this.cachedBlock = [];
+                this.cachedNr = [];
             end
-            this.cachedBlock = [];
-            this.cachedNr = [];
             this.cacheDirty = false;
         end
     end
@@ -710,11 +706,11 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             if ~isa(this, 'data.FileMatrix')
                 initfrom = this;
                 this = data.FileMatrix(initfrom.n,initfrom.m,'Dir',...
-                    initfrom.DataDirectory,'BlockSize',initfrom.BlockSize);
+                    initfrom.DataDirectory,'BlockSize',initfrom.blocksize);
                 created = true;
             end
             if nargin == 2 || created
-                this.InPlaceTranspose = this.InPlaceTranspose;
+                this.InPlaceTranspose = initfrom.InPlaceTranspose;
                 this.bCols = initfrom.bCols;
                 this.nBlocks = initfrom.nBlocks;
                 this.n = initfrom.n;
@@ -725,15 +721,19 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 this.created = initfrom.created;
                 this.blocksize = initfrom.blocksize;
                 if this.nBlocks == 1
-                    this.cachedBlock = initfrom.block1;
+                    field = 'cachedBlock';
+                    if isfield(initfrom,'block1')
+                        field = 'block1';
+                    end
+                    this.cachedBlock = initfrom.(field);
                 end
                 this = loadobj@data.FileData(this, initfrom);
             else
                 % Set the currently cached block from the one-and-only block, if so
-                if this.nBlocks == 1
-                    this.cachedBlock = this.block1;
-                    this.cachedNr = 1;
-                end
+%                 if this.nBlocks == 1
+%                     this.cachedBlock = this.block1;
+%                     this.cachedNr = 1;
+%                 end
                 this = loadobj@data.FileData(this);
             end
         end
