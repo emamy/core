@@ -38,7 +38,13 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
     properties(Access=private)
         pts = {};
         
-        % The x-component selection matrices (precomputed on setting PointSet/AltPointSet)
+        % The x-component selection matrices (precomputed on setting
+        % PointSet/AltPointSet). ´S\vx´ is passed to the function
+        % evaluating the components of ´\vf´ or its derivatives.
+        %
+        % See also: PointSet
+        %
+        % cellarray of @type matrix<double>
         S = {};
         
         % Notational vectors for EI-point function argument dependencies
@@ -52,6 +58,15 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
 
     methods
         function fx = evaluateComponentSet(this, nr, x, t, mu)
+            % Computes the full or reduced component functions of the given point set.
+            %
+            % Parameters:
+            % nr: The number of the PointSet to use. @type integer
+            % x: The state space location `\vx` @type colvec<double>
+            % t: The corresponding times `t` for the state `\vx` @type double
+            % mu: The corresponding parameter `\mu` for the state `\vx` @type colvec<double>
+            %
+            % See also: PointSet
             fx = this.evaluateComponents(this.PointSets{nr},...
                 this.jend{nr}, this.jrow{nr}, this.jself{nr}, this.S{nr}*x, t, mu);
         end

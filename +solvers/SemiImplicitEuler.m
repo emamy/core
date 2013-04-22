@@ -42,6 +42,19 @@ classdef SemiImplicitEuler < solvers.BaseCustomSolver
             %
             % @change{0,7,dw,2013-01-11} Using the outputtimes parameter in order to provide a
             % more memory-efficient implementation.
+            %
+            % Parameters:
+            % t: The time steps for the computation @type rowvec<double>
+            % x0: The initial value `x(0) = x_0` for `t=0` @type
+            % colvec<double>
+            % outputtimes: index vector indicating at which of the times in t
+            % the output is actually desired. The solution will be returned
+            % at `t_0,\ldots,t_N` = t(outputtimes).
+            % @type rowvec<integer>
+            %
+            % Return values:
+            % x: The solution of the ode at the time steps `t_0,\ldots,t_N`
+            % as matrix. @type matrix<double>
             s = this.model.System;
             if isempty(s.A)
                error('This solver requires an (affine) linear system component A.'); 
@@ -59,15 +72,15 @@ classdef SemiImplicitEuler < solvers.BaseCustomSolver
             end
             
             rtm = this.RealTimeMode;
+            % Initialize output index counter
+            outidx = 2;
             if rtm
                 ed = solvers.SolverEventData;
                 x = [];
             else
-                effsteps = length(find(outputtimes));
+                effsteps = length(outputtimes);
                 % Create return matrix in size of effectively desired timesteps
                 x = [x0 zeros(size(x0,1),effsteps-1)];
-                % Initialize output index counter
-                outidx = 2;
             end
             
             oldex = []; newex = []; edim = 0; est = [];
@@ -147,8 +160,9 @@ classdef SemiImplicitEuler < solvers.BaseCustomSolver
                 end
                 
                 % Only produce output at wanted timesteps
-                if outputtimes(idx)
-                    if rtm
+                if outputtimes(outidx) == idx
+                    outidx = outidx+1;
+                    if rtm                        
                         % Real time mode: Fire StepPerformed event
                         ed.Times = t(idx);
                         ed.States = [newx; newex];
@@ -156,7 +170,6 @@ classdef SemiImplicitEuler < solvers.BaseCustomSolver
                         % Normal mode: Collect solution in result vector
                     else
                         x(:,outidx) = [newx; newex];%#ok
-                        outidx = outidx+1;
                     end
                 end
                 oldx = newx;

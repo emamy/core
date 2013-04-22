@@ -46,7 +46,7 @@ classdef Heun < solvers.BaseCustomSolver
     end
     
     methods(Access=protected,Sealed)
-        function x = customSolve(this, odefun, t, x0, outputtimes)%#ok
+        function x = customSolve(this, odefun, t, x0, outputtimes)
             % Solves the ode using Heuns method.
             %
             % Parameters:
@@ -55,6 +55,10 @@ classdef Heun < solvers.BaseCustomSolver
             % @type function_handle
             % t: The desired times `t_0,\ldots,t_N` as row vector. @type rowvec
             % x0: The initial value `x(0) = x_0` for `t=0` @type colvec
+            % outputtimes: index vector indicating at which of the times in t
+            % the output is actually desired. The solution will be returned
+            % at `t_0,\ldots,t_N` = t(outputtimes).
+            % @type rowvec<integer>
             %
             % Return values:
             % x: The solution of the ode at the time steps `t_0,\ldots,t_N`
@@ -65,11 +69,21 @@ classdef Heun < solvers.BaseCustomSolver
             dt = t(2:end)-t(1:end-1);
             
             rtm = this.RealTimeMode;
+%             if rtm
+%                 ed = solvers.SolverEventData;
+%                 x = [];
+%             else
+%                 x = [x0 zeros(size(x0,1),steps-1)];
+%             end
+            % Initialize output index counter
+            outidx = 2;
             if rtm
                 ed = solvers.SolverEventData;
                 x = [];
             else
-                x = [x0 zeros(size(x0,1),steps-1)];
+                effsteps = length(outputtimes);
+                % Create return matrix in size of effectively desired timesteps
+                x = [x0 zeros(size(x0,1),effsteps-1)];
             end
             % Solve for each time step
             oldx = x0;
@@ -86,12 +100,25 @@ classdef Heun < solvers.BaseCustomSolver
                     newx = oldx + hlp;
                 end
                 
-                if rtm
-                    ed.Times = t(idx);
-                    ed.States = newx;
-                    this.notify('StepPerformed',ed);
-                else
-                    x(:,idx) = newx;%#ok
+%                 if rtm
+%                     ed.Times = t(idx);
+%                     ed.States = newx;
+%                     this.notify('StepPerformed',ed);
+%                 else
+%                     x(:,idx) = newx;%#ok
+%                 end
+                % Only produce output at wanted timesteps
+                if outputtimes(outidx) == idx
+                    outidx = outidx+1;
+                    if rtm                        
+                        % Real time mode: Fire StepPerformed event
+                        ed.Times = t(idx);
+                        ed.States = newx;
+                        this.notify('StepPerformed',ed);
+                        % Normal mode: Collect solution in result vector
+                    else
+                        x(:,outidx) = newx;
+                    end
                 end
                 oldx = newx;
             end

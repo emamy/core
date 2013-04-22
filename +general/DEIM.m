@@ -75,25 +75,41 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
     
     properties(GetAccess=protected, SetAccess=private)
         % The full approximation base
+        %
+        % @type matrix<double>
         u;
         
         % Interpolation points
+        %
+        % @type rowvec<double>
+        %
+        % See also: getInterpolationPoints
         pts;
     end
     
     properties(Access=private)
+        % Vector with 2 entries for order of DEIM approximation and order
+        % for error esimation
+        %
+        % @type rowvec<integer> @default []
         fOrder = [];
     end
     
     properties(SetAccess=protected)
         % The U matrix for the current Order.
+        %
+        % @type matrix<double>
         U;
         
         % If projection is applied, this contains the non-projected full
         %`d \times m` matrix `U_m(P_m^tU_m)^{-1}` for use in subclasses.
+        %
+        % @type matrix<double>
         U_nonproj;
         
         % Some matrices for M+M' error estimation
+        %
+        % @type matrix<double>
         Uerr1;
         Uerr2;
         
@@ -105,11 +121,19 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
         % The function which DEIM is applied to
         %
         % Is a subclass of dscomponents.ACompEvalCoreFun
+        %
+        % @type dscomponents.ACompEvalCoreFun
         f;
     end
     
     methods
         function computeDEIM(this, f, fxi)
+            % implementation of the DEIM algorithm.
+            %
+            % Parameters:
+            % f: the function DEIM is applied to @type dscomponents.ACompEvalCoreFun
+            % fxi: the snapshot data @type matrix<double> or general.ABlockSVD
+            
             this.f = f;
             if ~isa(this.f,'dscomponents.ACompEvalCoreFun');
                 error('Cannot use DEIM with non ACompEvalCoreFun-implementing functions.');
@@ -181,6 +205,19 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
         end
         
         function target = project(this, V, W, target)
+            % Pojects instance according to the projection biorthogonal matrices `V,W`.
+            % 
+            % See also: general.AProjectable
+            %
+            % Parameters:
+            % V: The `V` matrix of the biorthogonal pair `V,W` @type
+            % matrix<double>
+            % W: The `W` matrix of the biorthogonal pair `V,W` @type
+            % matrix<double>
+            % target: Specify the subclasses projection target instance if
+            % project is overridden in a subclass and the subclass has been
+            % cloned. @type DEIM @default this
+            
             if nargin < 4
                 target = this.clone;
             end
@@ -224,7 +261,14 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
     
     methods(Access=private)
         function pts = getInterpolationPoints(~, u)
-            n =size(u,1);
+            % Computes the interpolation indices according to the DEIM
+            % algorithm
+            %
+            % Parameters:
+            % u: matrix, columns are the orthonormal basis vectors computed via POD from the snapshot data 
+            % @type matrix<double>
+            
+            n = size(u,1);
             m = size(u,2);
             pts = zeros(1, m);
             v = pts;
@@ -245,6 +289,8 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
     
     methods(Access=protected)
         function updateOrderData(this)
+            % Update approximation order as specified in fOrder. As a
+            % consequence some matrices have to be recalculated.
             
             if KerMor.App.Verbose > 3
                 fprintf('general.DEIM.updateOrderData: Updating order data of DEIM (%s, #%s) to [%d %d]\n',class(this),this.ID,this.fOrder);
