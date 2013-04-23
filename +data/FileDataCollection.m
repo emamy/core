@@ -66,7 +66,14 @@ classdef FileDataCollection < data.FileData
             key = Utils.getHash(keydata);
             data = [];
             if this.hm.containsKey(key)
-                data = load(this.getfile(this.hm.get(key)), varargin{:});
+                try
+                    data = load(this.getfile(this.hm.get(key)), varargin{:});
+                catch ME
+                    warning('KerMor:FileDataCollection',...
+                        'Error loading a file from directory %s: %s',...
+                        this.DataDirectory,ME.message);
+                    data = [];
+                end
             else
                 % "Backup" function. In case some data is stored and then the
                 % FileDataCollection is not saved, the existing trajectory files are recognized

@@ -89,11 +89,20 @@ classdef ModelData < data.FileData
             % varargin: Either a models.BaseFullModel instance to infer the data directory
             % from, or a string containing a valid folder. @default A temporary folder within
             % the KerMor.TempDirectory
+            %
+            % @change{0,7,dw,2013-04-15} Using the SaveTag + ID to determine the data storage
+            % location if a BaseFullModel is passed. Then, a second parameter may be the base
+            % directory for the model's data directory.
             if isempty(varargin)
                 data_dir = fullfile(KerMor.App.TempDirectory,sprintf('temp_md_%s',...
                     IDGenerator.generateID));
             elseif isa(varargin{1},'models.BaseFullModel')
-                data_dir = fullfile(KerMor.App.DataStoreDirectory,sprintf('model_%s',varargin{1}.ID));
+                m = varargin{1};
+                basedir = KerMor.App.DataStoreDirectory;
+                if length(varargin) > 1 && ischar(varargin{2})
+                    basedir = varargin{2};
+                end
+                data_dir = fullfile(basedir,sprintf('%s_id-%s',m.SaveTag,m.ID));
             elseif ischar(varargin{1})
                 data_dir = varargin{1};
             else
