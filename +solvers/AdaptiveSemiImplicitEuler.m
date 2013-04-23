@@ -57,10 +57,7 @@ classdef AdaptiveSemiImplicitEuler < solvers.BaseCustomSolver
     methods(Access=protected)
         function x = customSolve(this, ~, t, x0, outputtimes)
             % Implements the actual semi-implicit solving of the given ODE system.
-            %
-            %
-            % @change{0,7,dw,2013-01-11} Using the outputtimes parameter in order to provide a
-            % more memory-efficient implementation.
+            
             s = this.model.System;
             if isempty(s.A)
                 error('This solver requires an (affine) linear system component A.');
@@ -117,13 +114,20 @@ classdef AdaptiveSemiImplicitEuler < solvers.BaseCustomSolver
             
             % Solve for each time step
             %oldx = x0(1:end-edim);
+            count = 0;
             while time < t_end;
                 delta = 0.5 * this.epsilon * (1-this.q);   % garantees that the inner while loop is entered
                 firstloop = true;
+                %time
                 
                 while ((delta/this.epsilon) < (1 - this.q)) || ((delta/this.epsilon) > (1 + this.q))
                     if ~firstloop
                         h = h * (this.epsilon / delta);
+                        count = count +1;
+                        %h
+                        %delta 
+                        %outidx
+                        %time
                     else
                         firstloop = false;
                     end
@@ -179,7 +183,8 @@ classdef AdaptiveSemiImplicitEuler < solvers.BaseCustomSolver
                         end
                     end
                     
-                    delta = norm(x1-x2)/(2*h);                    
+                    delta = norm((x1-x2)./x2)/(2*h);                    
+                    %delta = norm(x1-x2)/(h);
                 end
                 time = time + h;
                 oldx = x2;
@@ -213,6 +218,7 @@ classdef AdaptiveSemiImplicitEuler < solvers.BaseCustomSolver
             l = length(t) - outidx;
             x(:,outidx:end) = repmat(x2,1,l+1);
             steps
+            count
         end
     end
 end

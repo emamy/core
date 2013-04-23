@@ -51,6 +51,8 @@ classdef AffParamMatrix < general.AProjectable
         
     properties(SetAccess=private)
         % The number of affine matrices / size of the linear combination
+        %
+        % @type integer @default 0
         N = 0;
         
         % The matrices for the affine function
@@ -59,11 +61,24 @@ classdef AffParamMatrix < general.AProjectable
     end
     
     properties(SetAccess=private)
+        % The function strings defining ´\theta_i(t,\mu)´ for the
+        % affine-linear combination of the matrices
+        %
+        % cell array of @type string
         funStr = {};
     end
     
     properties(SetAccess=private, GetAccess=protected)
+        % coefficient function handle as specified by funStr
+        %
+        % See also buildCoeffFun
+        % 
+        % @type handle
         cfun = [];
+        
+        % dimension of the matrices
+        %
+        % @type rowvec<integer>
         dims;
     end
     
