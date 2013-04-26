@@ -50,6 +50,8 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
         end
         
         function fx = evaluate(this, x, t, mu)
+            % Evaluates affine-linear core function by matrix-vector
+            % multiplication.
             fx = this.compose(t, mu)*x;
         end
         
@@ -63,7 +65,8 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
         
         function J = getStateJacobian(this, ~, t, mu)
             % Overrides the default jacobian finite difference
-            % implementation.
+            % implementation. Jacobian of linear operator is the operator
+            % itself, i.e. in this case the linear combination of the matrices.
             J = this.compose(t, mu);
         end
         
@@ -86,6 +89,16 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
         end
         
         function addMatrix(this, coeff_fcn, mat)
+            % Adds a new matrix to the affine-linear core function.
+            %
+            % Parameters:
+            % coeff_fcn: A string describing the `i`-th coefficient function's evaluation as if
+            % entered into a function handle interior or a function. By convention, the passed arguments are named
+            % 't' and 'mu'. @type string
+            % mat: The corresponding matrix `A_i` @type matrix<double>
+            %
+            % See also: general.AffParramMatrix
+            
             % Update the xDim as first matrix is added
             if isempty(this.xDim)
                 this.xDim = size(mat,2);
@@ -115,21 +128,25 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
         end
         
         function prod = mtimes(this, other)
+            % Implements the default multiplication method.
             prod = mtimes@general.AffParamMatrix(this, other);
             prod.postprocess;
         end
         
         function diff = minus(this, other)
+            % Implements the default subtraction method.
             diff = minus@general.AffParamMatrix(this, other);
             diff.postprocess;
         end
         
         function sum = plus(this, other)
+            % Implements the default addition method.
             sum = plus@general.AffParamMatrix(this, other);
             sum.postprocess;
         end
         
         function transp = ctranspose(this)
+            % Implements the default transposition method.
             transp = ctranspose@general.AffParamMatrix(this);
             transp.postprocess;
         end
@@ -137,6 +154,9 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
     
     methods(Access=private)
         function postprocess(this)
+            % If there is a affine-linear core function, update x-dimension
+            % and reset Jacobian SparsityPattern after operation on
+            % affine-linear core function was performed.
             if this.N > 0
                 this.xDim = this.dims(2);
                 this.JSparsityPattern = [];

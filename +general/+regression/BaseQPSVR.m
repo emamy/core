@@ -86,7 +86,7 @@ classdef BaseQPSVR < general.regression.BaseScalarSVR
             if KerMor.App.Verbose > 0
                 it = 100*(size(Q,1)+size(A,1));
                 if KerMor.App.Verbose > 3 && this.MaxIterations < it
-                    fprintf('%s: MaxIterations of %d smaller than recommended value %d.\n',this.Name,this.MaxIterations,it);
+                    fprintf('BaseQPSVR: MaxIterations of %d smaller than recommended value %d.\n',this.MaxIterations,it);
                 end
             end
             

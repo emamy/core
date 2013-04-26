@@ -369,6 +369,9 @@ classdef BaseModel < KerMorObject
             % @type rowvec
             % x: The state variables at the corresponding times t. @type matrix<double>
             % ctime: The time needed for computation. @type double
+            %
+            % @change{0,7,dw,2013-03-19} Fixed the MaxStep setting of the ODE solver when
+            % time-scaling is used.
             if nargin < 3
                 inputidx = [];
                 if nargin < 2
@@ -388,8 +391,8 @@ classdef BaseModel < KerMorObject
             slv.MaxStep = []; slv.InitialStep = [];
             if ~isempty(sys.MaxTimestep)
                 % Remember: When scaling is used, these are the 
-                slv.MaxStep = sys.MaxTimestep;
-                slv.InitialStep = .5*sys.MaxTimestep;
+                slv.MaxStep = sys.MaxTimestep/this.tau;
+                slv.InitialStep = .5*sys.MaxTimestep/this.tau;
             end
             
             % Assign jacobian information if available and solver is
@@ -488,7 +491,7 @@ classdef BaseModel < KerMorObject
             % Parameters:
             % mu: The parameter `\mu` to evaluate `x_0(\mu)`. Use [] for
             % none.
-            x0 = this.System.x0.evaluate(mu) ./ this.System.StateScaling;
+            x0 = this.System.x0.evaluate(mu) ./ repmat(this.System.StateScaling,1,size(mu,2));
         end
         
         function this = saveobj(this)

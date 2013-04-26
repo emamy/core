@@ -101,10 +101,14 @@ classdef AAdaptiveBase < approx.algorithms.ABase
             
             h = pm.nextPlot('abs','Absolute errors','step','value');
             ph = semilogy(h,1:size(this.MaxErrors,2),this.MaxErrors');
-            set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
+            if ~isempty(this.ExpConfig)
+                set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
+            end
             h = pm.nextPlot('rel','Relative errors','step','value');
             ph = semilogy(h,1:size(this.MaxRelErrors,2),this.MaxRelErrors');
-            set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
+            if ~isempty(this.ExpConfig)
+                set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
+            end
             
             if nargin < 2
                 pm.done;
@@ -136,6 +140,9 @@ classdef AAdaptiveBase < approx.algorithms.ABase
             
             % Compute initial center
             [~, this.initialidx] = this.getInitialCenter(atd);
+            if isempty(this.initialidx)
+                keyboard;
+            end
             
             % Start adaptive extension part of subclass
             this.startAdaptiveExtension(kexp, atd);

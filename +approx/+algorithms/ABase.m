@@ -85,6 +85,17 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
         StopFlags = [];
     end
     
+    properties(GetAccess=protected,SetAccess=private)
+        % If UsefScaling is set to true, this matrix contains the scaling matrix
+        % which has to be used in sub-algorithms in order to compute the correct approximation
+        % error on training data.
+        %
+        % This is automatically done upon calls to ABase.getError.
+        %
+        % See also: UsefScaling
+        ScalingG;
+    end
+    
     methods
         function this = ABase
             this = this@KerMorObject;
@@ -111,6 +122,9 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
                 s(s==0) = 1;
                 oldfxi = atd.fxi.toMemoryMatrix;
                 atd.fxi(:,:) = oldfxi ./ repmat(s,1,size(atd.fxi,2));
+                this.ScalingG = diag(s);
+            else
+                this.ScalingG = 1;
             end
             
             remove_conf = false;
@@ -133,7 +147,7 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
             
             % Rescale if set
             if this.UsefScaling
-                kexp.Ma = diag(s)*kexp.Ma;
+                kexp.Ma = this.ScalingG*kexp.Ma;
                 atd.fxi(:,:) = oldfxi;
             end
             
@@ -183,6 +197,13 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
                 end
             end
         end
+        
+        function nc = getTotalNumConfigurations(this)
+            nc = 1;
+            if ~isempty(this.ExpConfig)
+                nc = this.ExpConfig.StateConfig.getNumConfigurations;
+            end
+        end
     end
     
     methods(Access=protected)
@@ -202,7 +223,8 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
             % errs: A row vector of the errors for each sample @type rowvec
             %
             % See also: ErrorFun
-            errs = this.ErrorFun(atd.fxi - kexp.evaluate(atd.xi, atd.ti, atd.mui));
+            e = atd.fxi - kexp.evaluate(atd.xi, atd.ti, atd.mui);
+            errs = this.ErrorFun(this.ScalingG*e);
             [val, idx] = max(errs);
         end
     end

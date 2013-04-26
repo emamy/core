@@ -105,7 +105,7 @@ classdef ModelParam < handle
         end
         
         function set.Desired(this, value)
-            if value < 1 || ~isscalar(value)
+            if value < 0 || ~isscalar(value)
                 error('Desired must be a positive integer greater than zero.');
             end
             this.Desired = value;

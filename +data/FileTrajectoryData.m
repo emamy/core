@@ -281,11 +281,6 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
             else
                this = loadobj@data.FileDataCollection(this);
             end
-            
-            if exist(this.DataDirectory,'dir') ~= 7
-                this.bbmin = [];
-                this.bbmax = [];
-            end
         end
     end
     

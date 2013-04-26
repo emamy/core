@@ -41,20 +41,21 @@ classdef BaseCustomSolver < solvers.BaseSolver
             % as matrix. @type matrix
             
             % Get computation times
-            [times, outputtimes] = this.getCompTimes(t);
+            %[times, outputtimes] = this.getCompTimes(t);
+            [times, outidx] = this.getCompTimes(t);
             
             % Fire PreSolve event
             ed = solvers.SolverEventData(times);
             notify(this,'PreSolve',ed);
             
-            x = this.customSolve(odefun, times, x0, outputtimes);
+            x = this.customSolve(odefun, times, x0, outidx);
             
             % Fire PostSolve event
             ed.States = x;
             notify(this,'PostSolve',ed);
             
             % Extract wanted values
-            t = times(outputtimes);
+            t = times(outidx);
             % New: x is supposed to be returned in the size of effectively desired timesteps
             % (memory issues for large, long simulations)
             %x = x(:,outputtimes);
@@ -62,7 +63,7 @@ classdef BaseCustomSolver < solvers.BaseSolver
     end
     
     methods(Access=private)
-        function [times, outputtimes] = getCompTimes(this, t)
+        function [times, outidx] = getCompTimes(this, t)
             % Computes the computation and effective output times for a
             % given input time vector t.
             %
@@ -83,13 +84,13 @@ classdef BaseCustomSolver < solvers.BaseSolver
             % Parameters:
             % t: The desired times t. Either a two element vector
             % containing start time `t_0` and end time `T` or a row vector
-            % `t=[t_0, t_1, \ldots, T]`.
+            % `t=[t_0, t_1, \ldots, T]`. @type rowvec<double>
             %
             % Return values:
             % times: The actual times at which to compute the solution.
-            % outputtimes: A logical row vector of the size of times that
-            % indicates which element from the times vector also belongs to
-            % the effective output times vector.
+            % outidx: The indices of times the output is actually desired
+            % at, i.e. times(outidx) = t. @type rowvec<integer> @default
+            % 1:length(t)
             %
             % @todo InitialStep mit einbauen!
             %
@@ -107,26 +108,30 @@ classdef BaseCustomSolver < solvers.BaseSolver
             end
             
             % Default values
-            outputtimes = true(1,length(t));
+            % outputtimes = true(1,length(t));
+            outidx = 1:length(t);
             times = t;
             if ~isempty(this.MaxStep)
                 if numel(t) == 2
                     times = t(1):this.MaxStep:t(2);
-                    outputtimes = true(1,length(times));
+                    % outputtimes = true(1,length(times));
+                    outidx = 1:2;
                 else
                     len = length(t);
-                    n = max(round((t(2:len)-t(1:len-1))/this.MaxStep),1);
-                    m = ones(1,len);
+                    n = max(round((t(2:len)-t(1:len-1))/this.MaxStep),1);  % number of steps in interval [t(i-1),t(i)] after refinemant. If t(i-1)-t(i)>= 1.5*MaxStep, interval will be refined
+                    m = ones(1,len);      % m(i) is the index of the originally i-th entry in t in times 
                     m(2:len) = cumsum(n) + m(2:len);% - (0:len-2);
                     times = zeros(1,m(len));
-                    outputtimes = times;
+                    % outputtimes = times;
                     for i = 1:len-1
                         times(m(i):m(i+1))=  t(i):(t(i+1)-t(i))/(n(i)):t(i+1); %linspace(t(i),t(i+1),n(i));
-                        outputtimes(m(i)) = 1;
+                        % outputtimes(m(i)) = 1;
+                        outidx(i) = m(i);
                     end
-                    outputtimes(end) = 1;
+                    %outputtimes(end) = 1;
+                    outidx(end) = length(times);
                 end
-                outputtimes = logical(outputtimes);
+                %outputtimes = logical(outputtimes);
                 
                 %                     % Find refinement indices
                 %                     idx = fliplr(find(t(2:end)-t(1:end-1)-this.MaxStep>100*eps));

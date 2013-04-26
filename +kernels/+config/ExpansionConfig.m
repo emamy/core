@@ -103,13 +103,13 @@ classdef ExpansionConfig < IClassConfig
         function conf = getSubPart(this, partNr, totalParts)
             conf = kernels.config.ExpansionConfig;
             if ~isempty(this.StateConfig)
-                conf.StateConfig = this.StateConfig.getSubPart(this, partNr, totalParts);
+                conf.StateConfig = this.StateConfig.getSubPart(partNr, totalParts);
             end
             if ~isempty(this.TimeConfig)
-                conf.TimeConfig = this.TimeConfig.getSubPart(this, partNr, totalParts);
+                conf.TimeConfig = this.TimeConfig.getSubPart(partNr, totalParts);
             end
             if ~isempty(this.ParamConfig)
-                conf.ParamConfig = this.ParamConfig.getSubPart(this, partNr, totalParts);
+                conf.ParamConfig = this.ParamConfig.getSubPart(partNr, totalParts);
             end
         end
         

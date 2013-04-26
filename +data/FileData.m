@@ -1,11 +1,12 @@
 classdef FileData < handle
-% FileData: 
-%
-%
+% FileData: Base class for access of files stored in a specific folder in the local file system
 %
 % @author Daniel Wirtz @date 2012-07-09
 %
 % @new{0,6,dw,2012-07-09} Added this class.
+%
+% @change{0,7,dw,2013-03-27} Improved the modularity of FileData with more verbosity and
+% implemented a basic "relocate" method.
 %
 % This class is part of the framework
 % KerMor - Model Order Reduction using Kernels:
@@ -46,9 +47,18 @@ classdef FileData < handle
             this.Host = KerMor.getHost;
         end
         
-        function relocate(this, newDataDirectoryRoot)%#ok
-            % @\todo Implement multiple-host FileData's with different storage_root folders (per
+        function relocate(this, newDataDirectoryRoot)
+            % Relocates this FileData instance to a different folder.
+            %
+            % Currently, moving it's files must be done manually.
+            %
+            % Parameters:
+            % newDataDirectoryRoot: The new data directory. @type char
+            %
+            % @todo Implement multiple-host FileData's with different storage_root folders (per
             % host for example)
+            this.DataDirectory = newDataDirectoryRoot;
+            this.Host = KerMor.getHost;
         end
         
         function delete(this)
@@ -69,7 +79,7 @@ classdef FileData < handle
                     this.DataDirectory = value;
                     return;
                 else
-                    warning('KerMor:FileData','Could not make sure that the directory %s exists. Data access will probably not work.',value);
+                    warning('KerMor:FileData','Could not make sure that the directory "%s" exists.\nPlease ensure a correct path and try again.',value);
                 end    
             end
             this.DataDirectory = '';    
@@ -80,7 +90,15 @@ classdef FileData < handle
         function file = getfile(this, file)
             file = fullfile(this.DataDirectory,file);
             if exist(file,'file') ~= 2
-                error('File "%s" not found in folder "%s". Have you deleted data files?',file,this.DataDirectory);
+                if strcmp(this.Host,KerMor.getHost)
+                    error('File "%s" not found in folder "%s". Have you deleted data files?',...
+                        file,this.DataDirectory);
+                else
+                    error(['File "%s" not found. This FileData instance was created on host "%s"'...
+                        'and the DataDirectory cannot be found on the local machine "%s".\n'...
+                        'Copy the files to an accessible directory and use the "relocate" method.'],...
+                        file,this.Host,KerMor.getHost);
+                end
             end
         end
         
@@ -107,9 +125,13 @@ classdef FileData < handle
                 this.Host = initfrom.Host;
                 this.isSaved = initfrom.isSaved;
             end
-            if ~isempty(this.DataDirectory) && ~Utils.ensureDir(this.DataDirectory) && ~strcmp(this.Host,KerMor.getHost)
-                warning('KerMor:FileData',['Loading FileData on a different machine failed.\n'...
-                    'Created on: %s, local host: %s'],this.Host,KerMor.getHost);
+            if ~isempty(this.DataDirectory) && ~Utils.ensureDir(this.DataDirectory) 
+                str = 'Could not create/access "%s". Loading files will not work until fixed.';
+                if ~strcmp(this.Host,KerMor.getHost)
+                    str = sprintf(['%s\nNote that this FileData has been created on host %s.'...
+                        'If you changed the host (local: %s), use the "relocate" method.'],str,this.Host,KerMor.getHost);
+                end
+                warning('KerMor:FileData',str,this.DataDirectory);
             end
         end
     end

@@ -96,6 +96,8 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
                 end
             end
             
+            %| @todo implement special case for simple linear core fun without parameter
+            %dependency!
             fdep = s.A.TimeDependent;
             if ~fdep
                 % Evaluation with x=1 "extracts" the matrix A of the (affine) linear system

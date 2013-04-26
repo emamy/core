@@ -115,9 +115,11 @@ classdef MUnit
             pref = testing.MUnit.TestFunctionPrefix;
             pl = length(pref);
             
+            targets = [w.m; w.classes];
+            
             % Run tests in current directory
-            for idx = 1:length(w.m)
-                [p,n] = fileparts(w.m{idx});
+            for idx = 1:length(targets)
+                [p,n] = fileparts(targets{idx});
                 
                 %disp(['Checking ' n '...']);
                 

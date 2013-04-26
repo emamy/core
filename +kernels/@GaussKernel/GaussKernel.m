@@ -200,10 +200,10 @@ classdef GaussKernel < kernels.BellFunction
                     fx2 = fx;
                     fx2(idx) = [];
                     
-                    ki.K = k.evaluate(x2);
-                    [a,b] = ki.interpolate(fx2);
+                    ki.K = k.evaluate(x2,[]);
+                    a = ki.interpolate(fx2);
                     
-                    fxi = a'*k.evaluate(x2,x) + b;
+                    fxi = a'*k.evaluate(x2,x);
                     diff(idx) = abs(fx(idx) - fxi(idx));
                 end
                 dlog(1,epidx) = ep;
@@ -232,10 +232,8 @@ classdef GaussKernel < kernels.BellFunction
             fprintf('One argument speed test with sx=%d, sy=%d and %d iterations\n',sx,sy,iter);
             tmex = zeros(1,iter); tmex2 = zeros(1,iter);
             tmexp = zeros(1,iter); tmat = zeros(1,iter);
-            fprintf('Iteration ');
+            pi = ProcessIndicator('Iterating..',iter);
             for i=1:iter
-                fprintf('%d ',i);
-                
                 t = tic;
                 Kmex = k.dontuse_evaluate(x);
                 %Kmex = k.evaluateIntel(x);
@@ -250,11 +248,11 @@ classdef GaussKernel < kernels.BellFunction
                 tmexp(i) = toc(t);
 
                 t = tic;
-                K = k.evaluate(x);
+                K = k.evaluate(x,[]);
                 tmat(i) = toc(t);
-            
+                pi.step;
             end
-            fprintf('done!\n');
+            pi.stop;
             fprintf(['1: %1.5fs - Mex straight\n2: %1.5fs - Mex time opt\n'...
                 '3: %1.5fs - Mex time opt openmp\n4: %1.5fs - Matlab time\n'...
                 'Difference norms: 1-4=%1.5f, 2-4=%1.5f, 3-4=%1.5f\n'],...

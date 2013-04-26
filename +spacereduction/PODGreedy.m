@@ -56,6 +56,19 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
         %
         % @default 100 @type integer
         MaxSubspaceSize = 100;
+        
+        % An initial space to use.
+        %
+        % Optional, otherwise an initial space is computed using the first vectors from the
+        % available trajectories.
+        %
+        % Must match the system's state space trajectory size.
+        %
+        % @propclass{optional} Can be useful if a specific choice for initial spaces is
+        % available.
+        %
+        % @type matrix<double> @default []
+        InitialSpace = [];
     end
     
     properties(SetAccess=private)
@@ -64,7 +77,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
     
     methods
         function this = PODGreedy
-            this.registerProps('Eps','MinRelImprovement','MaxSubspaceSize');
+            this.registerProps('Eps','MinRelImprovement','MaxSubspaceSize','InitialSpace');
         end
         
         function [V, W] = generateReducedSpace(this, model)
@@ -97,24 +110,26 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             o = general.Orthonormalizer;
             o.Algorithm = 'gs';
             
+            % Compute initial space
             if KerMor.App.Verbose > 2
                 fprintf('POD-Greedy: Computing initial space...\n');
             end
-%             V = this.getInitialSpace(md, pod);
-%             if this.IncludeBSpan
-%                 V = o.orthonormalize([V md.InputSpaceSpan]);
-%             end
-
-            if this.IncludeBSpan
-                V = model.Data.InputSpaceSpan;
-                [err, idx] = this.getMaxErr(V(:,1), md);
-                for k=2:size(V,2)
-                    [err(end+1), idx] = this.getMaxErr(V(:,1:k), md);%#ok
+            if ~isempty(this.InitialSpace)
+                V = this.InitialSpace;
+                if this.IncludeBSpan
+                    V = o.orthonormalize([V md.InputSpaceSpan]);
                 end
+            elseif this.IncludeBSpan
+                V = model.Data.InputSpaceSpan;
             else
                 V = this.getInitialSpace(md, pod);
-                [err, idx] = this.getMaxErr(V, md);
             end
+            % Compute initial space errors
+            err = [];
+            for k=1:size(V,2)
+               [err(end+1), idx] = this.getMaxErr(V(:,1:k), md);%#ok
+            end
+            
             cnt = 1; 
             % Maximum possible subspace size
             ss = size(V,1);

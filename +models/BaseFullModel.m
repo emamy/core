@@ -258,6 +258,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
     properties(Access=private)
         fTrainingInputs = [];
         ftcold = struct;
+        isGlobalOfflinePhase = false;
     end
            
     methods
@@ -302,6 +303,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 error('No parameter sampler set for a parameterized system. See package sampling and the Sampler property of the BaseFullModel class.');
             end
             this.OfflinePhaseTimes(1) = toc(time);
+            this.autoSave;
         end
         
         function off2_genTrainingData(this)
@@ -382,13 +384,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     pi = ProcessIndicator(sprintf('Generating projection training data (%d trajectories)...',num_in*num_s),num_in*num_s);
                 end
                 if this.ComputeTrajectoryFxiData
-                    %elems = num_in*num_s*length(this.Times)*this.Dimension;
-                    %if elems*32/(1024^3) > 1
-                        tfxd = data.FileTrajectoryData(...
-                            fullfile(this.Data.DataDirectory,'trajectory_fx'));
-                    %else
-                    %    tfxd = data.MemoryTrajectoryData;
-                    %end
+                    tfxd = data.FileTrajectoryData(...
+                        fullfile(this.Data.DataDirectory,'trajectory_fx'));
                 else
                     tfxd = [];
                 end
@@ -409,11 +406,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         % anyways)
                         oldv = this.EnableTrajectoryCaching;
                         this.EnableTrajectoryCaching = false;
-                        [t, x, ctime] = this.computeTrajectory(mu, inputidx);
+                        [t, x, ctime, cache] = this.computeTrajectory(mu, inputidx);
                         this.EnableTrajectoryCaching = oldv;
                         
-                        % Assign snapshot values
-                        this.Data.TrajectoryData.addTrajectory(x, mu, inputidx, ctime);
+                        % Store snapshot values, only if not already from trajectory data
+                        if cache ~= 1
+                            this.Data.TrajectoryData.addTrajectory(x, mu, inputidx, ctime);
+                        end
                         
                         % Evaluate fxi on current values if required
                         if this.ComputeTrajectoryFxiData
@@ -457,6 +456,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             end
             
             this.OfflinePhaseTimes(2) = toc(time);
+            this.autoSave;
         end
         
         function off3_computeReducedSpace(this)
@@ -467,9 +467,12 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 fprintf('Computing reduced space...\n');
                 [V, W] = this.SpaceReducer.generateReducedSpace(this);
             end
-            this.Data.V = V;
-            this.Data.W = W;
+            this.Data.V = data.FileMatrix(V,'Dir',this.Data.DataDirectory);
+            if ~isempty(W)
+                this.Data.W = data.FileMatrix(W,'Dir',this.Data.DataDirectory);
+            end
             this.OfflinePhaseTimes(3) = toc(time);
+            this.autoSave;
         end
         
         function off4_genApproximationTrainData(this)
@@ -485,6 +488,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     this.System.f, this.Approx.TrainDataSelector, this.ComputeParallel);
             end
             this.OfflinePhaseTimes(4) = toc(t);
+            this.autoSave;
         end
         
         function off5_computeApproximation(this)
@@ -518,6 +522,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             end
             
             this.OfflinePhaseTimes(5) = toc(time);
+            this.autoSave;
         end
         
         function off6_prepareErrorEstimator(this)
@@ -531,6 +536,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 e.offlineComputations(this);
             end
             this.OfflinePhaseTimes(6) = toc(t);
+            this.autoSave;
         end
         
         function offlineGenerations(this)
@@ -542,13 +548,22 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % It calls all of the offX_ - methods in their order.
             %
             % See also: buildReducedModel
+            this.isGlobalOfflinePhase = true;
             this.OfflinePhaseTimes = [];
-            this.off1_createParamSamples;
-            this.off2_genTrainingData;
-            this.off3_computeReducedSpace;
-            this.off4_genApproximationTrainData;
-            this.off5_computeApproximation;
-            this.off6_prepareErrorEstimator;
+            
+            try
+                this.off1_createParamSamples;
+                this.off2_genTrainingData;
+                this.off3_computeReducedSpace;
+                this.off4_genApproximationTrainData;
+                this.off5_computeApproximation;
+                this.off6_prepareErrorEstimator;
+            catch ME
+                this.isGlobalOfflinePhase = false;
+                rethrow(ME);
+            end
+            
+            this.isGlobalOfflinePhase = false;
         end
         
         function [reduced,time] = buildReducedModel(this, target_dim)
@@ -583,12 +598,12 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             time = toc;
         end
         
-        function [t, x, time] = computeTrajectory(this, mu, inputidx)
+        function [t, x, time, cache] = computeTrajectory(this, mu, inputidx)
             % Computes a solution/trajectory for the given mu and inputidx in the SCALED state
             % space.
             %
             % Parameters:
-            % mu: The parameter `\mu` for the simulation
+            % mu: The parameter `\mu` for the simulation @type colvec<double>
             % inputidx: The integer index of the input function to use. If
             % more than one inputs are specified this is a necessary
             % argument.
@@ -597,18 +612,20 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % t: The times at which the model was evaluated. Will equal
             % the property Times
             % x: The state variables at the corresponding times t.
+            % cached: Flag that indicates that this trajectory is loaded from cache. Possible
+            % values are 0: Found in no cache, 1: found in ModelData.TrajectoryData, 2: Found
+            % in ModelData.SimCache @type integer
             
             if KerMor.App.UseDPCM
                 DPCM.criticalsCheck(this);
             end
             
-            x = [];
-            if this.EnableTrajectoryCaching
-                % Try local model data first
-                [x, time] = this.Data.TrajectoryData.getTrajectory(mu, inputidx);
-                if isempty(x)
-                    [x, time] = this.Data.SimCache.getTrajectory([this.T; this.dt; mu], inputidx);
-                end
+            % Try local model data first
+            cache = 1;
+            [x, time] = this.Data.TrajectoryData.getTrajectory(mu, inputidx);
+            if this.EnableTrajectoryCaching && isempty(x)
+                cache = 2;
+                [x, time] = this.Data.SimCache.getTrajectory([this.T; this.dt; mu], inputidx);
             end
             if ~isempty(x)
                 t = this.scaledTimes;
@@ -623,6 +640,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 if this.EnableTrajectoryCaching
                     this.Data.SimCache.addTrajectory(x, [this.T; this.dt; mu], inputidx, time);
                 end
+                cache = 0;
             end
         end
     end
@@ -636,10 +654,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             if this.ftcold.(src.Name) ~= this.(src.Name)
                 md = this.Data.TrajectoryData;
                 if md.getNumTrajectories > 0
-                    md.clearTrajectories;
-                    fprintf(2,'Deleted all old trajectories for %s=%f\n',src.Name,this.ftcold.(src.Name));
+                    %md.clearTrajectories;
+                    %fprintf(2,'Deleted all old trajectories for %s=%f\n',src.Name,this.ftcold.(src.Name));
                 end
-                this.Data.SimCache.clearTrajectories;
+                %this.Data.SimCache.clearTrajectories;
             end
         end
         
@@ -647,6 +665,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             if isempty(this.SaveTag)
                 this.SaveTag = regexprep(...
                     strrep(strtrim(this.Name),' ','_'),'[^\d\w~-]','');
+            end
+        end
+        
+        function autoSave(this)
+            % Only save if in global offline phase
+            if this.isGlobalOfflinePhase
+                save(fullfile(this.Data.DataDirectory,'model_autosave.mat'),'this');
             end
         end
     end
