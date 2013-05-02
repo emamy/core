@@ -109,7 +109,6 @@ classdef Heun < solvers.BaseCustomSolver
 %                 end
                 % Only produce output at wanted timesteps
                 if outputtimes(outidx) == idx
-                    outidx = outidx+1;
                     if rtm                        
                         % Real time mode: Fire StepPerformed event
                         ed.Times = t(idx);
@@ -119,6 +118,7 @@ classdef Heun < solvers.BaseCustomSolver
                     else
                         x(:,outidx) = newx;
                     end
+                    outidx = outidx+1;
                 end
                 oldx = newx;
             end
