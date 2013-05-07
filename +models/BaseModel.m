@@ -491,7 +491,11 @@ classdef BaseModel < KerMorObject
             % Parameters:
             % mu: The parameter `\mu` to evaluate `x_0(\mu)`. Use [] for
             % none.
-            x0 = this.System.x0.evaluate(mu) ./ repmat(this.System.StateScaling,1,size(mu,2));
+            ss = this.System.StateScaling;
+            if size(mu,2) > 1
+                ss = repmat(this.System.StateScaling,1,size(mu,2));
+            end
+            x0 = this.System.x0.evaluate(mu) ./ ss;
         end
         
         function this = saveobj(this)

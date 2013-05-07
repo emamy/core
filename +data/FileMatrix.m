@@ -116,11 +116,11 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 A = var;
                 [n, m] = size(A); %#ok<*PROP>
                 matrixin = true;
-                %             elseif isa(var,'data.FileMatrix')
-                %                 n = var.n;
-                %                 m = var.m;
-                %                 varargin = {'Dir', fileparts(var.DataDirectory),...
-                %                     'BlockSize', var.blocksize};
+%             elseif isa(var,'data.FileMatrix')
+%                 n = var.n;
+%                 m = var.m;
+%                 varargin = {'Dir', fileparts(var.DataDirectory),...
+%                     'BlockSize', var.blocksize};
             else
                 n = var;
                 ip.addRequired('m');
@@ -193,6 +193,23 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             for k=1:this.nBlocks
                 pos = this.getBlockPos(k);
                 copy.subsasgn(struct('type',{'()'},'subs',{{':',pos}}),this.loadBlock(k));
+            end
+        end
+        
+        function res = transposedTimes(this, B)
+            % Implements the operation A'*B for this matrix A and another FileMatrix B
+            if ~isa(B,'data.FileMatrix')
+                error('Operation only applicable to other FileMatrix instances');
+            end
+            res = data.FileMatrix(this.m,B.m,'Dir', fileparts(B.DataDirectory),...
+                    'BlockSize', B.blocksize);
+            key = struct('type',{'()'},'subs',[]);
+            for j = 1:B.nBlocks
+                Bb = B.getBlock(j);
+                for i=1:this.nBlocks
+                    key.subs = {this.getBlockPos(i),B.getBlockPos(j)};
+                    res.subsasgn(key,this.getBlock(i)'*Bb);
+                end
             end
         end
         
@@ -380,7 +397,25 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             if isa(A,'data.FileMatrix')
                 % FileMatrix * FileMatrix case
                 if isa(B,'data.FileMatrix')
-                    error('Not yet implemented.');
+                    if A.nBlocks == 1 && B.nBlocks == 1
+                        AB = data.FileMatrix(A.cachedBlock * B.cachedBlock);
+                        return;
+                    else
+                        % Set blocksize such that the result has the same number of columns per
+                        % block as B has
+                        AB = data.FileMatrix(A.n,B.m,'Dir', fileparts(B.DataDirectory),...
+                        'BlockSize', A.blockSizeOf(A.n,B.bCols));
+                        key = struct('type',{'()'},'subs',[]);
+                        for i=1:B.nBlocks
+                            Bb = B.getBlock(i);
+                            key.subs = {':',B.getBlockPos(i)};
+                            for k = 1:A.nBlocks
+                                Ab = A.getBlock(k);
+                                sum = AB.subsref(key) + Ab*Bb(A.getBlockPos(k),:);
+                                AB.subsasgn(key,sum);
+                            end
+                        end
+                    end
                 else
                     % Special case for one block
                     if A.nBlocks == 1
@@ -441,12 +476,9 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                         if B.created(bidx)
                             key.subs{2} = B.getBlockPos(bidx);
                             AB.subsasgn(key,A*B.loadBlock(bidx));
-                            %AB(:,B.getBlockPos(bidx)) = A*B.loadBlock(bidx);
                         end
                     end
-                    
                 else
-                    
                     AB = data.FileMatrix(size(A,1), B.m, 'Dir', fileparts(B.DataDirectory),...
                         'BlockSize', B.blocksize);
                     key = struct('type',{'()'},'subs',{{':'}});
@@ -577,7 +609,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 else
                     for i=1:A.nBlocks
                         pos = A.getBlockPos(i);
-                        if A.created(i)
+                        if A.created(i) || A.cachedNr == i
                             if ~isequal(A.loadBlock(i),B(:,pos)), return; end
                         else
                             if any(any(B(:,pos) ~= 0)), return; end
@@ -858,6 +890,13 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             res = res && isequal(bm,am) && isequal(bM,aM);
         end
         
+        function res = test_transposeTimes
+            [A1,B1] = data.FileMatrix.getTestPair(80,100,5);
+            [A2,B2] = data.FileMatrix.getTestPair(80,100,5);
+            A3 = A1.transposedTimes(A2);
+            res = norm(B1'*B2 - A3.toMemoryMatrix,'fro') < sqrt(eps);
+        end
+        
         function res = test_SVD
             [A,B] = data.FileMatrix.getTestPair(99,100,5);
             % SVD test
@@ -977,6 +1016,25 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             res = res && LA == L*Amat;
             % Right multiplication requires accumulation of values -> rounding errors
             res = res && norm(AR - Amat*R) < 1e-12;
+        end
+        
+        function res = test_2FileMatrix_MTimes
+            %% Two FileMatrices
+            % No blocks
+            [A,B] = data.FileMatrix.getTestPair(100,1000);
+            [C,D] = data.FileMatrix.getTestPair(1000,100);
+            AC = A*C;
+            res = AC == B*D;
+            CA = C*A;
+            res = res & CA == D*B;
+            
+            % With blocks
+            [A,B] = data.FileMatrix.getTestPair(100,1000,4);
+            [C,D] = data.FileMatrix.getTestPair(1000,100,5);
+            AC = A*C;
+            res = res & norm(B*D - AC.toMemoryMatrix,'fro') < 1e-10;
+            CA = C*A;
+            res = res & norm(D*A - CA.toMemoryMatrix,'fro') < 1e-10;
         end
         
         function res = test_SpeedSVDTransp

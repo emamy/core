@@ -1,4 +1,4 @@
-classdef ABase < KerMorObject & IParallelizable & ICloneable
+classdef ABase < KerMorObject & IParallelizable & ICloneable & IReductionSummaryPlotProvider
 % ABase: Base class for any approximation generation algorithms for kernel
 % expansions,
 %
@@ -196,6 +196,16 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable
                     disp(str);
                 end
             end
+        end
+        
+        function plotSummary(this, pm, context)
+            str = sprintf('%s: approx max errors',context);
+            h = pm.nextPlot('approx_maxerrors',str,...
+                'expansion size','errors');
+            semilogy(h,this.MaxErrors');
+            h = pm.nextPlot('approx_maxrelerrors',str,...
+                'expansion size','errors');
+            semilogy(h,this.MaxRelErrors');
         end
         
         function nc = getTotalNumConfigurations(this)

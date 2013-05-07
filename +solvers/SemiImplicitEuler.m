@@ -161,7 +161,6 @@ classdef SemiImplicitEuler < solvers.BaseCustomSolver
                 
                 % Only produce output at wanted timesteps
                 if outputtimes(outidx) == idx
-                    outidx = outidx+1;
                     if rtm                        
                         % Real time mode: Fire StepPerformed event
                         ed.Times = t(idx);
@@ -171,6 +170,7 @@ classdef SemiImplicitEuler < solvers.BaseCustomSolver
                     else
                         x(:,outidx) = [newx; newex];%#ok
                     end
+                    outidx = outidx+1;
                 end
                 oldx = newx;
                 oldex = newex;

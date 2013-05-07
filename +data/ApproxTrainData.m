@@ -203,12 +203,11 @@ classdef ApproxTrainData < handle
             % If projection is used, train approximating function in
             % centers projected into the subspace.
             if ~isempty(model.Data.V) && ~isempty(model.Data.W)
+                
                 atd.xi = model.Data.V*(model.Data.W'*atd.xi);
             end
-%             atd = model.Data.ApproxTrainData;
-
+            
             % Compute f-Values at training data
-
             if parallel
                 error('Not yet implemented for FileMatrix atd.xi');
                 atdxi = atd.xi;

@@ -79,7 +79,7 @@ classdef TimeSelector < data.selection.ASelector
             % @todo Adopt to current KerMor model data structure.
             
             % Build sn array similar to old one
-            d = model.Data;
+            d = model.Data.TrajectoryData;
             nt = d.getNumTrajectories;
             times = model.Times;
             tlen = length(times);

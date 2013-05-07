@@ -470,6 +470,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.Data.V = data.FileMatrix(V,'Dir',this.Data.DataDirectory);
             if ~isempty(W)
                 this.Data.W = data.FileMatrix(W,'Dir',this.Data.DataDirectory);
+            else 
+                this.Data.W = this.Data.V;
             end
             this.OfflinePhaseTimes(3) = toc(time);
             this.autoSave;
@@ -618,6 +620,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             
             if KerMor.App.UseDPCM
                 DPCM.criticalsCheck(this);
+            end
+            if ~isempty(this.System.f) && (isempty(this.System.f.xDim) || isempty(this.System.f.fDim))
+                error('Nonlinarity properties fDim and xDim not set. See dscomponents.ACoreFun');
             end
             
             % Try local model data first
