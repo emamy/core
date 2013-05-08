@@ -203,6 +203,7 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable & IReductionSummary
             h = pm.nextPlot('approx_maxerrors',str,...
                 'expansion size','errors');
             semilogy(h,this.MaxErrors');
+            str = sprintf('%s: approx max relative errors',context);
             h = pm.nextPlot('approx_maxrelerrors',str,...
                 'expansion size','errors');
             semilogy(h,this.MaxRelErrors');

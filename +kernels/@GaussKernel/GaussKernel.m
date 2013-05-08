@@ -174,6 +174,8 @@ classdef GaussKernel < kernels.BellFunction
                 newinst.Gamma  = obj.Gamma;
                 newinst.updateGammaDependants;
                 obj = loadobj@kernels.BellFunction(newinst, obj);
+            else
+                obj = loadobj@kernels.BellFunction(obj);
             end
             obj.addlistener('Gamma','PostSet',@this.updateGammaDependants);
         end

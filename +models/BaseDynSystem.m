@@ -376,6 +376,20 @@ classdef BaseDynSystem < KerMorObject
                 str = sprintf('%s%d - %s: %f\n',str,i,this.Params(i).Name,mu(i));
             end
         end
+        
+        function plotInputs(this, pm)
+            if nargin < 2
+                pm = PlotManager;
+                pm.LeaveOpen = true;
+            end
+            for i=1:this.InputCount
+                ui = this.Inputs{i};
+                h = pm.nextPlot(sprintf('u%d',i),sprintf('u_%d = %s',i,func2str(ui)),...
+                    't',sprintf('u_%d',i));
+                plot(h,this.Model.Times,ui(this.Model.scaledTimes),'LineWidth',2);
+            end
+            pm.done;
+        end
     end
     
     methods(Sealed)

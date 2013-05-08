@@ -144,12 +144,13 @@ classdef SemiImplicitEuler < solvers.BaseCustomSolver
                     if ~isempty(s.u)
                         ut = s.u(t(idx));
                     end
-                    al = est.getAlpha(newx, t(idx), s.mu, ut);
-                    bet = est.getBeta(newx, t(idx), s.mu);
+                    %al = est.getAlpha(newx, t(idx), s.mu, ut);
+                    %bet = est.getBeta(newx, t(idx), s.mu);
                     
                     % Explicit
-                    %newex = oldex + dt * est.evalODEPart([newx; oldex], t(idx-1), s.mu, ut);
-                    newex = oldex + dt*(bet*oldex + al);
+                    odepart = est.evalODEPart([newx; oldex], t(idx-1), s.mu, ut);
+                    newex = oldex + dt * odepart;
+                    %newex = oldex + dt*(bet*oldex + al);
                     
                     % Implicit
                     %newex = (dt*al+oldex)/(1-dt*bet);
