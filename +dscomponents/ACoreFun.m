@@ -381,10 +381,10 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             reltol = 1e-7;
             dt = sqrt(eps);
             res = false;
-            if isempty(ta) || nargin < 3
+            if nargin < 3 || isempty(ta)
                 ta = double.empty(0,size(xa,2));
             end
-            if isempty(mua) || nargin < 4
+            if nargin < 4 || isempty(mua)
                 mua = double.empty(0,size(xa,2));
             end
             d = size(xa,1);
@@ -407,8 +407,11 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                     pos = (k-1)*perstep+1:min(d,k*perstep);
                     J = (this.evaluate(X+I(:,pos),T,MU) - this.evaluate(X,T,MU))/dt;
                     pi.step;
-                    if max(max(abs(J-Jc(:,pos))))/max(max(abs(J))) >= reltol;
+                    abserr = max(max(abs(J-Jc(:,pos))));
+                    relerr = abserr/max(max(abs(J)));
+                    if relerr >= reltol;
                         pi.stop;
+                        fprintf('Failed. Max absolute error %g, relative %g\n',abserr,relerr);
                         return;
                     end
                 end

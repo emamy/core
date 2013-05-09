@@ -126,6 +126,12 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
             clear@error.BaseEstimator(this);
             this.EstimationData = [];
         end
+        
+        function a = getAlpha(this, x, t, mu, ut)
+            % Convenience access method for semi-implicit euler method
+            phi = this.ReducedModel.System.f.getKernelVector(x, t, mu);
+            a = this.aComp.getAlpha(phi, ut, t, mu);
+        end
     end
     
     methods(Access=protected)
@@ -139,7 +145,7 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
         end
     end
     
-    methods(Abstract, Access=protected)
+    methods(Abstract)
         % Computes the `\beta(t)` term from the error estimation ODE for given time and place.
         %
         % Parameters:

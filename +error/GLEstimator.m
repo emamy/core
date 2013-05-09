@@ -37,6 +37,14 @@ classdef GLEstimator < error.BaseCompLemmaEstimator
             copy.f = this.f;
         end
         
+        function b = getBeta(this, x, t, mu)%#ok
+            if ~isempty(this.cf)
+                b = this.cf;
+            else
+                b = this.f.getGlobalLipschitz(t, mu);
+            end
+        end
+        
         function ct = prepareConstants(this, mu, inputidx)%#ok
             % Return values:
             % ct: The time needed for preprocessing @type double
@@ -66,14 +74,6 @@ classdef GLEstimator < error.BaseCompLemmaEstimator
     end
     
     methods(Access=protected)
-        function b = getBeta(this, x, t, mu)%#ok
-            if ~isempty(this.cf)
-                b = this.cf;
-            else
-                b = this.f.getGlobalLipschitz(t, mu);
-            end
-        end
-        
         function ct = postprocess(this, x, t, mu, inputidx)
             % Return values:
             % ct: The time needed for postprocessing @type double

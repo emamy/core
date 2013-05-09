@@ -3,7 +3,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
     % lipschitz constants.
     %
     % Implementation as in [WH10], but with updated ExtraODEDims and numerical computation.
-    %    
+    %
     % Model requirements:
     % ReducedModel.System.f is an instance of AKernelCoreFun
     % FullModel.Approx is an instance of CompwiseKernelCoreFun
@@ -17,7 +17,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
     %
     % @change{0,5,dw,2011-07-04} Changed this class name to "IterationCompLemmaEstimator".
     %
-    % @change{0,4,dw,2011-05-29} 
+    % @change{0,4,dw,2011-05-29}
     % - Changed this classes name to "LocalKernelEstimator".
     % - Restructured the error estimators to better adopt to the current
     % formulation. Now the KernelEstimators have a function getBeta instead of implementing the
@@ -42,7 +42,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
     % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
     % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
     % - \c License @ref licensing
-
+    
     properties
         % The internal kernel Lipschitz function to use.
         %
@@ -75,7 +75,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
         %
         % Default: 0
         Iterations;
-                
+        
         % For the local Lipschitz constant estimation the parameter C can
         % be chosen to equal the error from the last time step. This has to
         % be investigated more thoroughly as integration errors from the
@@ -177,7 +177,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             % prepared: A clone of this estimator, with accordingly projected components
             prepared = prepareForReducedModel@error.BaseCompLemmaEstimator(this, rm);
             
-            prepared.lstPreSolve = addlistener(rm.ODESolver,'PreSolve',@prepared.cbPreSolve);    
+            prepared.lstPreSolve = addlistener(rm.ODESolver,'PreSolve',@prepared.cbPreSolve);
             prepared.lstPostSolve = addlistener(rm.ODESolver,'PostSolve',@prepared.cbPostSolve);
             prepared.G = rm.G;
             
@@ -196,6 +196,47 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
                 % Set flag for small z state vectors to true
                 prepared.smallz_flag = true;
             end
+        end
+        
+         function b = getBeta(this, xfull, t, mu)
+            % Compute the local lipschitz constant estimations
+            %
+            % Parameters:
+            % xfull: The current state variable vector @type colvec
+            % t: The current time `t`
+            % mu: The current parameter `\mu`
+            
+            % Project x variable back to full space if centers are not within the space spanned by V
+            % (indicated by smallz_flag)
+            x = xfull(1:end-1);
+            if ~this.smallz_flag && ~isempty(this.ReducedModel.V)
+                x = this.ReducedModel.V*x;
+            end
+            di = this.c.xi - repmat(x,1,size(this.c.xi,2));
+            di = sqrt(sum(di.*(this.G*di),1));
+            
+            %% Normal computations
+            % Standard (worst-) Case
+            Ct = Inf;
+            % Time-discrete computation
+            if this.fTDC
+                Ct = xfull(end);
+                % Keep track of distances when iterations are used
+            elseif this.fIterations > 0
+                this.d_iValues(this.StepNr,:) = di;
+            end
+            
+            % Check if time and param kernels are used
+            if (~isempty(mu))
+                f = this.ReducedModel.System.f;
+                hlp = this.Ma_norms ...
+                    .* f.TimeKernel.evaluate(t, this.c.ti) ...
+                    .* f.ParamKernel.evaluate(mu, this.c.mui);
+            else
+                hlp = this.Ma_norms;
+            end
+            
+            b = hlp * this.LocalLipschitzFcn.evaluate(di, Ct)';
         end
         
         function clear(this)
@@ -267,47 +308,6 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
     
     methods(Access=protected)
         
-        function b = getBeta(this, xfull, t, mu)
-            % Compute the local lipschitz constant estimations
-            %
-            % Parameters:
-            % xfull: The current state variable vector @type colvec
-            % t: The current time `t`
-            % mu: The current parameter `\mu`
-            
-            % Project x variable back to full space if centers are not within the space spanned by V
-            % (indicated by smallz_flag)
-            x = xfull(1:end-1);
-            if ~this.smallz_flag && ~isempty(this.ReducedModel.V)
-                x = this.ReducedModel.V*x;
-            end
-            di = this.c.xi - repmat(x,1,size(this.c.xi,2));
-            di = sqrt(sum(di.*(this.G*di),1));
-            
-            %% Normal computations
-            % Standard (worst-) Case
-            Ct = Inf;
-            % Time-discrete computation
-            if this.fTDC
-                Ct = xfull(end);
-                % Keep track of distances when iterations are used
-            elseif this.fIterations > 0
-                this.d_iValues(this.StepNr,:) = di;
-            end
-            
-            % Check if time and param kernels are used
-            if (~isempty(mu))
-                f = this.ReducedModel.System.f;
-                hlp = this.Ma_norms ...
-                    .* f.TimeKernel.evaluate(t, this.c.ti) ...
-                    .* f.ParamKernel.evaluate(mu, this.c.mui);
-            else
-                hlp = this.Ma_norms;
-            end
-            
-            b = hlp * this.LocalLipschitzFcn.evaluate(di, Ct)';
-        end
-        
         function ct = postprocess(this, x, t, mu, inputidx)
             % Return values:
             % ct: The time needed for postprocessing @type double
@@ -318,7 +318,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             
             % PreSolve not needed during iterations
             this.lstPreSolve.Enabled = false;
-
+            
             % Iteration stuff
             if ~this.fTDC && this.fIterations > 0
                 % Switch on/off listeners
@@ -341,7 +341,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             ct = ct + toc(st);
         end
     end
-        
+    
     methods(Access=private)
         
         function e = iterationODEPart(this, t, eold)
@@ -365,8 +365,8 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
                 hlp = this.Ma_norms;
             end
             try
-            b = hlp * this.LocalLipschitzFcn.evaluate(...
-                this.d_iValues(idx,:), this.errEst(idx))';
+                b = hlp * this.LocalLipschitzFcn.evaluate(...
+                    this.d_iValues(idx,:), this.errEst(idx))';
             catch ME
                 a = 4;
             end
@@ -397,9 +397,10 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             % Validations
             errmsg = validModelForEstimator@error.BaseCompLemmaEstimator(model);
             if isempty(errmsg) && ~isa(model.Approx,'kernels.ParamTimeKernelExpansion')
-                errmsg = 'The model''s approximation function must be a subclass of kernels.ParamTimeKernelExpansion for this error estimator.'; 
+                errmsg = 'The model''s approximation function must be a subclass of kernels.ParamTimeKernelExpansion for this error estimator.';
             end
-            if isempty(errmsg) && ~isa(model.System.f.Kernel,'kernels.BellFunction')
+            if isempty(errmsg) && isa(model.System.f,'kernels.KernelExpansion') ...
+                    && ~isa(model.System.f.Kernel,'kernels.BellFunction')
                 errmsg = 'The system''s kernel must be a kernels.BellFunction for this error estimator.';
             end
         end
@@ -420,13 +421,13 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
         end
     end
     
-%     methods(Static,Access=protected)
-%         function s = loadobj(s)
-%             s = loadobj@error.BaseCompLemmaEstimator(s);
-%             this.lstPreSolve = addlistener(s.ReducedModel.ODESolver,'PreSolve',@s.cbPreSolve);
-%             this.lstPreSolve.Enabled = false;
-%             this.lstPostSolve = addlistener(s.ReducedModel.ODESolver,'PostSolve',@s.cbPostSolve);
-%             this.lstPostSolve.Enabled = false;
-%         end
-%     end
+    %     methods(Static,Access=protected)
+    %         function s = loadobj(s)
+    %             s = loadobj@error.BaseCompLemmaEstimator(s);
+    %             this.lstPreSolve = addlistener(s.ReducedModel.ODESolver,'PreSolve',@s.cbPreSolve);
+    %             this.lstPreSolve.Enabled = false;
+    %             this.lstPostSolve = addlistener(s.ReducedModel.ODESolver,'PostSolve',@s.cbPostSolve);
+    %             this.lstPostSolve.Enabled = false;
+    %         end
+    %     end
 end

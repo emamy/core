@@ -48,13 +48,12 @@ classdef EstimatorAnalyzer < handle
         % 6: LGL TD, Time Discrete Local Gradient Lipschitz
         % 7: LSL TD, Time Discrete Local Secant Lipschitz
         % 8: ILSL TD, Time Discrete Improved Local Secant Lipschitz
-        % 9: Expensive best-estimator (with full traj simulation)
         %
         % Is overridden when DEIM is used in the reduced models, only 1 is
         % considered then.
         %
         % @type rowvec
-        EstimatorVersions = [1 1 0 0 1 0 0 1 1];
+        EstimatorVersions = [1 1 0 0 1 0 0 1];
         
         % Determines whether to plot the errors on a logarithmic scale or
         % not
@@ -508,7 +507,7 @@ classdef EstimatorAnalyzer < handle
             
             %% Kernel-based systems error estimators
             if this.EstimatorVersions(2)
-                msg = error.GLEstimator.validModelForEstimator(r);
+                msg = error.GLEstimator.validModelForEstimator(r.FullModel);
                 e = error.GLEstimator;
                 e.offlineComputations(r.FullModel);
                 if isempty(msg)
@@ -522,7 +521,7 @@ classdef EstimatorAnalyzer < handle
                 end
             end
             
-            msg = error.IterationCompLemmaEstimator.validModelForEstimator(r);
+            msg = error.IterationCompLemmaEstimator.validModelForEstimator(r.FullModel);
             if isempty(msg)
                 
                 if ~isempty(this.Model.Approx)
@@ -534,7 +533,7 @@ classdef EstimatorAnalyzer < handle
                 reps = this.EstimatorIterations;
                 fprintf('Using iteration counts: %s\n',num2str(this.EstimatorIterations));
                 e = error.IterationCompLemmaEstimator;
-                e.offlineComputations(f.FullModel);
+                e.offlineComputations(r.FullModel);
                 if this.EstimatorVersions(3)
                     fprintf('Initializing LGL estimator...\n');
                     est(end+1).Name = 'LGL';
@@ -628,27 +627,6 @@ classdef EstimatorAnalyzer < handle
                 end
             else
                 fprintf('Cannot use the IterationCompLemmaEstimator for model %s:\n%s\n',r.Name,msg);
-            end
-            
-            if this.EstimatorVersions(9)
-                msg = error.ExpensiveBetaEstimator.validModelForEstimator(r);
-                if isempty(msg)
-                    fprintf('Initializing expensive estimators with custom beta ...\n');
-                    est(end+1).Name = 'Lower bound';
-                    e = error.ExpensiveBetaEstimator;
-                    e.offlineComputations(r.FullModel);
-                    est(end).Estimator = e;
-                    est(end).MarkerStyle = '<';
-                    est(end).LineStyle = '-.';
-                    
-                    %                         est(end+1).Estimator = est(end).Estimator.clone;
-                    %                         est(end).Name = 'TD Jacobian (nonrigor)';
-                    %                         est(end).Estimator.Version = 2;
-                    %                         est(end).MarkerStyle = '<';
-                    %                         est(end).LineStyle = '-.';
-                else
-                    fprintf('Cannot use the ExpensiveBetaEstimator for model %s:\n%s\n',r.Name,msg);
-                end
             end
         end
     end

@@ -39,8 +39,8 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
         pts = {};
         
         % The x-component selection matrices (precomputed on setting
-        % PointSet/AltPointSet). ´S\vx´ is passed to the function
-        % evaluating the components of ´\vf´ or its derivatives.
+        % PointSet/AltPointSet). ï¿½S\vxï¿½ is passed to the function
+        % evaluating the components of ï¿½\vfï¿½ or its derivatives.
         %
         % See also: PointSet
         %
@@ -282,7 +282,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
                 xsize = 1;
             end
             x = rand(this.xDim,xsize);
-            mu = rand(20,xsize); % simply assume param dim<=20
+            mu = rand(1,xsize); % simply assume param dim<=20
             t = rand(1,xsize);
             fx = this.evaluate(x, t, mu);
             oldpts = [];
@@ -290,18 +290,19 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
                 oldpts = this.PointSets{1};
             end
             
-            nsets = 3;
+            nsets = 1;
             s = RandStream('mt19937ar','Seed',2);
-            % Limit set sizes to 10000
-            setsizes = s.randi(min(size(fx,1),5000), nsets, 1);
+            % Limit set sizes to 5000
+            %setsizes = s.randi(min(size(fx,1),5000), nsets, 1);
+            setsizes = s.randi(200, nsets, 1);
             sets = cell(nsets,1);
             for i = 1:length(setsizes)
                 sets{i} = unique(s.randi(size(fx,1),1,setsizes(i)));
             end
             % Add an extra set with full size (only for functions with dim less than 10000)
-            if size(fx,1) <= 10000
-                sets{end+1} = 1:size(fx,1);
-            end
+%             if size(fx,1) <= 10000
+%                 sets{end+1} = 1:size(fx,1);
+%             end
             res = true;
             for idx=1:length(sets)
                 set = sets{idx};

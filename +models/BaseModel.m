@@ -497,8 +497,12 @@ classdef BaseModel < KerMorObject
             % none. @typerowvec<double> @default []
             %
             % Return values:
-            % x0: the initial state for the parameter `\mu` @type matrix<double> 
-            x0 = this.System.x0.evaluate(mu) ./ repmat(this.System.StateScaling,1,size(mu,2));
+            % x0: the initial state for the parameter `\mu` @type matrix<double>
+            ss = this.System.StateScaling;
+            if size(mu,2) > 1
+                ss = repmat(this.System.StateScaling,1,size(mu,2));
+            end
+            x0 = this.System.x0.evaluate(mu) ./ ss;
         end
         
         function this = saveobj(this)

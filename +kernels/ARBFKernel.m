@@ -116,7 +116,7 @@ classdef ARBFKernel < kernels.BaseKernel
                 n2sq = sum(y.*(this.fG*y),1);
                 n2 = size(y,2);
             end;
-            r = ((ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*sx'*y); %/this.Gamma^2
+            r = ((ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*sx'*y);
         end
     end
     

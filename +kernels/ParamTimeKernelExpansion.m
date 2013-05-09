@@ -123,7 +123,7 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
         end
 
         function fx = evaluate(this, x, t, mu)
-              fx = this.Ma * this.getKernelVector(x, t, mu)';
+            fx = this.Ma * (this.Base \ this.getKernelVector(x, t, mu)');
         end
         
         function phi = getKernelVector(this, x, t, mu)
