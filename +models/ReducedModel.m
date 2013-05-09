@@ -40,7 +40,7 @@ classdef ReducedModel < models.BaseModel
         
         % The matrix that has been used for projection
         %
-        % @type matrix<double>
+        % @type matrix<double> @default []
         V;
         
         % The biorthogonal matrix for V, i.e. `W^tV = I_d`
@@ -62,11 +62,14 @@ classdef ReducedModel < models.BaseModel
     properties(Dependent)
         % The error estimator for the reduced model
         %
-        % @type error.BaseEstimator
+        % @type error.BaseEstimator @default []
         ErrorEstimator;
     end
     
     properties(Access=private)
+        %
+        %
+        % @type error.BaseEstimator
         fErrorEstimator;
     end
     
@@ -91,6 +94,10 @@ classdef ReducedModel < models.BaseModel
         
         function setFullModel(this, fullmodel, target_dim)
             % Creates a reduced model from a given full model.
+            %
+            % Parameters:
+            % fullmodel: the instance of the full model @type models.BaseFullModel
+            % target_dim: The target reduced model state space dimension. @type integer
             %
             % @docupdate
             if nargin == 0 || ~isa(fullmodel,'models.BaseFullModel')
@@ -162,7 +169,7 @@ classdef ReducedModel < models.BaseModel
             %
             % Return values:
             % t: The times at which the model was evaluated. Will equal the property Times
-            % @type rowvec
+            % @type rowvec<double>
             % x: The state variables at the corresponding times t. @type matrix<double>
             % ctime: The time needed for computation. @type double
             
@@ -264,6 +271,9 @@ classdef ReducedModel < models.BaseModel
         end
         
         function set.ErrorEstimator(this, value)
+            %
+            % Parameters:
+            % value: @type error.BaseEstimator
             if ~isempty(value)
                 if ~isa(value,'error.BaseEstimator')
                     error('The ErrorEstimator property must be a subclass of the error.BaseEstimator class.');

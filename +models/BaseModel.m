@@ -247,15 +247,17 @@ classdef BaseModel < KerMorObject
             % determined by the actual system anyways)
             %
             % Parameters:
-            % mu: The concrete mu parameter sample to simulate for.
-            % inputidx: The index of the input function to use.
+            % mu: The concrete mu parameter sample to simulate for. @type
+            % colvec<double>
+            % inputidx: The index of the input function to use. @type
+            % integer
             %
             % Return values:
-            % t: The times at which the model was evaluated
+            % t: The times at which the model was evaluated @type rowvec<double>
             % y: Depending on the existance of an output converter, this
             %    either returns the full trajectory or the processed output
-            %    at times t.
-            % sec: the seconds needed for simulation.
+            %    at times t. @type matrix<double>
+            % sec: the seconds needed for simulation. @typr double
             % x: The (scaled, if used) state space variables before output conversion.
             %
             % @todo: fix Input checks (set inidx=1 iff one input is
@@ -294,8 +296,9 @@ classdef BaseModel < KerMorObject
             % Override in subclasses for a more specific plot if desired.
             %
             % Parameters:
-            % t: The simulation times `t_i` @type rowvec
-            % y: The simulation output matrix `y`, i.e. `y(t_i)` @type matrix
+            % t: The simulation times `t_i` @type rowvec<double>
+            % y: The simulation output matrix `y`, i.e. `y(t_i)` @type
+            % matrix<double>
             % varargin: Any further arguments for customized plots
             %
             % Return values:
@@ -320,7 +323,8 @@ classdef BaseModel < KerMorObject
             %
             % Parameters:
             % t: The simulation times `t_i` @type rowvec
-            % y: The simulation output matrix `y`, i.e. `y(t_i)` @type matrix
+            % y: The simulation output matrix `y`, i.e. `y(t_i)` @type
+            % matrix<double>
             % varargin: Any further arguments for customized plots
             %
             % Return values:
@@ -347,8 +351,8 @@ classdef BaseModel < KerMorObject
             % method.
             %
             % Parameters:
-            % t: The current time `t`
-            % y: The system's output `y(t)`
+            % t: The current time `t` @type double
+            % y: The system's output `y(t)` @type colvec<double>
             % varargin: Any arguments that should be passed on to inner plotting methods (model
             % dependent)
             this.plot(t, y, varargin{:});
@@ -359,14 +363,14 @@ classdef BaseModel < KerMorObject
             % space.
             %
             % Parameters:
-            % mu: The parameter `\mu` for the simulation
+            % mu: The parameter `\mu` for the simulation @type colvec<double>
             % inputidx: The integer index of the input function to use. If
             % more than one inputs are specified this is a necessary
-            % argument.
+            % argument. @type integer
             %
             % Return values:
             % t: The times at which the model was evaluated. Will equal the property Times
-            % @type rowvec
+            % @type rowvec<double>
             % x: The state variables at the corresponding times t. @type matrix<double>
             % ctime: The time needed for computation. @type double
             %
@@ -490,7 +494,10 @@ classdef BaseModel < KerMorObject
             %
             % Parameters:
             % mu: The parameter `\mu` to evaluate `x_0(\mu)`. Use [] for
-            % none.
+            % none. @typerowvec<double> @default []
+            %
+            % Return values:
+            % x0: the initial state for the parameter `\mu` @type matrix<double> 
             x0 = this.System.x0.evaluate(mu) ./ repmat(this.System.StateScaling,1,size(mu,2));
         end
         

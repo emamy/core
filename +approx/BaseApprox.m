@@ -47,7 +47,7 @@ classdef BaseApprox < dscomponents.ACoreFun
         %
         % @todo MOVE TO BASEFULLMODEL
         %
-        % See also: DefaultSelector LinspaceSelector TimeSelector
+        % See also: data.selection.DefaultSelector LinspaceSelector TimeSelector
         TrainDataSelector;
     end
     

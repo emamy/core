@@ -45,6 +45,14 @@ classdef RandomSampler < sampling.BaseSampler
             % Randomly generates input samples by choosing params and
             % time parameter by chance.
             %
+            % Parameters: 
+            % model: the full or reduced model @type models.BaseModel 
+            %
+            % Return values:
+            % samples: the randomly chosen parameters, number of rows equal
+            % to number of model's parameters, number of columns as specified in property Samples
+            % @type matrix<double>
+            %
             % @ingroup s_rand
             sys = model.System;
             if isempty(this.Seed)

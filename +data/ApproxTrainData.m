@@ -135,7 +135,7 @@ classdef ApproxTrainData < handle
             % The sample triple closest to the Center
             %
             % Return values:
-            % c: A column vector composed as `[x; t; mu]` @type colvec
+            % c: A column vector composed as `[x; t; mu]` @type colvec<double>
             % idx: The index in xi,ti,mui samples @type integer
             A = repmat(this.Center, 1, size(this.xi,2));
             B = [this.xi; this.ti; this.mui];

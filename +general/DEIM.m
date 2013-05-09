@@ -128,7 +128,7 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
     
     methods
         function computeDEIM(this, f, fxi)
-            % implementation of the DEIM algorithm.
+            % Implementation of the DEIM algorithm.
             %
             % Parameters:
             % f: the function DEIM is applied to @type dscomponents.ACompEvalCoreFun
