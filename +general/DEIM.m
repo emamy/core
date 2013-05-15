@@ -124,6 +124,11 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
         %
         % @type dscomponents.ACompEvalCoreFun
         f;
+        
+        % The maximum residuals obtained along the magic points computation
+        %
+        % @type rowvec<double>
+        Residuals;
     end
     
     methods
@@ -256,11 +261,17 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
                     str,'POD size','singular values');
                 semilogy(h,this.SingularValues,'LineWidth',2);
             end
+            if ~isempty(this.Residuals)
+                str = sprintf('%s: maximum basis residual, MaxOrder: %d',context,this.MaxOrder);
+                h = pm.nextPlot('max_residuals',...
+                    str,'Point number','residual');
+                semilogy(h,this.Residuals,'LineWidth',2);
+            end
         end
     end
     
     methods(Access=private)
-        function pts = getInterpolationPoints(~, u)
+        function pts = getInterpolationPoints(this, u)
             % Computes the interpolation indices according to the DEIM
             % algorithm
             %
@@ -280,6 +291,7 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
                 [v(i), pts(i)] = max(abs(u(:,i) - u(:,1:(i-1))*c));
                 P = sparse(pts(1:i),1:i,ones(i,1),n,i);
             end
+            this.Residuals = v;
             if KerMor.App.Verbose > 2
                 fprintf('DEIM interpolation points [%s] with values [%s]\n',...
                     Utils.implode(pts,' ','%d'),Utils.implode(v,' ','%2.2e'));
