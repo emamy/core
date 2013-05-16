@@ -389,16 +389,23 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             end
             d = size(xa,1);
             I = speye(d,d)*dt;
+            perstep = floor((256*1024^2)/(8*d));
+            steps = ceil(d/perstep);
+            gpi = steps == 1 && size(xa,2) > 1;
+            if gpi
+                pi = ProcessIndicator('Comparing %d %dx%d jacobians with finite differences',...
+                    size(xa,2),false,size(xa,2),this.fDim,this.xDim);
+            end
             for i = 1:size(xa,2)
                 x = xa(:,i); t = ta(:,i); mu = mua(:,i);
                 Jc = this.getStateJacobian(x, t, mu);
                 
                 %% Numerical jacobian
-                perstep = floor((256*1024^2)/(8*d));
                 X = repmat(x,1,perstep); T = repmat(t,1,perstep); MU = repmat(mu,1,perstep);
-                steps = ceil(d/perstep);
-                pi = ProcessIndicator('Comparing %dx%d jacobian with finite differences over %d blocks of size %d',...
-                    steps,false,this.fDim,this.xDim,steps,perstep);
+                if ~gpi
+                    pi = ProcessIndicator('Comparing %dx%d jacobian with finite differences over %d blocks of size %d',...
+                        steps,false,this.fDim,this.xDim,steps,perstep);
+                end
                 for k = 1:steps
                     if k == steps
                         num = d-(k-1)*perstep;
@@ -411,12 +418,15 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                     relerr = abserr/max(max(abs(J)));
                     if relerr >= reltol;
                         pi.stop;
-                        fprintf('Failed. Max absolute error %g, relative %g\n',abserr,relerr);
+                        fprintf('Failed at test vector %d. Max absolute error %g, relative %g\n',i,abserr,relerr);
                         return;
                     end
                 end
-                pi.stop;
+                if ~gpi
+                    pi.stop;
+                end
             end
+            pi.stop;
             res = true;
         end
     end

@@ -1,4 +1,4 @@
-classdef MLode15i < solvers.MLWrapper & solvers.AImplSolver
+classdef MLode15i < solvers.MLWrapper & solvers.IImplSolver
 % MLode15i: Wrapper for MatLab's ode15i builtin implicit solver
 %
 % @author Daniel Wirtz @date 2011-04-14
@@ -59,7 +59,6 @@ classdef MLode15i < solvers.MLWrapper & solvers.AImplSolver
     methods
         function this = MLode15i
             this = this@solvers.MLWrapper(@ode15i);
-            this = this@solvers.AImplSolver;
             this.Name = 'MatLab ode15i implicit solver wrapper';
             this.registerProps('RelTol','AbsTol');
             % "Disable" MaxStep DPCM warning as implicit solvers are stable
@@ -84,10 +83,10 @@ classdef MLode15i < solvers.MLWrapper & solvers.AImplSolver
             % x: The system's state `x_i` at time `t_i` as collection of column vectors
             opts = odeset(opts, 'RelTol', this.RelTol, 'AbsTol', this.AbsTol);
             
-            %% Use properties from AImplSolver
+            %% Use properties from AJacobianSolver
             % Set Jacobian or Mass matrix
             if ~isempty(this.JacFun) || ~isempty(this.M)
-%                 opts = odeset(opts, 'Jacobian', @this.FJAC);
+                 opts = odeset(opts, 'Jacobian', @this.FJAC);
             end
             
             % Process any sparsity patterns
