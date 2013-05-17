@@ -1,14 +1,12 @@
-classdef AImplSolver < KerMorObject
-% AImplSolver: Base abstract class for fully implicit ode solvers
-%
-% Some models like the models.pcd.PCDModel have a small CFL constant due to fast diffusion. Thus,
-% implicit solvers are required to avoid long computation times.
-%
-% To not have to change the solve interface already present for explicit solvers, this class
-% implements the solve method itself and uses a template method to perform the actual implicit
-% solving.
+classdef AJacobianSolver < KerMorObject
+% AImplSolver: Base abstract class for solvers that can use Jacobian
+% information for faster computation.
 %
 % @author Daniel Wirtz @date 2011-04-19
+%
+% @change{0,7,dw,2013-05-16} Renamed this class from AImplSolver to
+% AJacobianSolver. Now providing the jacobian stuff via this class
+% independently from explicit/implicit solver tactics.
 %
 % @change{0,6,dw,2011-12-07} Renamed this class from BaseImplSolver to
 % AImplSolver, now merely providing jacobian matrix information and a
@@ -59,14 +57,9 @@ classdef AImplSolver < KerMorObject
         JPattern;
     end
     
-%     properties(Access=private)
-%         fJP = [];
-%         fJPD = [];
-%     end
-    
     methods
         
-        function this = AImplSolver
+        function this = AJacobianSolver
             this.registerProps('JacFun','JPattern');
         end
         

@@ -1,7 +1,11 @@
-classdef MLWrapper < solvers.BaseSolver
+classdef MLWrapper < solvers.BaseSolver & solvers.AJacobianSolver
 % Allows to wrap a MatLab ODE solver into the KerMor framework.
 %
 % @author Daniel Wirtz @date 2010-08-09
+%
+% @new{0,7,dw,2013-05-16} Now inheriting from the new
+% solvers.AJacobianSolver abstract class to all MatLab wrapper solvers
+% (e.g. ode15s also benefits from the Jacobian)
 %
 % @new{0,6,dw,2011-12-07} Added a new field odeopts which corresponds to
 % the odeset options struct of MatLab. Any values set will be passed to the
@@ -76,10 +80,22 @@ classdef MLWrapper < solvers.BaseSolver
             if ~isempty(this.InitialStep)
                 opts = odeset(opts, 'InitialStep', this.InitialStep);
             end
-            % Pass Mass Matrix to solver (only for non-ode15i solvers, the
-            % latter one makes use of M in a different way, see the class
-            % MLode15i)
-            if ~isempty(this.M) && ~isa(this, 'solvers.MLode15i')
+            
+            % Use AJacobianSolver properties
+            opts = odeset(opts, 'Jacobian', this.JacFun);
+            JP = [];
+            % Matlab solvers only use patterns if the jacobian function is
+            % not directly given
+            if isempty(this.JacFun)
+                JP = this.JPattern;
+            end
+            opts = odeset(opts, 'JPattern', JP);
+                
+            % Pass Mass Matrix to solver (only applicable for non-ode15i
+            % solvers, the latter one makes use of M in a different way,
+            % see the class solvers.MLode15i)
+            M = []; yp0 = []; MS = [];
+            if ~isempty(this.M)
                 if ~this.M.TimeDependent
                     M = this.M.evaluate(0);
                     opts = odeset(opts,'MassConstant','true');
@@ -88,9 +104,10 @@ classdef MLWrapper < solvers.BaseSolver
                 end
                 % Compute initial slope
                 yp0 = this.M.evaluate(0)\odefun(0,x0);
-                opts = odeset(opts,'Mass',M,'MStateDependence','none',...
-                    'InitialSlope',yp0);
+                MS = 'none';
             end
+            opts = odeset(opts,'Mass',M,'MStateDependence',MS,...
+                    'InitialSlope',yp0);
             
             if this.RealTimeMode
                 opts = odeset(opts,'OutputFcn',@this.ODEOutputFcn);
