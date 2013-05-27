@@ -396,6 +396,9 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                 pi = ProcessIndicator('Comparing %d %dx%d jacobians with finite differences',...
                     size(xa,2),false,size(xa,2),this.fDim,this.xDim);
             end
+            if size(mua,2) == 1
+                mua = repmat(mua,1,size(xa,2));
+            end
             for i = 1:size(xa,2)
                 x = xa(:,i); t = ta(:,i); mu = mua(:,i);
                 Jc = this.getStateJacobian(x, t, mu);
@@ -415,11 +418,24 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                     J = (this.evaluate(X+I(:,pos),T,MU) - this.evaluate(X,T,MU))/dt;
                     pi.step;
                     abserr = max(max(abs(J-Jc(:,pos))));
-                    relerr = abserr/max(max(abs(J)));
+                    maxJ = max(max(abs(J)));
+                    %relerr = abserr/maxJ;
+                    relerr = max(max(abs(J-Jc(:,pos))./J));
+                    diff = abs(J-Jc);
+                    [v, pos] = sort(diff(:),'descend');
+                    [posi,posj] = ind2sub(size(J), pos(1:num));
+                    num = 6;
+                    M = [v(1:num) v(1:num)./J(pos(1:num)) v(1:num)/maxJ];
+                    
+                    indic = sprintf('%d, ',posi(1:num));
+                    indjc = sprintf('%d, ',posj(1:num));
                     if relerr >= reltol;
                         pi.stop;
-                        fprintf('Failed at test vector %d. Max absolute error %g, relative %g\n',i,abserr,relerr);
+                        disp(M);
+                        fprintf('Failed at test vector %d. Max absolute error %g, relative %g, max %d errors at rows %s, cols %s (maxJ=%g)\n',i,abserr,relerr,num,indic,indjc,J(pos(1)));
                         return;
+                    else
+                        fprintf('Max absolute error %g, relative %g, max %d errors at rows %s, cols %s (maxJ=%g)\n',abserr,relerr,num,indic,indjc,J(pos(1)));
                     end
                 end
                 if ~gpi
