@@ -61,25 +61,22 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
     end
     
     methods
-        function this = FileTrajectoryData(varargin)
-            % Creates a new ModelData instance with trajectory DataDirectory in a file folder.
+        function this = FileTrajectoryData(datadir)
+            % Creates a new filesystem-based trajectory data container
             %
             % Parameters:
-            % varargin: Either a data.ModelData instance to infer the storage root from, or a
-            % string containing a valid folder. @default A temporary folder within the
-            % KerMor.TempDirectory
+            % datadir: A string containing a valid folder. @default A temporary folder within
+            % the KerMor.TempDirectory
             if ~usejava('jvm')
                 error('FileTrajectoryData cannot be used as java is not enabled.');
             end
-            if isempty(varargin)
+            if nargin < 1
                 data_dir = fullfile(KerMor.App.TempDirectory,sprintf('temp_ftd_%s',...
                     IDGenerator.generateID));
-            elseif isa(varargin{1},'data.ModelData')
-                data_dir = fullfile(varargin{1}.DataDirectory,'trajectories');
-            elseif ischar(varargin{1})
-                data_dir = varargin{1};
+            elseif ischar(datadir)
+                data_dir = datadir;
             else
-                error('Invalid argument: %s',class(varargin{1}));
+                error('Invalid argument: %s',class(datadir));
             end
             this = this@data.FileDataCollection(data_dir);
             this.clearTrajectories;

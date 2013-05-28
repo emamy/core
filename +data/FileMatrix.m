@@ -142,15 +142,18 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             bsize = min(ip.Results.BlockSize*1024^2,n*m*BYTEPERDOUBLE);
             bcols = max(floor(bsize/(BYTEPERDOUBLE*n)),1);
             nb = ceil(m / bcols);
-            args = {};
-            if nb > 1
-                ddir = ip.Results.Dir;
-                if isempty(ddir)
-                    ddir = KerMor.App.TempDirectory;
-                end
-                args{end+1} = fullfile(ddir,sprintf('matrix_%s',IDGenerator.generateID));
+            
+            % Determine the DataDirectory (store in each case, even if there is only one block.
+            % This is due to the fact that matrix operations can result in a filematrix with
+            % more than one block, thus needing to know where the previous matrix should have
+            % been located.
+            ddir = ip.Results.Dir;
+            if isempty(ddir)
+                ddir = KerMor.App.TempDirectory;
             end
-            this = this@data.FileData(args{:});
+            this = this@data.FileData(fullfile(ddir,...
+                sprintf('matrix_%s',IDGenerator.generateID)));
+            
             this.n = n;
             this.m = m;
             this.blocksize = bsize/1024^2;
@@ -194,6 +197,33 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 pos = this.getBlockPos(k);
                 copy.subsasgn(struct('type',{'()'},'subs',{{':',pos}}),this.loadBlock(k));
             end
+        end
+        
+        function relocate(this, new_root)
+            % Relocates this FileMatrix instance to a new folder
+            %
+            % Note that the FileMatrix takes a directory 'inside' which it will create a new
+            % directory using a certain hash.
+            % Thus, upon relocation, the folder that 'contains' the created folder must be
+            % passed.
+            %
+            % For example, assume we have DataDirectory=/some/path/matrix_246sg351dg. Then
+            % relocate with '/some/new/root' leads to the new path
+            % '/some/new/root/matrix_246sg351dg' at which the blocks of this file matrix are
+            % assumed to reside.
+            %
+            % Parameters:
+            % new_root: The root folder that contains a FileMatrix self-defined folder used to
+            % store the matrix blocks.
+            %
+            % See also: data.FileData.relocate
+            %
+            % @new{0,7,dw,2013-05-28} Added this method.
+            
+            % Extract matrix_xxx folder name
+            [~, mfolder] = fileparts(this.DataDirectory);
+            % Concatenate with new path and call superclass relocate
+            relocate@data.FileData(this, fullfile(new_root,mfolder));
         end
         
         function res = transposedTimes(this, B)
@@ -761,11 +791,6 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 end
                 this = loadobj@data.FileData(this, initfrom);
             else
-                % Set the currently cached block from the one-and-only block, if so
-%                 if this.nBlocks == 1
-%                     this.cachedBlock = this.block1;
-%                     this.cachedNr = 1;
-%                 end
                 this = loadobj@data.FileData(this);
             end
         end

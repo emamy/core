@@ -240,6 +240,11 @@ classdef BaseModel < KerMorObject
                 'tau','RealTimePlottingMinPause','RealTimePlotting');
         end
         
+        function delete(this)
+           this.ODESolver = [];
+           this.System = [];
+        end
+        
         function [t, y, sec, x] = simulate(this, mu, inputidx)
             % Simulates the system and produces the system's output.
             %

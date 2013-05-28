@@ -25,7 +25,7 @@ classdef ASelector < KerMorObject & ICloneable
     % @new{0,3,dw,2011-04-12} Added this class to implement strategy
     % pattern for training data selection.
     %
-    % @todo move to +data/+selection package
+    % @todo return data.FileMatrix instances from select methods in the first place..
     
     methods
         
@@ -45,6 +45,15 @@ classdef ASelector < KerMorObject & ICloneable
             %
             % Return values:
             % atd: The approximation training data @type data.ApproxTrainData
+            %
+            % "Hack": We convert any selected xi values to a FileMatrix here. The fact that the
+            % selected data fits into memory at this stage of course means it could fit there
+            % later on (and will be done so), but regarding storage of the model it is more
+            % consistent for the case where it could not be the case.
+            % Moreover, as long as the selected data does not exceed the default block size
+            % (see data.FileMatrix.BLOCK_SIZE), it is stored in the cached Block anyways.
+            %
+            % See also: data.ApproxTrainData.computeFrom
             if ~isa(model,'models.BaseFullModel')
                 error('The model parameter must be a BaseFullModel subclass.');
             elseif model.Data.TrajectoryData.getNumTrajectories == 0
@@ -52,7 +61,13 @@ classdef ASelector < KerMorObject & ICloneable
             end
             
             [xi, ti, mui] = this.select(model);
-            atd = data.ApproxTrainData(xi, ti, mui);
+            if ~isa(xi,'data.FileMatrix')
+                fmxi = data.FileMatrix(size(xi,1),size(xi,2),'Dir',model.Data.DataDirectory);
+                fmxi(:,:) = xi;
+            else
+                fmxi = xi;
+            end
+            atd = data.ApproxTrainData(fmxi, ti, mui);
         end
     end
     

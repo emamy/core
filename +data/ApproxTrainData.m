@@ -39,7 +39,7 @@ classdef ApproxTrainData < handle
         % @default [] @type matrix
         mui = [];
         
-        % The evaluations of `f(x_i,t_i,\mu_i)`
+        % The evaluations of `f(x_i,t_i,\mu_i)`, stored row-wise in a data.FileMatrix
         %
         % @type data.FileMatrix
         fxi;
@@ -160,6 +160,26 @@ classdef ApproxTrainData < handle
             satd.fxi = this.fxi(:,sel);
         end
         
+        function relocate(this, new_dir)
+            % Convenience method. Relocates the xi and fxi FileMatrix instances if present.
+            %
+            % Parameters:
+            % new_dir: The new directory @type char
+            %
+            % @new{0,7,dw,2013-05-28} Added this method.
+            if ~isempty(this.xi) && isa(this.xi,'data.FileData')
+                this.xi.relocate(new_dir);
+            end
+            if ~isempty(this.fxi) && isa(this.fxi,'data.FileData')
+                this.fxi.relocate(new_dir);
+            end
+        end
+        
+        function delete(this)
+            this.xi = [];
+            this.fxi = [];
+        end
+        
         function set.xi(this, value)
             if ~isempty(value)
                 if ~isa(value,'data.FileMatrix') && ismatrix(value)
@@ -193,6 +213,8 @@ classdef ApproxTrainData < handle
             % selector: The training data selector @type data.selection.ASelector
             % parallel: Flag to set if computation should be done in parallel (MatlabPool)
             % @type logical @default false
+            %
+            % See also: models.BaseFullModel error.DEIMEstimator
             if nargin < 4
                 parallel = false;
             end
@@ -203,8 +225,20 @@ classdef ApproxTrainData < handle
             % If projection is used, train approximating function in
             % centers projected into the subspace.
             if ~isempty(model.Data.V) && ~isempty(model.Data.W)
-                
-                atd.xi = model.Data.V*(model.Data.W'*atd.xi);
+                hlp = model.Data.V*(model.Data.W'*atd.xi);
+                % Precautionary case: If the atd.xi data is so small that it fits into one
+                % block, the arithmetic operations will return a simple double matrix, loosing
+                % and directory information of the original instance. Hence, in this case we
+                % create a new instance using the path of the old matrix
+                % The goal is to provide filesystem instances inside the model.Data class that
+                % are exclusively located inside the model's data folder.
+                if ~isa(hlp,'data.FileMatrix')
+                    atd.xi = data.FileMatrix(size(hlp,1),size(hlp,2),...
+                        'Dir',fileparts(atd.xi.DataDirectory));
+                    atd.xi(:,:) = hlp;
+                else
+                    atd.xi = hlp;
+                end
             end
             
             % Compute f-Values at training data
@@ -228,8 +262,8 @@ classdef ApproxTrainData < handle
                 if KerMor.App.Verbose > 0
                     fprintf('Serial computation of f-values at %d points (%d xi-blocks) ...\n',size(atd.xi,2),xi.nBlocks);
                 end
-                fxi = data.FileMatrix(f.fDim,size(xi,2),...
-                    'Dir',fileparts(xi.DataDirectory),'BlockSize',256);
+                % Use the same storage location as of the xi FileMatrix
+                fxi = data.FileMatrix(f.fDim,size(xi,2),'Dir',fileparts(xi.DataDirectory));
                 if KerMor.App.Verbose > 1
                     pi = ProcessIndicator('Computing %d %dx%d-block f evaluations on %d %dx%d-blocks of xi snapshots',...
                         fxi.nBlocks,false,fxi.nBlocks,fxi.n,fxi.bCols,xi.nBlocks,xi.n,xi.bCols);

@@ -39,7 +39,7 @@ classdef FileDataCollection < data.FileData
         end
         
         function delete(this)
-            % Destructor for FileTrajectoryData
+            % Destructor for FileDataCollection
             %
             % Deletes the DataDirectory if no trajectories are stored in it or it has not been
             % saved somewhere.
@@ -145,10 +145,6 @@ classdef FileDataCollection < data.FileData
    
     methods(Static, Access=protected)
         function this = loadobj(this, initfrom)
-            % Loads a FileTrajectoryData instance.
-            %
-            % Ensures that the directory associated with this FileTrajectoryData is existent.
-            
             created = false;
             if ~isa(this, 'data.FileDataCollection')
                 initfrom = this;

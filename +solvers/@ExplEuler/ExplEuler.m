@@ -112,7 +112,6 @@ classdef ExplEuler < solvers.BaseCustomSolver
                 
                 % Only produce output at wanted timesteps
                 if outputtimes(outidx) == idx
-                    outidx = outidx+1;
                     if rtm                        
                         % Real time mode: Fire StepPerformed event
                         ed.Times = t(idx);
@@ -120,8 +119,9 @@ classdef ExplEuler < solvers.BaseCustomSolver
                         this.notify('StepPerformed',ed);
                         % Normal mode: Collect solution in result vector
                     else
-                        x(:,outidx) = newx;
+                        x(:,outidx) = newx; %#ok
                     end
+                    outidx = outidx+1;
                 end
                 oldx = newx;
             end

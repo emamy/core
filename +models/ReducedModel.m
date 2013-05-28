@@ -73,7 +73,7 @@ classdef ReducedModel < models.BaseModel
         fErrorEstimator;
     end
     
-    methods(Sealed)
+    methods
         
         function this = ReducedModel(fullmodel, target_dim)
             % Creates a new reduced model instance.
@@ -91,6 +91,21 @@ classdef ReducedModel < models.BaseModel
                 this.setFullModel(fullmodel, target_dim);
             end
         end
+        
+        function delete(this)
+            this.ErrorEstimator = [];
+            this.V = [];
+            this.W = [];
+            % Delete the full model with it's ModelData instance at last (V, W might have data
+            % there)
+            this.FullModel = [];
+            
+            %delete@models.BaseModel(this);
+        end
+        
+    end
+    
+    methods(Sealed)
         
         function setFullModel(this, fullmodel, target_dim)
             % Creates a reduced model from a given full model.

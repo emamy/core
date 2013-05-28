@@ -21,6 +21,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 %
 % @author Daniel Wirtz @date 16.03.2010
 %
+% @new{0,7,dw,2013-05-28} Added an AutoSave flag for intermediate saving during offline phases.
+%
 % @new{0,6,dw,2012-10-10} Added the SaveTag property on this level. It is automatically set
 % according to the model name whenever it is still empty and the models name is set.
 %
@@ -223,8 +225,20 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         %
         % @propclass{optional}
         %
-        % @type char @default []
-        SaveTag = [];
+        % @type char @default basefullmodel
+        SaveTag = 'basefullmodel';
+        
+        % Flag to enable automatic saving of the model after each individual offline phase
+        % step and at other locations prone to data loss due to lengthy computations.
+        %
+        % Note that once a model has been saved, any file system folders created with that
+        % model will persist until manually deleted.
+        %
+        % @propclass{optional} This setting just decreases the chance of data loss due to
+        % intermediate saves.
+        %
+        % @type logical @default false
+        AutoSave = false;
     end
     
     properties(SetObservable, Dependent)
@@ -258,7 +272,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
     properties(Access=private)
         fTrainingInputs = [];
         ftcold = struct;
-        isGlobalOfflinePhase = false;
     end
            
     methods
@@ -282,7 +295,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % Register default properties
             this.registerProps('Sampler','SpaceReducer','Approx',...
                 'preApproximationTrainingCallback','postApproximationTrainingCallback',...
-                'Data','TrainingInputs');
+                'Data','TrainingInputs','AutoSave');
             
             % Create a listener for the 
             this.addlistener('T','PreSet', @this.intTimeChanging);
@@ -290,6 +303,17 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.addlistener('T','PostSet', @this.intTimeChanged);
             this.addlistener('dt','PostSet', @this.intTimeChanged);
             this.addlistener('Name','PostSet', @this.nameChanged);
+        end
+        
+        function delete(this)
+            this.Sampler = [];
+            this.SpaceReducer = [];
+            this.Approx = [];
+            % Clean up data at last (other instances might still have data inside DataDirectory
+            % folder)
+            this.Data = [];
+            
+            %delete@models.BaseModel(this);
         end
         
         function off1_createParamSamples(this)
@@ -383,12 +407,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 if KerMor.App.Verbose > 0
                     pi = ProcessIndicator(sprintf('Generating projection training data (%d trajectories)...',num_in*num_s),num_in*num_s);
                 end
-                if this.ComputeTrajectoryFxiData
-                    tfxd = data.FileTrajectoryData(...
-                        fullfile(this.Data.DataDirectory,'trajectory_fx'));
-                else
-                    tfxd = [];
-                end
                 % Iterate through all input functions
                 for inidx = 1:num_in
                     % Iterate through all parameter samples
@@ -419,7 +437,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                             hlp = tic;
                             fx = this.System.f.evaluate(x,t,repmat(mu,1,length(t)));
                             ctime = toc(hlp);
-                            tfxd.addTrajectory(fx, mu, inputidx, ctime);
+                            this.Data.TrajectoryFxiData.addTrajectory(fx, mu, inputidx, ctime);
                         end
                         
                         if KerMor.App.Verbose > 0
@@ -427,7 +445,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         end
                     end
                 end
-                this.Data.TrajectoryFxiData = tfxd;
                 if KerMor.App.Verbose > 0
                     pi.stop;
                 end
@@ -462,16 +479,18 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function off3_computeReducedSpace(this)
             % Offline phase 3: Generate state space reduction
             time = tic;
-            V = []; W = [];
             if ~isempty(this.SpaceReducer)
                 fprintf('Computing reduced space...\n');
                 [V, W] = this.SpaceReducer.generateReducedSpace(this);
-            end
-            this.Data.V = data.FileMatrix(V,'Dir',this.Data.DataDirectory);
-            if ~isempty(W)
-                this.Data.W = data.FileMatrix(W,'Dir',this.Data.DataDirectory);
-            else 
-                this.Data.W = this.Data.V;
+                this.Data.V = data.FileMatrix(V,'Dir',this.Data.DataDirectory);
+                if ~isempty(W)
+                    this.Data.W = data.FileMatrix(W,'Dir',this.Data.DataDirectory);
+                else 
+                    this.Data.W = this.Data.V;
+                end
+            else
+                this.Data.V = [];
+                this.Data.W = [];
             end
             this.OfflinePhaseTimes(3) = toc(time);
             this.autoSave;
@@ -550,22 +569,14 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % It calls all of the offX_ - methods in their order.
             %
             % See also: buildReducedModel
-            this.isGlobalOfflinePhase = true;
             this.OfflinePhaseTimes = [];
             
-            try
-                this.off1_createParamSamples;
-                this.off2_genTrainingData;
-                this.off3_computeReducedSpace;
-                this.off4_genApproximationTrainData;
-                this.off5_computeApproximation;
-                this.off6_prepareErrorEstimator;
-            catch ME
-                this.isGlobalOfflinePhase = false;
-                rethrow(ME);
-            end
-            
-            this.isGlobalOfflinePhase = false;
+            this.off1_createParamSamples;
+            this.off2_genTrainingData;
+            this.off3_computeReducedSpace;
+            this.off4_genApproximationTrainData;
+            this.off5_computeApproximation;
+            this.off6_prepareErrorEstimator;
         end
         
         function [reduced,time] = buildReducedModel(this, target_dim)
@@ -648,6 +659,21 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 cache = 0;
             end
         end
+        
+        function file = save(this)
+            % Saves this instance inside the data.ModelData.DataDirectory folder using the
+            % model's SaveTag if set or "model.mat".
+            %
+            % @new{0,7,dw,2013-05-28} Added this method
+            if ~isempty(this.SaveTag)
+                filename = this.SaveTag;
+            else
+                filename = 'model.mat';
+            end
+            file = fullfile(this.Data.DataDirectory,filename);
+            m = this; %#ok (renaming 
+            save(file,'m');
+        end
     end
     
     methods(Access=private)
@@ -675,7 +701,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         
         function autoSave(this)
             % Only save if in global offline phase
-            if this.isGlobalOfflinePhase
+            if this.AutoSave
                 save(fullfile(this.Data.DataDirectory,'model_autosave.mat'),'this');
             end
         end
@@ -738,6 +764,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 error('EnableTrajectoryCaching must be a flag (scalar logical)');
             end
             this.EnableTrajectoryCaching = value;
+        end
+        
+        function set.AutoSave(this, value)
+            if ~islogical(value) || ~isscalar(value)
+                error('AutoSave must be a flag (scalar logical)');
+            end
+            this.AutoSave = value;
         end
 
         function ti = get.TrainingInputs(this)
@@ -978,6 +1011,36 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             r = m.buildReducedModel;
             r.simulate();
             clear s m r;
+        end
+        
+        function res = test_FileSystemTidyness
+            % Plain small model
+            m = models.circ.RCLadder(10);
+            m.offlineGenerations;
+            dir = m.Data.DataDirectory;
+            
+            % Plain small model with FileData
+            m = models.circ.RCLadder(10);
+            
+            % Overwrite test: old m instance isnt needed anywhere else
+            res = exist(dir,'file') == 0;
+            
+            % Test with FileTrajectoryData, FileTrajectoryFxiData and nonempty SimCache
+            m.Data.useFileTrajectoryData;
+            m.ComputeTrajectoryFxiData = true;
+            m.TrainingInputs = [2 3];
+            m.offlineGenerations;
+            m.simulate([],4);
+            
+            % "Tweak" atd FileMatrices to contain more than one block
+            atd = m.Data.ApproxTrainData;
+            atd.xi = atd.xi.copyWithNewBlockSize(0.1);
+            atd.fxi = atd.fxi.copyWithNewBlockSize(0.1);
+            
+            dir = m.Data.DataDirectory;
+            clear atd;
+            clear m;
+            res = res && exist(dir,'file') == 0;
         end
     end
 end

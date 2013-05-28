@@ -592,6 +592,33 @@ classdef Utils
             end
         end
         
+        function folder = getDir(caption, initial_path)
+            % Prompts the user to select a directory.
+            %
+            % If no screen is used, a text input prompt will be used to let the user enter the
+            % path manually.
+            %
+            % Parameters:
+            % initial_path: The path to start from (only for UI)
+            % caption: The caption for the dialog/prompt
+            %
+            % 
+            if all(get(0,'Screensize') == 1)
+                if nargin < 1
+                    caption = 'Please specify a directory';
+                end
+                folder = input([caption ': '],'s');
+                if isempty(folder)
+                    folder = 0;
+                end
+            else
+                if nargin < 2
+                    initial_path = cd;
+                end
+                folder = uigetdir(initial_path, caption);
+            end
+        end
+        
         function success = ensureDir(dir)
             % Ensures that a directory exists.
             %

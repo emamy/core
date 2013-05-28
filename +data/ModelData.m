@@ -1,20 +1,26 @@
 classdef ModelData < data.FileData
-% Data class that contains a model's large data, including subspace matrices, trajectories and
-% approximation training data.
-%
-%
-% @new{0,6,dw,2012-07-10} Created this general class with all detailed data and a root folder
-% where the model's (possible) data resides. The former ATrajectoryData has been split up into this
-% and ATrajectoryData.
-%
-% @author Daniel Wirtz @date 2012-07-10
-%
-% This class is part of the framework
-% KerMor - Model Order Reduction using Kernels:
-% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
-% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
-% - \c License @ref licensing
-
+    % Data class that contains a model's large data, including subspace matrices, trajectories and
+    % approximation training data.
+    %
+    %
+    % @new{0,6,dw,2012-07-10} Created this general class with all detailed data and a root folder
+    % where the model's (possible) data resides. The former ATrajectoryData has been split up into this
+    % and ATrajectoryData.
+    %
+    % @author Daniel Wirtz @date 2012-07-10
+    %
+    % This class is part of the framework
+    % KerMor - Model Order Reduction using Kernels:
+    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % - \c License @ref licensing
+    
+    properties(Constant, Access=private)
+        FileTrajectoryDataFolder = 'trajectories';
+        FileTrajectoryFxiDataFolder = 'trajectories_fx';
+        SimCacheDataFolder = 'simcache';
+    end
+    
     properties
         % A Model's parameter samples as column vector collection
         %
@@ -53,7 +59,7 @@ classdef ModelData < data.FileData
         %
         % @type data.ApproxTrainData @default []
         JacobianTrainData = [];
-                
+        
         % The projection matrix `V` for the reduced subspace.
         %
         % @type matrix<double> @default []
@@ -87,7 +93,10 @@ classdef ModelData < data.FileData
             %
             % Parameters:
             % varargin: Either a models.BaseFullModel instance to infer the data directory
-            % from, or a string containing a valid folder. @default A temporary folder within
+            % from, or a string containing a valid folder. If a model instance is passed, and
+            % additional varargin argument may contain a target directory. In this case, the
+            % model's models.BaseFullModel.SaveTag along with the ID will be used to determine
+            % the model data storage directory.@default A temporary folder within
             % the KerMor.TempDirectory
             %
             % @change{0,7,dw,2013-04-15} Using the SaveTag + ID to determine the data storage
@@ -109,8 +118,12 @@ classdef ModelData < data.FileData
                 error('Invalid argument: %s',class(varargin{1}));
             end
             this = this@data.FileData(data_dir);
+            % Init with default memory data storages
             this.TrajectoryData = data.MemoryTrajectoryData;
-            this.SimCache = data.FileTrajectoryData(fullfile(data_dir,'simcache'));
+            this.TrajectoryFxiData = data.MemoryTrajectoryData;
+            
+            %% Sim cache is FileTrajectoryData by default
+            this.SimCache = data.FileTrajectoryData(fullfile(data_dir,this.SimCacheDataFolder));
             % Dont force uniform trajectory lengths for simulation cache
             this.SimCache.UniformTrajectories = false;
         end
@@ -121,7 +134,7 @@ classdef ModelData < data.FileData
             % Parameters:
             % idx: The parameter indices @type rowvec<int32>
             %
-            % Return values: 
+            % Return values:
             % mu: The parameters `mu` for the given indices idx. Returns
             % [] if any index is invalid or idx==[]. @type matrix<double>
             mu = [];
@@ -136,7 +149,7 @@ classdef ModelData < data.FileData
             % Finds the column index of the given parameter vector `\mu`
             % within the Data's ParamSamples matrix. Returns [] if `\mu` is
             % not found.
-            % 
+            %
             % See also: ModelData/getTrajectory
             idx = [];
             for n=1:this.SampleCount
@@ -148,11 +161,101 @@ classdef ModelData < data.FileData
         end
         
         function delete(this)
+            this.V = [];
+            this.W = [];
             this.SimCache = [];
             this.TrajectoryData = [];
+            this.TrajectoryFxiData = [];
             this.ApproxTrainData = [];
             this.JacobianTrainData = [];
             delete@data.FileData(this);
+        end
+        
+        function relocate(this, new_dir)
+            % Relocates this ModelData instances filesystem-bound quantities to a new location.
+            %
+            % Parameters:
+            % new_dir: The new directory @type char
+            %
+            % @new{0,7,dw,2013-05-28} Added this method.
+            if nargin < 2
+                new_dir = Utils.getDir('Please specify the directory',KerMor.App.DataDirectory);
+                if new_dir == 0
+                    fprintf(2,'No directory selected. Aborting.\n');
+                    return;
+                end
+            end
+            
+            if ~isempty(this.TrajectoryData) && isa(this.TrajectoryData,'data.FileData')
+                this.TrajectoryData.relocate(...
+                    fullfile(new_dir,this.FileTrajectoryDataFolder));
+            end
+            if ~isempty(this.TrajectoryFxiData) && isa(this.TrajectoryFxiData,'data.FileData')
+                this.TrajectoryFxiData.relocate(...
+                    fullfile(new_dir,this.FileTrajectoryFxiDataFolder));
+            end
+            if ~isempty(this.SimCache) && isa(this.SimCache,'data.FileData')
+                this.SimCache.relocate(...
+                    fullfile(new_dir,this.SimCacheDataFolder));
+            end
+            if ~isempty(this.ApproxTrainData)
+                this.ApproxTrainData.relocate(new_dir);
+            end
+            if ~isempty(this.JacobianTrainData)
+                this.JacobianTrainData.relocate(new_dir);
+            end
+            if ~isempty(this.V)
+                this.V.relocate(new_dir);
+            end
+            if ~isempty(this.W) && ~isequal(this.V,this.W)
+                this.W.relocate(new_dir);
+            end
+            relocate@data.FileData(this, new_dir);
+        end
+        
+        function useFileTrajectoryData(this, overwrite)
+            % Sets the TrajectoryData and TrajectoryFxiData classes to filesystem based
+            % versions.
+            %
+            % Throws an error if any affected instance is already a data.FileTrajectoryData.
+            %
+            % Parameters:
+            % overwrite: Set to true if new instances should be created, overwriting previous
+            % FileTrajectoryData instances. @type logical @default false
+            if nargin < 2
+                overwrite = false;
+            end
+            if ~overwrite && isa(this.TrajectoryData,'data.FileTrajectoryData')
+                error('TrajectoryData already is a data.FileTrajectoryData. Use "true" parameter to overwrite.');
+            end
+            this.TrajectoryData = [];
+            this.TrajectoryData = data.FileTrajectoryData(...
+                fullfile(this.DataDirectory,this.FileTrajectoryDataFolder));
+            if ~overwrite && isa(this.TrajectoryFxiData,'data.FileTrajectoryData')
+                error('TrajectoryFxiData already is a data.FileTrajectoryData. Use "true" parameter to overwrite.');
+            end
+            this.TrajectoryFxiData = [];
+            this.TrajectoryFxiData = data.FileTrajectoryData(...
+                fullfile(this.DataDirectory,this.FileTrajectoryFxiDataFolder));
+        end
+    end
+    
+    methods(Static, Access=protected)
+        function this = loadobj(this)
+            % Loads the ModelData with automatic relocation for different hosts.
+            %
+            % If the directory does not exist and we are on a different host, open a directory
+            % selection dialog to select the new data directory.
+            if ~isa(this,'data.ModelData')
+                initfrom = this;
+                this = data.ModelData(initfrom.DataDirectory);
+                this = loadobj@data.FileData(this,initfrom);
+            else
+                this = loadobj@data.FileData(this);
+            end
+            if exist(this.DataDirectory,'file') == 0
+                fprintf(2,'If you have moved the folder or attempt to load data on a different machine, use the ModelData.relocate method.\n');
+            end
         end
     end
     
@@ -161,7 +264,7 @@ classdef ModelData < data.FileData
         function value = get.SampleCount(this)
             value = size(this.ParamSamples,2);
         end
-             
+        
         function set.ApproxTrainData(this, value)
             if ~isempty(value) && ~isa(value, 'data.ApproxTrainData')
                 error('The ApproxTrainData must be a data.ApproxTrainData subclass.');
@@ -209,6 +312,5 @@ classdef ModelData < data.FileData
         end
         
     end
-    
 end
 
