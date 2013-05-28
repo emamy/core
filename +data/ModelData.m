@@ -98,7 +98,7 @@ classdef ModelData < data.FileData
                     IDGenerator.generateID));
             elseif isa(varargin{1},'models.BaseFullModel')
                 m = varargin{1};
-                basedir = KerMor.App.DataStoreDirectory;
+                basedir = KerMor.App.DataDirectory;
                 if length(varargin) > 1 && ischar(varargin{2})
                     basedir = varargin{2};
                 end

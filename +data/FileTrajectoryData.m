@@ -3,7 +3,7 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
 %
 % The constructor takes an optional storage_root parameter.
 % If given, it must be a valid folder in the file system.
-% If not given, the value set in KerMor.App.DataStoreDirectory is used.
+% If not given, the value set in KerMor.App.DataDirectory is used.
 %
 % @author Daniel Wirtz @date 2011-08-04
 %
@@ -192,11 +192,11 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
             % according to the current model ID.
             error('proper functionality not guaranteed since introduction of FileDataCollection');
             if nargin == 3
-                olddir = fullfile(KerMor.App.DataStoreDirectory,['rm_' num2str(model_ID)]);
-                newdir = fullfile(KerMor.App.DataStoreDirectory,['rm_' num2str(model.ID)]);
+                olddir = fullfile(KerMor.App.DataDirectory,['rm_' num2str(model_ID)]);
+                newdir = fullfile(KerMor.App.DataDirectory,['rm_' num2str(model.ID)]);
                 movefile(olddir,newdir);
             end
-            this.DataDirectory = fullfile(KerMor.App.DataStoreDirectory,['rm_' num2str(model.ID)]);
+            this.DataDirectory = fullfile(KerMor.App.DataDirectory,['rm_' num2str(model.ID)]);
             
             this.hm.clear;
             this.bbmin = [];
