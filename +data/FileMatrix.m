@@ -174,6 +174,19 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             end
         end
         
+        function B = spawnWithContent(this, A)
+            % Creates a new FileMatrix containing the matrix A. The matrix is stored at the 
+            % at the same location as the current matrix and the same block size is used.
+            %
+            % Parameters:
+            % A: The new matrix. @type matrix<double>
+            %
+            % Return values:
+            % B: A new data.FileMatrix instance containing B.
+            B = data.FileMatrix(A,'Dir',fileparts(this.DataDirectory),'Blocksize',this.blocksize);
+        end
+            
+        
         function [rowmin, rowmax] = getColBoundingBox(this)
             % Computes the bounding box of the matrix with respect to columns.
             rowmin = Inf*ones(this.n,1);

@@ -137,7 +137,7 @@ classdef LogPlot
             % p: The object(s) created by the plot function @type handle
             %
             % See also: plot semilogy
-            if any(y(:)) < 0 || all(max(y)./min(y) < 100)
+            if any(y(:)) < 0 || all(max(y)./min(y) < 50)
                 pfun = @plot;
             else
                 % As soon as one plot varies over more that two orders of magnitude,
