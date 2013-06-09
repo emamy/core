@@ -108,10 +108,16 @@ classdef FunVis2DHandler < handle
             copyobj(get(this.handles.ax,'Children'), ax);
             % Set same view
             set(ax,'View',get(this.handles.ax,'View'));
+            zlabel(ax, this.getOutputDimLabel);
         end
         
         function setView(this, az, el)
             set(this.handles.ax,'View',[az el]);
+        end
+        
+        function lbl = getOutputDimLabel(this)
+            sv = get(this.handles.dout,'String');
+            lbl = sv(get(this.handles.dout,'Value'));
         end
     end
     methods(Access=private)

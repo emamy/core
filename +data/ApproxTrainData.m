@@ -180,6 +180,30 @@ classdef ApproxTrainData < handle
             this.fxi = [];
         end
         
+        function makeUniqueXi(this)
+            xi = this.xi.toMemoryMatrix;
+            [~, selidx] = unique(xi','rows');
+            oldnum = size(xi,2);
+            if length(selidx) < oldnum
+                this.xi = this.xi.spawnWithContent(xi(:,selidx));
+                if ~isempty(this.fxi)
+                    this.fxi = this.fxi.spawnWithContent(this.fxi(:,selidx));
+                else
+                    warning('KerMor:atd','No fxi data set yet but changing xi values! CAREFUL!');
+                end
+                if ~isempty(this.ti)
+                    this.ti = this.ti(selidx);
+                end
+                if ~isempty(this.mui)
+                    this.mui = this.mui(:,selidx);
+                end
+                fprintf('makeUniqueXi: Deleted %d training points (old:%d, new:%d)\n',...
+                    oldnum-length(selidx),oldnum,length(selidx));
+            elseif KerMor.App.Verbose > 0
+                fprintf('Nothing to do, all xi unique.\n');
+            end
+        end
+        
         function set.xi(this, value)
             if ~isempty(value)
                 if ~isa(value,'data.FileMatrix') && ismatrix(value)
@@ -233,9 +257,10 @@ classdef ApproxTrainData < handle
                 % The goal is to provide filesystem instances inside the model.Data class that
                 % are exclusively located inside the model's data folder.
                 if ~isa(hlp,'data.FileMatrix')
-                    atd.xi = data.FileMatrix(size(hlp,1),size(hlp,2),...
-                        'Dir',fileparts(atd.xi.DataDirectory));
-                    atd.xi(:,:) = hlp;
+                    atd.xi = atd.xi.spawnWithContent(hlp);
+%                     atd.xi = data.FileMatrix(size(hlp,1),size(hlp,2),...
+%                         'Dir',fileparts(atd.xi.DataDirectory));
+%                     atd.xi(:,:) = hlp;
                 else
                     atd.xi = hlp;
                 end
@@ -284,27 +309,6 @@ classdef ApproxTrainData < handle
                     pi.stop;
                 end
                 atd.fxi = fxi;
-            end
-        end
-        
-        function atd = makeUniqueXi(atd)
-            error('not yet implemented with handle usage');
-            [~, selidx] = unique(atd.xi','rows');
-            if length(selidx) ~= size(atd.xi,2)
-                atd.xi = atd.xi(:,selidx);
-                if ~isempty(atd.fxi)
-                    atd.fxi = atd.fxi(:,selidx);
-                else
-                    warning('KerMor:atd','No fxi data set yet but changing xi values! CAREFUL!');
-                end
-                if ~isempty(atd.ti)
-                    atd.ti = atd.ti(selidx);
-                end
-                if ~isempty(atd.mui)
-                    atd.mui = atd.mui(:,selidx);
-                end
-            else
-                fprintf('Nothing to do, all xi unique.\n');
             end
         end
         
