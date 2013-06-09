@@ -389,6 +389,11 @@ classdef BaseModel < KerMorObject
             end
             sys = this.System;
             
+            % Check explicit solvers
+            if isempty(this.System.MaxTimestep) && ~isa(this.fODEs,'solvers.IImplSolver')
+                cprintf(KerMor.WarnColor,'Attention: Using an explicit solver without System.MaxTimestep set. Please check.\n');
+            end
+            
             % Stop the time
             st = tic;
             
@@ -515,6 +520,30 @@ classdef BaseModel < KerMorObject
         end
     end
     
+    methods(Static, Access=protected)
+        function this = loadobj(this, s)
+            if ~isa(this,'models.BaseModel') && nargin < 2
+                error('The model class has changed but the loadobj method does not implement backwards-compatible loading behaviour.\nPlease implement the loadobj-method in your subclass and pass the loaded object struct as second argument.');
+            end
+            if nargin == 2
+                this.System = s.System;
+                this.Name = s.Name;
+                this.G = s.G;
+                this.RealTimePlottingMinPause = s.RealTimePlottingMinPause;
+                this.ftau = s.ftau;
+                this.fdt = s.fdt;
+                this.fT = s.fT;
+                this.frtp = s.frtp;
+                this.fODEs = s.fODEs;
+                this.steplistener = s.steplistener;
+                this.ctime = s.ctime;
+                this.dtscaled = s.dtscaled;
+                this.gitRefOnSave = s.gitRefOnSave;
+            end
+            this = loadobj@DPCMObject(this);
+        end
+    end
+    
     methods(Access=protected, Sealed)
         function plotstep(this, src, ed)%#ok
             % Callback for the ODE solvers StepPerformed event that enables
@@ -619,17 +648,6 @@ classdef BaseModel < KerMorObject
                     delete(this.steplistener);
                 end
                 this.steplistener = value.addlistener('StepPerformed',@this.plotstep);
-            end
-            % Disable the MaxTimestep value if an implicit solver is used.
-            if ~isempty(this.System) 
-                if isa(value,'solvers.IImplSolver')
-                    if ~isempty(this.System.MaxTimestep)
-                        fprintf('BaseModel: Disabling system''s MaxTimestep due to use of an implicit solver.\n');
-                    end
-                    this.System.MaxTimestep = [];
-                elseif isempty(this.System.MaxTimestep)
-                    warning('KerMor:BaseModel','Attention: Setting an explicit solver for a system without MaxTimestep set. Please check.');
-                end
             end
             this.fODEs = value;
         end

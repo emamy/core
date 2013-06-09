@@ -104,7 +104,7 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
         function ct = prepareConstants(this, ~, ~)
             st = tic;
             if isempty(this.lstPreSolve)
-                this.lstPreSolve = addlistener(rmodel.ODESolver,'PreSolve',@this.cbPreSolve);
+                this.lstPreSolve = addlistener(this.ReducedModel.ODESolver,'PreSolve',@this.cbPreSolve);
             end
             this.lstPreSolve.Enabled = true;
             this.StepNr = 1;

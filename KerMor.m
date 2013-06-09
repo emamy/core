@@ -301,6 +301,8 @@ classdef KerMor < handle
         %
         % See also: getPrefTag
         PrefTagPrefix = 'KerMor_at_';
+        
+        WarnColor = [1 .5 0];
     end
       
     properties
@@ -985,7 +987,7 @@ classdef KerMor < handle
                 b = fileread('.gitbranch');
                 delete .gitbranch;
             else
-                warning('KerMor:Env','An error occurred retrieving the git commit: %s',msg);
+                cprintf(KerMor.WarnColor,'KerMor.getGitBranch: %s\n',strrep(msg,char(10),''));
                 b = [];
             end            
             cd(olddir);

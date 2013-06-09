@@ -313,7 +313,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % folder)
             this.Data = [];
             
-            %delete@models.BaseModel(this);
+            delete@models.BaseModel(this);
         end
         
         function off1_createParamSamples(this)
@@ -786,8 +786,31 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
     end
     
     methods(Static, Access=protected)
-        function this = loadobj(this)
-            this = loadobj@DPCMObject(this);
+        function this = loadobj(this, sobj)
+            if ~isa(this,'models.BaseFullModel') && nargin < 2
+                error('The model class has changed but the loadobj method does not implement backwards-compatible loading behaviour.\nPlease implement the loadobj-method in your subclass and pass the loaded object struct as second argument.');
+            end
+            if nargin == 2
+                this.Data = sobj.Data;
+                this.SpaceReducer = sobj.SpaceReducer;
+                this.Approx = sobj.Approx;
+                this.JKerMorExport = sobj.JKerMorExport;
+                this.Sampler = sobj.Sampler;
+                this.EnableTrajectoryCaching = sobj.EnableTrajectoryCaching;
+                this.preApproximationTrainingCallback = sobj.preApproximationTrainingCallback;
+                this.postApproximationTrainingCallback = sobj.postApproximationTrainingCallback;
+                this.ErrorEstimator = sobj.ErrorEstimator;
+                this.ComputeTrajectoryFxiData = sobj.ComputeTrajectoryFxiData;
+                this.ComputeBSpan = sobj.ComputeBSpan;
+                this.SaveTag = sobj.SaveTag;
+                this.fTrainingInputs = sobj.fTrainingInputs;
+                this.OfflinePhaseTimes = sobj.OfflinePhaseTimes;
+                this.ftcold = sobj.ftcold;
+                if isfield(sobj,'AutoSave')
+                    this.AutoSave = sobj.AutoSave;
+                end
+            end
+            this = loadobj@models.BaseModel(this);
             this.addlistener('T','PreSet', @this.intTimeChanging);
             this.addlistener('dt','PreSet', @this.intTimeChanging);
             this.addlistener('T','PostSet', @this.intTimeChanged);
