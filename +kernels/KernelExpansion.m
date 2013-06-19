@@ -254,6 +254,8 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         function kexp = toTranslateBase(this)
             % Returns the same kernel expansion with the canonical translate base used.
             %
+            % If no custom base is used, a simple copy will be returned.
+            %
             % Using a non-standard base may be the result of a Newton-base type approximation
             % algorithm. However, evaluating the kernel expansion in a different base is less
             % effective. If the coefficients of the direct translates are not too bad (i.e.
@@ -267,8 +269,8 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             if kexp.HasCustomBase
                 kexp.Ma = kexp.Ma/kexp.Base;
                 kexp.Base = 1;
-            else
-                warning('KernelExpansion:toTranslateBase','No base defined. Returning simple clone.');
+            %else
+            %    warning('KernelExpansion:toTranslateBase','No base defined. Returning simple clone.');
             end
         end
         

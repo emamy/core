@@ -301,6 +301,8 @@ classdef KerMor < handle
         %
         % See also: getPrefTag
         PrefTagPrefix = 'KerMor_at_';
+        
+        WarnColor = [1 .5 0];
     end
       
     properties
@@ -311,12 +313,7 @@ classdef KerMor < handle
         % given the KerMor.start script will ask for it.
         %
         % @default ./data @type char
-        DataStoreDirectory = '';
-        
-        % The directory to use for temporary simulation data
-        %
-        % @default ./temp @type char
-        TempDirectory = '';
+        DataDirectory = '';
         
         % The preferred desktop layout to work with.
         %
@@ -381,6 +378,12 @@ classdef KerMor < handle
         %
         % @default false
         Hasrbmatlab = false;
+        
+        % The directory to use for temporary simulation data
+        %
+        % It is located in a "tmp" subfolder of the DataDirectory path.
+        % @default DataDirectory/tmp @type char
+        TempDirectory = '';
     end
  
     % Getter & Setter
@@ -413,24 +416,16 @@ classdef KerMor < handle
             end
         end
           
-        function set.DataStoreDirectory(this, value)
+        function set.DataDirectory(this, value)
             if ~isempty(value) && ~isdir(value)
                 fprintf('Creating directory %s\n',value);
                 mkdir(value);
             end
             setpref(this.getPrefTag,'DATASTORE',value);
-            this.DataStoreDirectory = value;
-            fprintf('Simulation and model data: %s\n',value);
-        end
-        
-        function set.TempDirectory(this, value)
-            if ~isempty(value) && ~isdir(value)
-                fprintf('Creating directory %s\n',value);
-                mkdir(value);
+            this.DataDirectory = value;
+            if this.Verbose > 0 %#ok
+                fprintf('Simulation and model data: %s\n',value);
             end
-            setpref(this.getPrefTag,'TMPDIR',value);
-            this.TempDirectory = value;
-            fprintf('Temporary files: %s\n',value);
         end
         
         function set.DesktopLayout(this, value)
@@ -503,29 +498,24 @@ classdef KerMor < handle
             h = this.HomeDirectory;
         end
         
-        function h = get.DataStoreDirectory(this)
+        function h = get.DataDirectory(this)
             
             % recover values if clear classes has been issued
-            if isempty(this.DataStoreDirectory)
+            if isempty(this.DataDirectory)
                 h = getpref(this.getPrefTag,'DATASTORE','');
                 if ~isempty(h)
-                    this.DataStoreDirectory = h;
+                    this.DataDirectory = h;
                 end
             else
-                h = this.DataStoreDirectory;
+                h = this.DataDirectory;
             end
         end
         
         function h = get.TempDirectory(this)
-            % recover values if clear classes has been issued
-            if isempty(this.TempDirectory)
-                h = getpref(this.getPrefTag,'TMPDIR','');
-                if ~isempty(h)
-                    this.TempDirectory = h;
-                end
-            else
-                h = this.TempDirectory;
-            end
+            % Returns the directory for temporary files.
+            %
+            % It is located in a "tmp" subfolder of the DataDirectory path.
+            h = fullfile(this.DataDirectory,'tmp');
         end
         
         function d = get.DesktopLayout(this)
@@ -888,7 +878,7 @@ classdef KerMor < handle
             
             %% KerMor directories
             % Setup the data storage directory
-            ds = a.DataStoreDirectory;
+            ds = a.DataDirectory;
             word = 'keep';
             if isempty(ds)
                 ds = fullfile(a.HomeDirectory,'data');
@@ -902,7 +892,7 @@ classdef KerMor < handle
                 end
                 ds = d;
             end
-            a.DataStoreDirectory = ds;
+            a.DataDirectory = ds;
 
             % Setup the temp directory
             ds = a.TempDirectory;
@@ -997,7 +987,7 @@ classdef KerMor < handle
                 b = fileread('.gitbranch');
                 delete .gitbranch;
             else
-                warning('KerMor:Env','An error occurred retrieving the git commit: %s',msg);
+                cprintf(KerMor.WarnColor,'KerMor.getGitBranch: %s\n',strrep(msg,char(10),''));
                 b = [];
             end            
             cd(olddir);

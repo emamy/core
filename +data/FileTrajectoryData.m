@@ -3,7 +3,7 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
 %
 % The constructor takes an optional storage_root parameter.
 % If given, it must be a valid folder in the file system.
-% If not given, the value set in KerMor.App.DataStoreDirectory is used.
+% If not given, the value set in KerMor.App.DataDirectory is used.
 %
 % @author Daniel Wirtz @date 2011-08-04
 %
@@ -61,25 +61,22 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
     end
     
     methods
-        function this = FileTrajectoryData(varargin)
-            % Creates a new ModelData instance with trajectory DataDirectory in a file folder.
+        function this = FileTrajectoryData(datadir)
+            % Creates a new filesystem-based trajectory data container
             %
             % Parameters:
-            % varargin: Either a data.ModelData instance to infer the storage root from, or a
-            % string containing a valid folder. @default A temporary folder within the
-            % KerMor.TempDirectory
+            % datadir: A string containing a valid folder. @default A temporary folder within
+            % the KerMor.TempDirectory
             if ~usejava('jvm')
                 error('FileTrajectoryData cannot be used as java is not enabled.');
             end
-            if isempty(varargin)
+            if nargin < 1
                 data_dir = fullfile(KerMor.App.TempDirectory,sprintf('temp_ftd_%s',...
                     IDGenerator.generateID));
-            elseif isa(varargin{1},'data.ModelData')
-                data_dir = fullfile(varargin{1}.DataDirectory,'trajectories');
-            elseif ischar(varargin{1})
-                data_dir = varargin{1};
+            elseif ischar(datadir)
+                data_dir = datadir;
             else
-                error('Invalid argument: %s',class(varargin{1}));
+                error('Invalid argument: %s',class(datadir));
             end
             this = this@data.FileDataCollection(data_dir);
             this.clearTrajectories;
@@ -192,11 +189,11 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
             % according to the current model ID.
             error('proper functionality not guaranteed since introduction of FileDataCollection');
             if nargin == 3
-                olddir = fullfile(KerMor.App.DataStoreDirectory,['rm_' num2str(model_ID)]);
-                newdir = fullfile(KerMor.App.DataStoreDirectory,['rm_' num2str(model.ID)]);
+                olddir = fullfile(KerMor.App.DataDirectory,['rm_' num2str(model_ID)]);
+                newdir = fullfile(KerMor.App.DataDirectory,['rm_' num2str(model.ID)]);
                 movefile(olddir,newdir);
             end
-            this.DataDirectory = fullfile(KerMor.App.DataStoreDirectory,['rm_' num2str(model.ID)]);
+            this.DataDirectory = fullfile(KerMor.App.DataDirectory,['rm_' num2str(model.ID)]);
             
             this.hm.clear;
             this.bbmin = [];
