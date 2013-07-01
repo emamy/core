@@ -20,7 +20,7 @@
 %   fig_handle - The handle of the figure to be saved. Default: gcf.
 %   options - Additional parameter strings to be passed to print.
 
-% Copyright (C) Oliver Woodford 2008-2012
+% Copyright (C) Oliver Woodford 2008-2013
 
 % The idea of editing the EPS file to change line styles comes from Jiro
 % Doke's FIXPSLINESTYLE (fex id: 17928)
@@ -47,6 +47,8 @@
 % 26/10/12: Fix issue to do with swapping fonts changing other fonts and
 %           sizes we don't want, due to listeners. Thanks to Malcolm Hudson
 %           for reporting the issue.
+% 22/03/13: Extend font swapping to axes labels. Thanks to Rasmus Ischebeck
+%           for reporting the issue.
 
 function print2eps(name, fig, varargin)
 options = {'-depsc2'};
@@ -60,7 +62,7 @@ if numel(name) < 5 || ~strcmpi(name(end-3:end), '.eps')
     name = [name '.eps']; % Add the missing extension
 end
 % Find all the used fonts in the figure
-font_handles = findobj(fig, '-property', 'FontName');
+font_handles = findall(fig, '-property', 'FontName');
 fonts = get(font_handles, 'FontName');
 if ~iscell(fonts)
     fonts = {fonts};
@@ -97,7 +99,10 @@ for a = 1:size(font_swap, 2)
 end
 % Swap the fonts
 if ~isempty(font_swap)
-    fonts_size = cell2mat(get(font_handles, 'FontSize'));
+    fonts_size = get(font_handles, 'FontSize');
+    if iscell(fonts_size)
+        fonts_size = cell2mat(fonts_size);
+    end
     M = false(size(font_handles));
     % Loop because some changes may not stick first time, due to listeners
     c = 0;
