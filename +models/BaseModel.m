@@ -508,7 +508,7 @@ classdef BaseModel < KerMorObject
             % Return values:
             % x0: the initial state for the parameter `\mu` @type matrix<double>
             ss = this.System.StateScaling;
-            if size(mu,2) > 1
+            if (size(mu,2) > 1) && ~isscalar(ss)
                 ss = repmat(this.System.StateScaling,1,size(mu,2));
             end
             x0 = this.System.x0.evaluate(mu) ./ ss;

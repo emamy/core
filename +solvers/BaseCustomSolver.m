@@ -115,7 +115,7 @@ classdef BaseCustomSolver < solvers.BaseSolver
                 if numel(t) == 2
                     times = t(1):this.MaxStep:t(2);
                     % outputtimes = true(1,length(times));
-                    outidx = 1:2;
+                    outidx = [1,length(times)];
                 else
                     len = length(t);
                     n = max(round((t(2:len)-t(1:len-1))/this.MaxStep),1);  % number of steps in interval [t(i-1),t(i)] after refinemant. If t(i-1)-t(i)>= 1.5*MaxStep, interval will be refined
