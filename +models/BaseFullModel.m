@@ -309,6 +309,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.Sampler = [];
             this.SpaceReducer = [];
             this.Approx = [];
+            this.System = [];
             % Clean up data at last (other instances might still have data inside DataDirectory
             % folder)
             this.Data = [];
