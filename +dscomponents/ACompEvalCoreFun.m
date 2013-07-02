@@ -186,7 +186,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
                     % the elements occur in jpd{i} to maintain correct
                     % ordering.
                     [~, sidx] = sort(dpos);
-                    pos = matchidx(sidx);
+                    pos = reshape(matchidx(sidx),1,[]);
                     
 %                     pos1 = jpd{i}(deriv_elem);
                     if ~isempty(pos)

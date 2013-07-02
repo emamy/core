@@ -20,13 +20,22 @@ classdef MatlabDocMaker
 %
 % @author Daniel Wirtz @date 2011-10-13
 %
+% @change{1,5,dw,2013-02-21} Fixed the callback for suggested direct documentation creation
+% after MatlabDocMaker.setup (Thanks to Aurelien Queffurust)
+%
+% @change{1,5,dw,2013-02-12} Also added the escaping for the Logo file. Thanks to Chris Olien
+% for the hint.
+%
+% @change{1,5,dw,2013-01-07} Included some backslash escaping for paths on windows platforms.
+% Thanks to MathWorks Pilot Engineer '''Arvind Jayaraman''' for providing the feedback and code!
+%
 % @change{1,4,dw,2012-10-18} Removed \c m4 dependency and included constant properties for
 % configuration file names.
 %
 % @new{1,4,dw,2012-10-16}
 % - Added two more configuration variables "ProjectDescription" and "ProjectLogo" for easier
 % configuration of the MatlabDocMaker in many cases. Thanks to Wolfgang
-% Mennerich<Wolfgang.Mennerich@focubeam.com> for the suggestion.
+% Mennerich <http://www.mathworks.com/matlabcentral/fileexchange/authors/272859> for the suggestion.
 % - Restructured the configuration, now only the project name function has to be implemented
 % (the preferences tag depends on it, there might be more than one project within the same
 % Matlab installation whos documentation is created using this tool). The rest can be provided
@@ -300,9 +309,9 @@ classdef MatlabDocMaker
             % Parameters:
             % varargin: Optional parameters for creation.
             % open: Set to true if the documentation should be opened after
-            % successful compilation @type logical
-            % latex: Set to true if `\text{\LaTeX}` output should be generated, too. @type
-            % logical
+            % successful compilation @type logical @default false
+            % latex: Set to true if `\text{\LaTeX}` output should be generated, too. @type logical
+            % @default false
            
             %% Preparations
             ip = inputParser;
@@ -377,14 +386,14 @@ classdef MatlabDocMaker
             end
             
             %% Prepare placeholders in the Doxyfile template
-            m = {'_OutputDir_' outdir; ...
-                 '_SourceDir_' MatlabDocMaker.getSourceDirectory;...
-                 '_ConfDir_' cdir;...
+            m = {'_OutputDir_' strrep(outdir,'\','\\'); ...
+                 '_SourceDir_' strrep(MatlabDocMaker.getSourceDirectory,'\','\\');...
+                 '_ConfDir_' strrep(cdir,'\','\\');...
                  '_ProjectName_' MatlabDocMaker.getProjectName; ...
                  '_ProjectDescription_' MatlabDocMaker.getProjectDescription; ...
-                 '_ProjectLogo_' MatlabDocMaker.getProjectLogo; ...
+                 '_ProjectLogo_' strrep(MatlabDocMaker.getProjectLogo,'\','\\'); ...
                  '_ProjectVersion_' MatlabDocMaker.getProjectVersion; ...
-                 '_MTOCFILTER_' filter; ...
+                 '_MTOCFILTER_' strrep(filter,'\','\\'); ...
                  };
              
             % Check for latex extra stuff
@@ -481,15 +490,17 @@ classdef MatlabDocMaker
             if ~isempty(warn)
                 dispwarn = [warn(1:min(showchars,length(warn))) ' [...]'];
                 fprintf('First %d characters of warnings generated during documentation creation:\n%s\n',showchars,dispwarn);
-                % Write to log file later
+                % Write to log file
                 log = fullfile(outdir,'warnings.log');
                 f = fopen(log,'w'); fprintf(f,'%s',warn); fclose(f);
                 fprintf(2,'MatlabDocMaker finished with warnings!\n');
                 fprintf('Complete log file at <a href="matlab:edit(''%s'')">%s</a>.\n',log,log);
+                % Check for latex log file
                 log = fullfile(outdir,'_formulas.log');
                 if exist(log,'file')
                     fprintf('Found LaTeX formula log file. Check <a href="matlab:edit(''%s'')">%s</a> for any errors.\n',log,log);
                 end
+                % Check for errors on latex generation
                 if genlatex && latexerr
                     log = fullfile(latexdir,'refman.log');
                     fprintf('There have been errors with LaTeX compilation. See log file at <a href="matlab:edit(''%s'')">%s</a>.\n',log,log);
@@ -617,14 +628,17 @@ classdef MatlabDocMaker
                 fprintf(2,'Please make sure all prerequisites can be found on PATH or copy the executables into %s.\n',confdir);
                 fprintf('<<<< MatlabDocMaker setup finished with warnings. >>>>\n');
             else
-                fprintf('<<<< MatlabDocMaker setup successful. >>>>\nYou can now create your projects documentation by running <a href="matlab:MatlabDocMaker.create(true)">MatlabDocMaker.create</a>!\n');
+                fprintf('<<<< MatlabDocMaker setup successful. >>>>\nYou can now create your projects documentation by running <a href="matlab:MatlabDocMaker.create(''open'',true)">MatlabDocMaker.create</a>!\n');
             end
         end
     end
     
     methods(Static, Access=private)
         function value = getProjPrefTag
-            str = regexprep(strrep(strtrim(MatlabDocMaker.getProjectName),' ','_'),'[^\d\w~-]','');
+            % Gets the tag for the MatLab preferences struct.
+            % 
+            % @change{0,7,dw,2013-04-02} Now also removing "~" and "-" characters from ProjectName tags for preferences.
+            str = regexprep(strrep(strtrim(MatlabDocMaker.getProjectName),' ','_'),'[^\d\w]','');
             value = sprintf('MatlabDocMaker_on_%s',str);
         end
         

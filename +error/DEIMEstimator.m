@@ -497,6 +497,8 @@ classdef DEIMEstimator < error.BaseEstimator & IReductionSummaryPlotProvider
             end
             if ~isempty(this.Ah)
                 copy.Ah = this.Ah.clone;
+            end
+            if ~isempty(this.Aln)
                 copy.Aln = this.Aln;
             end
             if ~isempty(this.Bh)
