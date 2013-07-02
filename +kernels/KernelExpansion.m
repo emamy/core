@@ -410,18 +410,33 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         end
         
         function n = get.ComponentNorms(this)
-            n = sqrt(sum(this.Ma' .* (this.getKernelMatrix * this.Ma'),1))';
+            if this.HasCustomBase
+                c = this.Ma/this.Base;
+            else
+                c = this.Ma;
+            end
+            n = sqrt(sum(c' .* (this.getKernelMatrix * c'),1))';
         end
         
         function n = get.NativeNorm(this)
             % Returns the native norm of the kernel expansion
             
             % doesnt use ComponentNorms as this way we save "sqrt(x).^2"
-            n = sqrt(sum(sum(this.Ma' .* (this.getKernelMatrix * this.Ma'))));
+            if this.HasCustomBase
+                c = this.Ma/this.Base;
+            else
+                c = this.Ma;
+            end
+            n = sqrt(sum(sum(c' .* (this.getKernelMatrix * c'))));
         end
         
         function M = get.MBnd(this)
-            M = max(sum(abs(this.Ma),2));
+            if this.HasCustomBase
+                c = this.Ma/this.Base;
+            else
+                c = this.Ma;
+            end
+            M = max(sum(abs(c),2));
         end
         
         function v = get.HasCustomBase(this)
