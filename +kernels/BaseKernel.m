@@ -111,7 +111,8 @@ classdef BaseKernel < KerMorObject & ICloneable
         
         function bool = eq(A, B)
             % Checks if a kernel equals another kernel
-            bool = eq@KerMorObject(A,B) && isequal(A.P, B.P);
+            bool = eq@KerMorObject(A,B) && isequal(A.fP, B.fP) && ...
+                isequal(A.fG, B.fG) && A.IsRBF == B.IsRBF && A.IsScProd == B.IsScProd;
         end
         
         function copy = clone(this, copy)

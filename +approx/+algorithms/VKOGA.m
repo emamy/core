@@ -39,7 +39,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
 %         % training data (DEBUG)
 %         f;
 %         
-%         VKOGABound;
+        VKOGABound;
     end
     
     properties(SetAccess=private)
@@ -65,7 +65,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             copy.FailureErrorMeasure = this.FailureErrorMeasure;
 %             copy.used = this.used;
 %             copy.f = this.f;
-%             copy.VKOGABound = this.VKOGABound;
+            copy.VKOGABound = this.VKOGABound;
 %             copy.PhiNormMin = this.PhiNormMin;
         end
     end
@@ -83,6 +83,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             
             this.basis_norms = this.MaxErrors;
             this.StopFlags = zeros(nc,1);
+            this.VKOGABound = this.basis_norms;
 
             xi = atd.xi.toMemoryMatrix;
             fxi = atd.fxi.toMemoryMatrix;
@@ -101,6 +102,9 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                 pm.LeaveOpen = true;
             end
             
+            % Kernel matrix diagonal
+            Kdiag = ones(1,N);
+            
             %% Run loop for all desired distances
             pi = ProcessIndicator('VKOGA approximation for %d kernel configurations',nc,false,nc);
             for cidx = 1:nc
@@ -108,9 +112,6 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                 
                 % Set current hyperconfiguration
                 ec.applyConfiguration(cidx, kexp);
-                
-                % Kernel matrix diagonal
-                Kdiag = ones(1,N);
                 
                 % Values of Newton basis
                 NV = zeros(N,this.MaxExpansionSize);
@@ -129,6 +130,8 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                 free(this.initialidx) = false;
                 used = zeros(1,N);
                 used(1) = this.initialidx;
+                
+                this.VKOGABound(cidx, m) = 1/max(Kdiag - sumNsq);
                                
                 %% Main extension loop
                 while true
@@ -153,7 +156,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                         break;
                     elseif this.MaxRelErrors(cidx,m) < this.MaxRelErr
                         if vb > 1
-                            fprintf('VKOGA stopping criteria holds: Relative error %.7e < %.7e\n',rel,this.MaxRelErr);
+                            fprintf('VKOGA stopping criteria holds: Relative error %.7e < %.7e\n',this.MaxRelErrors(cidx,m),this.MaxRelErr);
                         end
                         stopflag = StopFlag.REL_ERROR;
                         break;
@@ -207,9 +210,12 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     NV(:,m) = tN/tNnorm;
                     c(:,m) = fresidual(:,maxidx)./tNnorm;
                     sumNsq = sumNsq + (NV(:,m).^2)';
-                    this.basis_norms(cidx,m) = tNnorm;
                     free(maxidx) = false;
                     used(m) = maxidx;
+                    
+                    % Debug stuff
+                    this.basis_norms(cidx,m) = tNnorm;
+                    this.VKOGABound(cidx, m) = this.VKOGABound(cidx, m-1) + 1/max(Kdiag - sumNsq);
                     if exp_mode
                         h = pm.nextPlot('sumNSq','Power fun','x','P(x)');
                         LogPlot.cleverPlot(h,xi(1,:),sumNsq); 
@@ -271,6 +277,9 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             maxsize = max(this.ExpansionSizes);
             this.MaxErrors = this.MaxErrors(:,1:maxsize);
             this.MaxRelErrors = this.MaxRelErrors(:,1:maxsize);
+            
+            % Debug stuff
+            this.VKOGABound = size(fxi,1) ./ (1 + this.VKOGABound/size(fxi,1));
             
             if vb > 1
                 og = 'off';

@@ -67,7 +67,7 @@ classdef ARBFKernel < kernels.BaseKernel
         end
         
         function bool = eq(A ,B)
-            bool = eq@kernels.BaseKernel(A, B) && A.epsilon == B.epsilon && isequal(A.G, B.G);
+            bool = eq@kernels.BaseKernel(A, B) && A.Gamma == B.Gamma;
         end
         
         function copy = clone(this, copy)
