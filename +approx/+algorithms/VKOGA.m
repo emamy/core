@@ -190,7 +190,8 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                         h3 = pm.nextPlot('err','Absolute error','x','|f(x)-f^m(x)|');
                         LogPlot.cleverPlot(h3,1:m,this.MaxErrors(:,1:m)); 
                         h4 = pm.nextPlot('MaxRelErrors','Relative error','x','|(f(x)-f^m(x))/f(x)|');
-                        LogPlot.cleverPlot(h4,1:m,this.MaxRelErrors(:,1:m)); 
+                        LogPlot.cleverPlot(h4,1:m,this.MaxRelErrors(:,1:m));
+                        pm.done;
                     end
                     
                     %% Emergency break:
@@ -216,11 +217,11 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     % Debug stuff
                     this.basis_norms(cidx,m) = tNnorm;
                     this.VKOGABound(cidx, m) = this.VKOGABound(cidx, m-1) + 1/max(Kdiag - sumNsq);
-                    if exp_mode
-                        h = pm.nextPlot('sumNSq','Power fun','x','P(x)');
-                        LogPlot.cleverPlot(h,xi(1,:),sumNsq); 
-                        pm.done;
-                    end
+%                     if exp_mode
+%                         h = pm.nextPlot('sumNSq','Power fun','x','P(x)');
+%                         LogPlot.cleverPlot(h,xi(1,:),sumNsq); 
+%                         pm.done;
+%                     end
                 end
                 
                 better = false;

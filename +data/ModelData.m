@@ -225,18 +225,26 @@ classdef ModelData < data.FileData
             if nargin < 2
                 overwrite = false;
             end
+            
             if ~overwrite && isa(this.TrajectoryData,'data.FileTrajectoryData')
                 error('TrajectoryData already is a data.FileTrajectoryData. Use "true" parameter to overwrite.');
             end
+            old = this.TrajectoryData;
             this.TrajectoryData = [];
             this.TrajectoryData = data.FileTrajectoryData(...
                 fullfile(this.DataDirectory,this.FileTrajectoryDataFolder));
+            % Copy existing data
+            this.TrajectoryData.transferFrom(old);
+            
             if ~overwrite && isa(this.TrajectoryFxiData,'data.FileTrajectoryData')
                 error('TrajectoryFxiData already is a data.FileTrajectoryData. Use "true" parameter to overwrite.');
             end
+            old = this.TrajectoryFxiData;
             this.TrajectoryFxiData = [];
             this.TrajectoryFxiData = data.FileTrajectoryData(...
                 fullfile(this.DataDirectory,this.FileTrajectoryFxiDataFolder));
+            % Copy existing data
+            this.TrajectoryFxiData.transferFrom(old);
         end
     end
     

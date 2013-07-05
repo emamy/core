@@ -331,7 +331,7 @@ classdef GaussKernel < kernels.BellFunction
             for n = 1:length(conf)
                 d = conf(n);
                 g = k.setGammaForDistance(d,eps);
-                tag = sprintf('g_1d_d%d_g%g',d,g);
+                tag = strrep(sprintf('g_1d_d%d_g%g',d,g),'.','_');
                 h = pm.nextPlot(tag,sprintf('Gauss kernel with dist=%d,\\gamma=%g on 1D data',d,g));
                 plot(h,x,kexp.evaluate(x));
             end
@@ -339,7 +339,7 @@ classdef GaussKernel < kernels.BellFunction
             for n = 1:length(conf)
                 d = conf(n);
                 g = k.setGammaForDistance(d,eps);
-                tag = sprintf('g_2d_d%d_g%g',d,g);
+                tag = strrep(sprintf('g_2d_d%d_g%g',d,g),'.','_');
                 h = pm.nextPlot(tag,sprintf('Gauss kernel with dist=%d,\\gamma=%g on 2D data',d,g));
                 surf(h,X,Y,reshape(kexp.evaluate(x2),length(x),[]),'EdgeColor','none');
             end

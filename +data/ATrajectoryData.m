@@ -25,8 +25,10 @@ classdef ATrajectoryData < data.ABlockedData
  
     methods
         function transferFrom(this, source)
-            % @todo write code that copies the trajectories from one
-            % ATrajectoryData to another
+            % Transfers the data from one ATrajectoryData instance to another.
+            %
+            % Parameters:
+            % source: The source of data @type data.ATrajectoryData
             nt = source.getNumTrajectories;
             this.clearTrajectories;
             for nr=1:nt

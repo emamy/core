@@ -224,9 +224,13 @@ classdef Utils
                     end
                 end
                 if isa(data,'cell')
-                    str = data{1};
+                   fun = @(arg)arg;
+                    if nargin == 4
+                        fun = @(arg)sprintf(format,arg);
+                    end
+                    str = fun(data{1});
                     for idx = 2:length(data)
-                        str = [str glue data{idx}];%#ok
+                        str = [str glue fun(data{idx})];
                     end
                 elseif isnumeric(data)
                     % first n-1 entries

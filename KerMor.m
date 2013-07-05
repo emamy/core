@@ -273,6 +273,8 @@ classdef KerMor < handle
     % - beim setup von docmaker wird version abgefragt: redundant in kermor!
     % - kermor-diary in data-folder unter windows
     % - automatisch den temp-ordner im datadir anlegen
+    %
+    % @todo model-transfer zwischen rechnern (mit daten)
     
     properties(Constant)
         % The current KerMor main version number
