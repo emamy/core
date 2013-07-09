@@ -59,14 +59,11 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             copy = approx.algorithms.VKOGA;
             copy = clone@approx.algorithms.AAdaptiveBase(this, copy);
             copy.UsefPGreedy = this.UsefPGreedy;
-%             copy.Gain = this.Gain;
-%             copy.HerrDecay = this.HerrDecay;
+            copy.MaxAbsResidualErr = this.MaxAbsResidualErr;
             copy.MaxRelErrors = this.MaxRelErrors;
             copy.FailureErrorMeasure = this.FailureErrorMeasure;
-%             copy.used = this.used;
-%             copy.f = this.f;
             copy.VKOGABound = this.VKOGABound;
-%             copy.PhiNormMin = this.PhiNormMin;
+            copy.basis_norms = this.basis_norms;
         end
     end
     
