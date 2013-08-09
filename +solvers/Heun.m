@@ -39,6 +39,7 @@ classdef Heun < solvers.BaseCustomSolver
             this = this@solvers.BaseCustomSolver;
             
             this.Name = 'Explicit Heun''s method';
+            this.SolverType = solvers.SolverTypes.Explicit;
             if nargin == 1
                 this.MaxStep = MaxStep;
             end

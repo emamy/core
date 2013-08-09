@@ -66,6 +66,7 @@ classdef MLWrapper < solvers.BaseSolver & solvers.AJacobianSolver
         function this = MLWrapper(solver)
             this = this@solvers.BaseSolver;
             this.registerProps('MLSolver');
+            this.SolverType = solvers.SolverTypes.MLSolver;
             if nargin > 0
                 this.MLSolver = solver;
             end

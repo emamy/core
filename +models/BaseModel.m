@@ -456,6 +456,11 @@ classdef BaseModel < KerMorObject
             % Call solver
             [t, x] = slv.solve(odefun, this.scaledTimes, this.getX0(mu));
             
+            if length(this.scaledTimes) == 2
+                t = [t(1), t(end)];
+                x = [x(:,1), x(:,end)];
+            end
+            
             % Get used time
             ctime = toc(st);
         end
