@@ -110,6 +110,8 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable & IReductionSummary
             copy.MaxErrors = this.MaxErrors;
             copy.MaxRelErrors = this.MaxRelErrors;
             copy.LastCompTime = this.LastCompTime;
+            copy.StopFlags = this.StopFlags;
+            copy.ScalingG = this.ScalingG;
         end
         
         

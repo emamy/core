@@ -9,6 +9,9 @@ classdef KerMor < handle
     %
     % @author Daniel Wirtz @date 2011-03-04
     %
+    % @change{0,7,dw,2013-07-09} Removed the TempDirectory as customizable property and simply
+    % using "DataDirectory/tmp" now.
+    %
     % @change{0,7,dw,2013-01-23} Done some restructuring in KerMor:
     % - Removed thee QP-Solver packages and extern/ folders as they are effectively no longer
     % used
@@ -877,6 +880,7 @@ classdef KerMor < handle
                         
             a = KerMor.App;
             addpath(a.HomeDirectory);
+            addpath(genpath(fullfile(a.HomeDirectory,'extern'))  );
             
             %% KerMor directories
             % Setup the data storage directory
@@ -895,31 +899,7 @@ classdef KerMor < handle
                 ds = d;
             end
             a.DataDirectory = ds;
-
-            % Setup the temp directory
-            ds = a.TempDirectory;
-            word = 'keep';
-            if isempty(ds)
-                ds = fullfile(a.HomeDirectory,'data');
-                word = 'set';
-            end
-            str = sprintf('Do you want to %s %s as your KerMor temporary file directory? Choosing "No" opens a directory selection dialog.\n(Y)es/(N)o?: ',word,strrep(ds,'\','\\'));
-            if isequal(lower(input(str,'s')),'n')
-                d = uigetdir(ds,'Please specify the KerMor temporary file directory');
-                if d == 0
-                    error('No KerMor temporary file directory specified. Aborting setup.');
-                end
-                ds = d;
-            end
-            a.TempDirectory = ds;
-            
-%             %% Operation-system dependent actions
-%             if isunix
-%                 KerMor.installUnix;
-%             elseif ispc
-%                 KerMor.installWindows;
-%             end
-            
+           
             %% Setup KerMor development
             if isempty(getpref('KERMOR_DEVEL','author',''))
                 str = sprintf('Do you want to setup variables for KerMor development?\n(Y)es/(N)o: ');
