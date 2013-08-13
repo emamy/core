@@ -879,6 +879,7 @@ classdef KerMor < handle
                         
             a = KerMor.App;
             addpath(a.HomeDirectory);
+            addpath(genpath(fullfile(a.HomeDirectory,'extern'))  );
             
             %% KerMor directories
             % Setup the data storage directory
