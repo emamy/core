@@ -769,6 +769,7 @@ classdef KerMor < handle
                 addpath(fullfile(p,'extern'));
                 addpath(fullfile(p,'extern','matlabtools'));
                 addpath(fullfile(p,'extern','matlabtools','dpcm'));
+                addpath(fullfile(p,'extern','matlabtojarmos'));
                 addpath(fullfile(p,'extern','export_fig'));
                 addpath(fullfile(p,'extern','compat'));
                 
