@@ -631,7 +631,6 @@ classdef KerMor < handle
             value = this.Verbose;
             if isempty(value)
                 value = getpref(this.getPrefTag,'Verbose',1);
-                this.Verbose = value;
             end
         end
         
@@ -770,6 +769,7 @@ classdef KerMor < handle
                 addpath(fullfile(p,'extern'));
                 addpath(fullfile(p,'extern','matlabtools'));
                 addpath(fullfile(p,'extern','matlabtools','dpcm'));
+                addpath(fullfile(p,'extern','matlabtojarmos'));
                 addpath(fullfile(p,'extern','export_fig'));
                 addpath(fullfile(p,'extern','compat'));
                 
@@ -905,6 +905,7 @@ classdef KerMor < handle
                 str = sprintf('Do you want to setup variables for KerMor development?\n(Y)es/(N)o: ');
                 ds = lower(input(str,'s'));
                 if isequal(ds,'y')
+                    addpath(fullfile(a.HomeDirectory,'tools'));
                     Devel.setup;
                 end
             end
