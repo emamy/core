@@ -1,7 +1,5 @@
 classdef VKOGA
-% VKOGA: 
-%
-% Contains some demo functions for the VKOGA algorithm.
+% VKOGA: Contains some demo functions for the VKOGA algorithm.
 %
 % @author Daniel Wirtz @date 2013-01-15
 %
@@ -15,8 +13,11 @@ classdef VKOGA
         
     methods(Static)
         
-        function res = demo_VKOGA_1D_nD(n,fPGreedy,nG)
+        function res = VKOGA_1D_nD(n,fPGreedy,nG)
             % Starts a demo of the approx.algorithms.VKOGA algorithm
+            %
+            % The functions all live on `[-5,5]` for simplicity and can be
+            % of output dimension `1-4`.
             %
             % Parameters:
             % n: The output space dimension. Between 1 and 4. @type integer @default 1
@@ -81,7 +82,7 @@ classdef VKOGA
             res.alg = alg;
         end
         
-        function demo_IterationPlots(res, steps, pm)
+        function IterationPlots(res, steps, pm)
             % Demonstrates the VKOGA iterations during approximation
             % computations.
             %
@@ -132,11 +133,16 @@ classdef VKOGA
             end
         end
         
-        function demo_BfKBS_Schaback
-            % The demo of the schaback paper @cite{PS11}
-            % for the function-dependent Newton basis.
+        function NewtonBasis_Schaback
+            % The demo of the schaback paper @cite{PS11} for the
+            % function-dependent Newton basis.
             %
-            % TODO give url
+            % Original source code from the link below, adopted to fit into
+            % KerMor.
+            %
+            % See also:
+            % \li http://num.math.uni-goettingen.de/schaback/research/papers/BfKBS.tgz
+            % \li http://num.math.uni-goettingen.de/schaback/research/group.html
             
             pm = PlotManager(false,2,2);
             pm.LeaveOpen = true;
@@ -217,13 +223,8 @@ classdef VKOGA
                 xee=xm(:);
                 yee=ym(:);
                 ind=find((xee.^2+yee.^2<=1)&((xee>=0)|(yee>=0)) );
-                msk=zeros(size(xee));
-                msk(ind)=1.0;
-                % figure
-                % plot(xee(ind),yee(ind),'.')
-                % title('Discretized domain')
-                % disp('Hit enter to proceed')
-                % pause
+%                 msk=zeros(size(xee));
+%                 msk(ind)=1.0;
                 Xe=[xee(ind), yee(ind)]';
             end
         end
