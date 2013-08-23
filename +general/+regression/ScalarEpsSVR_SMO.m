@@ -65,6 +65,13 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
         MaxCount = 60000;
     end
     
+    properties(SetAccess=private)
+        % The number of iterations used at the last run.
+        %
+        % @type integer @default []
+        LastIterations = [];
+    end
+    
     methods
         function [ai, sf] = regress(this, fxi, initialai)
             % Make sure it's a row vector.
@@ -113,7 +120,7 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             end
             
             stop = this.StopEps/(2*this.Lambda);
-            while S > stop && cnt < this.MaxCount
+            while S > stop && cnt < this.MaxCount+1
                 
                 if this.Vis > 1
                     afxi = (a(1:n)-a(n+1:end))*this.K;
@@ -169,6 +176,7 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             if cnt == this.MaxCount
                 sf = StopFlag.MAX_ITER;
             end
+            this.LastIterations = cnt;
         end
         
         function [ai, sf] = regress2D(this, fxi, initialai)
@@ -296,6 +304,7 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             if cnt == this.MaxCount
                 sf = StopFlag.MAX_ITER;
             end
+            this.LastIterations = cnt;
         end
         
         function [i, M] = WSS0_1D_GetMaxGainIndex(this, a, dW)
@@ -613,56 +622,32 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
     end
     
     methods(Static)
-        function res = test_ScalarEpsSVR_SMO(version)
+        function res = test_ScalarEpsSVR_SMO
             % Performs a test of this class
-            
-            if nargin == 0
-                version = 1;
-            end
-            
             x = -5:.1:5;
             fx = sinc(x)+.2*x;
             fx = fx ./ max(abs(fx));
             
             svr = general.regression.ScalarEpsSVR_SMO;
-            svr.Version = version;
-            %svr.Eps = 0.073648;
             svr.Eps = .1;
-            svr.Lambda = 1/20;%1/20; % i.e. C=10 as in ScalarEpsSVR
+            svr.Lambda = 1/20;
             svr.Vis = 0;
             
-            %kernel = kernels.PolyKernel(7);
-            %kernel = kernels.LinearKernel;
             kernel = kernels.GaussKernel(.8);
             svr.K = kernel.evaluate(x,x);
-
-            [ai, svidx] = svr.computeKernelCoefficients(fx,[]);
-            sv = x(:,svidx);
-            svfun = @(x)ai'*(kernel.evaluate(x,sv)');
             
-            fsvr = svfun(x);
+            res = compute(1);
+            res = res & compute(2);
             
-            fdiff = abs(fsvr(svidx)-fx(svidx));
-            errors = find(fdiff > 1.01*svr.Eps);
-            res = isempty(errors);
-            
-            % Plot approximated function
-            figure;
-            plot(x,fx,'r',x,[fx-svr.Eps; fx+svr.Eps],'r--');
-            hold on;
-            plot(x,fsvr,'b',x,[fsvr-svr.Eps; fsvr+svr.Eps],'b--');
-            skipped = setdiff(1:length(x),svidx);
-            plot(sv,fx(svidx),'.r','MarkerSize',20);
-            plot(x(skipped),fx(skipped),'xr');
-            
-            if ~res
-                plot(x(svidx(errors)),fx(svidx(errors)),'blackx','LineWidth',4);
+            function res = compute(version)
+                svr.Version = version;
+                [ai, svidx] = svr.computeKernelCoefficients(fx,[]);
+                sv = x(:,svidx);
+                svfun = @(x)ai'*(kernel.evaluate(x,sv)');
+                fsvr = svfun(x);
+                fdiff = abs(fsvr(svidx)-fx(svidx));
+                res = isempty(find(fdiff > 1.01*svr.Eps,1));
             end
-            
-            tit = sprintf('#SV=%d, eps=%f',length(svidx),svr.Eps);
-            title(tit);
-            disp(tit);
-            hold off;
         end
     end
 end

@@ -81,6 +81,57 @@ classdef VKOGA
             res.alg = alg;
         end
         
+        function demo_IterationPlots(res, steps, pm)
+            % Demonstrates the VKOGA iterations during approximation
+            % computations.
+            %
+            % Parameters:
+            % ans: The output of demos.VKOGA#demo_VKOGA_1D_nD @type struct
+            % steps: How many steps to illustrate @type integer @default 4
+            % pm: A PlotManager instance to use for plots. @type
+            % PlotManager @default 3x3 Subfigures
+            if nargin < 3
+                pm = PlotManager(false,3,3);
+                pm.LeaveOpen = true;
+                if nargin < 2
+                    steps = 9;
+                end
+            end
+            
+            if res.alg.UsefPGreedy
+                fprintf(2,'Warning: f/P-Greedy selection criteria was used. Error plots are for f-Greedy case.\n');
+            end
+            ms = 7;
+            fx = res.atd.fxi.toMemoryMatrix;
+            x = res.atd.xi.toMemoryMatrix;
+            for s = 1:steps
+                k = res.kexp.getSubExpansion(s);
+                h1 = pm.nextPlot(sprintf('step%d',s),...
+                    sprintf('Iteration %d',s),'x','f(x)');
+                plot(h1,x,fx'); 
+                hold(h1,'on');
+                fxi = k.evaluate(x);
+                err = fx-fxi;
+                allerr = Norm.L2(err);
+                plot(h1,x,allerr,'r'); 
+                plot(h1,x,fxi','--'); 
+                plot(h1,k.Centers.xi,k.evaluate(k.Centers.xi)','k.','MarkerSize',17);
+                
+                % Plot (next) max errors
+                [v, idx] = max(allerr);
+                plot(h1,x(idx),v,'ro','MarkerSize',ms); 
+                [~, idx] = max(abs(err),[],2);
+                for l=1:length(idx)
+                    plot(h1,[x(idx(l)) x(idx(l))+eps],[fx(l,idx(l)) fxi(l,idx(l))],'k--');
+                    plot(h1,[x(idx(l)) x(idx(l))+eps],[fx(l,idx(l)) fxi(l,idx(l))],'kx','MarkerSize',ms);
+                end
+                axis(h1,axis(h1)*1.01);
+            end
+            if nargin < 3
+                pm.done;
+            end
+        end
+        
         function demo_BfKBS_Schaback
             % The demo of the schaback paper @cite{PS11}
             % for the function-dependent Newton basis.
