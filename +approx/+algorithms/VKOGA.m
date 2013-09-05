@@ -331,16 +331,16 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
     methods(Static)
         
         function res = test_VKOGA1DnD
-            % Tests the VKOGA algorithm
+            % Tests the VKOGA algorithm by running the demos
             
-            demos.VKOGA.demo_VKOGA_1D_nD(1,false);
-            demos.VKOGA.demo_VKOGA_1D_nD(1,true);
-            demos.VKOGA.demo_VKOGA_1D_nD(2,false);
-            demos.VKOGA.demo_VKOGA_1D_nD(2,true);
-            demos.VKOGA.demo_VKOGA_1D_nD(3,false,10);
-            demos.VKOGA.demo_VKOGA_1D_nD(3,true);
-            demos.VKOGA.demo_VKOGA_1D_nD(4,false,10);
-            demos.VKOGA.demo_VKOGA_1D_nD(4,true);
+            demos.VKOGA.VKOGA_1D_nD(1,false);
+            demos.VKOGA.VKOGA_1D_nD(1,true);
+            demos.VKOGA.VKOGA_1D_nD(2,false);
+            demos.VKOGA.VKOGA_1D_nD(2,true);
+            demos.VKOGA.VKOGA_1D_nD(3,false,10);
+            demos.VKOGA.VKOGA_1D_nD(3,true);
+            demos.VKOGA.VKOGA_1D_nD(4,false,10);
+            demos.VKOGA.VKOGA_1D_nD(4,true);
             res = true;
         end
         

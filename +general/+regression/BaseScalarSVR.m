@@ -17,9 +17,10 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & IKernelCoeffComp
     % @change{0,3,sa,2011-05-07} Implemented Setter for the properties of
     % this class
     %
-    % @todo: Implement hyperparameter estimations from [CM04]!
-    % @todo: Look into the "pattern search" algorithm from Momma&Bennet
-    % 2002
+    % @todo
+    % - Implement hyperparameter estimations from [CM04]!
+    % - Look into the "pattern search" algorithm from Momma&Bennet 2002
+    % - Create single MaxIterations property for all SVRs (if applicable)
     
     properties(SetObservable)
         % Minimum relative value for any alpha to be considered a support vector

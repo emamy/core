@@ -67,6 +67,8 @@ classdef BaseSolver < KerMorObject
         %
         % MaxStep is only relevant for explicit solvers
         %
+        % @propclass{data} ToDo!
+        %
         % @type solvers.SolverTypes @ default solvers.SolverTypes.Explicit 
         %
         % See also: solvers.SolverTypes
