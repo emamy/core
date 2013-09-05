@@ -99,29 +99,6 @@ classdef RandomSampler < sampling.BaseSampler
                 elseif size(this.domain_sampling,1) ~= sys.ParamCount
                     erros('Number of columns of domain_sampling does not match System.ParamCount.');
                 end
-                %                 samples = zeros(sys.ParamCount,this.Samples);
-                %                 need_resampling = 1:this.Samples;
-                %                 while ~isempty(need_resampling)
-                %                     % create as many new samples as needed
-                %                     len = length(need_resampling);
-                %                     factor = r.rand(sys.ParamCount,len);
-                %                     miv = repmat([sys.Params(:).MinVal]',1,len);
-                %                     mav = repmat([sys.Params(:).MaxVal]',1,len);
-                %                     islog = strcmp({sys.Params(:).Spacing},'log')';
-                %                     if any(islog)
-                %                         miv(islog,:) = log10(miv(islog,:));
-                %                         mav(islog,:) = log10(mav(islog,:));
-                %                     end
-                %                     newsamples = miv + factor.*(mav-miv);
-                %                     if any(islog)
-                %                         newsamples(islog,:) = 10.^newsamples(islog,:);
-                %                     end
-                %                     % check, which of the new samples are valid
-                %                     idx = dsearchn(this.domain_sampling', newsamples'); % those indices of domain_sampling that are closest to new_samples
-                %                     valid_idx = this.is_valid(idx);
-                %                     samples(:,valid_idx)=newsamples(:,valid_idx);
-                %                     need_resampling = need_resampling(~valid_idx);
-                %                 end
                 samples = zeros(sys.ParamCount,this.Samples);
                 good_samples = 0;
                 while true

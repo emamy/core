@@ -21,6 +21,13 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & IReduction
         % @type rowvec<double> @default []
         SingularValues = [];
     end
+    
+    properties
+        % Flag indicating if to include the initial space 
+        % 
+        % type logical @type false
+        IncludeInitialSpace = false;
+    end
         
     methods
         function [V, W] = generateReducedSpace(this, model)
@@ -49,6 +56,10 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & IReduction
             if this.IncludeBSpan
                 Vex = md.InputSpaceSpan;
             end
+            if this.IncludeInitialSpace
+                is = this.getInitialSpace(md.TrajectoryData);
+                Vex = [Vex is];
+            end
             
             [V, this.SingularValues] = this.computePOD(td, Vex);
             this.ProjectionError = flipud(cumsum(flipud(this.SingularValues)));
@@ -75,6 +86,40 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & IReduction
                 warning('spacereduction:PODReducer',...
                     'Singular value data empty. Not providing summary.');
             end
+        end
+    end
+    
+    methods(Access=private)
+        
+        function V = getInitialSpace(this, md)
+            % Computes the initial space, which is the first POD mode of
+            % the initial values!
+            
+            pod = general.POD;
+            pod.Value = 1; % MUST stay at 1 or getInitialSpace will fail.
+            pod.Mode = 'abs';
+            n = md.getNumBlocks;
+            x = md.getBlock(1);
+            x0 = x(:,1);
+            for idx=2:n
+                    x = md.getBlock(idx);
+                    x = x(:,1);
+                    % Only add nonexisting vectors
+                    if isempty(Utils.findVecInMatrix(x0,x))
+                        x0 = [x0 x];%#ok
+                    end
+            end
+            if all(x0(:) == 0)
+                if KerMor.App.Verbose > 1
+                    fprintf('Initial values are all zero vectors. Using main POD mode of first block data as initial space.\n');
+                end
+                V = pod.computePOD(md.getBlock(1));
+            elseif size(x0,2) > 1
+                V = pod.computePOD(x0);
+            else
+                V = x0;
+            end
+            V = V / norm(V);
         end
     end
     
