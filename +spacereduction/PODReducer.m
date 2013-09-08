@@ -46,7 +46,7 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & IReduction
                 if isempty(md.TrajectoryFxiData)
                     error('No training fxi data found in ModelData.');
                 end
-                td = data.JoinedBlockData(td, md.TrajectoryFxiData);
+                td = data.JoinedBlockData(td, md.TrajectoryData);
             end
             % Wrap in finite difference adder
             if this.IncludeFiniteDifferences
@@ -63,11 +63,23 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & IReduction
             
             [V, this.SingularValues] = this.computePOD(td, Vex);
             this.ProjectionError = flipud(cumsum(flipud(this.SingularValues)));
+%             if ~isempty(Vex)
+%                 o = general.Orthonormalizer;
+%                 V = o.orthonormalize([Vex V]);
+%             end
             if ~isempty(Vex)
                 o = general.Orthonormalizer;
-                V = o.orthonormalize([Vex V]);
-            end
-            
+                V = [Vex V];
+                id = speye(size(V,2));
+                while true  % V isn't really orthogonal after orthonormalizing once
+                    diff = max(max(abs(V'*V-id)));
+                    if diff < 1e-9
+                        break
+                    else
+                        V = o.orthonormalize(V);
+                    end
+                end
+            end            
             % Galerkin projection
             W = [];
         end
