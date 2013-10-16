@@ -105,31 +105,49 @@ classdef VKOGA
             ms = 7;
             fx = res.atd.fxi.toMemoryMatrix;
             x = res.atd.xi.toMemoryMatrix;
+            
+            %% Zero function plot
+            k = [];
+            h0 = doPlot(0,zeros(size(fx)));
+            
+            %% Iteration plots
             for s = 1:steps
                 k = res.kexp.getSubExpansion(s);
+                fxi = k.evaluate(x);
+                hn = doPlot(s,fxi);
+                axis(hn,axis(h0));
+            end
+            
+            if nargin < 3
+                pm.done;
+            end
+            
+            function h1 = doPlot(s,fxi)
                 h1 = pm.nextPlot(sprintf('step%d',s),...
                     sprintf('Iteration %d',s),'x','f(x)');
-                plot(h1,x,fx'); 
+                plot(h1,x,fx','LineWidth',2); 
                 hold(h1,'on');
-                fxi = k.evaluate(x);
+                
                 err = fx-fxi;
                 allerr = Norm.L2(err);
                 plot(h1,x,allerr,'r'); 
                 plot(h1,x,fxi','--'); 
-                plot(h1,k.Centers.xi,k.evaluate(k.Centers.xi)','k.','MarkerSize',17);
+                if ~isempty(k)
+                    plot(h1,k.Centers.xi,k.evaluate(k.Centers.xi)','k.','MarkerSize',17);
+                end
                 
                 % Plot (next) max errors
                 [v, idx] = max(allerr);
                 plot(h1,x(idx),v,'ro','MarkerSize',ms); 
                 [~, idx] = max(abs(err),[],2);
-                for l=1:length(idx)
-                    plot(h1,[x(idx(l)) x(idx(l))+eps],[fx(l,idx(l)) fxi(l,idx(l))],'k--');
-                    plot(h1,[x(idx(l)) x(idx(l))+eps],[fx(l,idx(l)) fxi(l,idx(l))],'kx','MarkerSize',ms);
+                if s == 2
+                    for l=1:length(idx)
+                        plot(h1,[x(idx(l)) x(idx(l))+eps],[fx(l,idx(l)) fxi(l,idx(l))],'k--');
+                        plot(h1,[x(idx(l)) x(idx(l))+eps],[fx(l,idx(l)) fxi(l,idx(l))],'kx','MarkerSize',ms);
+                    end
                 end
-                axis(h1,axis(h1)*1.01);
-            end
-            if nargin < 3
-                pm.done;
+                axis(h1,'tight');
+                axis(h1,axis(h1)*1.03);
             end
         end
         

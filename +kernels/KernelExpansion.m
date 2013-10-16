@@ -440,7 +440,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         end
         
         function v = get.HasCustomBase(this)
-            v = numel(this.Base) > 1 || this.Base ~= 1;
+            v = ~isempty(this.Base) && (numel(this.Base) > 1 || this.Base ~= 1);
         end
     end
     
