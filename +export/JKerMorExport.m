@@ -36,8 +36,8 @@ classdef JKerMorExport < export.JaRMoSExport
             fprintf(f,'\t<dim>%d</dim>\n',dim);
             
             %% Export model data
-            this.saveRealMatrix(rm.V,'V.bin',folder);
-            this.saveRealMatrix(rm.W,'W.bin',folder);
+            export.Util.saveRealMatrix(rm.V,'V.bin',folder);
+            export.Util.saveRealMatrix(rm.W,'W.bin',folder);
             %export.AppExport.saveRealMatrix(rm.W,'G.bin',folder);
                         
             % ODE solver type
@@ -68,21 +68,21 @@ classdef JKerMorExport < export.JaRMoSExport
             cf = s.f;
             fprintf(f,'\t<corefun type="%s">\n',class(cf));
             if isa(cf,'kernels.KernelExpansion')
-                this.saveRealMatrix(cf.Ma,'Ma.bin',folder);
-                this.saveRealMatrix(cf.Centers.xi,'xi.bin',folder);
+                export.Util.saveRealMatrix(cf.Ma,'Ma.bin',folder);
+                export.Util.saveRealMatrix(cf.Centers.xi,'xi.bin',folder);
                 exportKernel(cf.Kernel,'kernel.bin',folder);
                 fprintf(f,'\t\t<statekernel>%s</statekernel>\n',class(cf.Kernel));
                 if isa(cf,'kernels.ParamTimeKernelExpansion')
-                    this.saveRealVector(cf.Centers.ti,'ti.bin',folder);
+                    export.Util.saveRealVector(cf.Centers.ti,'ti.bin',folder);
                     exportKernel(cf.TimeKernel,'timekernel.bin',folder);
                     fprintf(f,'\t\t<timekernel>%s</timekernel>\n',class(cf.TimeKernel));
                     
-                    this.saveRealMatrix(cf.Centers.mui,'mui.bin',folder);
+                    export.Util.saveRealMatrix(cf.Centers.mui,'mui.bin',folder);
                     exportKernel(cf.ParamKernel,'paramkernel.bin',folder);
                     fprintf(f,'\t\t<paramkernel>%s</paramkernel>\n',class(cf.ParamKernel));
                 end
             elseif isa(cf, 'dscomponents.LinearCoreFun')
-                this.saveRealMatrix(cf.A,'A.bin',folder);
+                export.Util.saveRealMatrix(cf.A,'A.bin',folder);
             elseif isa(cf, 'dscomponents.AffLinCoreFun')
                 if isempty(cf.CoeffClass)
                     error('AffLinCoreFuns must have the CoeffClass value set for export.');
@@ -90,7 +90,7 @@ classdef JKerMorExport < export.JaRMoSExport
                 % Set path to IAffineCoefficients class to compile
                 fprintf(f,'\t\t<coeffclass>%s</coeffclass>\n',cf.CoeffClass);
                 sources{end+1} = cf.CoeffClass;
-                this.saveRealMatrix(cf.AffParamMatrix.Matrices,'A.bin',folder);
+                export.Util.saveRealMatrix(cf.AffParamMatrix.Matrices,'A.bin',folder);
             else
                 error('System function type unknown for export.');
             end
@@ -100,7 +100,7 @@ classdef JKerMorExport < export.JaRMoSExport
             if rm.System.InputCount > 0 && ~isempty(s.B)
                 fprintf(f,'\t<inputconv type="%s">\n',class(s.B));
                 if isa(s.B,'dscomponents.LinearInputConv')
-                    this.saveRealMatrix(s.B.B,'B.bin',folder);
+                    export.Util.saveRealMatrix(s.B.B,'B.bin',folder);
                 elseif isa(s.B,'dscomponents.AffLinInputConv')
                     if isempty(s.B.CoeffClass)
                         error('AffLinInputConv instances must have the CoeffClass value set for export.');
@@ -108,7 +108,7 @@ classdef JKerMorExport < export.JaRMoSExport
                     % Set path to IAffineCoefficients class to compile
                     fprintf(f,'\t\t<coeffclass>%s</coeffclass>\n',s.B.CoeffClass);
                     sources{end+1} = s.B.CoeffClass;
-                    this.saveRealMatrix(s.B.Matrices,'B.bin',folder);
+                    export.Util.saveRealMatrix(s.B.Matrices,'B.bin',folder);
                 end
                 fprintf(f,'\t</inputconv>\n');
                 sources{end+1} = 'Inputs';
@@ -118,7 +118,7 @@ classdef JKerMorExport < export.JaRMoSExport
             if ~isempty(s.M)
                 fprintf(f,'\t<massmatrix type="%s">\n',class(s.M));
                 if isa(s.M,'dscomponents.ConstMassMatrix')
-                    this.saveRealMatrix(s.M.M,'M.bin',folder);
+                    export.Util.saveRealMatrix(s.M.M,'M.bin',folder);
                 elseif isa(s.M,'dscomponents.AffLinMassMatrix')
                     if isempty(s.M.CoeffClass)
                         error('AffLinMassMatrix instances must have the CoeffClass value set for export.');
@@ -126,7 +126,7 @@ classdef JKerMorExport < export.JaRMoSExport
                     % Set path to IAffineCoefficients class to compile
                     fprintf(f,'\t\t<coeffclass>%s</coeffclass>\n',s.M.CoeffClass);
                     sources{end+1} = s.M.CoeffClass;
-                    this.saveRealMatrix(s.M.Matrices,'M.bin',folder);
+                    export.Util.saveRealMatrix(s.M.Matrices,'M.bin',folder);
                 end
                 fprintf(f,'\t</massmatrix>\n');
             end
@@ -138,7 +138,7 @@ classdef JKerMorExport < export.JaRMoSExport
                     if isscalar(C)
                         C = eye(dim);
                     end
-                    this.saveRealMatrix(C,'C.bin',folder);
+                    export.Util.saveRealMatrix(C,'C.bin',folder);
                 elseif isa(s.C,'dscomponents.AffLinOutputConv')
                     error('Not yet implemented.');
                 end
@@ -147,7 +147,7 @@ classdef JKerMorExport < export.JaRMoSExport
             
             % Initial value
             if isa(s.x0,'dscomponents.ConstInitialValue')
-                this.saveRealVector(s.x0.x0,'x0.bin',folder);
+                export.Util.saveRealVector(s.x0.x0,'x0.bin',folder);
             elseif isa(s.B,'dscomponents.AffineInitialValue')
                 error('Not yet implemented.');
             end
@@ -161,7 +161,7 @@ classdef JKerMorExport < export.JaRMoSExport
             
             function exportKernel(k, file, folder)
                 if isa(k,'kernels.GaussKernel')
-                    this.saveRealVector(k.Gamma,file,folder);
+                    export.Util.saveRealVector(k.Gamma,file,folder);
                 elseif isa(k,'kernels.LinearKernel')
                     % do nothing.
                 end

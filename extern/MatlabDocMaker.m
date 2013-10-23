@@ -623,6 +623,21 @@ classdef MatlabDocMaker
             else
                 fprintf(2,'latex not found!\nA LaTeX installation available on the system path is strongly recommended with mtoc++.\n');
             end
+            % Ghostscript
+            fprintf('[Recommended] Checking for ghostscript... ');
+            if ispc
+                [st, vers] = system('gswin32c --version');
+                if st ~= 0
+                    [st, vers] = system('gswin64c --version');
+                end
+            else
+                [st, vers] = system('gs --version');
+            end
+            if st == 0
+                fprintf(' found %s\n',vers(1:strfind(vers,sprintf('\n'))-1));
+            else
+                fprintf(2,'ghostscript not found!\nCreating LaTeX formulas might not work properly.\n');
+            end
 
             if ~hasall
                 fprintf(2,'Please make sure all prerequisites can be found on PATH or copy the executables into %s.\n',confdir);
