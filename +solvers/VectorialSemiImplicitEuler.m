@@ -39,6 +39,7 @@ classdef VectorialSemiImplicitEuler < solvers.BaseCustomSolver
         function this = VectorialSemiImplicitEuler(model)
             this.model = model;
             this.Name = 'Vectorial semi-implicit Euler''s method';
+            this.SolverType = solvers.SolverTypes.Explicit;
         end
     end
     

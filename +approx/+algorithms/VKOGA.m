@@ -72,7 +72,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             % Starts the adaptive extension of the VKOGA algorithm.
             
             % Flag for experimental mode
-            exp_mode = 1 == 0;
+            exp_mode = 1 == 1;
             vb = KerMor.App.Verbose;
             
             ec = this.ExpConfig;
@@ -95,7 +95,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             bestc = [];
 
             if exp_mode
-                pm = PlotManager(false,2,2);
+                pm = PlotManager(false,ceil((size(fxi,1)+4)/2),2);
                 pm.LeaveOpen = true;
             end
             
@@ -180,15 +180,22 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     
                     if exp_mode
                         pm.resetCount;
-                        h1 = pm.nextPlot('fun','Function','x','f(x)');
-                        plot(h1,xi(1,:),[fxi; c(:,1:m)*(NV(:,1:m))']');
+                        for fdim = 1:size(fxi,1)
+                            h1 = pm.nextPlot('fun','Function','x','f(x)');
+                            plot(h1,xi(1,:),fxi(fdim,:)','b.');
+                            hold(h1,'on');
+                            plot(h1,xi(1,:),c(fdim,1:m)*(NV(:,1:m))','g.');
+                        end
                         h2 = pm.nextPlot('nfun','Newton Basis Function','x','N_i(x)');
-                        plot(h2,xi(1,:),NV(:,1:m)); 
+                        plot(h2,xi(1,:),NV(:,1:m));
                         h3 = pm.nextPlot('err','Absolute error','x','|f(x)-f^m(x)|');
                         LogPlot.cleverPlot(h3,1:m,this.MaxErrors(:,1:m)); 
                         h4 = pm.nextPlot('MaxRelErrors','Relative error','x','|(f(x)-f^m(x))/f(x)|');
                         LogPlot.cleverPlot(h4,1:m,this.MaxRelErrors(:,1:m));
+                        h5 = pm.nextPlot('sum_fresidual','Squared residual ||f-f^m||^2','x','||f-f^m||^2');
+                        LogPlot.cleverPlot(h5,1:N,sum_fresidual);
                         pm.done;
+%                         pause;
                     end
                     
                     %% Emergency break:
@@ -324,16 +331,16 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
     methods(Static)
         
         function res = test_VKOGA1DnD
-            % Tests the VKOGA algorithm
+            % Tests the VKOGA algorithm by running the demos
             
-            demos.VKOGA.demo_VKOGA_1D_nD(1,false);
-            demos.VKOGA.demo_VKOGA_1D_nD(1,true);
-            demos.VKOGA.demo_VKOGA_1D_nD(2,false);
-            demos.VKOGA.demo_VKOGA_1D_nD(2,true);
-            demos.VKOGA.demo_VKOGA_1D_nD(3,false,10);
-            demos.VKOGA.demo_VKOGA_1D_nD(3,true);
-            demos.VKOGA.demo_VKOGA_1D_nD(4,false,10);
-            demos.VKOGA.demo_VKOGA_1D_nD(4,true);
+            demos.VKOGA.VKOGA_1D_nD(1,false);
+            demos.VKOGA.VKOGA_1D_nD(1,true);
+            demos.VKOGA.VKOGA_1D_nD(2,false);
+            demos.VKOGA.VKOGA_1D_nD(2,true);
+            demos.VKOGA.VKOGA_1D_nD(3,false,10);
+            demos.VKOGA.VKOGA_1D_nD(3,true);
+            demos.VKOGA.VKOGA_1D_nD(4,false,10);
+            demos.VKOGA.VKOGA_1D_nD(4,true);
             res = true;
         end
         

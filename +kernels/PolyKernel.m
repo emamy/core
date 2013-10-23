@@ -75,5 +75,44 @@ classdef PolyKernel < kernels.BaseKernel
         end
     end
     
+    methods(Static)
+        function res = test_PolyKernel(pm)
+            if nargin < 1
+                pm = PlotManager(false,3,3);
+                pm.LeaveOpen = true;
+            end
+            c = 1;
+            x = (-1.2:.01:1.2)+c;
+            
+            k = kernels.PolyKernel;
+            kexp = kernels.KernelExpansion;
+            kexp.Kernel = k;
+            kexp.Centers.xi = c;
+            kexp.Ma = 1;
+            conf = [.1 .4 .8 1 2 3 4];
+            for n = 1:length(conf)
+                k.Degree = conf(n);
+                tag = sprintf('poly_1d_deg%g',k.Degree);
+                h = pm.nextPlot(tag,sprintf('Polynomial kernel with deg=%g on 1D data',k.Degree));
+                z = kexp.evaluate(x);
+                plot(h,x,[real(z); imag(z)]);
+            end
+            kexp.Centers.xi = [c; 1.6*c];
+            [X,Y] = meshgrid(x);
+            x2 = [X(:)'; Y(:)'];
+            for n = 1:length(conf)
+                k.Degree = conf(n);
+                tag = sprintf('poly_2d_deg%g',k.Degree);
+                h = pm.nextPlot(tag,sprintf('Polynomial kernel with deg=%g on 2D data',k.Degree));
+                Z = real(reshape(kexp.evaluate(x2),length(x),[]));
+                surf(h,X,Y,Z,'EdgeColor','none');
+            end
+            if nargin < 1
+                pm.done;
+            end
+            res = true;
+        end
+    end
+    
 end
 

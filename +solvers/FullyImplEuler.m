@@ -23,6 +23,7 @@ classdef FullyImplEuler < solvers.BaseCustomSolver & solvers.IImplSolver
             this.model = model;
             % "Disable" MaxStep DPCM warning as implicit solvers are stable
             this.MaxStep = [];
+            this.SolverType = solvers.SolverTypes.Implicit;
         end
     end
     

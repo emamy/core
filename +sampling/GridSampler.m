@@ -4,6 +4,9 @@ classdef GridSampler < sampling.BaseSampler
 %
 % @author Daniel Wirtz @date 2010-04-01
 %
+% @change{0,7,dw,2013-09-05} Moved the Spacing property to
+% data.ModelParam
+%
 % @change{0,5,dw,2011-11-09}
 % - Fixed logspace grid sampling when any of the range values was zero.
 % - New default value for Spacing is 'lin'.
@@ -15,16 +18,9 @@ classdef GridSampler < sampling.BaseSampler
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
-%
-% @todo maybe move the Spacing property into ModelParam, to enable custom
-% spacing for each parameter
     
     methods
-        function this = GridSampler
-            this = this@sampling.BaseSampler;
-            this.registerProps('Spacing');
-        end
-        
+       
         function samples = performSampling(~, model)
             % Uses the given model and generates a training set by creating
             % a regular grid in joint time/parameter space
@@ -65,6 +61,17 @@ classdef GridSampler < sampling.BaseSampler
             else
                 samples = Utils.createCombinations(ranges);
             end
+        end
+    end
+    
+    methods(Static, Access=protected)
+        function obj = loadobj(obj)
+            % Introduced as the "Spacing" property has moved to
+            % data.ModelParam
+            if ~isa(obj,'sampling.GridSampler')
+                obj = sampling.GridSampler;
+            end
+            obj = loadobj@sampling.BaseSampler(obj);
         end
     end
     

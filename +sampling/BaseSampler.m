@@ -1,6 +1,5 @@
 classdef BaseSampler < KerMorObject
-    %BASESAMPLER Summary of this class goes here
-    %   Detailed explanation goes here
+    %BaseSampler Basis class for parameter sampling classes
     
     methods
         function samples = generateSamples(this, model)

@@ -62,12 +62,23 @@ classdef BaseSolver < KerMorObject
         %
         % @propclass{data} Define your own solver name!
         Name = 'KerMor BaseSolver class';
+        
+        % The type of the solver
+        %
+        % MaxStep is only relevant for explicit solvers
+        %
+        % @propclass{data} ToDo!
+        %
+        % @type solvers.SolverTypes @ default solvers.SolverTypes.Explicit 
+        %
+        % See also: solvers.SolverTypes
+        SolverType = solvers.SolverTypes.Explicit;
     end
     
     methods
         function this = BaseSolver
             this = this@KerMorObject;
-            this.registerProps('MaxStep','InitialStep','Name','RealTimeMode');
+            this.registerProps('MaxStep','InitialStep','Name','RealTimeMode','SolverType');
         end
     end
     
@@ -106,6 +117,13 @@ classdef BaseSolver < KerMorObject
                 error('Maximum time step must be greater than zero. Use [] to unset.');
             end
             this.MaxStep = value;
+        end
+        
+        function set.SolverType(this,value)
+            if ~isa(value,'solvers.SolverTypes')
+                error('Solver type must be a solvers.SolverTypes')
+            end
+            this.SolverType = value;
         end
         
         function set.InitialStep(this, value)

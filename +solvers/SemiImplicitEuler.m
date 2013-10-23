@@ -32,6 +32,7 @@ classdef SemiImplicitEuler < solvers.BaseCustomSolver
         function this = SemiImplicitEuler(model)
             this.model = model;
             this.Name = 'Semi-implicit euler method';
+            this.SolverType = solvers.SolverTypes.Explicit;
         end
     end
     
