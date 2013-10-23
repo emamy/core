@@ -279,10 +279,10 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             end
             
             if nargin < 2
-                xsize = 1;
+                xsize = 5;
             end
             x = rand(this.xDim,xsize);
-            mu = rand(1,xsize); % simply assume param dim<=20
+            mu = rand(20,xsize); % simply assume param dim<=20
             t = rand(1,xsize);
             fx = this.evaluate(x, t, mu);
             oldpts = [];
