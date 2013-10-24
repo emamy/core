@@ -3,6 +3,12 @@ classdef MLode15i < solvers.MLWrapper & solvers.IImplSolver
 %
 % @author Daniel Wirtz @date 2011-04-14
 %
+% @change{0,8,dw,2013-10-24} Providing a default sparse identity matrix as
+% dydxp-jacobian (i.e. matrix M and M-sparsity pattern). This yields a
+% major increase in performance when providing f-Jacobian information. This
+% is due to a ode15i sparse Miter matrix, which is dense if odenumjac is
+% used to compute the dydxp value/pattern).
+%
 % @change{0,6,dw,2011-12-07} Changed the inheritance order, now inheriting
 % from MLWrapper solver class and overriding the actual solver call
 % (different arguments for ode15i)
@@ -99,6 +105,8 @@ classdef MLode15i < solvers.MLWrapper & solvers.IImplSolver
             % only (at least can be guaranteed) for constant mass matrices.
             if ~isempty(this.M)
                 JP{2} = this.M.SparsityPattern;
+            else
+                JP{2} = speye(size(x0,1));
             end
             opts = odeset(opts, 'JPattern', JP);
             
@@ -138,9 +146,10 @@ classdef MLode15i < solvers.MLWrapper & solvers.IImplSolver
             if ~isempty(this.JacFun)
                 dfdx = -this.JacFun(t, x);
             end
-            dfdxp = [];
             if ~isempty(this.M)
                 dfdxp = this.M.evaluate(t);
+            else
+                dfdxp = speye(size(x,1));
             end
         end
     end
