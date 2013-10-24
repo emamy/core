@@ -333,6 +333,23 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             neg.Ma = -this.Ma;
         end
         
+        function exportToDirectory(this, dir)
+            if nargin < 2
+                dir = pwd;
+            end
+            k = this.Kernel;
+            if isa(k,'kernels.GaussKernel')
+                kdata = [1 k.Gamma];
+            elseif isa(k,'kernels.Wendland')
+                kdata = [2 k.Gamma k.d k.k];
+            else
+                error('Cannot export a kernel of type %s yet.',class(this.Kernel));
+            end
+            export.Util.saveRealVector(kdata,'kernel.bin',dir);
+            export.Util.saveRealMatrix(this.Centers.xi,'centers.bin',dir);
+            export.Util.saveRealMatrix(this.Ma,'coeffs.bin',dir);
+        end
+        
         function [times, e] = test_DiffBaseProps(this, numpts)
             % Tests the evaluation speed and determines the evaluation error of this kernel
             % expansion and this expansion using the default direct translate base.

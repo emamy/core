@@ -378,14 +378,20 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             % Return values:
             % res: A flag indicating if each test had a relative error of
             % less than 1e-7 @type logical
+            
             reltol = 1e-7;
             dt = sqrt(eps);
-            res = false;
-            if nargin < 3 || isempty(ta)
-                ta = double.empty(0,size(xa,2));
-            end
-            if nargin < 4 || isempty(mua)
-                mua = double.empty(0,size(xa,2));
+            if nargin < 2
+                xa = rand(this.xDim,20);
+                ta = 1:20;
+                mua = rand(20,20);
+            else
+                if nargin < 4 || isempty(mua)
+                    mua = double.empty(0,size(xa,2));
+                    if nargin < 3 || isempty(ta)
+                        ta = double.empty(0,size(xa,2));
+                    end
+                end
             end
             d = size(xa,1);
             I = speye(d,d)*dt;
@@ -419,7 +425,6 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                     pi.step;
                     abserr = max(max(abs(J-Jc(:,pos))));
                     maxJ = max(max(abs(J)));
-                    %relerr = abserr/maxJ;
                     relerr = max(max(abs(J-Jc(:,pos))./J));
                     diff = abs(J-Jc);
                     [v, pos] = sort(diff(:),'descend');
@@ -433,7 +438,7 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                         pi.stop;
                         disp(M);
                         fprintf('Failed at test vector %d. Max absolute error %g, relative %g, max %d errors at rows %s, cols %s (maxJ=%g)\n',i,abserr,relerr,num,indic,indjc,J(pos(1)));
-                        return;
+                        %return;
                     else
                         fprintf('Max absolute error %g, relative %g, max %d errors at rows %s, cols %s (maxJ=%g)\n',abserr,relerr,num,indic,indjc,J(pos(1)));
                     end
