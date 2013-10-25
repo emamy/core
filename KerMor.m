@@ -521,6 +521,9 @@ classdef KerMor < handle
             %
             % It is located in a "tmp" subfolder of the DataDirectory path.
             h = fullfile(this.DataDirectory,'tmp');
+            if ~exist(h,'file')
+                mkdir(h);
+            end
         end
         
         function d = get.DesktopLayout(this)
@@ -912,7 +915,7 @@ classdef KerMor < handle
             
             %% Matlab Parallel processing
             if ~isempty(which('matlabpool'));
-                str = sprintf('Do you want to Use Matlab Parallel Processing?\n(Y)es/(N)o: ');
+                str = sprintf('Do you want to Use Matlab Parallel Computing?\nThis option aquires parallel \n(Y)es/(N)o: ');
                 value = lower(input(str,'s'));
                 if isequal(value,'y')
                     setpref(a.getPrefTag,'USEMATLABPARALLELCOMPUTING',true);
