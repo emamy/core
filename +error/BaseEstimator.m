@@ -77,7 +77,7 @@ classdef BaseEstimator < KerMorObject & ICloneable
         ReducedModel = [];
     end
     
-    properties(Access=private)
+    properties%(Access=private)
         fEnabled = true;
         e0Comp;
     end

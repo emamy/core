@@ -521,6 +521,9 @@ classdef KerMor < handle
             %
             % It is located in a "tmp" subfolder of the DataDirectory path.
             h = fullfile(this.DataDirectory,'tmp');
+            if ~exist(h,'file')
+                mkdir(h);
+            end
         end
         
         function d = get.DesktopLayout(this)
@@ -690,22 +693,30 @@ classdef KerMor < handle
                 fprintf('KerMor preferences/settings found for tag "%s"...\n',this.getPrefTag);
             end
             
-            disp('Initializing environment...')
+            disp('Initializing environment...');
+            
+            warning off MATLAB:dispatcher:nameConflict;
+            
             % Preferences & Environment
             setpref('Internet','SMTP_Server','localhost');
-            % Setup home directory & paths
-            p = this.HomeDirectory;
-            addpath(p);
-            addpath(fullfile(p,'visual'));
-            addpath(fullfile(p,'interfaces'));
-            addpath(fullfile(p,'tools'));
-            
+                        
             % Figure position settings
             if ~isempty(this.DefaultFigurePosition)
                 set(0,'DefaultFigurePosition',this.DefaultFigurePosition);
             end
             
-            initextern;            
+            p = this.HomeDirectory;
+            
+            % Initialize external folders & software
+            initextern(p); 
+            
+            % Setup home directory & paths (AFTER extern, to have the path
+            % entries search BEFORE externally created ones)
+            addpath(p);
+            addpath(fullfile(p,'visual'));
+            addpath(fullfile(p,'interfaces'));
+            addpath(fullfile(p,'tools'));
+            
             initParallelization;
             
             disp('Entering startup path..');
@@ -738,16 +749,30 @@ classdef KerMor < handle
             % Set more narrow format as default
             format compact;
             
+            warning on MATLAB:dispatcher:nameConflict;
+            
             disp('<<<<<<<<< Ready to go. >>>>>>>>>>');
             
-            function initextern
+            function initextern(p)
                 % Checks for 3rd party software availability
                 %
                 % @todo include checks for pardiso once pardiso solver is
                 % implemented/wrapped
                 
-                warning off MATLAB:dispatcher:nameConflict
+                % rbmatlab
+                if ~isempty(this.rbmatlabDirectory)
+                    disp('<<<<<<<<< Starting rbmatlab >>>>>>>>>>');
+                    setenv('RBMATLABTEMP', this.TempDirectory);
+                    setenv('RBMATLABHOME', this.rbmatlabDirectory);
+                    addpath(this.rbmatlabDirectory);
+                    curdir = pwd;
+                    evalin('base','startup_rbmatlab;');
+                    evalin('base','clear all;');
+                    chdir(curdir);
+                    disp('<<<<<<<<< Done Starting rbmatlab >>>>>>>>>>');
+                end
                 
+                % Auto-add external folders matching "z***" patterns
                 fprintf('Autoadding external folders to path... ');
                 hd = KerMor.App.HomeDirectory;
                 d = dir(hd);
@@ -765,6 +790,8 @@ classdef KerMor < handle
                 else
                     fprintf('none found! (Create folders beginning with "z" like "zMyExternSources"\n');
                 end
+                
+                % Add KerMor-included external software paths
                 disp('Initializing 3rd party software...')
                 addpath(fullfile(p,'extern'));
                 addpath(fullfile(p,'extern','matlabtools'));
@@ -786,21 +813,6 @@ classdef KerMor < handle
                 if ~exist(fullfile(d,['typecastx.' mexext]),'file')
                     warning('KerMor:init','No compiled typecastx mex file found. Did you run KerMor.setup completely?\nKerMor might not run properly.');
                 end
-                
-                % rbmatlab
-                if ~isempty(this.rbmatlabDirectory)
-                    disp('<<<<<<<<< Starting rbmatlab >>>>>>>>>>');
-                    setenv('RBMATLABTEMP', this.TempDirectory);
-                    setenv('RBMATLABHOME', this.rbmatlabDirectory);
-                    addpath(this.rbmatlabDirectory);
-                    curdir = pwd;
-                    evalin('base','startup_rbmatlab;');
-                    evalin('base','clear all;');
-                    chdir(curdir);
-                    disp('<<<<<<<<< Done Starting rbmatlab >>>>>>>>>>');
-                end
-                
-                warning on MATLAB:dispatcher:nameConflict
             end   
             
             function initParallelization
@@ -912,7 +924,7 @@ classdef KerMor < handle
             
             %% Matlab Parallel processing
             if ~isempty(which('matlabpool'));
-                str = sprintf('Do you want to Use Matlab Parallel Processing?\n(Y)es/(N)o: ');
+                str = sprintf('Do you want to Use Matlab Parallel Computing?\nThis option aquires parallel \n(Y)es/(N)o: ');
                 value = lower(input(str,'s'));
                 if isequal(value,'y')
                     setpref(a.getPrefTag,'USEMATLABPARALLELCOMPUTING',true);

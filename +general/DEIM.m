@@ -1,39 +1,39 @@
 classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvider
-% DEIM: Implements the DEIM-Algorithm from \cite{CS10}
-%
-% \cite{CS10} Chaturantabut, S. & Sorensen, D.
-% Discrete Empirical Interpolation for nonlinear model reduction
-% Proc. of CDC/CCC 2009, 2009, pp. 4316 -4321
-%
-% Additionally allows to estimate the DEIM error a-posteriori by using the 
-% next `M'` orders of the current DEIM approximation.
-%
-% @author Daniel Wirtz @date 2012-03-26
-%
-% @change{0,6,dw,2012-06-08}
-% - DEIM is now a KerMorObject
-% - Fixed triggering of updateOrderData after computeDEIM calls
-% - Completed clone method
-% - New event "OrderUpdated" to notify any components of changes to the
-% current DEIM orders
-%
-% @new{0,6,dw,2012-05-30} Added a custom implementation of the
-% getStateJacobian method
-%
-% @change{0,6,dw,2012-05-29} Besides many work-in-progress changes, now the
-% evaluate function is implemented directly. further, some matrices needed
-% for the DEIMEstimator have been included and are being computed.
-%
-% @new{0,6,dw,2012-03-26} Added this class.
-%
-% @todo think of exporting the jrow, jend, S properties to ACompEvalCoreFun
-% and precompute stuff there; projection happens at that stage
-%
-% This class is part of the framework
-% KerMor - Model Order Reduction using Kernels:
-% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
-% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
-% - \c License @ref licensing
+    % DEIM: Implements the DEIM-Algorithm from \cite{CS10}
+    %
+    % \cite{CS10} Chaturantabut, S. & Sorensen, D.
+    % Discrete Empirical Interpolation for nonlinear model reduction
+    % Proc. of CDC/CCC 2009, 2009, pp. 4316 -4321
+    %
+    % Additionally allows to estimate the DEIM error a-posteriori by using the
+    % next `M'` orders of the current DEIM approximation.
+    %
+    % @author Daniel Wirtz @date 2012-03-26
+    %
+    % @change{0,6,dw,2012-06-08}
+    % - DEIM is now a KerMorObject
+    % - Fixed triggering of updateOrderData after computeDEIM calls
+    % - Completed clone method
+    % - New event "OrderUpdated" to notify any components of changes to the
+    % current DEIM orders
+    %
+    % @new{0,6,dw,2012-05-30} Added a custom implementation of the
+    % getStateJacobian method
+    %
+    % @change{0,6,dw,2012-05-29} Besides many work-in-progress changes, now the
+    % evaluate function is implemented directly. further, some matrices needed
+    % for the DEIMEstimator have been included and are being computed.
+    %
+    % @new{0,6,dw,2012-03-26} Added this class.
+    %
+    % @todo think of exporting the jrow, jend, S properties to ACompEvalCoreFun
+    % and precompute stuff there; projection happens at that stage
+    %
+    % This class is part of the framework
+    % KerMor - Model Order Reduction using Kernels:
+    % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
+    % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % - \c License @ref licensing
     
     properties(SetObservable)
         % The maximum order up to which the DEIM approximation should be computed.
@@ -47,7 +47,7 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
         % @type integer @default 40
         MaxOrder = 40;
     end
-
+    
     properties(Dependent)
         % The actual order `M` for the current DEIM approximation.
         %
@@ -117,7 +117,7 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
         M2;
     end
     
-    properties(SetAccess=private)
+    properties%(SetAccess=private)
         % The function which DEIM is applied to
         %
         % Is a subclass of dscomponents.ACompEvalCoreFun
@@ -211,7 +211,7 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
         
         function target = project(this, V, W, target)
             % Pojects instance according to the projection biorthogonal matrices `V,W`.
-            % 
+            %
             % See also: general.AProjectable
             %
             % Parameters:
@@ -276,7 +276,7 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
             % algorithm
             %
             % Parameters:
-            % u: matrix, columns are the orthonormal basis vectors computed via POD from the snapshot data 
+            % u: matrix, columns are the orthonormal basis vectors computed via POD from the snapshot data
             % @type matrix<double>
             
             n = size(u,1);
@@ -404,5 +404,12 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
         % Gets fired whenever this DEIM instance has updated it's order
         % matrices.
         OrderUpdated;
+    end
+    
+    methods(Static, Access=protected)
+        function obj = loadobj(obj, varargin)
+            obj = loadobj@general.AProjectable(obj, varargin{:});
+            obj = loadobj@KerMorObject(obj, varargin{:});
+        end
     end
 end

@@ -61,4 +61,11 @@ classdef DEIM < approx.BaseApprox & general.DEIM
             copy = clone@general.DEIM(this, copy);
         end
     end
+    
+    methods(Static, Access=protected)
+        function obj = loadobj(obj, varargin)
+            obj = loadobj@general.DEIM(obj, varargin{:});
+            obj = loadobj@approx.BaseApprox(obj, varargin{:});
+        end
+    end
 end

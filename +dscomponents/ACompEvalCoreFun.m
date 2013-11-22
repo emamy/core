@@ -439,4 +439,22 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
         % many columns as `\vX` had.
         fx = evaluateComponents(this, pts, ends, idx, self, x, t, mu);
     end
+    
+    methods(Static, Access=protected)
+        function obj = loadobj(obj, from)
+            if nargin == 2
+                obj.pts = from.pts;
+                obj.S = from.S;
+                obj.jrow = from.jrow;
+                obj.jend = from.jend;
+                obj.jself = from.jself;
+                obj.deriv = from.deriv;
+                obj.dfxsel = from.dfxsel;
+                obj.T = from.T;
+                obj = loadobj@dscomponents.ACoreFun(obj, from);
+            else
+                obj = loadobj@dscomponents.ACoreFun(obj);
+            end
+        end
+    end
 end

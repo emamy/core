@@ -237,8 +237,13 @@ classdef DEIMEstimator < error.BaseEstimator & IReductionSummaryPlotProvider
             
             fm = rm.FullModel;
             
+            W = rm.W;
+            if isempty(W)
+                W = rm.V;
+            end
+            
             % Perform projection of JacMDeim instance
-            prepared.JacMDEIM = this.JacMDEIM.project(rm.V, rm.W);
+            prepared.JacMDEIM = this.JacMDEIM.project(rm.V, W);
             
             % Precompute all the projected quantities that are independent of the DEIM error
             % orders
@@ -247,7 +252,7 @@ classdef DEIMEstimator < error.BaseEstimator & IReductionSummaryPlotProvider
             A = [];
             if ~isempty(fA)
                 hlp = fA*rm.V;
-                A = hlp - rm.V*(rm.W'*hlp); % (I-VW^T)AV
+                A = hlp - rm.V*(W'*hlp); % (I-VW^T)AV
                 prepared.M6 = A'*(G*A);
                 prepared.Ah = A;
             else
@@ -255,7 +260,7 @@ classdef DEIMEstimator < error.BaseEstimator & IReductionSummaryPlotProvider
             end
             B = [];
             if ~isempty(fm.System.B)
-                B = fm.System.B - rm.V*(rm.W'*fm.System.B);
+                B = fm.System.B - rm.V*(W'*fm.System.B);
                 prepared.M12 = B'*(G*B);
                 prepared.Bh = B;
             else
@@ -317,7 +322,11 @@ classdef DEIMEstimator < error.BaseEstimator & IReductionSummaryPlotProvider
                 rm = this.ReducedModel;
                 fs = rm.FullModel.System;
                 A = fs.A.evaluate(rm.V*x,t,mu);
-                a = A - rm.V*(rm.W'*A);
+                if isempty(rm.W)
+                    a = A - rm.V*(rm.W'*A);
+                else
+                    a = A - rm.V*(rm.V'*A);
+                end
                 a = a + fs.f.evaluate(rm.V*x,t,mu) ...
                     - rm.V*rm.System.f.evaluate(x,t,mu);
                 if ~isempty(fs.B)
