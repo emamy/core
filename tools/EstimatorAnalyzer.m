@@ -143,6 +143,7 @@ classdef EstimatorAnalyzer < handle
             est = struct.empty;
             est(end+1).Name = 'True error';
             e = error.DefaultEstimator;
+            e.offlineComputations(this.ReducedModel.FullModel);
             est(end).Estimator = e.prepareForReducedModel(this.ReducedModel);
             est(end).Estimator.Enabled = true;
             est(end).MarkerStyle = 'o';
