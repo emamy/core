@@ -46,6 +46,7 @@ classdef DefaultEstimator < error.BaseEstimator
             this.ExtraODEDims = 0;
             if nargin == 1
                 this.Enabled = true;
+                this.offlineComputations(rmodel.FullModel);
                 this = this.prepareForReducedModel(rmodel);
             else
                 this.Enabled = false;

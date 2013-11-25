@@ -67,5 +67,12 @@ classdef AffLinInputConv < general.AffParamMatrix & dscomponents.AInputConv
         end
     end
     
+    methods(Static, Access=protected)
+        function obj = loadobj(obj, varargin)
+            obj = loadobj@general.AffParamMatrix(obj, varargin{:});
+            obj = loadobj@dscomponents.AInputConv(obj, varargin{:});
+        end
+    end
+    
 end
 
