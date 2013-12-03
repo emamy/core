@@ -79,4 +79,13 @@ classdef AProjectable < ICloneable
         end
     end
     
+    methods(Static, Access=protected)
+        function obj = loadobj(obj, from)
+            if nargin == 2
+                obj.V = from.V;
+                obj.W = from.W;
+            end
+        end
+    end
+    
 end

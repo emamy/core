@@ -23,7 +23,11 @@ classdef Constant < error.initial.Base
             x0 = fs.x0.evaluate([]) ./ fs.StateScaling;
             % Only project if projection is used
             if ~isempty(rm.V)
-                x0 = x0 - rm.V*(rm.W'*x0);
+                W = rm.W;
+                if isempty(W)
+                    W = rm.V;
+                end
+                x0 = x0 - rm.V*(W'*x0);
             end
             this.e0 = Norm.LG(x0,rm.G);
         end

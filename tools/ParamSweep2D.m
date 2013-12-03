@@ -31,9 +31,6 @@ function [h, Y, E] = ParamSweep2D(rmodel, mu, inputidx, params, range1, range2, 
 % - \c License @ref licensing
 
 % Validity checks 
-if ~isposintmat(params)
-    error('params must be positive parameter indices');
-end
 [pname{1:2}] = rmodel.System.Params(params).Name;
 if size(range1,2) == 0 || size(range2,2) == 0
     error('Parameter ranges to sweep must be given.');

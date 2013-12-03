@@ -131,8 +131,8 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
                 this.sizes = [newd newmu];
             elseif newd ~= this.sizes(1)
                 error('Invalid trajectory dimension. Existing: %d, new: %d',this.sizes(1),newd);
-            elseif newmu ~= this.sizes(2)
-                error('Invalid parameter dimension. Existing: %d, new: %d',this.sizes(2),newmu);
+%             elseif newmu ~= this.sizes(2)
+%                 error('Invalid parameter dimension. Existing: %d, new: %d',this.sizes(2),newmu);
             end
             
             if this.UniformTrajectories

@@ -371,7 +371,8 @@ classdef ModelAnalyzer < handle;
             %% Absolute value plot
             h = pm.nextPlot('norms','The state variable norms','time','norms');
             plot(h, t, xnorm,'b',t,xrnorm,'r',t,xrnorm-est,'r--',t,xrnorm+est,'r--');
-            legend('Full system','Reduced system','Lower bound','Upper bound');
+            le = legend('Full system','Reduced system','Lower bound','Upper bound');
+            set(le,'Location','NorthWest');
             
             % Error plots
             h = pm.nextPlot('abserrors',sprintf('The state variable absolute errors.\nmean(e)=%g, mean(est)=%g',mean(e),mean(est)),...

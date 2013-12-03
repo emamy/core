@@ -451,5 +451,23 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             res = true;
         end
     end
+    
+    methods(Static, Access=protected)
+        function obj = loadobj(obj, from)
+            if nargin == 2
+                obj.CustomProjection = from.CustomProjection;
+                obj.MultiArgumentEvaluations = from.MultiArgumentEvaluations;
+                obj.JSparsityPattern = from.JSparsityPattern;
+                obj.TimeDependent = from.TimeDependent;
+                obj.xDim = from.xDim;
+                obj.fDim = from.fDim;
+                obj = loadobj@general.AProjectable(obj, from);
+                obj = loadobj@KerMorObject(obj, from);
+            else
+                obj = loadobj@general.AProjectable(obj);
+                obj = loadobj@KerMorObject(obj);
+            end
+        end
+    end
 end
 

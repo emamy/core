@@ -114,7 +114,7 @@ classdef EstimatorAnalyzer < handle
     methods
         
         function this = EstimatorAnalyzer(model)
-            this.ModelData = struct('Name',{},'ErrsT',{},'RelErrsT',{});
+            this.ModelData = struct('Name',{},'ErrT',{},'RelErrT',{});
             if nargin == 1
                 this.setModel(model);
             end
@@ -143,6 +143,7 @@ classdef EstimatorAnalyzer < handle
             est = struct.empty;
             est(end+1).Name = 'True error';
             e = error.DefaultEstimator;
+            e.offlineComputations(this.ReducedModel.FullModel);
             est(end).Estimator = e.prepareForReducedModel(this.ReducedModel);
             est(end).Estimator.Enabled = true;
             est(end).MarkerStyle = 'o';
@@ -479,7 +480,7 @@ classdef EstimatorAnalyzer < handle
             end
             a = cell(1,length(this.Est));
             [a{:}] = this.Est(:).Name;
-            [~,oh] = legend(a,'Location','SouthEast','Interpreter','latex','FontSize',14);
+            [~,oh] = legend(a,'Location','NorthEast','Interpreter','latex','FontSize',14);
             % Assign markers to legend
             oh = findobj(oh,'Type','line');
             for idx=1:length(this.Est)
@@ -497,19 +498,21 @@ classdef EstimatorAnalyzer < handle
             % Error estimators
             est = struct.empty;
             
+            % Default Estimator (true error)
             if this.EstimatorVersions(1)
                 est(end+1).Name = 'True error';
-                est(end).Estimator = error.DefaultEstimator;
+                est(end).Estimator = error.DefaultEstimator(r);
                 est(end).Estimator.Enabled = true;
                 est(end).MarkerStyle = 'o';
                 est(end).LineStyle = '-';
             end
             
-            %% Kernel-based systems error estimators
+            % GLE estimator
             if this.EstimatorVersions(2)
                 msg = error.GLEstimator.validModelForEstimator(r.FullModel);
                 e = error.GLEstimator;
                 e.offlineComputations(r.FullModel);
+                e = e.prepareForReducedModel(r);
                 if isempty(msg)
                     fprintf('Initializing Global Lipschitz estimator...\n');
                     est(end+1).Name = 'GLE';
@@ -534,6 +537,7 @@ classdef EstimatorAnalyzer < handle
                 fprintf('Using iteration counts: %s\n',num2str(this.EstimatorIterations));
                 e = error.IterationCompLemmaEstimator;
                 e.offlineComputations(r.FullModel);
+                e = e.prepareForReducedModel(r);
                 if this.EstimatorVersions(3)
                     fprintf('Initializing LGL estimator...\n');
                     est(end+1).Name = 'LGL';
@@ -596,9 +600,11 @@ classdef EstimatorAnalyzer < handle
                 if any(this.EstimatorVersions(6:8))
                     td = error.IterationCompLemmaEstimator;
                     td.offlineComputations(r.FullModel);
+                    td = td.prepareForReducedModel(r);
                     td.Iterations = 0;
                     td.UseTimeDiscreteC = true;
                 end
+                
                 if this.EstimatorVersions(6)
                     fprintf('Initializing LSL TD estimators...\n');
                     est(end+1).Name = 'LGL TD';

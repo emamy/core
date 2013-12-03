@@ -56,4 +56,11 @@ classdef AOutputConv < KerMorObject & general.AProjectable
         y = evaluate(t,mu);
     end
     
+    methods(Static, Access=protected)
+        function obj = loadobj(obj, varargin)
+            obj = loadobj@general.AProjectable(obj, varargin{:});
+            obj = loadobj@KerMorObject(obj, varargin{:});
+        end
+    end
+    
 end

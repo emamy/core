@@ -477,7 +477,8 @@ classdef BaseDynSystem < KerMorObject
         
         function set.C(this,value)
             if isempty(value)
-                error('An output conversion must always exist. Choose dscomponents.LinearOutputConv(1) if simple forwarding is required.');
+                value = dscomponents.LinearOutputConv(1);
+                warning('An output conversion must always exist. Choosing dscomponents.LinearOutputConv(1) for simple forwarding.');
             elseif ~isa(value, 'dscomponents.AOutputConv')
                 error('The property "C" has to be a class implementing dscomponents.AOutputConv');
             end

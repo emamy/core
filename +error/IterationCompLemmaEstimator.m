@@ -396,7 +396,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
         function errmsg = validModelForEstimator(model)
             % Validations
             errmsg = validModelForEstimator@error.BaseCompLemmaEstimator(model);
-            if isempty(errmsg) && ~isa(model.Approx,'kernels.ParamTimeKernelExpansion')
+            if isempty(errmsg) && ~isempty(model.Approx) && ~isa(model.Approx,'kernels.ParamTimeKernelExpansion')
                 errmsg = 'The model''s approximation function must be a subclass of kernels.ParamTimeKernelExpansion for this error estimator.';
             end
             if isempty(errmsg) && isa(model.System.f,'kernels.KernelExpansion') ...
