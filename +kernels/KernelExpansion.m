@@ -350,6 +350,22 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             export.Util.saveRealMatrix(this.Ma,'coeffs.bin',dir);
         end
         
+        function json = toJSON(this, filename)
+            json = '{';
+            %sprintf('{%s,"centers":%s}',coef,cent);
+            json = [json '"coeffs":' Util.matrixToJSON(this.Ma)];
+            json = [json ', "centers":' Util.matrixToJSON(this.Centers.xi)];
+            if this.HasCustomBase
+                json = [json ', "base":' Util.matrixToJSON(this.Base)];
+            end
+            json = [json '}'];
+            if nargin > 1
+                fh = fopen(filename,'w+');
+                fprintf(fh,'%s',json);
+                fclose(fh);
+            end
+        end
+        
         function [times, e] = test_DiffBaseProps(this, numpts)
             % Tests the evaluation speed and determines the evaluation error of this kernel
             % expansion and this expansion using the default direct translate base.
