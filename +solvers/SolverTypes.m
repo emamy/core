@@ -11,7 +11,11 @@ classdef SolverTypes
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
 
+    % agageg
     enumeration
-        Explicit, Implicit, MLSolver
+        Explicit,
+        
+        Implicit,
+        MLSolver
     end
 end

@@ -17,6 +17,10 @@ classdef SVR
             %
             % Parameters:
             % ep: The `\epsilon` to use. @type double @default 0.1
+            %
+            % Return values:
+            % pm: A PlotManager instance to save created figures. Optional.
+            % @type PlotManager
             
             if nargin == 0
                 ep = .1;
@@ -60,6 +64,8 @@ classdef SVR
             % Parameters:
             % version: The version to use. Either 1 or 2 for 1D or 2D SMO
             % @type integer @default 2
+            % pm: A PlotManager instance to use for figure creation. @type
+            % PlotManager @default PlotManager
             %
             % @new{0,5,dw,2011-10-05} Added this function.
             %

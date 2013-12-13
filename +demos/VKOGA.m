@@ -21,9 +21,14 @@ classdef VKOGA
             %
             % Parameters:
             % n: The output space dimension. Between 1 and 4. @type integer @default 1
-            % fPGreedy: Flag to use f/P-Greedy instead of f-Greedy. @type logical @default
-            % false
-            % nG: The number of different `\gamma` values to use for the Gaussian.
+            % fPGreedy: Flag to use f/P-Greedy instead of f-Greedy. @type
+            % logical @default false
+            % nG: The number of different `\gamma` values to use for the
+            % Gaussian. @type integer @default 3
+            %
+            % Return values:
+            % res: A struct with the fields {kexp, atd, alg} for further
+            % processing. @type struct
             
             %% Data setup
             x = -5:.1:5;
