@@ -165,7 +165,7 @@ classdef ModelAnalyzer < handle;
             if ~isempty(inputidx)
                 str = sprintf('%s, u_%d',str,inputidx);
             end
-            t = PrintTable('Computation times %s:\n',str);
+            t = PrintTable('Computation times %s:',str);
             t.HasRowHeader = true;
             t.addRow('Full model',ftime,{'%2.4fs'});
             t.addRow('Reduced model',rtime,{'%2.4fs'});
@@ -210,20 +210,15 @@ classdef ModelAnalyzer < handle;
             end
             
             %% Plotting
-            if nargout > 1
-                pm = PlotManager(false, 2, 2);
-                fm.plot(ti, y, pm.nextPlot('full_sim',sprintf('Full simulation\n%s',str)));
-                fm.plot(ti, yr, pm.nextPlot('red_sim',sprintf('Reduced simulation\n%s',str)));
-                fm.plot(ti, log10(abs(y-yr)), pm.nextPlot('abs_err',sprintf('Absolute error (log scale)\n%s',str)));
-                hlp = abs(y);
-%                 if any(hlp(:) == 0)
-%                     hlp2 = hlp;
-%                     hlp2(hlp==0) = [];
-%                     ep = min(hlp2(:))^2;
-%                     hlp(hlp==0) = ep;
-%                 end
-                fm.plot(ti, log10(abs(y-yr)./hlp), pm.nextPlot('rel_err',sprintf('Relative error (log scale)\n%s',str)));
-                pm.done;
+            pm = PlotManager(false, 2, 2);
+            fm.plot(ti, y, pm.nextPlot('full_sim',sprintf('Full simulation\n%s',str)));
+            fm.plot(ti, yr, pm.nextPlot('red_sim',sprintf('Reduced simulation\n%s',str)));
+            fm.plot(ti, log10(abs(y-yr)), pm.nextPlot('abs_err',sprintf('Absolute error (log scale)\n%s',str)));
+            hlp = abs(y);
+            fm.plot(ti, log10(abs(y-yr)./hlp), pm.nextPlot('rel_err',sprintf('Relative error (log scale)\n%s',str)));
+            pm.done;
+            if nargout < 2
+                pm.LeaveOpen = true;
             end
         end
         
@@ -301,6 +296,10 @@ classdef ModelAnalyzer < handle;
         end
         
         function pm = analyzeError(this, mu, inputidx, pm)
+            if isempty(this.rm.ErrorEstimator)
+                error('Error analysis only available for models with error estimator');
+            end
+            
             if nargin < 4
                 pm = PlotManager(false, 2, 3);
                 if nargin < 3

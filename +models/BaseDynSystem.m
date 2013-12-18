@@ -3,6 +3,10 @@ classdef BaseDynSystem < KerMorObject
     %
     % To setup custom dynamical systems, inherit from this class.
     %
+    % No system components are set by default, except a scalar
+    % dscomponents.LinearOutputConv instance for simple state-space to
+    % output forwarding.
+    %
     % Programming convention:
     % Any system-specific properties should be added in the subclass, even
     % though sometimes one might tend to put settings into the core
@@ -13,7 +17,7 @@ classdef BaseDynSystem < KerMorObject
     % and read settings from that instead.
     % For an example see the models.pcd.PCDSystem2D and pcd.CoreFun2D.
     %
-    % @author Daniel Wirtz @date 17.03.2010
+    % @author Daniel Wirtz @date 2010-03-17
     %
     % @new{0,6,dw,2011-12-06} Added a new component M, an optional system's
     % mass matrix `M(t,\mu)x'(t) = f\ldots`.
@@ -60,7 +64,7 @@ classdef BaseDynSystem < KerMorObject
         %
         % @propclass{important}
         %
-        % @type dscomponents.ACoreFun
+        % @type dscomponents.ACoreFun @default []
         f;
         
         % Represents a linear or affine-linear component of the dynamical
@@ -73,12 +77,14 @@ classdef BaseDynSystem < KerMorObject
         %
         % @type dscomponents.AffLinCoreFun,dscomponents.LinearCoreFun
         % @default []
-        A;
+        A = [];
         
         % The input conversion
         %
         % @propclass{optional}
-        B;
+        %
+        % @default [] @type dscomponents.AInputConv
+        B = [];
         
         % The output conversion
         % Defaults to an LinearOutputConv instance using a 1-matrix, which
@@ -87,26 +93,29 @@ classdef BaseDynSystem < KerMorObject
         % @propclass{optional}
         %
         % See also: dscomponents.LinearOutputConv.project
+        %
+        % @type dscomponents.LinearOutputConv @default 1
         C;
         
         % Function handle to initial state evaluation.
         % 
-        % The handle returns the initial value `x(0) = x_0` for the ODE solver to start simulations
-        % from.
+        % The handle returns the initial value `x(0) = x_0` for the ODE
+        % solver to start simulations from.
         %
-        % Function parameter is the current parameter `\mu` and return value is initial system state
-        % `x_0`.
+        % Function parameter is the current parameter `\mu` and return
+        % value is initial system state `x_0`.
         %
-        % @propclass{critical} The initial value greatly influences the simulation results.
+        % @propclass{critical} The initial value greatly influences the
+        % simulation results.
         %
         % @type dscomponents.AInitialValue
-        % @default ConstInitialValue instance with scalard zero
-        x0;
+        % @default []
+        x0 = [];
         
         % The system's mass matrix.
         %
         % @default [] @type dscomponents.AMassMatrix
-        M;
+        M = [];
         
         % The system's possible input functions.
         % A cell array of function handles, each taking a time argument t.
@@ -207,8 +216,6 @@ classdef BaseDynSystem < KerMorObject
             this.validateModel(model);
             this.Model = model;
             this.C = dscomponents.LinearOutputConv(1);
-            this.x0 = dscomponents.ConstInitialValue(0);
-            this.A = [];
             
             % Register default properties
             this.registerProps('A','f','B','C','x0','Inputs','Params','MaxTimestep','StateScaling');

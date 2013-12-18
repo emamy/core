@@ -18,6 +18,8 @@ classdef Heun < solvers.BaseCustomSolver
 % @change{0,4,dw,2011-05-31} Added a new middle class solvers.BaseCustomSolver which
 % extracts the getCompTimes into a new abstraction layer.
 %
+% @todo cater for time-constant mass matrices (get LU once before)
+%
 % This class is part of the framework
 % KerMor - Model Order Reduction using Kernels:
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
@@ -94,9 +96,9 @@ classdef Heun < solvers.BaseCustomSolver
                 
                 % Check if a mass matrix is present
                 if ~isempty(this.M)
-                    newx = oldx + this.M.evaluate(t(idx-1))\hlp;
-%                     [L,U] = this.M.getLU(t(idx-1)); 
-%                     newx = U\(L\(this.M.evaluate(t(idx-1))*oldx + hlp));
+%                     newx = oldx + this.M.evaluate(t(idx-1))\hlp;
+                    [L,U] = this.M.getLU(t(idx-1)); 
+                    newx = U\(L\(this.M.evaluate(t(idx-1))*oldx + hlp));
                 else
                     newx = oldx + hlp;
                 end

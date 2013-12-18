@@ -29,7 +29,7 @@ classdef AffineParametric < error.alpha.Base
             % the inputs.
             %
             % Parameters:
-            % fm: The full model @type models.BaseFullModel
+            % rm: The reduced model @type models.ReducedModel
             % M: The projected coefficient matrix `\vM_{\alpha} - \vV\vW^T\vM_{\alpha})` @type
             % matrix<double>
             fm = rm.FullModel;

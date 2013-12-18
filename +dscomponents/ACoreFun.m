@@ -109,8 +109,8 @@ classdef ACoreFun < KerMorObject & general.AProjectable
         % 
         % @type sparse<logical> @default []
         %
-        % @todo maybe move this property to the IJacobian interface? (but:
-        % might have sparsity pattern but not actually a analytic
+        % @todo maybe move this property to the IJacobian interface?
+        % (but: might have sparsity pattern but not actually a analytic
         % jacobian..)
         JSparsityPattern = [];
         

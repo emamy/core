@@ -16,6 +16,61 @@ classdef Speed
     
     methods(Static)
         
+        function [times, e] = KernelExpCustomBaseEval(kexp, numpts)
+            % Tests the evaluation speed and determines the evaluation
+            % error of a kernel expansion and this expansion using the
+            % default direct translate base.
+            %
+            % Must have a custom base set (HasCustomBase = true)
+            %
+            % Parameters:
+            % kexp: A kernel expansion @type kernels.KernelExpansion
+            % numpts: The number of random points at which to evaluate @type integer @default
+            % 1000
+            %
+            % Return values:
+            % times: A `2\times 1` vector containing the evaluation times using the
+            % custom and direct base in the first and second entry, respectively. @type
+            % colvec<double>
+            % e: The maximum pointwise absolute and relative `L^2`-errors over all runs @type
+            % double
+            if nargin < 2
+                numpts = 1000;
+                if nargin < 1
+                    kexp = kernels.KernelExpansion;
+                    kexp.Centers.xi = rand(400,40);
+                    kexp.Ma = rand(30,40);
+                    o = general.Orthonormalizer;
+                    A = o.orthonormalize(rand(40,40));
+                    L = chol(A'*diag(randi(10,1,40))*A);
+                    kexp.Base = L;
+                end
+            end
+            if ~kexp.HasCustomBase
+                error('No custom base set to compare to.');
+            end
+            x = rand(size(kexp.Centers.xi,1),numpts);
+            dbase = kexp.toTranslateBase;
+            runs = 10;
+            t = zeros(2,runs);
+            e = zeros(2,runs);
+            for r = 1:runs
+                tic;
+                fx1 = kexp.evaluate(x);
+                t(1,r) = toc;
+                tic;
+                fx2 = dbase.evaluate(x);
+                t(2,r) = toc;
+                er = Norm.L2(fx1-fx2);
+                e(1,r) = max(er);
+                fxin = Norm.L2(fx1);
+                fxin(fxin == 0) = 1;
+                e(2,r) = max(er./fxin);
+            end
+            times = mean(t,2);
+            e = max(e,[],2);
+        end
+        
         function pt = TryCatch(loopsize)
             % TryCatch: Demonstrate how slow try-catch blocks are.
             %
@@ -332,6 +387,119 @@ classdef Speed
                 end;
             end
             
+        end
+        
+        function res = GaussMexSpeedTest1Arg(sx,sy,iter)
+            % Tests the speed of the c implementations of evaluate for
+            % gaussians.
+            %
+            % One-Argument test (self-evaluation)
+            %
+            % @note You need to compile/mex the files in the
+            % +kernels/@GaussKernel folder for this to work.
+            if nargin < 3
+                iter = 50;
+                if nargin < 2
+                    sy = 100;
+                    if nargin < 1
+                        sx = 5000;
+                    end
+                end
+            end
+            k = kernels.GaussKernel(1);            
+            x = rand(sx,sy);
+            
+            fprintf('One argument speed test with sx=%d, sy=%d and %d iterations\n',sx,sy,iter);
+            tmex = zeros(1,iter); tmex2 = zeros(1,iter);
+            tmexp = zeros(1,iter); tmat = zeros(1,iter);
+            pi = ProcessIndicator('Iterating..',iter);
+            for i=1:iter
+                t = tic;
+                Kmex = k.dontuse_evaluate(x);
+                %Kmex = k.evaluateIntel(x);
+                tmex(i) = toc(t);
+
+                t = tic;
+                Kmex2 = k.dontuse_evaluateDirect(x);
+                tmex2(i) = toc(t);
+
+                t = tic;
+                KmexP = k.evaluateMex(x);
+                tmexp(i) = toc(t);
+
+                t = tic;
+                K = k.evaluate(x,[]);
+                tmat(i) = toc(t);
+                pi.step;
+            end
+            pi.stop;
+            fprintf(['1: %1.5fs - Mex straight\n2: %1.5fs - Mex time opt\n'...
+                '3: %1.5fs - Mex time opt openmp\n4: %1.5fs - Matlab time\n'...
+                'Difference norms: 1-4=%1.5f, 2-4=%1.5f, 3-4=%1.5f\n'],...
+                mean(tmex2),mean(tmex),mean(tmexp),mean(tmat),...
+                norm(Kmex2-K),norm(Kmex-K),norm(KmexP-K));
+            
+            res = true;
+        end
+        
+        function res = GaussMexSpeedTest2Arg(sx,sy1,sy2,iter)
+            % Tests the speed of the c implementations of evaluate for
+            % gaussians.
+            %
+            % Two-Argument test.
+            %
+            % @note You need to compile/mex the files in the
+            % +kernels/@GaussKernel folder for this to work.
+            if nargin < 4
+                iter = 40;
+                if nargin < 3
+                    sy2 = 100;
+                    if nargin < 2
+                        sy1 = 100;
+                        if nargin < 1
+                            sx = 500;
+                        end
+                    end
+                end
+            end
+            
+            k = kernels.GaussKernel(1);            
+            x = rand(sx,sy1);
+            y = rand(sx,sy2);
+            
+            fprintf('Two argument speed test with sx=%d, sy1=%d, sy2=%d and %d iterations\n',sx,sy1,sy2,iter);
+            tmex = zeros(1,iter); tmex2 = zeros(1,iter);
+            tmexp = zeros(1,iter); tmat = zeros(1,iter);
+            fprintf('Iteration ');
+            for i=1:iter
+                fprintf('%d ',i);
+                
+                t = tic;
+                Kmex = k.dontuse_evaluate(x,y);
+                %Kmex = k.evaluateIntel(x,y);
+                tmex(i) = toc(t);
+
+                t = tic;
+                Kmex2 = k.dontuse_evaluateDirect(x,y);
+                tmex2(i) = toc(t);
+
+                t = tic;
+                KmexP = k.evaluateMex(x,y);
+                tmexp(i) = toc(t);
+
+                t = tic;
+                K = k.evaluate(x,y);
+                tmat(i) = toc(t);
+            
+            end
+            fprintf('done!\n');
+            fprintf(['1: %1.5fs - Mex straight\n2: %1.5fs - Mex time opt\n'...
+                '3: %1.5fs - Mex time opt openmp\n4: %1.5fs - Matlab time\n'...
+                'Difference norms: 1-4=%1.5f, 2-4=%1.5f, 3-4=%1.5f\n'],...
+                mean(tmex2),mean(tmex),mean(tmexp),mean(tmat),...
+                norm(Kmex2-K),norm(Kmex-K),norm(KmexP-K));
+            
+            res = true;
         end
     end
 end

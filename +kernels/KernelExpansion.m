@@ -176,6 +176,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             %
             % Parameters:
             % x: The state space vector(s) to evaluate at @type matrix
+            % idx: The column index @type integer
             % varargin: Dummy variable to also allow calls to this class
             % with `t_i,\mu_i` parameters as in ParamTimeKernelExpansion.
             %
@@ -248,6 +249,12 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         
         function setCentersFromATD(this, atd, idx)
             % Sets the centers according to the indices 'idx' of the data.ApproxTrainData
+            %
+            % Parameters:
+            % atd: The approximation training data instance @type
+            % data.ApproxTrainData
+            % idx: The indices of the entries in the approx train data to
+            % use @type rowvec<integer>
             this.Centers.xi = atd.xi(:,idx);
         end
         
@@ -364,50 +371,6 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
                 fprintf(fh,'%s',json);
                 fclose(fh);
             end
-        end
-        
-        function [times, e] = test_DiffBaseProps(this, numpts)
-            % Tests the evaluation speed and determines the evaluation error of this kernel
-            % expansion and this expansion using the default direct translate base.
-            %
-            % Must have a custom base set (HasCustomBase = true)
-            %
-            % Parameters:
-            % numpts: The number of random points at which to evaluate @type integer @default
-            % 1000
-            %
-            % Return values:
-            % times: A `2\times 1` vector containing the evaluation times using the
-            % custom and direct base in the first and second entry, respectively. @type
-            % colvec<double>
-            % e: The maximum pointwise absolute and relative `L^2`-errors over all runs @type
-            % double
-            if nargin < 2
-                numpts = 1000;
-            end
-            if ~this.HasCustomBase
-                error('No custom base set to compare to.');
-            end
-            x = rand(size(this.Centers.xi,1),numpts);
-            dbase = this.toTranslateBase;
-            runs = 10;
-            t = zeros(2,runs);
-            e = zeros(2,runs);
-            for r = 1:runs
-                tic;
-                fx1 = this.evaluate(x);
-                t(1,r) = toc;
-                tic;
-                fx2 = dbase.evaluate(x);
-                t(2,r) = toc;
-                er = Norm.L2(fx1-fx2);
-                e(1,r) = max(er);
-                fxin = Norm.L2(fx1);
-                fxin(fxin == 0) = 1;
-                e(2,r) = max(er./fxin);
-            end
-            times = mean(t,2);
-            e = max(e,[],2);
         end
     end
     

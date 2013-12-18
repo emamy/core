@@ -29,13 +29,15 @@ classdef Orthonormalizer < KerMorObject
         Epsilon = 1e-7;
         
         % The orthogonalization algorithm used.
-        % Possible choices:
+        %
+        % Possible choices are:
         % "gs": Gram-Schmidt
         % "ch": Cholesky-Decomposition
+        % "qr": QR-Decomposition
+        %
+        % @note Currently only "gs" is working properly.
         %
         % Default: "gs"
-        
-        % "qr": QR-Decomposition
         Algorithm = 'gs';
     end
     
@@ -131,12 +133,12 @@ classdef Orthonormalizer < KerMorObject
         
         function onvec = ortho_qr(this, vec)
             if 1==1 
-                error('orthogonalization by qr has implementation errors. Do not use.'); 
+                error('Algorithm "qr" not working. Need to check.'); 
             end
             onvec = vec;
             
             % incomplete cholesky of inner-product matrix:
-            R_M = cholinc(sparse(this.G),'inf');
+            R_M = ichol(sparse(this.G),'inf');
             
             % qr decomposition of R_M * X with permutation indices E
             [Q, R, E]= qr(R_M * onvec, 0);
@@ -152,6 +154,9 @@ classdef Orthonormalizer < KerMorObject
         end
         
         function onvec = ortho_ch(this, vec)
+            if 1==1 
+                error('Algorithm "ch" not working. Need to check.'); 
+            end
             onvec = vec;
             
             % get gram matrix
@@ -159,11 +164,16 @@ classdef Orthonormalizer < KerMorObject
             Gr = 0.5* (Gr + Gr');
             
             options.droptol = this.Epsilon;
-            options.rdiag = 1;
             
             %R = full(cholinc(sparse(G),'inf')); % fill small diagonal entries with inf
             %R = full(cholinc(sparse(G),options)); % fill small diagonal entries with inf
-            R = full(cholinc(sparse(Gr),this.Epsilon)); % cholesky with dropvalue epsilon
+            
+            % cholesky with dropvalue epsilon
+            % If an error gets thrown here, you might have an older matlab
+            % version only knowing "cholinc" as command, which has been
+            % replaced by "ichol" as of R2013A.
+%             R = full(cholinc(sparse(Gr),this.Epsilon)); 
+            R = full(ichol(sparse(Gr),options));
             
             ind = find(diag(R) > this.Epsilon);
             onvec = onvec(:,ind);
@@ -178,18 +188,25 @@ classdef Orthonormalizer < KerMorObject
     
     methods(Static)
         function res = test_Orthogonalization
-            
-            A = rand(150,50);
-            
-            o = general.Orthonormalizer;
-            o.Algorithm = 'gs';
-            ov1 = o.orthonormalize(A);
-            o.Algorithm = 'ch';
-            ov2 = o.orthonormalize(A);
-%             o.Algorithm = 'qr';
-%             ov3 = o.orthonormalize(A)
+            res = true;
+            for k = 1:5
+                d2 = randi(200);
+                d1 = d2 + k*randi(10);
+                
+                A = rand(d1,d2);
 
-            res = norm(ov1-ov2) < sqrt(eps);
+                o = general.Orthonormalizer;
+                o.Algorithm = 'gs';
+                ov1 = o.orthonormalize(A);
+    %             o.Algorithm = 'ch';
+    %             ov2 = o.orthonormalize(A);
+    %             o.Algorithm = 'qr';
+    %             ov3 = o.orthonormalize(A)
+
+    %             res = norm(ov1-ov2) < sqrt(eps);
+                res = res & isequal(round(ov1'*ov1),eye(d2));
+                res = res & abs(norm(ov1'*ov1)-1) < 1000*eps;
+            end
         end
     end
     

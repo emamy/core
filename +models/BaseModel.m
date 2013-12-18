@@ -80,13 +80,15 @@ classdef BaseModel < KerMorObject
         %
         % @propclass{critical} No simulations without dynamical system.
         %
-        % @default []
+        % @default [] @type models.BaseDynSystem
         System = [];
         
-        % The name of the Model
+        % The name of the Model.
         %
         % @propclass{optional}
-        Name = 'Base Model';
+        %
+        % @type char @default ''
+        Name = '';
                               
         % The custom scalar product matrix `\vG`
         %
@@ -328,7 +330,7 @@ classdef BaseModel < KerMorObject
             %
             % Parameters:
             % t: The simulation times `t_i` @type rowvec
-            % y: The simulation output matrix `y`, i.e. `y(t_i)` @type
+            % x: The simulation state space matrix `x`, i.e. `x(t_i)` @type
             % matrix<double>
             % varargin: Any further arguments for customized plots
             %

@@ -49,4 +49,18 @@ classdef AMassMatrix < KerMorObject & general.AProjectable
         [L,U,Q,P] = getLU(this, t, mu);
     end
     
+    methods(Static, Access=protected)
+        function obj = loadobj(obj, from)
+            if nargin == 2
+                obj.TimeDependent = from.TimeDependent;
+                obj.SparsityPattern = from.SparsityPattern;
+                obj = loadobj@KerMorObject(obj, from);
+                obj = loadobj@general.AProjectable(obj, from);
+            else
+                obj = loadobj@KerMorObject(obj);
+                obj = loadobj@general.AProjectable(obj);
+            end
+        end
+    end
+    
 end

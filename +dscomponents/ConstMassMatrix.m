@@ -30,11 +30,17 @@ classdef ConstMassMatrix < dscomponents.AMassMatrix
             if nargin == 1
                 this.M = M;
                 this.TimeDependent = false;
-                [this.l, this.u, this.q, this.p] = lu(M);
+                if issparse(M)
+                    [this.l, this.u, this.q, this.p] = lu(M);
+                else
+                    [this.l, this.u] = lu(M);
+                    this.q = [];
+                    this.p = [];
+                end
                 % Compute sparsity pattern straight away
                 [i, j] = find(M);
                 s = size(M,1);
-                if length(i) < numel(M)
+                if issparse(M) || length(i) < numel(M)
                     this.SparsityPattern = sparse(i,j,ones(size(i)),s,s);
                 end
             end

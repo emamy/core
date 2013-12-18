@@ -16,20 +16,22 @@ classdef AxBlockData < data.ABlockedData
     properties(Access=private)
         orig;
         fun;
+        
+        % The scaled model times for each trajectory
+        times;
     end
     
     methods
-        function this = AxBlockData(original, fun)
+        function this = AxBlockData(original, fun, times)
             if ~isa(original,'data.ATrajectoryData')
                 error('Only data.ATrajectoryData instances can be wrapped');
             end
             if ~isa(fun, 'dscomponents.ACoreFun')
                 error('Fun argument must be a dscomponents.ACoreFun');
-            elseif fun.TimeDependent
-                error('Fun argument cannot be TimeDependent yet');
             end
             this.orig = original;
             this.fun = fun;
+            this.times = times;
         end
         
         function prod = mtimes(matrix, this)
@@ -42,7 +44,11 @@ classdef AxBlockData < data.ABlockedData
         
         function B = getBlock(this, nr)
             [B, mu] = this.orig.getTrajectoryNr(nr);
-            B = this.fun.evaluate(B,[],mu);
+            if ~this.fun.TimeDependent
+                B = this.fun.evaluate(B,[],mu);
+            else
+                B = this.fun.evaluate(B,this.times,repmat(mu,1,length(this.times)));
+            end
         end
         
         function [n, m] = size(this, dim)

@@ -581,9 +581,26 @@ classdef Utils
 %                 ln1,t1,ln,t2,ln2,t3);
         end
         
-        function idx = getRandOrder(n)
-            v = rand(1,n);
-            [~, idx] = sort(v);
+        function S = sprand(n,m,dens,rs)
+            % Creates a random sparse matrix with given density
+            % (approximately).
+            %
+            % Faster than sprand as no exact density is achieved.
+            %
+            % Parameters:
+            % n: The number `n` of rows @type integer
+            % m: The number `m` of columns @type integer
+            % dens: The desired density `dens*n*m` @type double 
+            % rs: A RandStream instance @type RandStream
+            % @default mt19937ar(0)
+            if nargin < 4
+                rs = RandStream('mt19937ar','Seed',0);
+            end
+            total = n*m*dens;
+            i = rs.randi(n,total,1);
+            j = rs.randi(m,total,1);
+            s = rs.rand(total,1);
+            S = sparse(i,j,s,n,m);
         end
         
         function closeAllFigures

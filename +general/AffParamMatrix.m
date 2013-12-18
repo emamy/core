@@ -49,7 +49,7 @@ classdef AffParamMatrix < general.AProjectable
     % - implement/override other arithmetic operations
     % - add string for coeff method header '@(t,mu)'
         
-    properties(SetAccess=private)
+    properties(SetAccess=protected)
         % The number of affine matrices / size of the linear combination
         %
         % @type integer @default 0
@@ -61,7 +61,7 @@ classdef AffParamMatrix < general.AProjectable
     end
     
     properties(SetAccess=private)
-        % The function strings defining ´\theta_i(t,\mu)´ for the
+        % The function strings defining `\theta_i(t,\mu)` for the
         % affine-linear combination of the matrices
         %
         % cell array of @type string

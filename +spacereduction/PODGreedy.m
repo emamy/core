@@ -88,7 +88,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
                 md = data.JoinedBlockData(md, data.FinDiffBlockData(md));
             end
             if this.IncludeAxData
-                md = data.JoinedBlockData(md, data.AxBlockData(md, model.System.A));
+                md = data.JoinedBlockData(md, data.AxBlockData(md, model.System.A, model.scaledTimes));
             end
             % Augment block data with fxi values
             if this.IncludeTrajectoryFxiData

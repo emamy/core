@@ -51,7 +51,7 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable & IReductionSummary
         % @propclass{important} Depending on the approximation goal different error functions
         % are suitable.
         %
-        % @type function_handle @default "@Norm.L2"
+        % @type function_handle @default Norm.L2
         %
         % See also: Norm
         ErrorFun = @Norm.L2;

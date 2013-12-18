@@ -92,7 +92,7 @@ classdef VKOGA
             % computations.
             %
             % Parameters:
-            % ans: The output of demos.VKOGA#demo_VKOGA_1D_nD @type struct
+            % res: The output of demos.VKOGA#demo_VKOGA_1D_nD @type struct
             % steps: How many steps to illustrate @type integer @default 4
             % pm: A PlotManager instance to use for plots. @type
             % PlotManager @default 3x3 Subfigures

@@ -47,12 +47,22 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
             this = this@general.AffParamMatrix;
             this = this@dscomponents.ACoreFun;
             this.CustomProjection = true;
+            this.TimeDependent = false;
+            this.MultiArgumentEvaluations = true;
         end
         
         function fx = evaluate(this, x, t, mu)
             % Evaluates affine-linear core function by matrix-vector
             % multiplication.
-            fx = this.compose(t, mu)*x;
+            if numel(t) == 1
+                fx = this.compose(t, mu)*x;
+            else
+                % Multi-Argument case
+                fx = zeros(size(x));
+                for k = 1:size(x,2)
+                    fx(:,k) = this.compose(t(k), mu(:,k))*x(:,k);
+                end
+            end
         end
         
         function fx = evaluateCoreFun(varargin)%#ok
@@ -112,7 +122,7 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
             % Compute sparsity pattern
             if issparse(mat)
                 if ~isempty(this.JSparsityPattern)
-                    this.JSparsityPattern = mat ~= 0 && this.JSparsityPattern;
+                    this.JSparsityPattern = mat ~= 0 | this.JSparsityPattern;
                 else
                     this.JSparsityPattern = mat ~= 0;
                 end
@@ -121,7 +131,7 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
             end
             
             mu = ones(1,100);
-            if (this.TimeDependent)
+            if ~this.TimeDependent
                 this.TimeDependent = ~all(this.cfun(0,mu) == this.cfun(Inf,mu));
                 fprintf('AffLinCoreFun: Guessed time-dependency to %d.\n',this.TimeDependent);
             end

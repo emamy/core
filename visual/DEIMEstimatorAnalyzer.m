@@ -538,12 +538,12 @@ function pushbutton5_Callback(hObject, eventdata, h)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 r = getappdata(h.main,'r');
-t = getappdata(h.main,'t');
-v = Norm.L2(getappdata(h.main,'x')-r.V*(r.V'*getappdata(h.main,'x')));
+s = getappdata(h.main,'s');
+v = Norm.L2(s.x-r.V*(r.V'*s.x));
 pm = PlotManager;
 pm.LeaveOpen = true;
 h = pm.nextPlot('','Trajectory subspace projection L2(state) error','time','error');
-LogPlot.cleverPlot(h,t,v,'r','LineWidth',2);
+LogPlot.cleverPlot(h,s.t,v,'r','LineWidth',2);
 pm.done;
 
 
@@ -554,7 +554,8 @@ function btnApproxLogNorm_Callback(hObject, eventdata, h)
 % handles    structure with handles and user data (see GUIDATA)
 r = getappdata(h.main,'r');
 %m = r.FullModel;
-x = getappdata(h.main,'xr');
+s = getappdata(h.main,'s');
+x = s.xr;
 use = 20;
 sel = round(linspace(1,size(x,2),min(use,size(x,2))));
 x = x(:,sel);

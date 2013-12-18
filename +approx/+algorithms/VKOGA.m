@@ -16,8 +16,14 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
 % - \c License @ref licensing
     
     properties
+        % Flag on whether to use the f/P-Greedy variant instead of
+        % f-Greedy. @default false @type logical
         UsefPGreedy = false;
         
+        % Stopping criteria for the VKOGA algorithm.
+        % The execution for on expansion configuration is stopped if the
+        % maximum absolute pointwise L2-error is below this value.
+        % @default 1e-5 @type double
         MaxAbsResidualErr = 1e-5;
         
         % Determines which error measure is to use to select a solution if the algorithm stops

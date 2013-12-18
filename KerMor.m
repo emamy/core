@@ -12,7 +12,7 @@ classdef KerMor < handle
     % @change{0,7,dw,2013-07-09} Removed the TempDirectory as customizable property and simply
     % using "DataDirectory/tmp" now.
     %
-    % @change{0,7,dw,2013-01-23} Done some restructuring in KerMor:
+    % @change{0,7,dw,2013-01-23} Done some restructuring in KerMor
     % - Removed thee QP-Solver packages and extern/ folders as they are effectively no longer
     % used
     % - Removed associated tests
@@ -268,7 +268,7 @@ classdef KerMor < handle
     %
     % @todo: incorporate /this.Gamma^2 already in getSqDiffNorm
     %
-    % @todo:
+    % @todo
     % - remove kernel matrix stuff
     % - remove redundant algorithms
     % - remove tests for old stuff

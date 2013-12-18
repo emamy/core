@@ -136,11 +136,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % @propclass{critical} The approximation technique is critical for
         % the quality of the reduced model.
         %
-        % @default approx.KernelApprox
-        % @type approx.BaseApprox
+        % @default [] @type approx.BaseApprox
         %
         % See also: approx approx.algorithms data.selection
-        Approx;
+        Approx = [];
         
         % Advanced property. 
         % Must be a function handle taking the current model instance.
@@ -182,11 +181,19 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % Flag that enables caching of computed trajectories in a simulation cache stored in
         % KerMor's TempDirectory folder.
         %
-        % @propclass{optional} Caching can speedup computations but may require extra disk
-        % space.
+        % This flag can speedup re-done simulations significantly. However,
+        % thus far the cache only looks up the total simulation time,
+        % timestep, parameter and input index (if given). Thus, not in all
+        % situations a correct recognition of changes is guaranteed (e.g.
+        % changing the input function handle will cause the same old
+        % trajectory to be loaded).
+        % Consequently, this setting is ''disabled'' by default.
         %
-        % @type logical @default true
-        EnableTrajectoryCaching = true;
+        % @propclass{optional} Caching can speedup computations but may
+        % require extra disk space.
+        %
+        % @type logical @default false
+        EnableTrajectoryCaching = false;
         
         % The associated error estimator for this model.
         %
@@ -208,25 +215,17 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % @type logical @default false
         ComputeTrajectoryFxiData = false;
         
-        % Flag that determines whether the span of the model's input should be computed at the
-        % offline stage in order to provide more information for spacereduction.
-        %
-        % @todo write setter
-        %
-        % @type logical @default false
-        ComputeBSpan = false;
-        
         % A custom tag that can be used as a prefix to files for corresponding model
         % identification.
         %
-        % If the property models.BaseModel.Name is set and the SaveTag is still empty, a
-        % lowercase, trimmed and spaces-replaced-by-underscore SaveTag will be automatically
-        % set.
+        % If the property models.BaseModel.Name is set and the SaveTag is
+        % still empty, a lowercase, trimmed and
+        % spaces-replaced-by-underscore SaveTag will be automatically set.
         %
         % @propclass{optional}
         %
-        % @type char @default basefullmodel
-        SaveTag = 'basefullmodel';
+        % @type char @default ''
+        SaveTag = '';
         
         % Flag to enable automatic saving of the model after each individual offline phase
         % step and at other locations prone to data loss due to lengthy computations.
@@ -276,16 +275,27 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
            
     methods
         
-        function this = BaseFullModel
+        function this = BaseFullModel(name)
             % Creates a new instance of a full model.
+            %
+            % Parameters:
+            % name: The name of the model. @type char
+            % @default ''
             this = this@models.BaseModel;
+            
+            % Register name change listener (might not have the name set
+            % already now)
+            this.addlistener('Name','PostSet', @this.nameChanged);
+            
+            % Set name if given
+            if nargin == 1
+                this.Name = name;
+            end
                        
             % Setup default values for the full model's components
             this.Sampler = sampling.RandomSampler;
-                        
+
             this.SpaceReducer = spacereduction.PODGreedy;
-            
-            this.Approx = approx.KernelApprox;
             
             this.Data = data.ModelData(this);
             
@@ -302,7 +312,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.addlistener('dt','PreSet', @this.intTimeChanging);
             this.addlistener('T','PostSet', @this.intTimeChanged);
             this.addlistener('dt','PostSet', @this.intTimeChanged);
-            this.addlistener('Name','PostSet', @this.nameChanged);
         end
         
         function delete(this)
@@ -452,7 +461,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             end
             
             % Input space span computation
-            if this.ComputeBSpan
+            if this.SpaceReducer.IncludeBSpan
                 if KerMor.App.Verbose > 0
                     fprintf('Computing input space span...');
                 end
@@ -465,6 +474,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 if isa(B,'dscomponents.LinearInputConv')
                     o = general.Orthonormalizer;
                     this.Data.InputSpaceSpan = o.orthonormalize(B.B);
+                elseif isa(B,'dscomponents.AffLinInputConv')
+                    o = general.Orthonormalizer;
+                    tmp = [];
+                    for k = 1:B.N
+                        tmp = [tmp B.getMatrix(k)];%#ok
+                    end
+                    this.Data.InputSpaceSpan = o.orthonormalize(tmp);
                 else
                     warning('KerMor:BaseFullModel','B span computation: Case %s not yet implemented',class(B));
                 end
@@ -669,6 +685,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             if ~isempty(this.SaveTag)
                 filename = this.SaveTag;
             else
+                warning('KerMor:NoSaveTag','No SaveTag set. Using default "model.mat"');
                 filename = 'model.mat';
             end
             file = fullfile(this.Data.DataDirectory,filename);
@@ -802,7 +819,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 this.postApproximationTrainingCallback = sobj.postApproximationTrainingCallback;
                 this.ErrorEstimator = sobj.ErrorEstimator;
                 this.ComputeTrajectoryFxiData = sobj.ComputeTrajectoryFxiData;
-                this.ComputeBSpan = sobj.ComputeBSpan;
                 this.SaveTag = sobj.SaveTag;
                 this.fTrainingInputs = sobj.fTrainingInputs;
                 this.OfflinePhaseTimes = sobj.OfflinePhaseTimes;

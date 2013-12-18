@@ -121,7 +121,7 @@ classdef ReducedSystem < models.BaseDynSystem
             this.B = fullsys.B;
             
             % SV ~= 1 means that projection or nontrivial scaling is used.
-            if SV ~= 1 
+            if ~isequal(SV,1) 
                 this.x0 = fullsys.x0.project(SV,SW);
                 this.C = fullsys.C.project(SV,SW);
             else
@@ -142,7 +142,7 @@ classdef ReducedSystem < models.BaseDynSystem
                 % Project the approximated CoreFun of the full model if exists
                 if ~isempty(fullmodel.Approx)
                     this.f = fullmodel.Approx.project(V,W);
-                else
+                elseif ~isempty(fullsys.f)
                     % Otherwise project the models' full function.
                     this.f = fullsys.f.project(V,W);
                 end

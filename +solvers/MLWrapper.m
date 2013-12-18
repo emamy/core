@@ -99,7 +99,8 @@ classdef MLWrapper < solvers.BaseSolver & solvers.AJacobianSolver
             if ~isempty(this.M)
                 if ~this.M.TimeDependent
                     M = this.M.evaluate(0);
-                    opts = odeset(opts,'MassConstant','true');
+                    % This setting seems to have been removed in R2013A
+                    %opts = odeset(opts,'MassConstant','true');
                 else
                     M = @(t)this.M.evaluate(t);
                 end
