@@ -48,7 +48,7 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
         % @default false
         UseLU = false;
         
-        % Flag that indicates whether to apply the preconditioning technique from \cite{S08}.
+        % Flag that indicates whether to apply the preconditioning technique from \cite S08.
         %
         % @propclass{optional} Stability maybe gained for solving the interpolation problem in
         % the direct translate basis.

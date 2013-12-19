@@ -2,7 +2,7 @@ classdef BellFunctions
     % BellFunctions: Demos regarding the Bell function local Lipschitz
     % estimations
     %
-    % We kindly refer to the article \cite{WH12} for introduction of bell
+    % We kindly refer to the article \cite WH12 for introduction of bell
     % functions and their theory.
     %
     % @author Daniel Wirtz @date 2013-08-23
@@ -21,7 +21,7 @@ classdef BellFunctions
             % positions.
             %
             % For details on the implemented methodology please see
-            % @cite{WH12}
+            % @cite WH12
             %
             % Returns a PlotManager handle if the plots are to be saved.
             %

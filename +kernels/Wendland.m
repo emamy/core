@@ -1,7 +1,7 @@
 classdef Wendland < kernels.ARBFKernel
     % Wendland: Implementation of various Wendland kernels
     %
-    % Further background e.g. in ยง9.4 of @cite{W05}, especially Corollary 9.14.
+    % Further background e.g. in ง9.4 of @cite W05, especially Corollary 9.14.
     %
     % @author Daniel Wirtz @date 2013-01-16
     %

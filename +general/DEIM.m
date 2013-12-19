@@ -1,9 +1,5 @@
 classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvider
-    % DEIM: Implements the DEIM-Algorithm from \cite{CS10}
-    %
-    % \cite{CS10} Chaturantabut, S. & Sorensen, D.
-    % Discrete Empirical Interpolation for nonlinear model reduction
-    % Proc. of CDC/CCC 2009, 2009, pp. 4316 -4321
+    % DEIM: Implements the DEIM-Algorithm from \cite CS10
     %
     % Additionally allows to estimate the DEIM error a-posteriori by using the
     % next `M'` orders of the current DEIM approximation.

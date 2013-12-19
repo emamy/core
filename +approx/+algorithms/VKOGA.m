@@ -78,7 +78,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             % Starts the adaptive extension of the VKOGA algorithm.
             
             % Flag for experimental mode
-            exp_mode = 1 == 1;
+            exp_mode = 1 == 0;
             vb = KerMor.App.Verbose;
             
             ec = this.ExpConfig;

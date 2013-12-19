@@ -157,7 +157,7 @@ classdef VKOGA
         end
         
         function NewtonBasis_Schaback
-            % The demo of the schaback paper @cite{PS11} for the
+            % The demo of the schaback paper @cite PS11 for the
             % function-dependent Newton basis.
             %
             % Original source code from the link below, adopted to fit into
