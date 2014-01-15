@@ -26,23 +26,6 @@ classdef RandomSampler < sampling.BaseSampler
         %
         % @type integer @default []
         Seed = [];
-        
-        % Samples from the full parameter domain box specified by the
-        % parameter's MinVal and MaxVal . domain_sampling(:,isvalid)
-        % specifies the domain in which the parameter samples must lie.
-        % Dimension: `d_p \times n_s`, where `n_s` is the number of samples
-        % and `d_p` is the dimension of the parameter space, i.e. the
-        % system's ParamCount.
-        %
-        % @type matrix<double> @default []
-        domain_sampling = [];
-        
-        % Logical vector specifying which of the points in domain_sampling
-        % are valid. Must have the same number of columns as
-        % domain_sampling.
-        %
-        % @type vector<logical> @default []
-        is_valid = []
     end
     
     methods
@@ -78,7 +61,7 @@ classdef RandomSampler < sampling.BaseSampler
                 seed = this.Seed;
             end
             r = RandStream('mt19937ar','Seed',seed);
-            if isempty(this.domain_sampling)
+            if isempty(this.Domain)
                 factor = r.rand(sys.ParamCount,this.Samples);
                 miv = repmat([sys.Params(:).MinVal]',1,this.Samples);
                 mav = repmat([sys.Params(:).MaxVal]',1,this.Samples);
@@ -91,17 +74,14 @@ classdef RandomSampler < sampling.BaseSampler
                 if any(islog)
                     samples(islog,:) = 10.^samples(islog,:);
                 end
+                % Create samples according to the given Domain
             else
-                if size(this.domain_sampling,2) ~= size(this.is_valid,2)
-                    error('Properties domain_sampling and is_valid must have the same number of columns.');
-                elseif ~islogical(this.isvalid)
-                    error('Property is_valid must be a logical vector.');
-                elseif size(this.domain_sampling,1) ~= sys.ParamCount
-                    erros('Number of columns of domain_sampling does not match System.ParamCount.');
+                if size(this.Domain.Points,1) ~= sys.ParamCount
+                    erros('Dimension of Domain does not match the parameter count.');
                 end
                 samples = zeros(sys.ParamCount,this.Samples);
-                good_samples = 0;
-                while true
+                pos = 1;
+                while pos < this.Samples
                     % create new samples
                     factor = r.rand(sys.ParamCount,this.Samples);
                     miv = repmat([sys.Params(:).MinVal]',1,this.Samples);
@@ -115,20 +95,14 @@ classdef RandomSampler < sampling.BaseSampler
                     if any(islog)
                         newsamples(islog,:) = 10.^newsamples(islog,:);
                     end
-                    % check, which of the new samples are valid
-                    idx = dsearchn(this.domain_sampling', newsamples'); % those indices of domain_sampling that are closest to new_samples
-                    valid_idx = this.is_valid(idx);
-                    good_new_samp = sum(valid_idx);
-                    if good_samples + good_new_samp < this.Samples  % need another while loop
-                        samples(:,good_samples+1:good_samples+good_new_samp) = newsamples(:,valid_idx);
-                        good_samples= good_samples+good_new_samp;
-                    else % enough, add only as many valid samples as needed
-                        newidx=1:this.Samples;
-                        newidx=newidx(valid_idx);
-                        newidx = newidx(1:this.Samples-good_samples);
-                        samples(:,good_samples+1:end)=newsamples(:,newidx);
-                        break
-                    end
+                    
+                    % Filter the new samples by the domain and augment
+                    newsamples = this.Domain.filter(newsamples);
+                    numnew = size(newsamples,2);
+                    spos = pos:min(pos+numnew-1, this.Samples);
+                    npos = 1:min(numnew,this.Samples-pos+1);
+                    samples(:,spos) = newsamples(:,npos);
+                    pos = spos(end) + 1;
                 end
             end
             % Sort samples if one-dimensional
@@ -170,6 +144,18 @@ classdef RandomSampler < sampling.BaseSampler
                 res = res && (norm(samples(:,i)) >= 0.65);
             end
             plot(samples(1,:),samples(2,:),'o',m.Sampler.domain_sampling(1,:),m.Sampler.domain_sampling(2,:),'*',0.7*sin(0:0.05:pi/2),0.7*cos(0:0.05:pi/2))
+        end
+    end
+    
+    methods(Static, Access=protected)
+        function obj = loadobj(obj)
+            if ~isa(obj,'sampling.RandomSampler')
+                from = obj;
+                obj = sampling.RandomSampler;
+                obj.Samples = from.Samples;
+                obj.Seed = from.Seed;
+                obj = loadobj@sampling.BaseSampler(obj,from);
+            end
         end
     end
     

@@ -61,6 +61,11 @@ classdef GridSampler < sampling.BaseSampler
             else
                 samples = Utils.createCombinations(ranges);
             end
+            
+            % Restrict samples to given domain if set
+            if ~isempty(this.Domain)
+                samples = this.Domain.filter(samples);
+            end
         end
     end
     
