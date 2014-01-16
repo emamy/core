@@ -225,7 +225,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % intermediate saves.
         %
         % @type logical @default false
-        AutoSave = 8;
+        AutoSave = false;
         
         % A custom tag that can be used as a prefix to files for corresponding model
         % identification.
@@ -824,7 +824,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 this.OfflinePhaseTimes = sobj.OfflinePhaseTimes;
                 this.ftcold = sobj.ftcold;
                 if isfield(sobj,'AutoSave')
-                    this.AutoSave = sobj.AutoSave;
+                    this.AutoSave = logical(sobj.AutoSave);
                 end
             end
             this = loadobj@models.BaseModel(this);

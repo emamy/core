@@ -260,6 +260,7 @@ classdef KernelEI < approx.BaseApprox
     methods(Static)
         function res = test_KernelEI
             m = models.pcd.PCDModel(1);
+            m.dt = .1;
             m.T = 1;
             m.EnableTrajectoryCaching = false;
             m.Approx = approx.KernelEI;

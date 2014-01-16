@@ -1,14 +1,17 @@
-classdef ParamTimeKernelCoreFun < kernels.ParamTimeKernelExpansion & dscomponents.ACoreFun
-% ParamTimeKernelCoreFun: Dynamical system core function based on an parametric time dependent
-% kernel expansion.
+classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun
+% ParamTimeKernelCoreFun: Dynamical system core function which evaluates a
+% contained kernel expansion, either parametric or plain state-dependence.
 %
-% Convenience class that wraps a given kernel expansion into the ACoreFun interface.
-% The main methods 'clone' and 'evaluate' are redefined with explicit choice of which one to
-% inherit.
-%
-%
+% Convenience class that wraps a given kernel expansion into the ACoreFun
+% interface.
+% The main methods 'clone' and 'evaluate' are redefined with explicit
+% choice of which one to inherit.
 %
 % @author Daniel Wirtz @date 2011-07-07
+%
+% @change{0,7,dw,2014-01-15} Removed the inheritance from
+% kernels.ParamTimeKernelExpansion and included an instance instead. (Favor
+% inclusion over inheritance, Warwick said!)
 %
 % @new{0,5,dw,2011-07-07} Added this class.
 %
@@ -17,16 +20,20 @@ classdef ParamTimeKernelCoreFun < kernels.ParamTimeKernelExpansion & dscomponent
 % - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
+
+    properties(SetObservable)
+        % The inner kernel expansion which is evaluated as core function.
+        Expansion;
+    end
     
     methods
         function this = ParamTimeKernelCoreFun
-            this = this@kernels.ParamTimeKernelExpansion;
             this = this@dscomponents.ACoreFun;
             
             this.CustomProjection = true;
             this.MultiArgumentEvaluations = true;
             this.TimeDependent = false;
-            this.addlistener('TimeKernel','PostSet',@this.TimeKernelPostSet);
+            this.addlistener('Expansion','PostSet',@this.ExpansionPostSet);
         end
         
         function projected = project(this, V, W)
@@ -35,24 +42,37 @@ classdef ParamTimeKernelCoreFun < kernels.ParamTimeKernelExpansion & dscomponent
             projected = project@dscomponents.ACoreFun(this, V, W, projected);
             % For rotation invariant kernel expansions the snapshots can be
             % transferred into the subspace without loss.
-            k = this.Kernel;
+            lkexp = this.Expansion;
+            kexp = projected.Expansion;
+            k = kexp.Kernel;
             if k.IsRBF
-                projected.Centers.xi = W' * this.Centers.xi;
+                kexp.Centers.xi = W' * lkexp.Centers.xi;
                 PG = V'*(k.G*V);
                 if all(all(abs(PG - eye(size(PG,1))) < 100*eps))
                     PG = 1;
                 end
-                projected.Kernel.G = PG;
+                kexp.Kernel.G = PG;
             elseif k.IsScProd
-                projected.Centers.xi = V' * (k.G * this.Centers.xi);
-                projected.Kernel.G = 1;
+                kexp.Centers.xi = V' * (k.G * lkexp.Centers.xi);
+                kexp.Kernel.G = 1;
             end
-            projected.Ma = W'*this.Ma;
+            kexp.Ma = W'*lkexp.Ma;
         end
         
-        function fx = evaluate(this, x, t, mu)
-            % From both inherited evaluate functions take the kernel evaluation.
-            fx = evaluate@kernels.ParamTimeKernelExpansion(this, x, t, mu);
+        function fx = evaluate(this, x, varargin)
+            % Evaluates this CoreFun
+            %
+            % Parameters:
+            % x: The current state space position @type colvec<double>
+            % varargin: For ParamTimeKernelExpansions, additionally ´t´ and
+            % ´\mu´ can be provided.
+            % t: The time ´t´ @type double
+            % mu: The parameter ´\mu´ @type colvec<double>
+            %
+            % Return values:
+            % fx: The evaluation of the kernel expansion @type
+            % matrix<double>
+            fx = this.Expansion.evaluate(this, x, varargin{:});
         end
         
 %         function phi = getKernelVector(this, x, t, mu)
@@ -67,24 +87,35 @@ classdef ParamTimeKernelCoreFun < kernels.ParamTimeKernelExpansion & dscomponent
             if nargin < 2
                 copy = dscomponents.ParamTimeKernelCoreFun;
             end
-            copy = clone@kernels.ParamTimeKernelExpansion(this, copy);
+            copy.Expansion = this.Expansion.clone;
             copy = clone@dscomponents.ACoreFun(this, copy);
         end
         
-        function J = getStateJacobian(this, x, t, mu)
+        function J = getStateJacobian(this, x, varargin)
             % Implement explicitly as both ACoreFun and KernelExpansion
             % provide getStateJacobian methods.
-            J = getStateJacobian@kernels.ParamTimeKernelExpansion(this, x, t, mu);
+            %
+            % Parameters:
+            % x: The current state space position @type colvec<double>
+            % varargin: For ParamTimeKernelExpansions, additionally ´t´ and
+            % ´\mu´ can be provided.
+            % t: The time ´t´ @type double
+            % mu: The parameter ´\mu´ @type colvec<double>
+            %
+            % Return values:
+            % J: The state jacobian @type matrix<double>
+            J = this.Expansion.getStateJacobian(x, varargin{:});
         end
         
         function y = evaluateCoreFun(this)%#ok
+            error('This should never be called. "evaluate" is implemented directly.');
             % Noting to do here, evaluate is implemented directly. This method will never be called.
         end
     end
     
     methods(Access=private)
-        function TimeKernelPostSet(this, ~, ~)
-            this.TimeDependent = ~isa(this.TimeKernel,'kernels.NoKernel');
+        function ExpansionPostSet(this, ~, ~)
+            this.TimeDependent = ~isa(this.Expansion.TimeKernel,'kernels.NoKernel');
         end
     end
     
@@ -92,7 +123,7 @@ classdef ParamTimeKernelCoreFun < kernels.ParamTimeKernelExpansion & dscomponent
         function this = loadobj(this)
             this = loadobj@DPCMObject(this);
             % Register listener for TimeDependent changed
-            this.addlistener('TimeKernel','PostSet',@this.TimeKernelPostSet);
+            this.addlistener('Expansion','PostSet',@this.ExpansionPostSet);
         end
     end
     
