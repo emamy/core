@@ -669,11 +669,7 @@ classdef KerMor < handle
                         % Yes: copy prefs
                         if r == 'y'
                             % Select preferences substruct from host and copy
-                            localp = p.(fn{i});
-                            pfn = fieldnames(localp);
-                            for k = 1:numel(pfn)
-                                setpref(this.getPrefTag,pfn{k},localp.(pfn{k}));
-                            end
+                            Utils.copyPrefGroup(fn{i},this.getPrefTag);
                             pset = true;
                             break;
                             % cancel: start setup

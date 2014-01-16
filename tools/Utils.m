@@ -666,6 +666,20 @@ classdef Utils
                 end
             end
         end
+        
+        function copyPrefGroup(from, to)
+            % Copies the preferences from one group to another.
+            %
+            % Parameters:
+            % from: The preference group to copy from @type char
+            % to: The preference group to copy to @type char
+            p = getprefs;
+            localp = p.(from);
+            pfn = fieldnames(localp);
+            for k = 1:numel(pfn)
+                setpref(to,pfn{k},localp.(pfn{k}));
+            end
+        end
     end
     
     methods(Static)
