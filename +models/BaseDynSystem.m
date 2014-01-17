@@ -400,7 +400,7 @@ classdef BaseDynSystem < KerMorObject
     end
     
     methods(Sealed)
-        function y = computeOutput(this, x)
+        function y = computeOutput(this, x, mu)
             % Computes the output `y(t) = C(t,\mu)Sx(t)` from a given state
             % result vector `x(t)`, using the system's time and current mu (if given).
             %
@@ -410,6 +410,9 @@ classdef BaseDynSystem < KerMorObject
             %
             % Parameters:
             % x: The state variable vector at each time step per column @type matrix<double>
+            % mu: The parameter to use. If not specified, the currently set
+            % `\mu` value of this system is used. @type colvec<double>
+            % @default this.mu
             %
             % Return values:
             % y: The output according to `y(t) = C(t,\mu)Sx(t)`
@@ -420,6 +423,10 @@ classdef BaseDynSystem < KerMorObject
             % respectively. Consequently, the StateScaling property of ReducedSystems is 1.
             %
             % See models.ReducedSystem.setReducedModel
+            
+            if nargin < 3
+                mu = this.mu;
+            end
             
             % Re-scale state variable
             if ~isequal(this.StateScaling,1)
@@ -435,16 +442,16 @@ classdef BaseDynSystem < KerMorObject
                     % Evaluate the output conversion at each time t
                     % Figure out resulting size of C*x evaluation
                     t = this.Model.scaledTimes;
-                    hlp = this.C.evaluate(t(1),this.mu)*x(:,1);
+                    hlp = this.C.evaluate(t(1),mu)*x(:,1);
                     y = zeros(size(hlp,1),length(t));
                     y(:,1) = hlp;
                     for idx=2:length(t)
-                        y(:,idx) = this.C.evaluate(t(idx),this.mu)*x(:,idx);
+                        y(:,idx) = this.C.evaluate(t(idx),mu)*x(:,idx);
                     end
                 else
                     % otherwise it's a constant matrix so multiplication
                     % can be preformed much faster.
-                    y = this.C.evaluate([],this.mu)*x;
+                    y = this.C.evaluate([],mu)*x;
                 end
             end
         end

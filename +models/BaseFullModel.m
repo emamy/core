@@ -17,6 +17,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 %
 % @todo build in time-tracking for offline phase etc
 %
+% @todo If enabletrajectorycaching is off, the model complains about no
+% finding file system folders for trajectories etc after re-loading
+%
 % See also: models BaseModel BaseDynSystem
 %
 % @author Daniel Wirtz @date 16.03.2010
@@ -369,8 +372,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             
             %% Parallel - computation
             if this.ComputeParallel
-                error('Parallel computing not yet tested with new ModelData structure / model.Data.addTrajectory might not be thread-safe! not catered for: ComputeTrajectoryFxiData');
-                
+                if this.ComputeTrajectoryFxiData
+                    error('ComputeTrajectoryFxiData not yet implemented for parallel execution');
+                end
                 idxmat = Utils.createCombinations(1:num_s,1:num_in);
                 
                 fprintf('Starting parallel projection training data computation of %d trajectories on %d workers...\n',size(idxmat,2),matlabpool('size'));
@@ -396,14 +400,14 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     end
                     
                     % Get trajectory
-                    [~, x] = remote.computeTrajectory(mu, inputidx);
+                    [~, x, ctime] = remote.computeTrajectory(mu, inputidx);
                     
                     % Assign snapshot values
-                    remote.Data.TrajectoryData.addTrajectory(x, mu, inputidx);
+                    remote.Data.TrajectoryData.addTrajectory(x, mu, inputidx, ctime);
                 end
                 % Build the hash map for the local FileTrajectoryData (parfor
                 % add them to remotely instantiated FileTrajectoryDatas and does
-                % not syn them (not generically possible)
+                % not sync them (not generically possible)
                 if isa(this.Data.TrajectoryData,'data.FileTrajectoryData')
                     this.Data.TrajectoryData.consolidate(this);
                 end

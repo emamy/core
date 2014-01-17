@@ -316,7 +316,7 @@ classdef KerMor < handle
         WarnColor = [1 .5 0];
     end
       
-    properties
+    properties(Dependent)
         % The directory to use for simulation data storage
         %
         % In this folder large simulation and model data will be stored and
@@ -325,6 +325,11 @@ classdef KerMor < handle
         %
         % @default ./data @type char
         DataDirectory = '';
+        
+        % Switch to determine if the Default Property Changed System shall be used or not.
+        %
+        % @default true @type logical
+        UseDPCM = [];
         
         % The preferred desktop layout to work with.
         %
@@ -368,13 +373,6 @@ classdef KerMor < handle
         UseDiary = [];
     end
     
-    properties(Dependent)
-        % Switch to determine if the Default Property Changed System shall be used or not.
-        %
-        % @default true @type logical
-        UseDPCM = [];
-    end
-    
     properties(SetAccess=private)
         % The KerMor home directory
         HomeDirectory;
@@ -396,20 +394,17 @@ classdef KerMor < handle
     % Getter & Setter
     methods  
         function set.DataDirectory(this, value)
-            if ~isempty(value) && ~isdir(value)
+            if ~ischar(value)
+                error('DataDirectory must be a char array');
+            elseif ~isempty(value) && ~isdir(value)
                 fprintf('Creating directory %s\n',value);
                 mkdir(value);
             end
             setpref(this.getPrefTag,'DATASTORE',value);
-            this.DataDirectory = value;
-            if this.Verbose > 0 %#ok
-                fprintf('Simulation and model data: %s\n',value);
-            end
         end
         
         function set.DesktopLayout(this, value)
             setpref(this.getPrefTag,'DESKLAYOUT',value);
-            this.DesktopLayout = value;
         end
         
         function set.rbmatlabDirectory(this, value)
@@ -430,8 +425,6 @@ classdef KerMor < handle
                 end
             end
             setpref(this.getPrefTag,'RBMATLABDIR',value);
-            this.rbmatlabDirectory = value;
-            fprintf('rbmatlab root directory: %s\n',value);
         end
         
         function set.JKerMorSourceDirectory(this, value)
@@ -453,8 +446,6 @@ classdef KerMor < handle
                 end
             end
             setpref(this.getPrefTag,'JKERMORDIR',value);
-            this.JKerMorSourceDirectory = value;
-            fprintf('JKerMor root directory: %s\n',value);
         end
         
         function h = get.HomeDirectory(this)
@@ -465,16 +456,7 @@ classdef KerMor < handle
         end
         
         function h = get.DataDirectory(this)
-            
-            % recover values if clear classes has been issued
-            if isempty(this.DataDirectory)
-                h = getpref(this.getPrefTag,'DATASTORE','');
-                if ~isempty(h)
-                    this.DataDirectory = h;
-                end
-            else
-                h = this.DataDirectory;
-            end
+            h = getpref(this.getPrefTag,'DATASTORE','');
         end
         
         function h = get.TempDirectory(this)
@@ -488,38 +470,15 @@ classdef KerMor < handle
         end
         
         function d = get.DesktopLayout(this)
-            % recover values if clear classes has been issued
-            if isempty(this.DesktopLayout)
-                d = getpref(this.getPrefTag,'DESKLAYOUT','');
-                this.DesktopLayout = d;
-            else
-                d = this.DesktopLayout;
-            end
+            d = getpref(this.getPrefTag,'DESKLAYOUT','');
         end
         
         function h = get.rbmatlabDirectory(this)
-            
-            % recover values if clear classes has been issued
-            if isempty(this.rbmatlabDirectory)
-                h = getpref(this.getPrefTag,'RBMATLABDIR','');
-                if ~isempty(h)
-                    this.rbmatlabDirectory = h;
-                end
-            else
-                h = this.rbmatlabDirectory;
-            end
+            h = getpref(this.getPrefTag,'RBMATLABDIR','');
         end
         
         function h = get.JKerMorSourceDirectory(this)
-            % recover values if clear classes has been issued
-            if isempty(this.JKerMorSourceDirectory)
-                h = getpref(this.getPrefTag,'JKERMORDIR','');
-                if ~isempty(h) && isdir(h)
-                    this.JKerMorSourceDirectory = h;
-                end
-            else
-                h = this.JKerMorSourceDirectory;
-            end
+            h = getpref(this.getPrefTag,'JKERMORDIR','');
         end
         
         function flag = get.Hasrbmatlab(this)
@@ -542,21 +501,15 @@ classdef KerMor < handle
         end
         
         function value = get.DefaultFigurePosition(this)
-            value = this.DefaultFigurePosition;
-            if isempty(value)
-                value = getpref(this.getPrefTag,'DefFigPos',[]);
-                if ~isempty(value)
-                    this.DefaultFigurePosition = value;
-                end
-            end
+            value = getpref(this.getPrefTag,'DefFigPos',...
+                get(0,'DefaultFigurePosition'));
         end
         
         function set.DefaultFigurePosition(this, value)
-            setpref(this.getPrefTag,'DefFigPos',value);
-            this.DefaultFigurePosition = value;
-            if ~isempty(value)
-                set(0,'DefaultFigurePosition',value);
+            if numel(value) ~= 4
+                error('The figure position must be a four element vector');
             end
+            setpref(this.getPrefTag,'DefFigPos',value);
         end
         
         function value = get.UseDPCM(this)
@@ -571,11 +524,7 @@ classdef KerMor < handle
         end
         
         function value = get.UseDiary(this)
-            value = this.UseDiary;
-            if isempty(value)
-                value = getpref(this.getPrefTag,'UseDiary',true);
-                this.UseDiary = value;
-            end
+            value = getpref(this.getPrefTag,'UseDiary',false);
         end
         
         function set.UseDiary(this, value)
@@ -583,14 +532,10 @@ classdef KerMor < handle
                 error('The UseDiary flag must be boolean.');
             end
             setpref(this.getPrefTag,'UseDiary',value);
-            this.UseDiary = value;
         end
         
         function value = get.Verbose(this)
-            value = this.Verbose;
-            if isempty(value)
-                value = getpref(this.getPrefTag,'Verbose',1);
-            end
+            value = getpref(this.getPrefTag,'Verbose',1);
         end
         
         function set.Verbose(this, value)
@@ -598,7 +543,6 @@ classdef KerMor < handle
                 error('The Verbose flag must be a positive integer');
             end
             setpref(this.getPrefTag,'Verbose',value);
-            this.Verbose = value;
         end
     end
     
@@ -860,17 +804,6 @@ classdef KerMor < handle
                 if isequal(ds,'y')
                     addpath(fullfile(a.HomeDirectory,'tools'));
                     Devel.setup;
-                end
-            end
-            
-            %% Matlab Parallel processing
-            if ~isempty(which('matlabpool'));
-                str = sprintf('Do you want to Use Matlab Parallel Computing?\nThis option aquires parallel \n(Y)es/(N)o: ');
-                value = lower(input(str,'s'));
-                if isequal(value,'y')
-                    setpref(a.getPrefTag,'USEMATLABPARALLELCOMPUTING',true);
-                else
-                    setpref(a.getPrefTag,'USEMATLABPARALLELCOMPUTING',false);
                 end
             end
             
