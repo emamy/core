@@ -1,8 +1,14 @@
 classdef IParallelizable < handle
-    % IPARALLELIZABLE Summary of this class goes here
-    %   Detailed explanation goes here
+    % IParallelizable Interface to indicate parallel computation capability
+    % of the implementing classes
     %
     % @author Syed Ammar @date 2011-04-14
+    %
+    % @change{0,7,dw,2014-01-17} Removed the
+    % KerMor.UseMatlabParallelComputing flag and hence this class is only
+    % of minimal functionality now. However, having an interface to
+    % indicate parallel computation capability is not making anything else
+    % more complicated, which is why this remains in KerMor.
     %
     % @change{0,3,sa,2011-04-14} Implemented UseMatlabParallelComputing functionality
     
@@ -16,15 +22,7 @@ classdef IParallelizable < handle
             if ~islogical(value)
                 error('Value must be logical');
             end
-            if value
-                if KerMor.App.UseMatlabParallelComputing
-                    this.ComputeParallel = value;
-                else
-                    warning('MatlabParallelComputing:NOT_ENABLED','Not setting flag as Matlab Parallel Processing toolbox not activated. Refer to the property KerMor.App.UseMatlabParallelComputing for more information.');
-                end
-            else
-                this.ComputeParallel = value;
-            end    
+            this.ComputeParallel = value;
         end
     end
      

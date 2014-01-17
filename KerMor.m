@@ -9,6 +9,12 @@ classdef KerMor < handle
     %
     % @author Daniel Wirtz @date 2011-03-04
     %
+    % @change{0,7,dw,2014-01-17} Removed the Flag
+    % "UseMatlabParallelComputing" as this should/must be set up separately
+    % on each machine. Instead, manually opening the matlabpool is
+    % required. Moreover, the flags models.BaseFullModel.ComputeParallel
+    % are used to determine the way of execution.
+    %
     % @change{0,7,dw,2013-07-09} Removed the TempDirectory as customizable property and simply
     % using "DataDirectory/tmp" now.
     %
@@ -345,12 +351,6 @@ classdef KerMor < handle
         % @default 1 @type integer
         Verbose = [];
         
-        % Flag whether to enable use of the Matlab Parallel Computing
-        % Toolbox.
-        %
-        % @default false @type logical
-        UseMatlabParallelComputing = [];
-        
         % The default figure position to use.
         %
         % If none is set, KerMor does not modify the root workspace property
@@ -394,35 +394,7 @@ classdef KerMor < handle
     end
  
     % Getter & Setter
-    methods
-        function set.UseMatlabParallelComputing(this, value)
-            if ~islogical(value)
-                error('Value must be logical');
-            end
-            haspc = ~isempty(which('matlabpool'));
-            s = 0;
-            if haspc
-                s = matlabpool('size');
-            end
-            if value            
-                if haspc
-                   this.UseMatlabParallelComputing = value;
-                   setpref(this.getPrefTag,'USEMATLABPARALLELCOMPUTING',value);
-                   if s == 0
-                       matlabpool open;
-                   end                
-                else
-                    error('No parallel computing toolbox available.');
-                end
-            else
-                this.UseMatlabParallelComputing = value;
-                setpref(this.getPrefTag,'USEMATLABPARALLELCOMPUTING',value);
-                if s > 0
-                   matlabpool close;
-                end
-            end
-        end
-          
+    methods  
         function set.DataDirectory(this, value)
             if ~isempty(value) && ~isdir(value)
                 fprintf('Creating directory %s\n',value);
@@ -483,19 +455,6 @@ classdef KerMor < handle
             setpref(this.getPrefTag,'JKERMORDIR',value);
             this.JKerMorSourceDirectory = value;
             fprintf('JKerMor root directory: %s\n',value);
-        end
-        
-        function value = get.UseMatlabParallelComputing(this)
-            % recover values if clear classes has been issued or Matlab
-            % Parallel processing toolbox deleted            
-            value = getpref(this.getPrefTag,'USEMATLABPARALLELCOMPUTING',false);
-            t = which('matlabpool');
-            if ~isempty(t)
-                this.UseMatlabParallelComputing = value;
-            elseif value
-                warning('KERMOR:ParComp','No parallel computing toolbox found but preference for UseMatlabParallelComputing contained true. Setting to false.');
-                this.UseMatlabParallelComputing = false;
-            end
         end
         
         function h = get.HomeDirectory(this)
@@ -815,7 +774,7 @@ classdef KerMor < handle
             end   
             
             function initParallelization
-                % Checks if the parallel computing toolbox is available
+                % Initializes variables for parallel computation
                 %
                 % @todo wrap with try-catch and set flag in KerMor.App
                 % class!
@@ -823,15 +782,6 @@ classdef KerMor < handle
                 % @note The 'feature' command is undocumented, see
                 % http://www.mathworks.com/matlabcentral/newsreader/view_thread/154551
                 % for more information.
-                
-                % Open matlabpool only if UseMatlabParallelComputing is set to
-                % true
-                if this.UseMatlabParallelComputing
-                    disp('Checking for and starting parallel computing..');
-                    if matlabpool('size') == 0
-                        matlabpool open;
-                    end
-                end
                 
                 % Sets the maximum number of threads to create by OpenMP
                 % binaries according to the number of cores available on
@@ -842,14 +792,6 @@ classdef KerMor < handle
                   
         function shutdown(this)
             % Ends the current KerMor session.
-            
-            % only close if parallel computing is available and matlabpool is running!
-            if this.UseMatlabParallelComputing
-                disp('Closing the matlabpool..');
-                if matlabpool('size') > 0
-                    matlabpool close;
-                end
-            end
             
             if this.UseDiary
                 disp('Disabling diary..');
