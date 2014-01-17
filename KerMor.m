@@ -359,11 +359,6 @@ classdef KerMor < handle
         % @default [] @type rowvec
         DefaultFigurePosition = [];
         
-        % Switch to determine if the Default Property Changed System shall be used or not.
-        %
-        % @default true @type logical
-        UseDPCM = [];
-        
         % Flag that determines if KerMor also enables the 'diary' function upon startup.
         %
         % For each day, a diary named '[Date]_KerMor[Version]Log.txt' is created inside the
@@ -371,6 +366,13 @@ classdef KerMor < handle
         %      
         % @default true @type logical
         UseDiary = [];
+    end
+    
+    properties(Dependent)
+        % Switch to determine if the Default Property Changed System shall be used or not.
+        %
+        % @default true @type logical
+        UseDPCM = [];
     end
     
     properties(SetAccess=private)
@@ -599,11 +601,7 @@ classdef KerMor < handle
         end
         
         function value = get.UseDPCM(this)
-            value = this.UseDPCM;
-            if isempty(value)
-                value = getpref(this.getPrefTag,'UseDPCM',true);
-                this.UseDPCM = value;
-            end
+            value = getpref(this.getPrefTag,'UseDPCM',true);
         end
         
         function set.UseDPCM(this, value)
@@ -611,7 +609,6 @@ classdef KerMor < handle
                 error('The UseDPCM flag must be boolean.');
             end
             setpref(this.getPrefTag,'UseDPCM',value);
-            this.UseDPCM = value;
         end
         
         function value = get.UseDiary(this)
