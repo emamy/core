@@ -41,6 +41,7 @@ classdef GaussConfig < kernels.config.RBFConfig
                     error('You must pass either Gamma values (G) or distances (D)');
                 end
             end
+            this.RequiredPrototypeClass = 'kernels.GaussKernel';
         end
         
 %         function str = getConfigurationString(this, nr, asCell)
@@ -53,12 +54,11 @@ classdef GaussConfig < kernels.config.RBFConfig
 %             end
 %         end
         
-        function applyConfiguration(this, nr, kernel)
+        function k = configureInstance(this, nr)
             if ~isempty(this.Distances)
                 this.Gammas(nr) = kernel.setGammaForDistance(this.Distances(nr),this.DistEps);
-            else
-                applyConfiguration@kernels.config.RBFConfig(this, nr, kernel);
             end
+            k = configureInstance@kernels.config.RBFConfig(this, nr);
         end
         
         function conf = getSubPart(this, partNr, totalParts)

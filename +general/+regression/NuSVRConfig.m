@@ -30,7 +30,8 @@ classdef NuSVRConfig < IClassConfig
             n = length(this.Nus);
         end
         
-        function applyConfiguration(this, nr, svr)
+        function configureInstance(this, nr)
+            svr = this.getProtoClass;
             svr.nu = this.Nus(nr);
             svr.Lambda = this.Lambdas(nr);
         end

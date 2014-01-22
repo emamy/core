@@ -25,6 +25,7 @@ classdef RBFConfig < IClassConfig & ICloneable
             i.parse(varargin{:});
             r = i.Results;
             this.Gammas = r.G;
+            this.RequiredPrototypeClass = 'kernels.ARBFKernel';
         end
         
         function n = getNumConfigurations(this)
@@ -35,8 +36,9 @@ classdef RBFConfig < IClassConfig & ICloneable
             end
         end
         
-        function applyConfiguration(this, nr, kernel)
-            kernel.Gamma = this.Gammas(nr);
+        function k = configureInstance(this, nr)
+            k = this.getProtoClass;
+            k.Gamma = this.Gammas(nr);
         end
 
         function str = getConfigurationString(this, nr, asCell)

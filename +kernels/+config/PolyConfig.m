@@ -1,4 +1,4 @@
-classdef PolyConfig
+classdef PolyConfig < IClassConfig
 % PolyConfig: Configuration settings for polynomial kernels
 %
 % @docupdate
@@ -26,20 +26,19 @@ classdef PolyConfig
             if nargin == 1
                 this.Degrees = values;
             end
+            this.RequiredPrototypeClass = 'kernels.PolyKernel';
         end
         
         function n = getNumConfigurations(this)
             n = length(this.Degrees);
         end
         
-        function applyConfiguration(this, nr, kernel)
-            kernel.Degree = this.Degress(nr);
+        function k = configureInstance(this, nr)
+            k = this.getProtoClass;
+            k.Degree = this.Degress(nr);
         end
         
-        function str = getConfigurationString(this, nr, asCell)
-            if nargin < 3
-                asCell = false;
-            end
+        function str = getConfigurationString(this, nr, ~)
             str = [];
             if ~isempty(this.Degrees)
                 str = sprintf('Degree: %g',this.Degrees(nr));

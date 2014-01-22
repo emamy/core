@@ -83,6 +83,11 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable & IReductionSummary
         %
         % See also: StopFlag
         StopFlags = [];
+        
+        % Index of the best expansion config determined by the algorithm
+        %
+        % @type integer
+        BestExpConfig;
     end
     
     properties(GetAccess=protected,SetAccess=private)
@@ -115,8 +120,15 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable & IReductionSummary
         end
         
         
-        function computeApproximation(this, kexp, atd)
+        function kexp = computeApproximation(this, atd)
             time = tic;
+            
+            if isempty(this.ExpConfig)
+                error('No ExpConfig set. Aborting.');
+            elseif this.ExpConfig.getNumConfigurations == 0
+                error('Need at least one expansion configuration.');
+            end
+            
             % Scale f-values if wanted
             if this.UsefScaling
                 [fm,fM] = atd.fxi.getColBoundingBox;
@@ -129,23 +141,8 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable & IReductionSummary
                 this.ScalingG = 1;
             end
             
-            remove_conf = false;
-            if isempty(this.ExpConfig)
-                this.ExpConfig = kexp.getDefaultExpansionConfig;
-                remove_conf = true;
-            else 
-                if this.ExpConfig.getNumConfigurations == 0
-                    error('Need at least one expansion configuration.');
-                end
-            end
-            
             % Call template method for component wise approximation
-            this.templateComputeApproximation(kexp, atd);
-            
-            % Remove temp config
-            if remove_conf
-                this.ExpConfig = [];
-            end
+            kexp = this.templateComputeApproximation(atd);
             
             % Rescale if set
             if this.UsefScaling

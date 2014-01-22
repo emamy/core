@@ -35,12 +35,13 @@ classdef WendlandConfig < kernels.config.RBFConfig
                 error('Need same amount of k values than gamma values');
             end
             this.Dimension = r.Dim;
+            this.RequiredPrototypeClass = 'kernels.WendlandKernel';
         end
         
-        function applyConfiguration(this, nr, kernel)
-            applyConfiguration@kernels.config.RBFConfig(this, nr, kernel);
-            kernel.k = this.Smoothnesses(nr);
-            kernel.d = this.Dimension;
+        function k = configureInstance(this, nr)
+            k = configureInstance@kernels.config.RBFConfig(this, nr);
+            k.k = this.Smoothnesses(nr);
+            k.d = this.Dimension;
         end
         
         function str = getConfigurationString(this, nr, asCell)

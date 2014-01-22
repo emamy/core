@@ -117,7 +117,7 @@ classdef AAdaptiveBase < approx.algorithms.ABase
     end
     
     methods(Access=protected, Sealed)
-        function templateComputeApproximation(this, kexp, atd)
+        function kexp = templateComputeApproximation(this, atd)
             % Performs adaptive approximation generation.
             %
             % Parameters:
@@ -145,7 +145,7 @@ classdef AAdaptiveBase < approx.algorithms.ABase
             end
             
             % Start adaptive extension part of subclass
-            this.startAdaptiveExtension(kexp, atd);
+            kexp = this.startAdaptiveExtension(atd);
         end
     end
     

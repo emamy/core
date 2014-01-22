@@ -24,13 +24,15 @@ classdef EpsSVRConfig < IClassConfig
                 this.Epsilons = values(1,:);
                 this.Lambdas = values(2,:);
             end
+            this.RequiredPrototypeClass = 'general.regression.ScalarEpsSVR_SMO';
         end
         
         function n = getNumConfigurations(this)
             n = length(this.Epsilons);
         end
         
-        function applyConfiguration(this, nr, svr)
+        function svr = configureInstance(this, nr)
+            svr = this.getProtoClass;
             svr.Eps = this.Epsilons(nr);
             svr.Lambda = this.Lambdas(nr);
         end
