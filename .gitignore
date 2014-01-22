@@ -25,4 +25,5 @@
 /documentation/bin
 /documentation/mtoc++*
 /documentation/docs
+/documentation/out
 .gitbranch

@@ -23,6 +23,19 @@ classdef IClassConfig < KerMorObject
         %
         % @type integer @default []
         vBestConfigIndex = [];
+        
+        % The prototype class that is to be used as base class before
+        % configuring a new instance.
+        %
+        % @type ICloneable
+        Prototype;
+    end
+    
+    properties(Access=protected)
+        % Determines the class that is allowed to be configured.
+        %
+        % @type char @default []
+        RequiredPrototypeClass = [];
     end
     
     methods(Sealed)
@@ -47,14 +60,27 @@ classdef IClassConfig < KerMorObject
         end
     end
     
-%     methods
-%         function copy = clone(this, copy)
-%             copy = clone@KerMorObject(this, copy);
-%             copy.vBestConfigIndex = this.vBestConfigIndex;
-%         end
-%     end
+    methods
+        function set.Prototype(this, value)
+            if ~isa(value, 'ICloneable')
+                error('The prototype must be a ICloneable descendant.');
+            elseif ~isempty(this.RequiredPrototypeClass) && ...
+                    ~isa(value,this.RequiredPrototypeClass)%#ok
+                error('The prototype must be a %s descendant.',...
+                    this.RequiredPrototypeClass);%#ok
+            end
+            this.Prototype = value;
+        end
+    end
     
     methods(Access=protected)
+        function ptype = getProtoClass(this)
+            if isempty(this.Prototype)
+                error('No prototype set');
+            end
+            ptype = this.Prototype.clone();
+        end
+        
         function idx = getPartIndices(this, partNr, totalParts)
             rs = RangeSplitter(this.getNumConfigurations, 'Num', totalParts);
             idx = rs.getPart(partNr);
@@ -73,12 +99,14 @@ classdef IClassConfig < KerMorObject
         % n: The number of configurations @type integer
         n = getNumConfigurations(this);
         
-        % Returns the number of configurations that can be applied
+        % Creates a new instance with given configuration
         %
         % Parameters:
         % nr: The configuration number @type integer
-        % object: The class object for which to apply the configuration @type handle
-        applyConfiguration(this, nr, object);
+        %
+        % Return values:
+        % object: The configured object @type ICloneable
+        object = configureInstance(this, nr);
         
         % Returns the number of configurations that can be applied
         %

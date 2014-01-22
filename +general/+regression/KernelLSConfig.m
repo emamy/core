@@ -22,6 +22,7 @@ classdef KernelLSConfig < IClassConfig
             if nargin == 1
                 this.Lambdas = lambdas;
             end
+            this.RequiredPrototypeClass = 'general.regression.KernelLS';
         end
         
         % Returns the number of configurations that can be applied
@@ -32,12 +33,15 @@ classdef KernelLSConfig < IClassConfig
             n = 1;
         end
         
-        % Returns the number of configurations that can be applied
+        % Gets a new configured instance for a give config number
         %
         % Parameters:
         % nr: The configuration number @type integer
-        % object: The class object for which to apply the configuration @type handle
-        function applyConfiguration(this, nr, object)
+        %
+        % Return values:
+        % object: The new configured instance @type ICloneable
+        function object = configureInstance(this, nr)
+            object = this.getProtoClass;
             object.lambda = this.Lambdas(nr);
         end
         

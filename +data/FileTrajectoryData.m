@@ -167,8 +167,9 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
             this.trajlen = [];
         end
         
-        function consolidate(this, model, model_ID)%#ok
-            % Rebuild the hashmap for the current FileData using the current ParamSamples and the models training inputs.
+        function consolidate(this, model)
+            % Rebuild the hashmap for the current FileData using the
+            % current ParamSamples and the models training inputs.
             %
             % This method is used when trajectories are generated within a
             % parfor loop, as then the FileTrajectoryData's are remotely
@@ -181,42 +182,32 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
             % re-insert them into the hash map.
             %
             % Parameters:
-            % model: The model to use for consolidation (the
-            % TrainingInputs property is needed)
-            % model_ID: DEBUG PARAM. Allows the consolidation to be
-            % performed for a different model ID, for which the model data
-            % files have been created. If given, the directory is renamed
-            % according to the current model ID.
-            error('proper functionality not guaranteed since introduction of FileDataCollection');
-            if nargin == 3
-                olddir = fullfile(KerMor.App.DataDirectory,['rm_' num2str(model_ID)]);
-                newdir = fullfile(KerMor.App.DataDirectory,['rm_' num2str(model.ID)]);
-                movefile(olddir,newdir);
-            end
-            this.DataDirectory = fullfile(KerMor.App.DataDirectory,['rm_' num2str(model.ID)]);
-            
-            this.hm.clear;
+            % model: The model to use for consolidation @type
+            % models.BaseFullModel
             this.bbmin = [];
             this.bbmax = [];
             
-            for u=1:max(model.TrainingInputCount,1)
+            ni = max(model.TrainingInputCount,1);
+            ns = model.Data.SampleCount;
+            pi = ProcessIndicator('Consolidating FileTrajectoryData',ni*ns);
+            for u=1:ni
                 ui = u;
                 if model.TrainingInputCount == 0
                     ui = [];
                 end
-                for n=1:this.SampleCount
-                    mu = this.ParamSamples(:,n);
-                    key = Utils.getHash([mu; ui]);
-                    file = [key '.mat'];
-                    ffile = fullfile(this.DataDirectory, file);
-                    if exist(ffile,'file') == 2
-                        this.hm.put(key,file);
-                        % Update the bounding box!
-                        s = load(ffile);
+                for n=1:ns
+                    mu = model.Data.ParamSamples(:,n);
+                    % GetData has a "backup" feature to also find files if
+                    % not enlisted in the hash map; if so, the hash map is
+                    % updated automatically!
+                    s = this.getData([mu; ui]);
+                    if ~isempty(s)
                         this.updateBB(s.x);
                     end
+                    pi.step;
                 end
             end
+            pi.stop;
         end
         
         function [x,X] = getBoundingBox(this)

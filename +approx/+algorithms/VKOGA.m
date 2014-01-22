@@ -74,7 +74,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
     end
     
     methods(Access=protected, Sealed)
-        function startAdaptiveExtension(this, kexp, atd)
+        function kexp = startAdaptiveExtension(this, atd)
             % Starts the adaptive extension of the VKOGA algorithm.
             
             % Flag for experimental mode
@@ -87,18 +87,19 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             this.basis_norms = this.MaxErrors;
             this.StopFlags = zeros(nc,1);
             this.VKOGABound = this.basis_norms;
+            this.BestConfigIndex = 0;
 
             xi = atd.xi.toMemoryMatrix;
             fxi = atd.fxi.toMemoryMatrix;
             fxinorm = this.ErrorFun(fxi);
             fxinorm(fxinorm == 0) = 1;
             N = size(xi,2);
-            kexp.clear;
             
             minerr = Inf;
             minrelerr = Inf;
             bestNV = [];
             bestc = [];
+            bestused = [];
 
             if exp_mode
                 pm = PlotManager(false,ceil((size(fxi,1)+4)/2),2);
@@ -114,7 +115,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                 m = 1;
                 
                 % Set current hyperconfiguration
-                ec.applyConfiguration(cidx, kexp);
+                kexp = ec.configureInstance(cidx);
                 
                 % Values of Newton basis
                 NV = zeros(N,this.MaxExpansionSize);
@@ -267,15 +268,18 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     bestused = used(1:bestm);
                     bestNV = NV(:,1:bestm);
                     bestc = c(:,1:bestm);
-                    bestcidx = cidx;
+                    this.BestConfigIndex = cidx;
                 end
                 this.StopFlags(cidx) = stopflag;
                 pi.step;
             end
             
             %% Set (& apply) best configuration
+            if isempty(bestused)
+                warning();
+            end
             this.Used = bestused;
-            ec.setBestConfig(bestcidx, kexp);
+            kexp = ec.configureInstance(this.BestConfigIndex);
             kexp.setCentersFromATD(atd, bestused);
             
             % Compute Ma
@@ -298,7 +302,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     og = 'on';
                 end
                 fprintf('VKOMP best kernel config index:%d for VKOGA with f/P-Greedy=%s, exp-size:%d\n',...
-                    bestcidx,og,length(bestused));
+                    BestConfigIndex,og,length(bestused));
             end
             
             pi.stop;

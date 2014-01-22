@@ -9,6 +9,12 @@ classdef KerMor < handle
     %
     % @author Daniel Wirtz @date 2011-03-04
     %
+    % @change{0,7,dw,2014-01-17} Removed the Flag
+    % "UseMatlabParallelComputing" as this should/must be set up separately
+    % on each machine. Instead, manually opening the matlabpool is
+    % required. Moreover, the flags models.BaseFullModel.ComputeParallel
+    % are used to determine the way of execution.
+    %
     % @change{0,7,dw,2013-07-09} Removed the TempDirectory as customizable property and simply
     % using "DataDirectory/tmp" now.
     %
@@ -310,7 +316,7 @@ classdef KerMor < handle
         WarnColor = [1 .5 0];
     end
       
-    properties
+    properties(Dependent)
         % The directory to use for simulation data storage
         %
         % In this folder large simulation and model data will be stored and
@@ -319,6 +325,11 @@ classdef KerMor < handle
         %
         % @default ./data @type char
         DataDirectory = '';
+        
+        % Switch to determine if the Default Property Changed System shall be used or not.
+        %
+        % @default true @type logical
+        UseDPCM = [];
         
         % The preferred desktop layout to work with.
         %
@@ -345,12 +356,6 @@ classdef KerMor < handle
         % @default 1 @type integer
         Verbose = [];
         
-        % Flag whether to enable use of the Matlab Parallel Computing
-        % Toolbox.
-        %
-        % @default false @type logical
-        UseMatlabParallelComputing = [];
-        
         % The default figure position to use.
         %
         % If none is set, KerMor does not modify the root workspace property
@@ -358,11 +363,6 @@ classdef KerMor < handle
         %
         % @default [] @type rowvec
         DefaultFigurePosition = [];
-        
-        % Switch to determine if the Default Property Changed System shall be used or not.
-        %
-        % @default true @type logical
-        UseDPCM = [];
         
         % Flag that determines if KerMor also enables the 'diary' function upon startup.
         %
@@ -392,50 +392,19 @@ classdef KerMor < handle
     end
  
     % Getter & Setter
-    methods
-        function set.UseMatlabParallelComputing(this, value)
-            if ~islogical(value)
-                error('Value must be logical');
-            end
-            haspc = ~isempty(which('matlabpool'));
-            s = 0;
-            if haspc
-                s = matlabpool('size');
-            end
-            if value            
-                if haspc
-                   this.UseMatlabParallelComputing = value;
-                   setpref(this.getPrefTag,'USEMATLABPARALLELCOMPUTING',value);
-                   if s == 0
-                       matlabpool open;
-                   end                
-                else
-                    error('No parallel computing toolbox available.');
-                end
-            else
-                this.UseMatlabParallelComputing = value;
-                setpref(this.getPrefTag,'USEMATLABPARALLELCOMPUTING',value);
-                if s > 0
-                   matlabpool close;
-                end
-            end
-        end
-          
+    methods  
         function set.DataDirectory(this, value)
-            if ~isempty(value) && ~isdir(value)
+            if ~ischar(value)
+                error('DataDirectory must be a char array');
+            elseif ~isempty(value) && ~isdir(value)
                 fprintf('Creating directory %s\n',value);
                 mkdir(value);
             end
             setpref(this.getPrefTag,'DATASTORE',value);
-            this.DataDirectory = value;
-            if this.Verbose > 0 %#ok
-                fprintf('Simulation and model data: %s\n',value);
-            end
         end
         
         function set.DesktopLayout(this, value)
             setpref(this.getPrefTag,'DESKLAYOUT',value);
-            this.DesktopLayout = value;
         end
         
         function set.rbmatlabDirectory(this, value)
@@ -456,8 +425,6 @@ classdef KerMor < handle
                 end
             end
             setpref(this.getPrefTag,'RBMATLABDIR',value);
-            this.rbmatlabDirectory = value;
-            fprintf('rbmatlab root directory: %s\n',value);
         end
         
         function set.JKerMorSourceDirectory(this, value)
@@ -479,21 +446,6 @@ classdef KerMor < handle
                 end
             end
             setpref(this.getPrefTag,'JKERMORDIR',value);
-            this.JKerMorSourceDirectory = value;
-            fprintf('JKerMor root directory: %s\n',value);
-        end
-        
-        function value = get.UseMatlabParallelComputing(this)
-            % recover values if clear classes has been issued or Matlab
-            % Parallel processing toolbox deleted            
-            value = getpref(this.getPrefTag,'USEMATLABPARALLELCOMPUTING',false);
-            t = which('matlabpool');
-            if ~isempty(t)
-                this.UseMatlabParallelComputing = value;
-            elseif value
-                warning('KERMOR:ParComp','No parallel computing toolbox found but preference for UseMatlabParallelComputing contained true. Setting to false.');
-                this.UseMatlabParallelComputing = false;
-            end
         end
         
         function h = get.HomeDirectory(this)
@@ -504,16 +456,7 @@ classdef KerMor < handle
         end
         
         function h = get.DataDirectory(this)
-            
-            % recover values if clear classes has been issued
-            if isempty(this.DataDirectory)
-                h = getpref(this.getPrefTag,'DATASTORE','');
-                if ~isempty(h)
-                    this.DataDirectory = h;
-                end
-            else
-                h = this.DataDirectory;
-            end
+            h = getpref(this.getPrefTag,'DATASTORE','');
         end
         
         function h = get.TempDirectory(this)
@@ -527,38 +470,15 @@ classdef KerMor < handle
         end
         
         function d = get.DesktopLayout(this)
-            % recover values if clear classes has been issued
-            if isempty(this.DesktopLayout)
-                d = getpref(this.getPrefTag,'DESKLAYOUT','');
-                this.DesktopLayout = d;
-            else
-                d = this.DesktopLayout;
-            end
+            d = getpref(this.getPrefTag,'DESKLAYOUT','');
         end
         
         function h = get.rbmatlabDirectory(this)
-            
-            % recover values if clear classes has been issued
-            if isempty(this.rbmatlabDirectory)
-                h = getpref(this.getPrefTag,'RBMATLABDIR','');
-                if ~isempty(h)
-                    this.rbmatlabDirectory = h;
-                end
-            else
-                h = this.rbmatlabDirectory;
-            end
+            h = getpref(this.getPrefTag,'RBMATLABDIR','');
         end
         
         function h = get.JKerMorSourceDirectory(this)
-            % recover values if clear classes has been issued
-            if isempty(this.JKerMorSourceDirectory)
-                h = getpref(this.getPrefTag,'JKERMORDIR','');
-                if ~isempty(h) && isdir(h)
-                    this.JKerMorSourceDirectory = h;
-                end
-            else
-                h = this.JKerMorSourceDirectory;
-            end
+            h = getpref(this.getPrefTag,'JKERMORDIR','');
         end
         
         function flag = get.Hasrbmatlab(this)
@@ -581,29 +501,19 @@ classdef KerMor < handle
         end
         
         function value = get.DefaultFigurePosition(this)
-            value = this.DefaultFigurePosition;
-            if isempty(value)
-                value = getpref(this.getPrefTag,'DefFigPos',[]);
-                if ~isempty(value)
-                    this.DefaultFigurePosition = value;
-                end
-            end
+            value = getpref(this.getPrefTag,'DefFigPos',...
+                get(0,'DefaultFigurePosition'));
         end
         
         function set.DefaultFigurePosition(this, value)
-            setpref(this.getPrefTag,'DefFigPos',value);
-            this.DefaultFigurePosition = value;
-            if ~isempty(value)
-                set(0,'DefaultFigurePosition',value);
+            if numel(value) ~= 4
+                error('The figure position must be a four element vector');
             end
+            setpref(this.getPrefTag,'DefFigPos',value);
         end
         
         function value = get.UseDPCM(this)
-            value = this.UseDPCM;
-            if isempty(value)
-                value = getpref(this.getPrefTag,'UseDPCM',true);
-                this.UseDPCM = value;
-            end
+            value = getpref(this.getPrefTag,'UseDPCM',true);
         end
         
         function set.UseDPCM(this, value)
@@ -611,15 +521,10 @@ classdef KerMor < handle
                 error('The UseDPCM flag must be boolean.');
             end
             setpref(this.getPrefTag,'UseDPCM',value);
-            this.UseDPCM = value;
         end
         
         function value = get.UseDiary(this)
-            value = this.UseDiary;
-            if isempty(value)
-                value = getpref(this.getPrefTag,'UseDiary',true);
-                this.UseDiary = value;
-            end
+            value = getpref(this.getPrefTag,'UseDiary',false);
         end
         
         function set.UseDiary(this, value)
@@ -627,14 +532,10 @@ classdef KerMor < handle
                 error('The UseDiary flag must be boolean.');
             end
             setpref(this.getPrefTag,'UseDiary',value);
-            this.UseDiary = value;
         end
         
         function value = get.Verbose(this)
-            value = this.Verbose;
-            if isempty(value)
-                value = getpref(this.getPrefTag,'Verbose',1);
-            end
+            value = getpref(this.getPrefTag,'Verbose',1);
         end
         
         function set.Verbose(this, value)
@@ -642,7 +543,6 @@ classdef KerMor < handle
                 error('The Verbose flag must be a positive integer');
             end
             setpref(this.getPrefTag,'Verbose',value);
-            this.Verbose = value;
         end
     end
     
@@ -669,7 +569,13 @@ classdef KerMor < handle
                         % Yes: copy prefs
                         if r == 'y'
                             % Select preferences substruct from host and copy
-                            Utils.copyPrefGroup(fn{i},this.getPrefTag);
+                            % NOT using Utils.xx here as this is not yet on
+                            % the PATH!
+                            localp = p.(fn{i});
+                            pfn = fieldnames(localp);
+                            for k = 1:numel(pfn)
+                                setpref(this.getPrefTag,pfn{k},localp.(pfn{k}));
+                            end
                             pset = true;
                             break;
                             % cancel: start setup
@@ -812,7 +718,7 @@ classdef KerMor < handle
             end   
             
             function initParallelization
-                % Checks if the parallel computing toolbox is available
+                % Initializes variables for parallel computation
                 %
                 % @todo wrap with try-catch and set flag in KerMor.App
                 % class!
@@ -820,15 +726,6 @@ classdef KerMor < handle
                 % @note The 'feature' command is undocumented, see
                 % http://www.mathworks.com/matlabcentral/newsreader/view_thread/154551
                 % for more information.
-                
-                % Open matlabpool only if UseMatlabParallelComputing is set to
-                % true
-                if this.UseMatlabParallelComputing
-                    disp('Checking for and starting parallel computing..');
-                    if matlabpool('size') == 0
-                        matlabpool open;
-                    end
-                end
                 
                 % Sets the maximum number of threads to create by OpenMP
                 % binaries according to the number of cores available on
@@ -839,14 +736,6 @@ classdef KerMor < handle
                   
         function shutdown(this)
             % Ends the current KerMor session.
-            
-            % only close if parallel computing is available and matlabpool is running!
-            if this.UseMatlabParallelComputing
-                disp('Closing the matlabpool..');
-                if matlabpool('size') > 0
-                    matlabpool close;
-                end
-            end
             
             if this.UseDiary
                 disp('Disabling diary..');
@@ -915,17 +804,6 @@ classdef KerMor < handle
                 if isequal(ds,'y')
                     addpath(fullfile(a.HomeDirectory,'tools'));
                     Devel.setup;
-                end
-            end
-            
-            %% Matlab Parallel processing
-            if ~isempty(which('matlabpool'));
-                str = sprintf('Do you want to Use Matlab Parallel Computing?\nThis option aquires parallel \n(Y)es/(N)o: ');
-                value = lower(input(str,'s'));
-                if isequal(value,'y')
-                    setpref(a.getPrefTag,'USEMATLABPARALLELCOMPUTING',true);
-                else
-                    setpref(a.getPrefTag,'USEMATLABPARALLELCOMPUTING',false);
                 end
             end
             

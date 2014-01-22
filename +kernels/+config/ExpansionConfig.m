@@ -21,6 +21,10 @@ classdef ExpansionConfig < IClassConfig
     end
     
     methods
+        function this = ExpansionConfig()
+            this.RequiredPrototypeClass = 'kernels.KernelExpansion';
+        end
+        
         function n = getNumConfigurations(this)
             n = Inf;
             if ~isempty(this.StateConfig)
@@ -37,16 +41,18 @@ classdef ExpansionConfig < IClassConfig
             end
         end
         
-        function applyConfiguration(this, nr, expansion)
-            % @todo improve code (dont think str as return value for maybe verbose is any good)
+        function kexp = configureInstance(this, nr)
+            % @todo improve code (dont think str as return value for maybe
+            % verbose is any good)
+            kexp = this.getProtoClass;
             if ~isempty(this.StateConfig)
-                this.StateConfig.applyConfiguration(nr, expansion.Kernel);
+                kexp.Kernel = this.StateConfig.configureInstance(nr);
             end
             if ~isempty(this.TimeConfig)
-                this.TimeConfig.applyConfiguration(nr, expansion.TimeKernel);
+                kexp.TimeKernel = this.TimeConfig.configureInstance(nr);
             end
             if ~isempty(this.ParamConfig)
-                this.ParamConfig.applyConfiguration(nr, expansion.ParamKernel);
+                kexp.ParamKernel = this.ParamConfig.configureInstance(nr);
             end
         end
         
@@ -82,22 +88,6 @@ classdef ExpansionConfig < IClassConfig
                 e(end+1) = {['Param: ' this.ParamConfig.getConfiguredPropertiesString]};
             end
             str = Utils.implode(e,', ');
-        end
-        
-        function setBestConfig(this, idx, expansion)
-            % @todo implement event listener for PostSet of vBestConfigIndex
-            
-            % Apply config
-            this.applyConfiguration(idx, expansion);
-            % Set best config indices
-            this.vBestConfigIndex = idx;
-            this.StateConfig.vBestConfigIndex = idx;
-            if ~isempty(this.TimeConfig)
-                this.TimeConfig.vBestConfigIndex = idx;
-            end
-            if ~isempty(this.ParamConfig)
-                this.ParamConfig.vBestConfigIndex = idx;
-            end
         end
         
         function conf = getSubPart(this, partNr, totalParts)

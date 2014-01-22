@@ -170,7 +170,7 @@ classdef Componentwise < approx.algorithms.ABase
                 if KerMor.App.Verbose > 2
                     fprintf('Applying expansion config %s\n',ec.getConfigurationString(kcidx, false));
                 end
-                ec.applyConfiguration(kcidx, kexp);
+                kexp = ec.configureInstance(kcidx);
                 
                 % Call coeffcomp preparation method and pass kernel matrix
                 this.CoeffComp.init(kexp);
@@ -179,7 +179,7 @@ classdef Componentwise < approx.algorithms.ABase
                     if KerMor.App.Verbose > 2
                         fprintf('Applying %s config %s\n',class(this.CoeffComp),cc.getConfigurationString(coidx, false));
                     end
-                    cc.applyConfiguration(coidx, this.CoeffComp);
+                    this.CoeffComp = cc.configureInstance(coidx);
                     
                     % Call protected method
                     time = tic;
@@ -217,7 +217,7 @@ classdef Componentwise < approx.algorithms.ABase
             
             %% Assign best values
             cc.vBestConfigIndex = bestcoidx;
-            cc.applyConfiguration(bestcoidx, this.CoeffComp);
+            this.CoeffComp = cc.configureInstance(bestcoidx);
             ec.setBestConfig(bestcidx, kexp);
             kexp.Ma = bestMa;
             

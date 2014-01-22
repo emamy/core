@@ -90,10 +90,14 @@ classdef KernelApprox < approx.BaseApprox & dscomponents.ParamTimeKernelCoreFun
 %                 % Set norm matrix to V^tGV as required by theory.
 %                 this.Kernel.G = model.Data.V'*(model.G*model.Data.V);
 %             end
-            this.Kernel.G = model.G;
-                        
+
+            if ~isempty(model.G) && ~isequal(model.G,1)
+                this.Algorithm.ExpConfig.Prototype.Kernel.G = model.G;
+            end
+
             % First argument: this kernel expansion!
-            this.Algorithm.computeApproximation(this, model.Data.ApproxTrainData);
+            this.Expansion = this.Algorithm.computeApproximation(this, ...
+                model.Data.ApproxTrainData);
         end
                 
         function copy = clone(this)

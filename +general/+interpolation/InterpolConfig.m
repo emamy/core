@@ -14,6 +14,11 @@ classdef InterpolConfig < IClassConfig
 % - \c License @ref licensing
     
     methods
+        
+        function this = InterpolConfig
+            this.RequiredPrototypeClass = 'general.interpolation.KernelInterpol';
+        end
+        
         % Returns the number of configurations that can be applied
         %
         % Return values:
@@ -27,8 +32,8 @@ classdef InterpolConfig < IClassConfig
         % Parameters:
         % nr: The configuration number @type integer
         % object: The class object for which to apply the configuration @type handle
-        function applyConfiguration(this, nr, object)%#ok
-            % to nothing
+        function object = configureInstance(this, nr)%#ok
+            object = this.getProtoClass;
         end
         
         % Returns the number of configurations that can be applied
