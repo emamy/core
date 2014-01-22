@@ -878,8 +878,19 @@ classdef KerMor < handle
             % d: The docs directory @type char
             d = MatlabDocMaker.getOutputDirectory;
             if isempty(d) || ~exist(fullfile(d,'index.html'),'file')
-                d = 'http://www.agh.ians.uni-stuttgart.de/documentation/kermor';
+                d = 'http://www.morepas.org/software/kermor/index.html';
             end
+        end
+        
+        function createLogo
+            % Creates the KerMor logo
+            h = figure;
+            [X,Y] = meshgrid(-10:.5:10);
+            Z = exp(-(X.^2+Y.^2-2*X'*Y)/20);% + .5*exp(-(X2.^2+Y2.^2-2*X2'*Y2)/5);
+            surfl(X,Y,Z,'Parent',h);
+            lighting gouraud;
+            colormap autumn;
+            grid on;
         end
         
         function tag = getPrefTag
