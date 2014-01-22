@@ -215,6 +215,18 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % @type logical @default false
         ComputeTrajectoryFxiData = false;
         
+        % Flag to enable automatic saving of the model after each individual offline phase
+        % step and at other locations prone to data loss due to lengthy computations.
+        %
+        % Note that once a model has been saved, any file system folders created with that
+        % model will persist until manually deleted.
+        %
+        % @propclass{optional} This setting just decreases the chance of data loss due to
+        % intermediate saves.
+        %
+        % @type logical @default false
+        AutoSave = 8;
+        
         % A custom tag that can be used as a prefix to files for corresponding model
         % identification.
         %
@@ -226,18 +238,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         %
         % @type char @default ''
         SaveTag = '';
-        
-        % Flag to enable automatic saving of the model after each individual offline phase
-        % step and at other locations prone to data loss due to lengthy computations.
-        %
-        % Note that once a model has been saved, any file system folders created with that
-        % model will persist until manually deleted.
-        %
-        % @propclass{optional} This setting just decreases the chance of data loss due to
-        % intermediate saves.
-        %
-        % @type logical @default false
-        AutoSave = false;
     end
     
     properties(SetObservable, Dependent)

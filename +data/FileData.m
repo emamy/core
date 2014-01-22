@@ -148,7 +148,7 @@ classdef FileData < handle
             if ~isempty(this.fDataDir) && exist(this.fDataDir,'file') == 0 
                 str = 'Directory "%s" not found. Loading files will not work until fixed.\n';
                 if ~strcmp(this.Host,KerMor.getHost)
-                    str = sprintf(['%sNote that this FileData has been created on machine %s.'...
+                    str = sprintf(['%sNote that this FileData has been created on machine %s. '...
                         'If you changed the computer (local: %s), use the "relocate" method.\n'],str,this.Host,KerMor.getHost);
                 end
                 fprintf(2,str,this.fDataDir);

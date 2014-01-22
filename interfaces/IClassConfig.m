@@ -56,12 +56,8 @@ classdef IClassConfig < KerMorObject
     
     methods(Access=protected)
         function idx = getPartIndices(this, partNr, totalParts)
-            if partNr > totalParts
-                error('partNr <= totalParts required.');
-            end
-            n = this.getNumConfigurations;
-            ptsize = ceil(n/totalParts);
-            idx = ((partNr-1)*ptsize+1):min((partNr*ptsize),n);
+            rs = RangeSplitter(this.getNumConfigurations, 'Num', totalParts);
+            idx = rs.getPart(partNr);
         end
         
         function addRange(~, ptable, proppath, minval, maxval)

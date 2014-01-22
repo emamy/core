@@ -262,7 +262,7 @@ classdef KerMor < handle
     % @todo KerMor.App.getDir method that saves the last accessed directory if successfully
     % selected
     %
-    % @todo: matrix-wertige auswertung/integration für alle systeme?
+    % @todo: matrix-wertige auswertung/integration f??r alle systeme?
     %
     % @todo: possibility to add custom directories to PATH on startup (managed in kermor prefs)?
     %
@@ -669,11 +669,7 @@ classdef KerMor < handle
                         % Yes: copy prefs
                         if r == 'y'
                             % Select preferences substruct from host and copy
-                            localp = p.(fn{i});
-                            pfn = fieldnames(localp);
-                            for k = 1:numel(pfn)
-                                setpref(this.getPrefTag,pfn{k},localp.(pfn{k}));
-                            end
+                            Utils.copyPrefGroup(fn{i},this.getPrefTag);
                             pset = true;
                             break;
                             % cancel: start setup
@@ -968,7 +964,12 @@ classdef KerMor < handle
         
         function host = getHost
             % Returns the hostname of the current machine
-            host = char(getHostName(java.net.InetAddress.getLocalHost));
+            try
+                host = char(getHostName(java.net.InetAddress.getLocalHost));
+            catch ME
+                warning('KerMor:hostdetection','Your Host could not be identified. Using "unknown"');
+                host = 'unknown';
+            end
             host = regexprep(strtrim(host),'[^\d\w]','');
         end
         
