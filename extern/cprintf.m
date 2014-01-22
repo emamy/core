@@ -55,7 +55,7 @@ function count = cprintf(style,format,varargin)
 %    cprintf('cyan',   'cyan');
 %    cprintf('_green', 'underlined green');
 %    cprintf(-[1,0,1], 'underlined magenta');
-%    cprintf([1,0.5,0],'and multi-\nline orange\n');
+%    cprintf([1,0.5,0],'and multi-\n line orange\n');
 %    cprintf('*blue',  'and *bold* (R2011b+ only)\n');
 %    cprintf('string');  % same as fprintf('string') and cprintf('text','string')
 %
@@ -76,8 +76,8 @@ function count = cprintf(style,format,varargin)
 %    2. In R2011a and earlier, consecutive differently-colored multi-line
 %       CPRINTFs sometimes display incorrectly on the bottom line.
 %       As far as I could tell this is due to a Matlab bug. Examples:
-%         >> cprintf('-str','under\nline'); cprintf('err','red\n'); % hidden 'red', unhidden '_'
-%         >> cprintf('str','regu\nlar'); cprintf('err','red\n'); % underline red (not purple) 'lar'
+%         >> cprintf('-str','under\n^line'); cprintf('err','red\n'); % hidden 'red', unhidden '_'
+%         >> cprintf('str','regu\n lar'); cprintf('err','red\n'); % underline red (not purple) 'lar'
 %
 %    3. Sometimes, non newline ('\n')-terminated segments display unstyled
 %       (black) when the command prompt chevron ('>>') regains focus on the

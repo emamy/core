@@ -21,9 +21,7 @@ classdef GaussKernel < kernels.BellFunction
     %
     % @change{0,2,dw,2011-03-11} Added new speed tests for one and two
     % argument calls to 'evaluate'. The tests are run 'iter' times and the
-    % mean value is plotted to the output. (See @ref
-    % kernels.GaussKernel.test_GaussMexSpeedTest1Arg and @ref
-    % kernels.GaussKernel.test_GaussMexSpeedTest2Arg)
+    % mean value is plotted to the output.
     
     methods
         function this = GaussKernel(Gamma)
