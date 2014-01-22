@@ -145,7 +145,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             offlineComputations@error.BaseCompLemmaEstimator(this, fm);
             
             % Obtain the correct snapshots
-            f = fm.Approx;
+            f = fm.Approx.Expansion;
             if isempty(f)
                 % This is the also possible case that the full core
                 % function of the system is a KernelExpansion.

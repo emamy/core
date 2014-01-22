@@ -27,6 +27,7 @@ classdef PolyConfig < IClassConfig
                 this.Degrees = values;
             end
             this.RequiredPrototypeClass = 'kernels.PolyKernel';
+            this.Prototype = kernels.PolyKernel;
         end
         
         function n = getNumConfigurations(this)

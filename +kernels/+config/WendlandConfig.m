@@ -36,6 +36,7 @@ classdef WendlandConfig < kernels.config.RBFConfig
             end
             this.Dimension = r.Dim;
             this.RequiredPrototypeClass = 'kernels.WendlandKernel';
+            this.Prototype = kernels.Wendland;
         end
         
         function k = configureInstance(this, nr)

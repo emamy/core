@@ -25,6 +25,7 @@ classdef EpsSVRConfig < IClassConfig
                 this.Lambdas = values(2,:);
             end
             this.RequiredPrototypeClass = 'general.regression.ScalarEpsSVR_SMO';
+            this.Prototype = general.regression.ScalarEpsSVR_SMO;
         end
         
         function n = getNumConfigurations(this)

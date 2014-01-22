@@ -67,7 +67,7 @@ classdef ReducedModel < models.BaseModel
     end
     
     properties(Access=private)
-        %
+        % Internal variable for the dependent property ErrorEstimator
         %
         % @type error.BaseEstimator
         fErrorEstimator;
@@ -76,16 +76,28 @@ classdef ReducedModel < models.BaseModel
     methods
         
         function this = ReducedModel(fullmodel, target_dim)
-            % Creates a new reduced model instance.
+            % Creates a new reduced model instance from a full model.
             %
-            % Optionally, a models.BaseFullModel subclass can be passed to
-            % create this new reduced model from. The target_dim parameter determines how many
-            % (first) columns of the projection matrices V,W should be taken.
+            % Ensure that offlineGenerations have been called on the full
+            % model to provide any necessary reduction data.
+            %
+            % This constructor can be called without arguments to ensure
+            % maximum compatibility, however, KerMor users should always
+            % pass a models.BaseFullModel instance or use the
+            % models.BaseFullModel.buildReducedModel method to trigger the
+            % reduced model generation.
             %
             % Parameters:
             % fullmodel: A full model where the reduced model shall be
             % created from. @type models.BaseFullModel
-            % target_dim: The target reduced model state space dimension. @type integer
+            % target_dim: The target dimension `d` of the reduced model.
+            % Uses the first `d` columns of the projection matrices `V`
+            % (and `W` if set, respectively) to create a subspace-projected
+            % reduced model.
+            %
+            % See also: models.BaseFullModel
+            % models.BaseFullModel.buildReducedModel
+            % models.BaseFullModel.offlineGenerations            
             this = this@models.BaseModel;
             if nargin > 0
                 this.setFullModel(fullmodel, target_dim);
@@ -99,8 +111,6 @@ classdef ReducedModel < models.BaseModel
             % Delete the full model with it's ModelData instance at last (V, W might have data
             % there)
             this.FullModel = [];
-            
-            %delete@models.BaseModel(this);
         end
         
     end
@@ -111,19 +121,15 @@ classdef ReducedModel < models.BaseModel
             % Creates a reduced model from a given full model.
             %
             % Parameters:
-            % fullmodel: the instance of the full model @type models.BaseFullModel
-            % target_dim: The target reduced model state space dimension. @type integer
+            % fullmodel: the instance of the full model @type
+            % models.BaseFullModel
+            % target_dim: The target reduced model state space dimension.
+            % @type integer
             %
-            % @docupdate
             if nargin == 0 || ~isa(fullmodel,'models.BaseFullModel')
                 error('ReducedModel instances require a full model to construct from.');
-            end
-            
-            % Check if a reduction is available at all
-            if isempty(fullmodel.Approx) && isempty(fullmodel.SpaceReducer)
-                warning('KerMor:Reducing:noEffectiveReduction',...
-                    ['Model setup lacks reduction methods.\n'...
-                    'Reduced model will equal the full model (computationally).']);
+            elseif isempty(fullmodel.Approx) && isempty(fullmodel.SpaceReducer)
+                errro('No reduction methods found on full model. No use in building a reduced model from it.');
             end
             
             disp('Start building reduced model...');
@@ -155,7 +161,10 @@ classdef ReducedModel < models.BaseModel
                     target_dim,size(fd.V,2),size(fd.V,2));
                 target_dim = size(fd.V,2);
             end
-            this.V = data.FileMatrix(fd.V(:,1:target_dim),'Dir',fd.DataDirectory);
+            % Only create reduced projection matrices if present at all
+            if ~isempty(fd.V)
+                this.V = data.FileMatrix(fd.V(:,1:target_dim),'Dir',fd.DataDirectory);
+            end
             % If petrov-galerkin projection, use W
             if ~isempty(fd.W)
                 this.W = data.FileMatrix(fd.W(:,1:target_dim),'Dir',fd.DataDirectory);

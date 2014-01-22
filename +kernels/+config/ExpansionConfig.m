@@ -23,6 +23,7 @@ classdef ExpansionConfig < IClassConfig
     methods
         function this = ExpansionConfig()
             this.RequiredPrototypeClass = 'kernels.KernelExpansion';
+            this.Prototype = kernels.KernelExpansion;
         end
         
         function n = getNumConfigurations(this)
@@ -48,11 +49,15 @@ classdef ExpansionConfig < IClassConfig
             if ~isempty(this.StateConfig)
                 kexp.Kernel = this.StateConfig.configureInstance(nr);
             end
-            if ~isempty(this.TimeConfig)
-                kexp.TimeKernel = this.TimeConfig.configureInstance(nr);
-            end
-            if ~isempty(this.ParamConfig)
-                kexp.ParamKernel = this.ParamConfig.configureInstance(nr);
+            if isa(kexp, 'kernels.ParamTimeKernelExpansion')
+                if ~isempty(this.TimeConfig)
+                    kexp.TimeKernel = this.TimeConfig.configureInstance(nr);
+                end
+                if ~isempty(this.ParamConfig)
+                    kexp.ParamKernel = this.ParamConfig.configureInstance(nr);
+                end
+            elseif ~isempty(this.TimeConfig) ||~isempty(this.ParamConfig)
+                warning('KerMor:unusedConfigs','Time or Parameter configurations are present but not kernels.ParamTimeKernelExpansion given. Ignoring.');
             end
         end
         

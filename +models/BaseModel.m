@@ -412,10 +412,9 @@ classdef BaseModel < KerMorObject
             end
             
             % Assign jacobian information if available
-            if isa(slv,'solvers.AJacobianSolver')
-                % Set jacobian
-                slv.JPattern = [];
-                slv.JacFun = [];
+            slv.JPattern = [];
+            slv.JacFun = [];
+            if isa(this, 'models.BaseFullModel') && isa(slv,'solvers.AJacobianSolver')
                 if ~isempty(sys.A) && ~isempty(sys.f)
                     slv.JacFun = @(t, x)sys.A.getStateJacobian(x, t, mu) + sys.f.getStateJacobian(x, t, mu);
                     if ~isempty(sys.A.JSparsityPattern) && ~isempty(sys.f.JSparsityPattern)

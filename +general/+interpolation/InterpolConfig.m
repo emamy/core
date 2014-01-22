@@ -17,6 +17,7 @@ classdef InterpolConfig < IClassConfig
         
         function this = InterpolConfig
             this.RequiredPrototypeClass = 'general.interpolation.KernelInterpol';
+            this.Prototype = general.interpolation.KernelInterpol;
         end
         
         % Returns the number of configurations that can be applied

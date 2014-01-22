@@ -96,7 +96,7 @@ classdef KernelApprox < approx.BaseApprox & dscomponents.ParamTimeKernelCoreFun
             end
 
             % First argument: this kernel expansion!
-            this.Expansion = this.Algorithm.computeApproximation(this, ...
+            this.Expansion = this.Algorithm.computeApproximation(...
                 model.Data.ApproxTrainData);
         end
                 

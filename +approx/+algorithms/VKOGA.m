@@ -34,17 +34,6 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
         % @type char @default 'abs'
         FailureErrorMeasure = 'abs';
         
-%         Gain;
-%         HerrDecay;
-% 
-%         % Lower bound for orthonormal remainders (kernel matrix conditioning improvement for
-%         % larger bounds
-%         PhiNormMin = sqrt(eps);
-%         
-%         % The original kernel expansion used to generate the approximation
-%         % training data (DEBUG)
-%         f;
-%         
         VKOGABound;
     end
     
@@ -87,7 +76,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             this.basis_norms = this.MaxErrors;
             this.StopFlags = zeros(nc,1);
             this.VKOGABound = this.basis_norms;
-            this.BestConfigIndex = 0;
+            this.BestExpConfig = 0;
 
             xi = atd.xi.toMemoryMatrix;
             fxi = atd.fxi.toMemoryMatrix;
@@ -268,7 +257,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     bestused = used(1:bestm);
                     bestNV = NV(:,1:bestm);
                     bestc = c(:,1:bestm);
-                    this.BestConfigIndex = cidx;
+                    this.BestExpConfig = cidx;
                 end
                 this.StopFlags(cidx) = stopflag;
                 pi.step;
@@ -279,7 +268,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                 warning();
             end
             this.Used = bestused;
-            kexp = ec.configureInstance(this.BestConfigIndex);
+            kexp = ec.configureInstance(this.BestExpConfig);
             kexp.setCentersFromATD(atd, bestused);
             
             % Compute Ma
@@ -302,7 +291,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     og = 'on';
                 end
                 fprintf('VKOMP best kernel config index:%d for VKOGA with f/P-Greedy=%s, exp-size:%d\n',...
-                    BestConfigIndex,og,length(bestused));
+                    this.BestExpConfig,og,length(bestused));
             end
             
             pi.stop;

@@ -47,8 +47,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         % @propclass{critical} Correct choice of the system kernel greatly influences the function
         % behaviour.
         %
-        % @default kernels.GaussKernel
-        % @type kernels.BaseKernel
+        % @default kernels.GaussKernel @type kernels.BaseKernel
         %
         % See also: kernels
         Kernel;

@@ -7,8 +7,6 @@ function s = testsettings
 %   kind of comparability.
 %
 % @author Daniel Wirtz @date 16.03.2010
-
-
 s = struct;
 
 %% Test sizes
@@ -30,6 +28,10 @@ s.m.ODESolver = solvers.ExplEuler;
 
 a = approx.KernelApprox;
 ap = approx.algorithms.VKOGA;
+ec = kernels.config.ExpansionConfig;
+ec.StateConfig = kernels.config.GaussConfig('G',1:2);
+ec.ParamConfig = kernels.config.GaussConfig('G',.1:.1:.3);
+ap.ExpConfig = ec;
 ap.MaxExpansionSize = 5; % Keep test run short!
 a.Algorithm = ap;
 %a.CoeffComp = general.regression.ScalarEpsSVR;
@@ -38,16 +40,6 @@ s.TimeKernel = kernels.NoKernel;
 s.Kernel = kernels.GaussKernel(2);
 s.ParamKernel = kernels.GaussKernel(2);
 s.m.Approx = a;
-
-% If no params are used, pick 75% of the snapshot values in PODFixspace.
-if s.testparams == 0
-%     s.m.PODFix.Mode = 'abs';
-%     s.m.PODFix.Value = length(s.m.Times);
-     s.m.PODFix.Mode = 'rel';
-     s.m.PODFix.Value = .75;
-     s.ParamKernel = kernels.NoKernel;
-end
-
 
 %% Dynamical System settings/functions
 s.Inputs{1} = @(t)1; % Function 1: Constant 1
@@ -84,11 +76,6 @@ randx = randi(s.testdim);
 randmu = randi(s.testparams);
 s.fnlin_p = @(x,t,mu)(.5+t/2)*sin(x) + x(randx)*mu(randmu);
 s.fnlin = @(x,t,mu)(.5+t/2).*sin(x);
-
-if s.testdim > 10
-    disp('testdim > 10, really run all tests? press Ctrl+C otherwise.');
-    pause
-end
 
 end
 

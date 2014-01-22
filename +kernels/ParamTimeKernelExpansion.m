@@ -53,7 +53,7 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
         % @propclass{critical} Correct choice of the time kernel greatly influences the function
         % behaviour.
         %
-        % @default kernels.NoKernel
+        % @type kernels.BaseKernel @default kernels.NoKernel
         %
         % See also: Kernel ParamKernel
         TimeKernel;
@@ -63,7 +63,7 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
         % @propclass{critical} Correct choice of the system kernel greatly influences the function
         % behaviour.
         %
-        % @default kernels.NoKernel
+        % @type kernels.BaseKernel @default kernels.NoKernel
         %
         % See also: TimeKernel Kernel
         ParamKernel;

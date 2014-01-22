@@ -23,6 +23,9 @@ classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun
 
     properties(SetObservable)
         % The inner kernel expansion which is evaluated as core function.
+        %
+        % @type kernels.KernelExpansion @default
+        % kernels.ParamTimeKernelExpansion
         Expansion;
     end
     
@@ -34,6 +37,7 @@ classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun
             this.MultiArgumentEvaluations = true;
             this.TimeDependent = false;
             this.addlistener('Expansion','PostSet',@this.ExpansionPostSet);
+            this.Expansion = kernels.ParamTimeKernelExpansion;
         end
         
         function projected = project(this, V, W)
@@ -64,25 +68,17 @@ classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun
             %
             % Parameters:
             % x: The current state space position @type colvec<double>
-            % varargin: For ParamTimeKernelExpansions, additionally ´t´ and
-            % ´\mu´ can be provided.
-            % t: The time ´t´ @type double
-            % mu: The parameter ´\mu´ @type colvec<double>
+            % varargin: For ParamTimeKernelExpansions, additionally `t` and
+            % `\mu` can be provided.
+            % t: The time `t` @type double
+            % mu: The parameter `\mu` @type colvec<double>
             %
             % Return values:
             % fx: The evaluation of the kernel expansion @type
             % matrix<double>
-            fx = this.Expansion.evaluate(this, x, varargin{:});
+            fx = this.Expansion.evaluate(x, varargin{:});
         end
-        
-%         function phi = getKernelVector(this, x, t, mu)
-%             V = 1;
-%             if ~this.RotationInvariant && ~isempty(this.V)
-%                 V = this.V;
-%             end
-%             phi = getKernelVector@kernels.ParamTimeKernelExpansion(this, V*x, t, mu);
-%         end
-        
+               
         function copy = clone(this, copy)
             if nargin < 2
                 copy = dscomponents.ParamTimeKernelCoreFun;
@@ -97,10 +93,10 @@ classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun
             %
             % Parameters:
             % x: The current state space position @type colvec<double>
-            % varargin: For ParamTimeKernelExpansions, additionally ´t´ and
-            % ´\mu´ can be provided.
-            % t: The time ´t´ @type double
-            % mu: The parameter ´\mu´ @type colvec<double>
+            % varargin: For ParamTimeKernelExpansions, additionally `t` and
+            % `\mu` can be provided.
+            % t: The time `t` @type double
+            % mu: The parameter `\mu` @type colvec<double>
             %
             % Return values:
             % J: The state jacobian @type matrix<double>
@@ -115,7 +111,9 @@ classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun
     
     methods(Access=private)
         function ExpansionPostSet(this, ~, ~)
-            this.TimeDependent = ~isa(this.Expansion.TimeKernel,'kernels.NoKernel');
+            this.TimeDependent = ...
+                isa(this.Expansion, 'kernels.ParamTimeKernelExpansion') ...
+                && ~isa(this.Expansion.TimeKernel,'kernels.NoKernel');
         end
     end
     

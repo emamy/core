@@ -24,6 +24,8 @@ classdef NuSVRConfig < IClassConfig
                 this.Nus = values(1,:);
                 this.Lambdas = values(2,:);
             end
+            this.RequiredPrototypeClass = 'general.regression.ScalarNuSVR';
+            this.Prototype = general.regression.ScalarNuSVR;
         end
         
         function n = getNumConfigurations(this)

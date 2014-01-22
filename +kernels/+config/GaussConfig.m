@@ -42,6 +42,7 @@ classdef GaussConfig < kernels.config.RBFConfig
                 end
             end
             this.RequiredPrototypeClass = 'kernels.GaussKernel';
+            this.Prototype = kernels.GaussKernel;
         end
         
 %         function str = getConfigurationString(this, nr, asCell)
@@ -55,10 +56,10 @@ classdef GaussConfig < kernels.config.RBFConfig
 %         end
         
         function k = configureInstance(this, nr)
-            if ~isempty(this.Distances)
-                this.Gammas(nr) = kernel.setGammaForDistance(this.Distances(nr),this.DistEps);
-            end
             k = configureInstance@kernels.config.RBFConfig(this, nr);
+            if ~isempty(this.Distances)
+                this.Gammas(nr) = k.setGammaForDistance(this.Distances(nr),this.DistEps);
+            end
         end
         
         function conf = getSubPart(this, partNr, totalParts)

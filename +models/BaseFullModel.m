@@ -464,8 +464,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 end
             end
             
-            % Input space span computation
-            if this.SpaceReducer.IncludeBSpan
+            % Input space span computation (if spacereduction is used)
+            if ~isempty(this.SpaceReducer) && this.SpaceReducer.IncludeBSpan
                 if KerMor.App.Verbose > 0
                     fprintf('Computing input space span...');
                 end
@@ -603,27 +603,28 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function [reduced,time] = buildReducedModel(this, target_dim)
             % Builds a reduced model from a full model.
             %
+            % This is a convenience method, that only calls the
+            % models.ReducedModel constructor passing this model instance
+            % and any specified target dimension. Also returns the total
+            % time that was needed to create the reduced model.
+            %
             % Before calling this method ensure that offlineGenerations was
             % called at least once to provide the model's necessary data
             % for the reduction process.
             %
+            % Parameters:
+            % target_dim: The target dimension `d` of the reduced model.
+            % Uses the first `d` columns of the projection matrices `V`
+            % (and `W` if set, respectively) to create a subspace-projected
+            % reduced model.
+            %
             % Return values:
             % reduced: The reduced model created from this full model.
-            % time: The time needed to build the reduced model.
+            % @type models.ReducedModel
+            % time: The time needed to build the reduced model. @type
+            % double
             %
             % See also: offlineGenerations
-            % @docupdate
-            
-            if isempty(this.Data.TrajectoryData.getNumTrajectories == 0) ...
-                    && ~(this.Data.SampleCount == 0 && this.TrainingInputCount == 0)
-                error('No Snapshot data available. Forgot to call offlineGenerations before?');
-            elseif nargin == 2 
-                if isempty(this.SpaceReducer)
-                    error('Cannot specify a target dimension: No subspace projection is set up.');
-                elseif isempty(this.Data.V)
-                    error('Cannot specify a target dimension: Forgot to call off3_computeReducedSpace');
-                end
-            end
             tic;
             if nargin < 2
                 target_dim = size(this.Data.V,2);
@@ -871,14 +872,18 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             m.System = models.BaseDynSystem(m);
             m.System.f = dscomponents.PointerCoreFun(@(x,t,mu)A*x,2);
             m.System.x0 = dscomponents.ConstInitialValue(sin(1:2)');
+            m.simulate();
             m.offlineGenerations;
-            red = m.buildReducedModel;
-            red.simulate();
+            res = false;
+            try 
+                m.buildReducedModel;
+            catch ME%#ok
+                res = true;
+            end
             
             % dont forget to free resources! (static handles seem to
             % persist over several method calls)
-            clear af m red;
-            res = true;
+            clear af m;
         end
         
         function test_LinearModel
@@ -925,7 +930,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function test_LinearModelParams
             ts = testing.testsettings;
             m = ts.m;
-            m.Approx.ParamKernel = ts.ParamKernel;
+            m.Approx.Expansion.ParamKernel = ts.ParamKernel;
             s = m.System;
             s.f = dscomponents.PointerCoreFun(ts.flin_p,ts.testdim);
             s.x0 = ts.x0_p;
@@ -959,7 +964,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function test_LinearModelParamsInput
             ts = testing.testsettings;
             m = ts.m;
-            m.Approx.ParamKernel = ts.ParamKernel;
+            m.Approx.Expansion.ParamKernel = ts.ParamKernel;
             s = m.System;
             s.f = dscomponents.PointerCoreFun(ts.flin_p, ts.testdim);
             s.B = dscomponents.PointerInputConv(ts.B_p);
@@ -993,7 +998,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function test_NonlinearModelParams
             ts = testing.testsettings;
             m = ts.m;
-            m.Approx.ParamKernel = ts.ParamKernel;
+            m.Approx.Expansion.ParamKernel = ts.ParamKernel;
             s = m.System;
             s.f = dscomponents.PointerCoreFun(ts.fnlin_p,ts.testdim);
             s.x0 = ts.x0_p;
@@ -1026,7 +1031,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function test_NonlinearModelParamsInput
             ts = testing.testsettings;
             m = ts.m;
-            m.Approx.ParamKernel = ts.ParamKernel;
+            m.Approx.Expansion.ParamKernel = ts.ParamKernel;
             s = m.System;
             s.f = dscomponents.PointerCoreFun(ts.fnlin_p,ts.testdim);
             s.B = dscomponents.PointerInputConv(ts.B_p);
