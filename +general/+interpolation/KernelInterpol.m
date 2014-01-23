@@ -93,6 +93,17 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
             this.registerProps('K','UseLU','UsePreconditioning');
         end
         
+        function copy = clone(this)
+            copy = general.interpolation.KernelInterpol;
+            copy = clone@IKernelCoeffComp(this, copy);
+            copy.UseLU = this.UseLU;
+            copy.UsePreconditioning = this.UsePreconditioning;
+            copy.fK = this.fK;
+            copy.P = this.P;
+            copy.L = this.L;
+            copy.U = this.U;
+        end
+        
         function a = interpolate(this, fxi)
             % Computes the kernel expansion coefficients `\alpha_i`.
             %

@@ -355,9 +355,6 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             xi = [X(:)'; Y(:)'];
             fxi = f(xi);
             
-            kexp = kernels.KernelExpansion;
-            k = kernels.GaussKernel(.8);
-            kexp.Kernel = k;
             atd = data.ApproxTrainData(xi,[],[]);
             atd.fxi = fxi;
             
@@ -367,10 +364,13 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             alg.UsefPGreedy = true;
             ec = kernels.config.ExpansionConfig;            
             gammas = linspace(.5,2,5);
-            ec.StateConfig = kernels.config.RBFConfig('G',gammas);
+            kexp = kernels.KernelExpansion;
+            kexp.Kernel = kernels.GaussKernel;
+            ec.Prototype = kexp;
+            ec.StateConfig = kernels.config.GaussConfig('G',gammas);
             alg.ExpConfig = ec;
 
-            alg.computeApproximation(kexp, atd);
+            kexp = alg.computeApproximation(atd);
             
             %% Plot approximated function
             

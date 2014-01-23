@@ -45,9 +45,6 @@ classdef VKOGA
                 end
             end
             fx = fx(1:n,:);
-            kexp = kernels.KernelExpansion;
-            k = kernels.GaussKernel(.8);
-            kexp.Kernel = k;
             atd = data.ApproxTrainData(x,[],[]);
             atd.fxi = fx;
             
@@ -57,10 +54,11 @@ classdef VKOGA
             alg.MaxRelErr = 1e-5;
             alg.UsefPGreedy = fPGreedy;
             ec = kernels.config.ExpansionConfig;            
-            ec.StateConfig = kernels.config.RBFConfig('G',linspace(.5,2,nG));
+            ec.Prototype.Kernel = kernels.GaussKernel(.8);
+            ec.StateConfig = kernels.config.GaussConfig('G',linspace(.5,2,nG));
             alg.ExpConfig = ec;
 
-            alg.computeApproximation(kexp, atd);
+            kexp = alg.computeApproximation(atd);
             
             %% Plot approximated function
             m = length(alg.Used);
