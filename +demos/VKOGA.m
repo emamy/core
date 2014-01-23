@@ -1,6 +1,9 @@
 classdef VKOGA
 % VKOGA: Contains some demo functions for the VKOGA algorithm.
 %
+% The VKOGA algorithm in introduced in @cite WH13 and adopts principles of
+% greedy algorithms @cite LT05 @cite T08
+%
 % @author Daniel Wirtz @date 2013-01-15
 %
 % @new{0,7,dw,2013-01-15} Added this class.

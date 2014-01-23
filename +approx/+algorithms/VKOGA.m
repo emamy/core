@@ -1,11 +1,13 @@
 classdef VKOGA < approx.algorithms.AAdaptiveBase
 % VKOGA: Vectorial kernel orthogonal greedy algorithm
 %
-%
+% The VKOGA algorithm in introduced in @cite WH13 and adopts principles of
+% greedy algorithms @cite LT05 @cite T08
 %
 % @author Daniel Wirtz @date 2012-02-09
 %
-% @change{0,7,dw,2012-11-26} Renamed to VKOGA and starting to build in IClassConfig interfaces
+% @change{0,7,dw,2012-11-26} Renamed to VKOGA and starting to build in
+% IClassConfig interfaces
 %
 % @new{0,6,dw,2012-02-09} Added this class.
 %
