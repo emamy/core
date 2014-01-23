@@ -23,9 +23,12 @@ classdef ManualSampler < sampling.BaseSampler
     end
     
     methods
-        function this = ManualSampler
+        function this = ManualSampler(samples)
             this = this@sampling.BaseSampler;
             this.registerProps('Samples');
+            if nargin == 1
+                this.Samples = samples;
+            end
         end
         
         function samples = performSampling(this, ~)

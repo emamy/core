@@ -95,12 +95,7 @@ classdef TPWLApprox < approx.BaseApprox
             copy.bi = this.bi;
             copy.xi = this.xi;
             copy.Beta = this.Beta;
-%             if isa(this.WeightFun,'ICloneable')
-%                 copy.WeightFun = this.WeightFun.clone;
-%             else
-%                 warning('KerMor:cloning','Couldn''t properly clone the WeightFun as it''s not a ICloneable.');
-%                 copy.WeightFun = this.WeightFun;
-%             end
+            copy.MinWeightValue = this.MinWeightValue;
         end
         
         function projected = project(this, V, W)
@@ -158,11 +153,6 @@ classdef TPWLApprox < approx.BaseApprox
         end
         
         function approximateSystemFunction(this, model)
-            % Implements BaseApprox abstract template method
-            %
-            % @todo create sparse matrices if suitable!
-            % @todo update to new approximation interface
-            
             atd = model.Data.ApproxTrainData;
             this.xi = atd.xi;
             ti = atd.ti;
@@ -170,22 +160,15 @@ classdef TPWLApprox < approx.BaseApprox
             fxi = atd.fxi;
             
             as = size(this.xi,2);
-            N = size(this.xi,1);
-            h = 1e-8;
-            
             this.Ai = cell(0,as);
-            dh = diag(ones(1,N)*h);
             for i = 1:as
-                sel = ones(1,N)*i;
-                xipt = this.xi(:,sel);
-                if isempty(mui); mu = []; else mu = mui(:,sel); end
-                tmp = (model.System.f.evaluate(xipt+dh,ti(sel),mu)-fxi(:,sel))/h;
-                % Make sparse if applicable
-                if sum(sum(tmp ~= 0)) / numel(tmp) < .5
-                    tmp = sparse(tmp);
+                if isempty(mui)
+                     mu = [];
+                else
+                    mu = mui(:,i);
                 end
-                this.Ai{i} = tmp;
-                this.bi(:,i) = fxi(:,i) - tmp*this.xi(:,i);
+                this.Ai{i} = model.System.f.getStateJacobian(this.xi(:,i),ti(i),mu);
+                this.bi(:,i) = fxi(:,i) - this.Ai{i}*this.xi(:,i);
             end
         end
         
@@ -196,27 +179,19 @@ classdef TPWLApprox < approx.BaseApprox
     
     methods(Static)
         function res = test_TWPLApprox
-            dims = 100;
-            epsrad = .05;
-            
-            m = models.synth.KernelTest(dims,false);
+            m = models.synth.KernelTest(100,false);
             m.ErrorEstimator = [];
             m.Approx = approx.TPWLApprox;
             m.Approx.Beta = 25;
-            %m.Approx.EpsRad = epsrad;
-            d = sqrt(dims)*epsrad;
-            k = kernels.GaussKernel;
-            k.setGammaForDistance(50*d);
-            m.Approx.GaussWeight = k;
             m.dt = 0.01;
+            m.Sampler = sampling.ManualSampler(m.getRandomParam);
             
             m.offlineGenerations;
-            %m.System.f = m.Approx;
-            %[t,y] = m.simulate;
-            %m.plot(t,y);
-            
+            mu = m.getRandomParam;
+            [~,y] = m.simulate(mu);
             r = m.buildReducedModel;
-%             ApproxVisualizer(r);
+            [~,yr] = r.simulate(mu);
+            fprintf('Max absolute error: %g\n',max(Norm.L2(y-yr)));
             res = true;
         end
     end
