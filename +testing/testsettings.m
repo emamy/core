@@ -28,7 +28,7 @@ s.m.ODESolver = solvers.ExplEuler;
 
 a = approx.KernelApprox;
 ap = approx.algorithms.VKOGA;
-ec = kernels.config.ExpansionConfig;
+ec = kernels.config.ParamTimeExpansionConfig;
 ec.StateConfig = kernels.config.GaussConfig('G',1:2);
 ec.ParamConfig = kernels.config.GaussConfig('G',.1:.1:.3);
 ap.ExpConfig = ec;

@@ -80,30 +80,32 @@ classdef BaseApprox < dscomponents.ACoreFun
     
     methods(Static)
         function res = test_ApproxProjections
-            a{1} = approx.algorithms.Componentwise;
-            a{1}.CoeffComp = general.interpolation.KernelInterpol;
-            a{1}.CoeffConfig = a{1}.CoeffComp.getDefaultConfig;
             
-            a{2} = approx.algorithms.Componentwise;
-            a{2}.CoeffComp = general.regression.ScalarEpsSVR;
-            a{2}.CoeffConfig = a{2}.CoeffComp.getDefaultConfig;
+            co = approx.algorithms.Componentwise;
+            co.ExpConfig = kernels.config.ExpansionConfig;
+            co.ExpConfig.StateConfig = kernels.config.GaussConfig('G',1);
             
-            a{3} = approx.algorithms.Componentwise;
-            a{3}.CoeffComp = general.regression.ScalarNuSVR;
-            a{3}.CoeffConfig = a{3}.CoeffComp.getDefaultConfig;
+            a{1} = co;
+            a{1}.CoeffConfig = general.interpolation.InterpolConfig;
             
-            a{4} = approx.algorithms.Componentwise;
-            a{4}.CoeffComp = general.regression.KernelLS;
-            a{4}.CoeffConfig = a{4}.CoeffComp.getDefaultConfig;
+            a{2} = co.clone;
+            a{2}.CoeffConfig = general.regression.EpsSVRConfig([.1; 1]);
+            a{2}.CoeffConfig.Prototype = general.regression.ScalarEpsSVR;
+            
+            a{3} = co.clone;
+            a{3}.CoeffConfig = general.regression.NuSVRConfig([.3; 1]);
+            
+            a{4} = co.clone;
+            a{4}.CoeffConfig = general.regression.KernelLSConfig(1);
             
             a{5} = approx.algorithms.VKOGA;
             a{5}.MaxExpansionSize = 20;
+            a{5}.ExpConfig = co.ExpConfig;
             
             b = cell(length(a),0);
             
             ts = testing.testsettings;
             samples = 50;
-            kexp = approx.KernelApprox;
             x = rand(ts.testdim, samples);
             t = 1:size(x,2);
             atd = data.ApproxTrainData(x, t, []);
@@ -113,28 +115,24 @@ classdef BaseApprox < dscomponents.ACoreFun
             pr.Value = 2;
             pr.Mode = 'abs';
             v = pr.computePOD(x);
-            
+            ap = approx.KernelApprox;
             res = true;
             for idx=1:length(a)
                 try
                     app = a{idx};
                     if isa(app,'approx.algorithms.Componentwise')
-                        name = sprintf('%s with %s',class(app),class(app.CoeffComp));
+                        name = sprintf('%s with %s',class(app),class(app.CoeffConfig.Prototype));
                     else
                         name = sprintf('%s with MaxExpansionSize=%d',class(app),app.MaxExpansionSize);
                     end
                     
-                    cprintf(testing.MUnit.GreenCol,'Testing %s...\n',name);
-                    app.computeApproximation(kexp, atd);
-                    b{idx} = kexp.project(v,v);
+                    cprintf(testing.MUnit.GreenCol,'Testing %s...',name);
+                    ap.Expansion = app.computeApproximation(atd);
+                    b{idx} = ap.project(v,v);
                     
-                    ifxfull = kexp.evaluate(x,t,[]);
+                    ifxfull = ap.evaluate(x,t,[]);
                     ifxred = v * b{idx}.evaluate(v' * x,[],[]);
-                    figure(idx+20);
-                    plot(1:ts.testdim,sum(abs(ifxfull-ifxred),2));
-                    title(name);
-                    xlabel('dimension');
-                    ylabel('error');
+                    fprintf('Max L2 error: %g\n',max(Norm.L2(ifxfull-ifxred)));
                 catch ME
                     res = false;
                     disp(getReport(ME));

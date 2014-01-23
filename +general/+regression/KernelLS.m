@@ -54,6 +54,16 @@ classdef KernelLS < KerMorObject & IKernelCoeffComp
             this.registerProps('K','lambda','CGMaxIt','CGTol','MaxStraightInvDim');
         end
         
+        function copy = clone(this)
+            copy = general.regression.KernelLS;
+            copy = clone@IKernelCoeffComp(this, copy);
+            copy.MaxStraightInvDim = this.MaxStraightInvDim;
+            copy.CGTol = this.CGTol;
+            copy.CGMaxIt = this.CGMaxIt;
+            copy.lambda = this.lambda;
+            copy.K = this.K;
+        end
+        
         function [a, sf] = regress(this, fx, ainit)%#ok
             n = size(this.K,1);
 
@@ -101,7 +111,7 @@ classdef KernelLS < KerMorObject & IKernelCoeffComp
         end
         
         function set.CGMaxIt(this, value)
-            if ~isposintscalar(value)
+            if ~isempty(value) && ~isposintscalar(value)
                 error('value must be a positive integer scalar');                
             end
             this.CGMaxIt = value;

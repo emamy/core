@@ -40,12 +40,13 @@ classdef BaseQPSVR < general.regression.BaseScalarSVR
             this.registerProps('MaxIterations','QuadProgOpts');
         end
         
-        function target = clone(this, target)
+        function copy = clone(this, copy)
             if nargin == 1
                 error('Cannot call clone without subclass argument.');
             end
-            target.MaxIterations = this.MaxIterations;
-            target.QuadProgOpts = this.QuadProgOpts;
+            copy = clone@general.regression.BaseScalarSVR(this, copy);
+            copy.MaxIterations = this.MaxIterations;
+            copy.QuadProgOpts = this.QuadProgOpts;
         end
     end
     

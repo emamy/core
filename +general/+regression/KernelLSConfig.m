@@ -23,7 +23,7 @@ classdef KernelLSConfig < IClassConfig
                 this.Lambdas = lambdas;
             end
             this.RequiredPrototypeClass = 'general.regression.KernelLS';
-            this.Prototype = 'general.regression.KernelLS';
+            this.Prototype = general.regression.KernelLS;
         end
         
         % Returns the number of configurations that can be applied

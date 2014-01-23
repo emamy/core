@@ -24,7 +24,7 @@ classdef EpsSVRConfig < IClassConfig
                 this.Epsilons = values(1,:);
                 this.Lambdas = values(2,:);
             end
-            this.RequiredPrototypeClass = 'general.regression.ScalarEpsSVR_SMO';
+            this.RequiredPrototypeClass = 'general.regression.BaseScalarSVR';
             this.Prototype = general.regression.ScalarEpsSVR_SMO;
         end
         

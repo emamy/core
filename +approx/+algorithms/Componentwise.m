@@ -88,6 +88,7 @@ classdef Componentwise < approx.algorithms.ABase
             % Dont copy the config (no scenario yet known that requires
             % this)
             copy.CoeffConfig = this.CoeffConfig;
+            copy.SingleRuntimes = this.SingleRuntimes;
         end
         
         function pm = plotErrors(this, pm)
@@ -150,6 +151,10 @@ classdef Componentwise < approx.algorithms.ABase
             nc = ec.getNumConfigurations;
             cc = this.CoeffConfig;
             nco = cc.getNumConfigurations;
+            
+            if nco == 0
+                error('No coefficient computation configurations set. See CoeffConfig');
+            end
             
             % Keep track of maximum errors (matrix-wise for expansion config / coeff config)
             this.MaxErrors = zeros(nc,nco);
