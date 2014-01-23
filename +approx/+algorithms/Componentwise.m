@@ -31,34 +31,25 @@ classdef Componentwise < approx.algorithms.ABase
 % extract convenience methods further, general concept of "KernelConfig")
     
     properties(SetObservable)    
-        % An instance of a class implementing the IKernelCoeffComp
-        % interface.
+        % The different coefficient computation algorithm configurations to
+        % try. The IClassConfig.Prototype is used as actual algorithm, and
+        % needs to implement the IKernelCoeffComp interface.
         %
-        % This properties class will be used to compute the kernel
-        % coefficients for each dimension.
+        % @propclass{critical} Without this setting this algorithm makes
+        % little sense.
         %
-        % @propclass{important} The correct coefficient computation strategy might make the
-        % difference.
-        %
-        % @default general.interpolation.KernelInterpol
-        CoeffComp;
-        
-        % The different coefficient computation algorithm configurations to try
-        %
-        % @propclass{critical} Without this setting this algorithm makes little sense.
-        %
-        % @type IClassConfig @default []
+        % @type IClassConfig @default general.interpolation.InterpolConfig
         CoeffConfig = [];
         
-        % Percentage `p` of the training data to use as validation data
+        % The index of the best coefficient computation configuration.
         %
-        % Admissible values are `p\in]0,\frac{1}{2}]`.
+        % @propclass{data} This property is the result if algorithm
+        % execution.
         %
-        % @propclass{optional} 
+        % @type integer @default []
         %
-        % @default .2
-        % @type double
-%         ValidationPercent = .2;
+        % See also: CoeffConfig
+        BestCoeffConfig;
     end
     
     properties(SetAccess=private)
@@ -67,16 +58,20 @@ classdef Componentwise < approx.algorithms.ABase
         % @type matrix<double> @default []
         SingleRuntimes;
     end
+    
+    properties(Access=private, Transient)
+        % A temporarily stored IKernelCoeffComp instance
+        ccomp;
+    end
             
     methods    
         function this = Componentwise
             this = this@approx.algorithms.ABase;
             
-            this.CoeffComp = general.interpolation.KernelInterpol;
-            this.CoeffConfig = this.CoeffComp.getDefaultConfig;
+            this.CoeffConfig = general.interpolation.InterpolConfig;
             
             % Register default property changed listeners
-            this.registerProps('CoeffComp','CoeffConfig');
+            this.registerProps('CoeffConfig');
         end
                         
         function copy = clone(this)
@@ -86,11 +81,12 @@ classdef Componentwise < approx.algorithms.ABase
             % subclassed, this clone method has to be given an additional
             % target argument.
             copy = approx.algorithms.Componentwise;
-            
             copy = clone@approx.algorithms.ABase(this, copy);
 
             % copy local props
-            copy.CoeffComp = this.CoeffComp; % Dont clone the coefficient computation method
+            copy.BestCoeffConfig = this.BestCoeffConfig;
+            % Dont copy the config (no scenario yet known that requires
+            % this)
             copy.CoeffConfig = this.CoeffConfig;
         end
         
@@ -106,11 +102,14 @@ classdef Componentwise < approx.algorithms.ABase
             
             h = pm.nextPlot('abs','Absolute errors','expansion config','coeff comp config');
             ph = LogPlot.logsurf(h,X,Y,this.MaxErrors');
-%             set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
+            if ~isempty(this.BestCoeffConfig) && numel(ph) <= this.BestCoeffConfig
+                set(ph(this.BestCoeffConfig),'LineWidth',2);
+            end
             h = pm.nextPlot('rel','Relative errors','expansion config','coeff comp config');
             ph = LogPlot.logsurf(h,X,Y,this.MaxRelErrors');
-%             set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
-            
+            if ~isempty(this.BestCoeffConfig) && numel(ph) <= this.BestCoeffConfig
+                set(ph(this.BestCoeffConfig),'LineWidth',2);                 
+            end
             if nargin < 2
                 pm.done;
             end
@@ -140,16 +139,14 @@ classdef Componentwise < approx.algorithms.ABase
     end
     
     methods(Access=protected, Sealed)
-        function templateComputeApproximation(this, kexp, atd)
-            %
-            % @docupdate
-             
-            % Set centers
+        function kexp = templateComputeApproximation(this, atd)
+            ec = this.ExpConfig;
+            
+            kexp = ec.Prototype;
             kexp.Centers.xi = atd.xi.toMemoryMatrix;
             kexp.Centers.ti = atd.ti;
             kexp.Centers.mui = atd.mui;
-            
-            ec = this.ExpConfig;
+                
             nc = ec.getNumConfigurations;
             cc = this.CoeffConfig;
             nco = cc.getNumConfigurations;
@@ -172,14 +169,17 @@ classdef Componentwise < approx.algorithms.ABase
                 end
                 kexp = ec.configureInstance(kcidx);
                 
-                % Call coeffcomp preparation method and pass kernel matrix
-                this.CoeffComp.init(kexp);
+                % Initialize the prototype for coeffconfigs with the
+                % current kernel expansion
+                cc.Prototype.init(kexp);
 
                 for coidx = 1:nco
+                    
+                    this.ccomp = cc.configureInstance(coidx);
+                    
                     if KerMor.App.Verbose > 2
-                        fprintf('Applying %s config %s\n',class(this.CoeffComp),cc.getConfigurationString(coidx, false));
+                        fprintf('Applying %s config %s\n',class(this.ccomp),cc.getConfigurationString(coidx, false));
                     end
-                    this.CoeffComp = cc.configureInstance(coidx);
                     
                     % Call protected method
                     time = tic;
@@ -216,9 +216,9 @@ classdef Componentwise < approx.algorithms.ABase
             end
             
             %% Assign best values
-            cc.vBestConfigIndex = bestcoidx;
-            this.CoeffComp = cc.configureInstance(bestcoidx);
-            ec.setBestConfig(bestcidx, kexp);
+            this.BestCoeffConfig = bestcoidx;
+            this.BestExpConfig = bestcidx;
+            kexp = ec.configureInstance(bestcidx);
             kexp.Ma = bestMa;
             
             if KerMor.App.Verbose > 1
@@ -283,12 +283,12 @@ classdef Componentwise < approx.algorithms.ABase
             fdims = size(fxi,1);
             n = size(kexp.Centers.xi,2);
             kexp.Ma = zeros(fdims, n);
-            if this.CoeffComp.MultiTargetComputation
+            if this.ccomp.MultiTargetComputation
                 if KerMor.App.Verbose > 3
                     fprintf('Computing approximation for all %d dimensions...\n',fdims);
                 end
                 % Call template method
-                [ai, svidx, sf] = this.CoeffComp.computeKernelCoefficients(fxi,initialalpha);
+                [ai, svidx, sf] = this.ccomp.computeKernelCoefficients(fxi,initialalpha);
                 kexp.Ma(:,svidx) = ai;
             else
                 for fdim = 1:fdims
@@ -296,7 +296,7 @@ classdef Componentwise < approx.algorithms.ABase
                         fprintf('Computing approximation for dimension %d/%d ... %2.0f %%\n',fdim,fdims,(fdim/fdims)*100);
                     end
                     % Call template method
-                    [ai, svidx, sf] = this.CoeffComp.computeKernelCoefficients(fxi(fdim,:),initialalpha(fdim,:)); 
+                    [ai, svidx, sf] = this.ccomp.computeKernelCoefficients(fxi(fdim,:),initialalpha(fdim,:)); 
                     kexp.Ma(fdim,svidx) = ai;
                 end
             end
@@ -315,7 +315,7 @@ classdef Componentwise < approx.algorithms.ABase
             Ma = zeros(fdims, n);
             parfor fdim = 1:fdims
                 % Call template method
-                [ai, sv, sf] = this.CoeffComp.computeKernelCoefficients(...
+                [ai, sv, sf] = this.ccomp.computeKernelCoefficients(...
                     fxi(fdim,:),initialalpha(fdim,:));%#ok
                 Ai = zeros(1,n);
                 Ai(sv) = ai;
@@ -327,11 +327,11 @@ classdef Componentwise < approx.algorithms.ABase
     
     %% Getter & Setter
     methods
-        function set.CoeffComp(this, value)
-            if ~isa(value,'IKernelCoeffComp')
-                error('Property value must implement the IKernelCoeffComp interface');
+        function set.CoeffConfig(this, value)
+            if ~isa(value,'IClassConfig')
+                error('Property value must implement the IClassConfig interface');
             end
-            this.CoeffComp = value;
+            this.CoeffConfig = value;
         end
     end
     
@@ -346,6 +346,48 @@ classdef Componentwise < approx.algorithms.ABase
             else
                 this = loadobj@approx.algorithms.ABase(this);
             end
+        end
+    end
+    
+    methods(Static)
+        function res = test_Componentwise
+            m = models.pcd.PCDModel(1);
+            m.dt = .1;
+            m.T = 1;
+            m.EnableTrajectoryCaching = false;
+            
+            % Define prototype expansion
+            ec = kernels.config.ExpansionConfig;
+            ec.StateConfig = kernels.config.GaussConfig('G',1:3);
+            
+            a = approx.algorithms.Componentwise;
+            a.ExpConfig = ec;
+            a.CoeffConfig = general.interpolation.InterpolConfig;
+            
+            ap = approx.KernelApprox;
+            ap.Algorithm = a;
+            
+            m.Approx = ap;
+            m.System.Params(1).Desired = 2;
+            m.SpaceReducer = spacereduction.PODGreedy;
+            m.SpaceReducer.Eps = 1e-2;
+            m.offlineGenerations;
+            
+            mu = m.getRandomParam;
+            r = m.buildReducedModel;
+            r.simulate(mu);
+            
+            a.CoeffConfig = general.regression.EpsSVRConfig([.1 .15; 1 2]);
+            svr = general.regression.ScalarEpsSVR_SMO;
+            svr.MaxCount = 20;
+            a.CoeffConfig.Prototype = svr;
+            a.UsefScaling = true;
+            m.off5_computeApproximation;
+            
+            r = m.buildReducedModel;
+            r.simulate(mu);
+
+            res = true;
         end
     end
 end

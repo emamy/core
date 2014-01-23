@@ -82,8 +82,12 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & IKernelCoeffComp
         end
         
         function target = clone(this, target)
+            if nargin < 2
+                error('Must call this method from subclasses, passing the subclass instance as "target".');
+            end
             target.K = this.K;
             target.C = this.C;
+            target.fLambda = this.fLambda;
             target.AlphaRelMinValue = this.AlphaRelMinValue;
         end
         

@@ -152,8 +152,6 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             %
             % Return values:
             % fxi: The evaluation `f(x) = \sumi c_i \Phi(x,x_i)`
-            
-            %fx = this.Ma * this.fSK.evaluate(x, this.Centers.xi)';
             fx = this.Ma * (this.Base \ this.getKernelVector(x)');
         end
         

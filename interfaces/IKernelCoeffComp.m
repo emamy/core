@@ -1,4 +1,4 @@
-classdef IKernelCoeffComp < handle
+classdef IKernelCoeffComp < ICloneable
     % Interface for kernel expansion coefficient computation
     %
     % Any algorithm that can compute onedimensional coefficients
@@ -30,6 +30,15 @@ classdef IKernelCoeffComp < handle
         %
         % @type logical @default false
         MultiTargetComputation = false;
+    end
+    
+    methods
+        function copy = clone(this, copy)
+            if nargin < 2
+                error('Clone method on abstract class must be called with subclass copy instance');
+            end
+            copy.MultiTargetComputation = this.MultiTargetComputation;
+        end
     end
     
     methods(Abstract)
@@ -67,12 +76,6 @@ classdef IKernelCoeffComp < handle
         %
         % See also: init
         [ci, svidx] = computeKernelCoefficients(this, yi, initialai);
-    end
-    
-    methods(Abstract, Static)
-        % Returns a default set of configurations for this IKernelCoeffComp
-        c = getDefaultConfig;
-    end
-    
+    end    
 end
 

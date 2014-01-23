@@ -88,6 +88,18 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
                 [ai, sf] = this.regress2D(fxi, initialai);
             end
         end
+        
+        function copy = clone(this)
+            copy = general.regression.ScalarEpsSVR_SMO;
+            copy = clone@general.regression.BaseScalarSVR(this, copy);
+            copy.Eps = this.Eps;
+            copy.StopEps = this.StopEps;
+            copy.Vis = this.Vis;
+            copy.Version = this.Version;
+            copy.NNk = this.NNk;
+            copy.MaxCount = this.MaxCount;
+            copy.LastIterations = this.LastIterations;
+        end
     end
     
     methods(Access=private)

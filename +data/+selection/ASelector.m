@@ -10,6 +10,9 @@ classdef ASelector < KerMorObject & ICloneable
     %
     % @author Daniel Wirtz @date 2011-04-12
     %
+    % @new{0,7,dw,2014-01-23} Added the EnsureUniqueData property so that
+    % any generated training data has unique `x_i` values.
+    %
     % @change{0,5,dw,2011-11-09} Changed the return type of selectTrainingData to an instance
     % of data.ApproxTrainData (not having the fxi property set yet)
     %
@@ -26,6 +29,17 @@ classdef ASelector < KerMorObject & ICloneable
     % pattern for training data selection.
     %
     % @todo return data.FileMatrix instances from select methods in the first place..
+    
+    properties
+        % Flag to enable automatic "uniqueification" if selected training
+        % data. Uniqueness is determined by the state space samples xi; if
+        % any xi is included twice or more, it is discarded along with the
+        % fxi, ti, mui data of the replicates (independent of whether they
+        % are equal, too)
+        %
+        % @type logical @default true
+        EnsureUniqueData = true;
+    end
     
     methods
         
@@ -68,6 +82,16 @@ classdef ASelector < KerMorObject & ICloneable
                 fmxi = xi;
             end
             atd = data.ApproxTrainData(fmxi, ti, mui);
+            if this.EnsureUniqueData
+                atd.makeUniqueXi;
+            end
+        end
+        
+        function set.EnsureUniqueData(this, value)
+            if ~islogical(value) || ~isscalar(value)
+                error('EnsureUniqueData must be a logical scalar.');
+            end
+            this.EnsureUniqueData = value;
         end
     end
     
