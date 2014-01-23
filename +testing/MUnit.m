@@ -145,8 +145,9 @@ classdef MUnit
                             % cant be run without instances.. :-)]
                             if m.Static
                                 lines = '-----------------------------';
-                                cprintf(testing.MUnit.BlueCol,[lines ' running '...
-                                    mc.Name ' -> ' m.Name(6:end) '... ' lines '\n']);
+                                %testing.MUnit.BlueCol
+                                fprintf(2,[lines ' running '...
+                                    mc.Name ' -> <a href="matlab:run(' mc.Name '.' m.Name ')">' m.Name(6:end) '</a>... ' lines '\n']);
                                 try
                                     eval(['outargs = nargout(@' mc.Name '.' m.Name ');']);
                                     if outargs > 0

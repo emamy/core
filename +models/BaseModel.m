@@ -412,25 +412,29 @@ classdef BaseModel < KerMorObject
             end
             
             % Assign jacobian information if available
-            slv.JPattern = [];
-            slv.JacFun = [];
-            if isa(this, 'models.BaseFullModel') && isa(slv,'solvers.AJacobianSolver')
-                if ~isempty(sys.A) && ~isempty(sys.f)
-                    slv.JacFun = @(t, x)sys.A.getStateJacobian(x, t, mu) + sys.f.getStateJacobian(x, t, mu);
-                    if ~isempty(sys.A.JSparsityPattern) && ~isempty(sys.f.JSparsityPattern)
-                        [i,j] = find(sys.A.JSparsityPattern + sys.f.JSparsityPattern);
+            if isa(slv,'solvers.AJacobianSolver')
+                slv.JPattern = [];
+                slv.JacFun = [];
+                % Only set for full models (jacobians for reduced models
+                % are not available [or required] in general)
+                if isa(this, 'models.BaseFullModel')
+                    if ~isempty(sys.A) && ~isempty(sys.f)
+                        slv.JacFun = @(t, x)sys.A.getStateJacobian(x, t, mu) + sys.f.getStateJacobian(x, t, mu);
+                        if ~isempty(sys.A.JSparsityPattern) && ~isempty(sys.f.JSparsityPattern)
+                            [i,j] = find(sys.A.JSparsityPattern + sys.f.JSparsityPattern);
                             slv.JPattern = sparse(i,j,ones(length(i),1),...
                                 sys.A.fDim,sys.A.xDim);
-                    end
-                elseif ~isempty(sys.A)
-                    slv.JacFun = @(t, x)sys.A.getStateJacobian(x, t, mu);
-                    if  ~isempty(sys.A.JSparsityPattern)
-                        slv.JPattern = sys.A.JSparsityPattern;
-                    end
-                elseif ~isempty(sys.f)
-                    slv.JacFun = @(t, x)sys.f.getStateJacobian(x, t, mu);
-                    if  ~isempty(sys.f.JSparsityPattern)
-                        slv.JPattern = sys.f.JSparsityPattern;
+                        end
+                    elseif ~isempty(sys.A)
+                        slv.JacFun = @(t, x)sys.A.getStateJacobian(x, t, mu);
+                        if  ~isempty(sys.A.JSparsityPattern)
+                            slv.JPattern = sys.A.JSparsityPattern;
+                        end
+                    elseif ~isempty(sys.f)
+                        slv.JacFun = @(t, x)sys.f.getStateJacobian(x, t, mu);
+                        if  ~isempty(sys.f.JSparsityPattern)
+                            slv.JPattern = sys.f.JSparsityPattern;
+                        end
                     end
                 end
             end

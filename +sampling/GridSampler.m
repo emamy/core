@@ -21,7 +21,7 @@ classdef GridSampler < sampling.BaseSampler
     
     methods
        
-        function samples = performSampling(~, model)
+        function samples = performSampling(this, model)
             % Uses the given model and generates a training set by creating
             % a regular grid in joint time/parameter space
             % @ingroup s_grid
