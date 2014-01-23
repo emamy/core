@@ -1,8 +1,6 @@
 classdef ExpansionConfig < IClassConfig
-% ExpansionConfig: Collects several IKernelConfigs to apply to a kernel expansion
+% ExpansionConfig: Base class config for kernel expansions
 %
-% @todo implement setter etc and do checks
-% @docupdate
 %
 % @author Daniel Wirtz @date 2012-11-22
 %
@@ -15,9 +13,10 @@ classdef ExpansionConfig < IClassConfig
 % - \c License @ref licensing
     
     properties
+        % The state space kernel configuration
+        %
+        % @type IClassConfig @default []
         StateConfig = [];
-        TimeConfig = [];
-        ParamConfig = [];
     end
     
     methods
@@ -27,37 +26,16 @@ classdef ExpansionConfig < IClassConfig
         end
         
         function n = getNumConfigurations(this)
-            n = Inf;
+            n = 0;
             if ~isempty(this.StateConfig)
-                n = min(n,this.StateConfig.getNumConfigurations);
-            end
-            if ~isempty(this.TimeConfig)
-                n = min(n,this.TimeConfig.getNumConfigurations);
-            end
-            if ~isempty(this.ParamConfig)
-                n = min(n,this.ParamConfig.getNumConfigurations);
-            end
-            if isinf(n)
-                n = 0;
+                n = this.StateConfig.getNumConfigurations;
             end
         end
         
         function kexp = configureInstance(this, nr)
-            % @todo improve code (dont think str as return value for maybe
-            % verbose is any good)
             kexp = this.getProtoClass;
             if ~isempty(this.StateConfig)
                 kexp.Kernel = this.StateConfig.configureInstance(nr);
-            end
-            if isa(kexp, 'kernels.ParamTimeKernelExpansion')
-                if ~isempty(this.TimeConfig)
-                    kexp.TimeKernel = this.TimeConfig.configureInstance(nr);
-                end
-                if ~isempty(this.ParamConfig)
-                    kexp.ParamKernel = this.ParamConfig.configureInstance(nr);
-                end
-            elseif ~isempty(this.TimeConfig) ||~isempty(this.ParamConfig)
-                warning('KerMor:unusedConfigs','Time or Parameter configurations are present but not kernels.ParamTimeKernelExpansion given. Ignoring.');
             end
         end
         
@@ -67,44 +45,19 @@ classdef ExpansionConfig < IClassConfig
             end
             str = [];
             if ~isempty(this.StateConfig)
-                str = [str sprintf('State: %s',this.StateConfig.getConfigurationString(nr, asCell))];
-            end
-            if ~isempty(this.TimeConfig)
-                str = [str sprintf('Time: %s',this.TimeConfig.getConfigurationString(nr, asCell))];
-            end
-            if ~isempty(this.ParamConfig)
-                str = [str sprintf('Parameter: %s',this.ParamConfig.getConfigurationString(nr, asCell))];
+                str = sprintf('StateKernel: %s',...
+                    this.StateConfig.getConfigurationString(nr, asCell));
             end
         end
         
         function str = getConfiguredPropertiesString(this)
-            e = {};
-            if ~isempty(this.StateConfig)
-                if isempty(this.ParamConfig) && isempty(this.TimeConfig)
-                    e(end+1) = {this.StateConfig.getConfiguredPropertiesString};
-                else
-                    e(end+1) = {['State: ' this.StateConfig.getConfiguredPropertiesString]};
-                end
-            end
-            if ~isempty(this.TimeConfig)
-                e(end+1) = {['Time: ' this.TimeConfig.getConfiguredPropertiesString]};
-            end
-            if ~isempty(this.ParamConfig)
-                e(end+1) = {['Param: ' this.ParamConfig.getConfiguredPropertiesString]};
-            end
-            str = Utils.implode(e,', ');
+            str = this.StateConfig.getConfiguredPropertiesString;
         end
         
         function conf = getSubPart(this, partNr, totalParts)
             conf = kernels.config.ExpansionConfig;
             if ~isempty(this.StateConfig)
                 conf.StateConfig = this.StateConfig.getSubPart(partNr, totalParts);
-            end
-            if ~isempty(this.TimeConfig)
-                conf.TimeConfig = this.TimeConfig.getSubPart(partNr, totalParts);
-            end
-            if ~isempty(this.ParamConfig)
-                conf.ParamConfig = this.ParamConfig.getSubPart(partNr, totalParts);
             end
         end
         
@@ -162,14 +115,6 @@ classdef ExpansionConfig < IClassConfig
             if ~isempty(this.StateConfig)
                 this.StateConfig.collectRanges(ptable, ...
                     [proppath {sprintf('State(%s)',this.StateConfig.getClassName)}]);
-            end
-            if ~isempty(this.TimeConfig)
-                this.TimeConfig.collectRanges(ptable, ...
-                    [proppath {sprintf('Time(%s)',this.TimeConfig.getClassName)}]);
-            end
-            if ~isempty(this.ParamConfig)
-                this.ParamConfig.collectRanges(ptable, ...
-                    [proppath {sprintf('Param(%s)',this.TimeConfig.getClassName)}]);
             end
         end
     end

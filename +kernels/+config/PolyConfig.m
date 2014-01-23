@@ -36,7 +36,7 @@ classdef PolyConfig < IClassConfig
         
         function k = configureInstance(this, nr)
             k = this.getProtoClass;
-            k.Degree = this.Degress(nr);
+            k.Degree = this.Degrees(nr);
         end
         
         function str = getConfigurationString(this, nr, ~)
@@ -46,11 +46,19 @@ classdef PolyConfig < IClassConfig
             end
         end
         
+        function str = getConfiguredPropertiesString(~)
+            str = 'Degree';
+        end
+        
+        function conf = getSubPart(this, partNr, totalParts)
+            idx = this.getPartIndices(partNr, totalParts);
+            conf = kernels.config.PolyConfig(this.Degrees(idx));
+        end
+        
     end
     
     methods(Access=protected)
-        
-        function collectRanges(this, proppath)
+        function collectRanges(this, ptable, proppath)
             this.addRange(ptable, [proppath {'Degrees'}],min(this.Degrees),max(this.Degrees));
         end
     end
