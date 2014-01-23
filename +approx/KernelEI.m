@@ -1,6 +1,8 @@
 classdef KernelEI < approx.BaseApprox
+% KernelEI: DEIM approximation using kernel expansions for
+% function/operator evaluations
 %
-%
+% Implements the ideas described in @cite W13 .
 %
 % @author Daniel Wirtz @date 2012-03-26
 %
@@ -20,13 +22,32 @@ classdef KernelEI < approx.BaseApprox
         % @type integer @default 40
         MaxOrder = 40;
         
-        kexp;
+        % The variant to use.
+        %
+        % Possible values are 1 and 2. 1 means that all components are
+        % interpolated simultaneously and only the current KernelEI.Order
+        Variant = 2;
         
-        exps;
+        % An approx.ABase approximation algorithm that is used to learn the
+        % component functions (either simultaneously or component-wise
+        % depending on Variant)
+        %
+        % @type approx.ABase @default []
+        %
+        % See also: Variant
+        Algorithm;
+    end
+    
+    properties(SetAccess=private)
+        % The Kernel expansion computed if using Variant 1.
+        %
+        % @type kernels.KernelExpansion
+        V1Expansion = [];
         
-        variant = 2;
-        
-        Gammas = 10;
+        % The array of kernel expansions of using Variant 2.
+        %
+        % @type rowvec<kernels.KernelExpansion>
+        V2Expansions = {};
     end
 
     properties(SetObservable, Dependent)
@@ -37,8 +58,8 @@ classdef KernelEI < approx.BaseApprox
         % @type integer @default 10
         Order;
     end
-%     
-    properties%(Access=private)
+
+    properties(Access=private)
         fOrder = 5;
         
         % The full approximation base
@@ -49,13 +70,9 @@ classdef KernelEI < approx.BaseApprox
         
         % The U matrix for the current Order.
         U;
-        
         S;
-        
         f;
-        
         jrow;
-        
         jend;
     end
     
@@ -65,7 +82,6 @@ classdef KernelEI < approx.BaseApprox
             this.CustomProjection = true;
             this.MultiArgumentEvaluations = true;
             this.TimeDependent = true;
-            %this.JSparsityPattern
         end
         
         function approximateSystemFunction(this, model)
@@ -89,49 +105,31 @@ classdef KernelEI < approx.BaseApprox
             % Compose argument indices arrays
             SP = this.f.JSparsityPattern;
             jr = [];
-%             js = logical.empty(0,1);
             je = zeros(1,length(this.pts));
             for i=1:length(this.pts)
                 sprow = SP(this.pts(i),:);
                 inew = find(sprow);
                 jr = [jr inew];%#ok
-%                 js = [js inew == pts(i)];%#ok
                 je(i) = length(jr);
             end
             this.jrow = jr;
-%             this.jself{nr} = js;
             this.jend = je;
-            
-            a = approx.algorithms.VKOGA;
-            a.MaxExpansionSize = 300;
-            a.UsefScaling = false;
-            a.UsefPGreedy = false;
-            
-            k = kernels.ParamTimeKernelExpansion;
-            k.Kernel = kernels.GaussKernel;
-            k.Kernel.G = model.G;
-            if ~isempty(atd.ti)
-                k.TimeKernel = kernels.GaussKernel;
-            end
-            if ~isempty(atd.mui)
-                k.ParamKernel = kernels.GaussKernel;
-            end
             
             % Trigger computation of U matrix etc
             this.Order = this.fOrder;
             
-            if this.variant == 1
-                % Compute Vz and f(Vz) values
+            this.V1Expansion = [];
+            this.V2Expansions = [];
+            if this.Variant == 1
+                % Compute Vz and f(Vz) values globally
                 zi = model.Data.W'*atd.xi;
                 fzi = model.System.f.evaluate(model.Data.V*zi,atd.ti,atd.mui);
                 vatd = data.ApproxTrainData(zi,atd.ti,atd.mui);
                 mo = this.MaxOrder;
                 vatd.fxi = sparse(this.pts,1:mo,ones(mo,1),size(atd.fxi,1),mo)'*fzi;
-                this.kexp = k;
-                a.computeApproximation(this.kexp, vatd);
-            elseif this.variant == 2
+                this.V1Expansion = this.Algorithm.computeApproximation(vatd);
+            elseif this.Variant == 2
                 % Compose x-entry selection matrix
-                this.exps = kernels.ParamTimeKernelExpansion.empty(0,this.MaxOrder);
                 pi = ProcessIndicator(sprintf('KernelEI: Computing %d approximations',this.MaxOrder),this.MaxOrder);
                 for idx = 1:this.MaxOrder
                     % Select the elements of x that are effectively used in f
@@ -142,8 +140,7 @@ classdef KernelEI < approx.BaseApprox
                     xireq = atd.xi(this.jrow(off+1:this.jend(idx)),:);
                     latd = data.ApproxTrainData(xireq, atd.ti, atd.mui);
                     latd.fxi = atd.fxi(this.pts(idx),:);
-                    a.computeApproximation(k, latd);
-                    this.exps{idx} = k.clone;
+                    this.V2Expansions{idx} = this.Algorithm.computeApproximation(latd);
                     pi.step;
                 end
                 pi.stop;
@@ -151,17 +148,20 @@ classdef KernelEI < approx.BaseApprox
         end
         
         function fx = evaluateCoreFun(this, x, t, mu)
-            if this.variant == 1
-                fu = this.kexp.evaluate(x, t, mu);
+            if this.Variant == 1
+                fu = this.V1Expansion.evaluate(x, t, mu);
                 c = fu(1:this.fOrder);
-            elseif this.variant == 2
+            elseif this.Variant == 2
                 c = zeros(this.fOrder,size(x,2));
                 for o = 1:this.fOrder
                     % Select the elements of x that are effectively used in f
                     % S is already of the size of all required elements, so to this.jrow
                     % indexing is required
-                    xidx = (this.jend(o)+1):this.jend(o+1);
-                    c(o,:) = this.exps{o}.evaluate(this.S(xidx,:)*x,t,mu);
+                    off = 1;
+                    if o > 1
+                        off = off + this.jend(o-1);
+                    end
+                    c(o,:) = this.V2Expansions{o}.evaluate(this.S(off:this.jend(o),:)*x,t,mu);
                 end
             end
             fx = this.U * c;
@@ -184,16 +184,15 @@ classdef KernelEI < approx.BaseApprox
             copy.jrow = this.jrow;
             copy.jend = this.jend;
             copy.MaxOrder = this.MaxOrder;
-            if ~isempty(this.kexp)
-                copy.kexp = this.kexp.clone;
+            if ~isempty(this.V1Expansion)
+                copy.V1Expansion = this.V1Expansion.clone;
             end
-            copy.variant = this.variant;
+            copy.Variant = this.Variant;
             copy.jend = this.jend;
             copy.jrow = this.jrow;
-            n = length(this.exps);
-            copy.exps = kernels.ParamTimeKernelExpansion.empty(0,n);
+            n = length(this.V2Expansions);
             for i=1:n
-                copy.exps{i} = this.exps{i}.clone;
+                copy.V2Expansions{i} = this.V2Expansions{i}.clone;
             end
             copy.S = this.S;
         end
@@ -223,7 +222,8 @@ classdef KernelEI < approx.BaseApprox
             n = size(this.u,1);
             o = this.fOrder;
             P = sparse(this.pts(1:o),1:o,ones(o,1),n,o);
-            this.U = this.u(:,1:this.fOrder) * inv(P'*this.u(:,1:this.fOrder));
+            this.U = this.u(:,1:this.fOrder) * ...
+                inv(P'*this.u(:,1:this.fOrder));
             if ~isempty(this.W)
                 this.U = this.W'*this.U;
             end
@@ -263,13 +263,40 @@ classdef KernelEI < approx.BaseApprox
             m.dt = .1;
             m.T = 1;
             m.EnableTrajectoryCaching = false;
-            m.Approx = approx.KernelEI;
+            
+            % Define prototype expansion
+            ec = kernels.config.ParamTimeExpansionConfig;
+            ec.StateConfig = kernels.config.GaussConfig('G',1:3);
+            ec.TimeConfig = [];
+            ec.ParamConfig = kernels.config.GaussConfig('G',1:3);
+            
+            a = approx.algorithms.VKOGA;
+            a.MaxExpansionSize = 300;
+            a.UsefScaling = false;
+            a.UsefPGreedy = false;
+            a.ExpConfig = ec;
+            
+            kei = approx.KernelEI;
+            kei.Algorithm = a;
+            kei.Variant = 2;
+            
+            m.Approx = kei;
             m.Approx.MaxOrder = 5;
-            m.Approx.Gammas = 3;
             m.System.Params(1).Desired = 2;
             m.SpaceReducer = spacereduction.PODGreedy;
             m.SpaceReducer.Eps = 1e-2;
             m.offlineGenerations;
+            
+            mu = m.getRandomParam;
+            r = m.buildReducedModel;
+            r.simulate(mu);
+            
+            kei.Variant = 1;
+            m.off5_computeApproximation;
+            
+            r = m.buildReducedModel;
+            r.simulate(mu);
+
             res = true;
         end
     end
