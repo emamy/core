@@ -188,8 +188,6 @@ classdef ApproxTrainData < handle
                 this.xi = this.xi.spawnWithContent(xi(:,selidx));
                 if ~isempty(this.fxi)
                     this.fxi = this.fxi.spawnWithContent(this.fxi(:,selidx));
-                else
-                    warning('KerMor:atd','No fxi data set yet but changing xi values! CAREFUL!');
                 end
                 if ~isempty(this.ti)
                     this.ti = this.ti(selidx);
@@ -258,9 +256,6 @@ classdef ApproxTrainData < handle
                 % are exclusively located inside the model's data folder.
                 if ~isa(hlp,'data.FileMatrix')
                     atd.xi = atd.xi.spawnWithContent(hlp);
-%                     atd.xi = data.FileMatrix(size(hlp,1),size(hlp,2),...
-%                         'Dir',fileparts(atd.xi.DataDirectory));
-%                     atd.xi(:,:) = hlp;
                 else
                     atd.xi = hlp;
                 end
@@ -285,7 +280,7 @@ classdef ApproxTrainData < handle
             else
                 xi = atd.xi; %#ok<*PROP>
                 if KerMor.App.Verbose > 0
-                    fprintf('Serial computation of f-values at %d points (%d xi-blocks) ...\n',size(atd.xi,2),xi.nBlocks);
+                    fprintf('Serial computation of f-values at %d points (%d xi-blocks) ...\n',size(xi,2),xi.nBlocks);
                 end
                 % Use the same storage location as of the xi FileMatrix
                 fxi = data.FileMatrix(f.fDim,size(xi,2),'Dir',fileparts(xi.DataDirectory));

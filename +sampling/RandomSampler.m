@@ -118,32 +118,23 @@ classdef RandomSampler < sampling.BaseSampler
             % setup parameter domain etc
             % domain are all points in unit square with norm > 0.7
             m = models.BaseFullModel;
-            m.Sampler.domain_sampling
-            s=models.BaseDynSystem(m);
+            s = models.BaseDynSystem(m);
             m.System=s;
             s.addParam('param_a',[0,1],10);
             s.addParam('param_b',[0,1],10);
-            x = repmat((0:0.1:1),1,11);
-            y = ones(11,1)*(0:0.1:1); y=y(:)';
-            sampling = [x;y];
-            valid = false(1,length(x));
-            for i=1:length(valid)
-                if norm(sampling(:,i))> 0.7
-                    valid(i)=true;
-                end
-            end
-            m.Sampler.domain_sampling = sampling;
-            m.Sampler.is_valid = valid;
-            m.Sampler.Samples = 50;
+            %points = rand(2,200);
+            points = [0.69*sin(0:0.05:pi/2); 0.69*cos(0:0.05:pi/2)];
+            points = [points [0.7*sin(0:0.05:pi/2); 0.7*cos(0:0.05:pi/2)]];
+            valid = Norm.L2(points) >= .7;
+            m.Sampler = sampling.RandomSampler;
+            d = sampling.Domain(points, valid);
+            m.Sampler.Domain = d;
+            m.Sampler.Samples = 500;
             samples = m.Sampler.performSampling(m);
-            res = true;
-            for i=1:size(samples)
-                % small domain violations are possible because point with
-                % norm <0.7 may be closest to a point in domain_sampling
-                % with norm > 0.7
-                res = res && (norm(samples(:,i)) >= 0.65);
-            end
-            plot(samples(1,:),samples(2,:),'o',m.Sampler.domain_sampling(1,:),m.Sampler.domain_sampling(2,:),'*',0.7*sin(0:0.05:pi/2),0.7*cos(0:0.05:pi/2))
+            res = all(Norm.L2(samples) > .66);
+            plot(samples(1,:),samples(2,:),'o',...
+                d.Points(1,:),d.Points(2,:),'*',...
+                0.7*sin(0:0.05:pi/2),0.7*cos(0:0.05:pi/2))
         end
     end
     

@@ -91,7 +91,7 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
             %
             % Return values:
             % e: The auxiliary ode part value.
-            phi = this.ReducedModel.System.f.getKernelVector(x(1:end-1), t, mu);
+            phi = this.ReducedModel.System.f.Expansion.getKernelVector(x(1:end-1), t, mu);
             
             a = this.aComp.getAlpha(phi, ut, t, mu);
             b = this.getBeta(x, t, mu);

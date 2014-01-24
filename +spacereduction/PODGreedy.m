@@ -296,13 +296,15 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             m.System = s;
             
             f = dscomponents.ParamTimeKernelCoreFun;
-            f.Kernel = kernels.GaussKernel(40);
-            f.TimeKernel = kernels.NoKernel;
-            f.ParamKernel = kernels.GaussKernel(2);
-            f.Ma = rand(dim,sv);
-            f.Centers.xi = repmat(linspace(0,10,sv),dim,1);
-            f.Centers.ti = 1:sv;
-            f.Centers.mui = rand(2,sv);
+            kexp = kernels.ParamTimeKernelExpansion;
+            kexp.Kernel = kernels.GaussKernel(40);
+            kexp.TimeKernel = kernels.NoKernel;
+            kexp.ParamKernel = kernels.GaussKernel(2);
+            kexp.Ma = rand(dim,sv);
+            kexp.Centers.xi = repmat(linspace(0,10,sv),dim,1);
+            kexp.Centers.ti = 1:sv;
+            kexp.Centers.mui = rand(2,sv);
+            f.Expansion = kexp;
             s.f = f;
             
             m.offlineGenerations;

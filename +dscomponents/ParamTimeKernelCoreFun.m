@@ -29,6 +29,13 @@ classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun
         Expansion;
     end
     
+    properties(Access=private, Transient)
+        % Listener for centers change
+        cl;
+        % Listener for coefficients change
+        mal;
+    end
+    
     methods
         function this = ParamTimeKernelCoreFun
             this = this@dscomponents.ACoreFun;
@@ -37,6 +44,7 @@ classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun
             this.MultiArgumentEvaluations = true;
             this.TimeDependent = false;
             this.addlistener('Expansion','PostSet',@this.ExpansionPostSet);
+            % addDimListeners is triggered in Expansion post set!
             this.Expansion = kernels.ParamTimeKernelExpansion;
         end
         
@@ -47,7 +55,7 @@ classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun
             % For rotation invariant kernel expansions the snapshots can be
             % transferred into the subspace without loss.
             lkexp = this.Expansion;
-            kexp = projected.Expansion;
+            kexp = lkexp.clone;
             k = kexp.Kernel;
             if k.IsRBF
                 kexp.Centers.xi = W' * lkexp.Centers.xi;
@@ -61,6 +69,7 @@ classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun
                 kexp.Kernel.G = 1;
             end
             kexp.Ma = W'*lkexp.Ma;
+            projected.Expansion = kexp;
         end
         
         function fx = evaluate(this, x, varargin)
@@ -111,9 +120,33 @@ classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun
     
     methods(Access=private)
         function ExpansionPostSet(this, ~, ~)
-            this.TimeDependent = ...
-                isa(this.Expansion, 'kernels.ParamTimeKernelExpansion') ...
-                && ~isa(this.Expansion.TimeKernel,'kernels.NoKernel');
+            this.fDim = 0;
+            this.xDim = 0;
+            if ~isempty(this.Expansion)
+                this.TimeDependent = ...
+                    isa(this.Expansion, 'kernels.ParamTimeKernelExpansion') ...
+                    && ~isa(this.Expansion.TimeKernel,'kernels.NoKernel');
+                this.fDim = size(this.Expansion.Ma,1);
+                this.xDim = size(this.Expansion.Centers.xi,1);
+            end
+            this.addDimListeners;
+        end
+        
+        function addDimListeners(this)
+            delete(this.cl);
+            delete(this.mal);
+            if ~isempty(this.Expansion)
+                this.cl = this.Expansion.addlistener('Centers','PostSet',@this.CentersPostSet);
+                this.mal = this.Expansion.addlistener('Ma','PostSet',@this.MaPostSet);
+            end
+        end
+        
+        function CentersPostSet(this, ~, ~)
+            this.xDim = size(this.Expansion.Centers.xi,1);
+        end
+        
+        function MaPostSet(this, ~, ~)
+            this.fDim = size(this.Expansion.Ma,1);
         end
     end
     
@@ -122,6 +155,7 @@ classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun
             this = loadobj@DPCMObject(this);
             % Register listener for TimeDependent changed
             this.addlistener('Expansion','PostSet',@this.ExpansionPostSet);
+            this.addDimListeners;
         end
     end
     

@@ -126,7 +126,7 @@ classdef BaseApprox < dscomponents.ACoreFun
                         name = sprintf('%s with MaxExpansionSize=%d',class(app),app.MaxExpansionSize);
                     end
                     
-                    cprintf(testing.MUnit.GreenCol,'Testing %s...',name);
+                    cprintf(MUnit.GreenCol,'Testing %s...',name);
                     ap.Expansion = app.computeApproximation(atd);
                     b{idx} = ap.project(v,v);
                     

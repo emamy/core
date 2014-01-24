@@ -26,7 +26,7 @@ classdef Base < handle
             fm = rm.FullModel;
             if ~isempty(fm.Approx)
                 % Get full d x N coeff matrix of approx function
-                Ma = fm.Approx.Ma;
+                Ma = fm.Approx.Expansion.Ma;
             else
                 % Get full d x N coeff matrix of core function
                 Ma = fm.System.f.Ma;

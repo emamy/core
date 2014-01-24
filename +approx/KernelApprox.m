@@ -116,6 +116,11 @@ classdef KernelApprox < approx.BaseApprox & dscomponents.ParamTimeKernelCoreFun
             
             copy.Algorithm = this.Algorithm.clone;
         end
+        
+        function set.Algorithm(this, value) 
+            this.checkType(value,'approx.algorithms.ABase');
+            this.Algorithm = value;
+        end
     end
     
 end

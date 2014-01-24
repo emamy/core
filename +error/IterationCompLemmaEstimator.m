@@ -65,9 +65,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
         %
         % See also: kernels.BaseKernel kernels.BellFunction error.lipfun.Base
         LocalLipschitzFcn;
-    end
-    
-    properties(Dependent)
+        
         % Determines how many postprocessing iterations for the estimator
         % are performed.
         %
@@ -117,8 +115,8 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             copy = clone@error.BaseCompLemmaEstimator(this, copy);
             % Clone local lipschitz function
             copy.LocalLipschitzFcn = this.LocalLipschitzFcn.clone;
-            copy.fIterations = this.fIterations;
-            copy.fTDC = this.fTDC;
+            copy.Iterations = this.Iterations;
+            copy.UseTimeDiscreteC = this.UseTimeDiscreteC;
             copy.Ma_norms = this.Ma_norms;
             copy.c = this.c;
             copy.d_iValues = this.d_iValues;
@@ -185,11 +183,11 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             if isempty(f)
                 f = rm.FullModel.System.f;
             end
-            if f.Kernel.IsRBF && ~isempty(rm.V)
+            if f.Expansion.Kernel.IsRBF && ~isempty(rm.V)
                 % Use the projected centers z_i from the reduces system with x_i = Vz_i in this
                 % case.
                 hlp = f.project(rm.V, rm.W);
-                prepared.c = hlp.Centers;
+                prepared.c = hlp.Expansion.Centers;
                 clear hlp;
                 % The norm is then ||Vz - x_i||_G = ||z-z_i||_V'GV
                 prepared.G = rm.V'*(prepared.G*rm.V);
@@ -198,7 +196,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             end
         end
         
-         function b = getBeta(this, xfull, t, mu)
+        function b = getBeta(this, xfull, t, mu)
             % Compute the local lipschitz constant estimations
             %
             % Parameters:
@@ -219,10 +217,10 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             % Standard (worst-) Case
             Ct = Inf;
             % Time-discrete computation
-            if this.fTDC
+            if this.UseTimeDiscreteC
                 Ct = xfull(end);
                 % Keep track of distances when iterations are used
-            elseif this.fIterations > 0
+            elseif this.Iterations > 0
                 this.d_iValues(this.StepNr,:) = di;
             end
             
@@ -230,8 +228,8 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             if (~isempty(mu))
                 f = this.ReducedModel.System.f;
                 hlp = this.Ma_norms ...
-                    .* f.TimeKernel.evaluate(t, this.c.ti) ...
-                    .* f.ParamKernel.evaluate(mu, this.c.mui);
+                    .* f.Expansion.TimeKernel.evaluate(t, this.c.ti) ...
+                    .* f.Expansion.ParamKernel.evaluate(mu, this.c.mui);
             else
                 hlp = this.Ma_norms;
             end
@@ -247,6 +245,10 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
         function ct = prepareConstants(this, mu, inputidx)
             % Return values:
             % ct: The time needed for preprocessing @type double
+            
+            if this.Iterations > 0 && this.UseTimeDiscreteC
+                warning('Ambiguous configuration. Having Iterations and UseTimeDiscreteC set; preferring UseTimeDiscreteC');
+            end
             
             % Call superclass method
             ct = prepareConstants@error.BaseCompLemmaEstimator(this, mu, inputidx);
@@ -281,28 +283,14 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             if ~isscalar(value) || value < 0
                 error('Iterations value must be a non-negative integer.');
             end
-            if this.fTDC && value > 0
-                warning('error:IterationCompLemmaEstimator:NoIterationsWithTD','Cannot use iterations in conjunction with time-discrete C(t). Value will have no effect.');
-            end
-            this.fIterations = value;
+            this.Iterations = value;
         end
         
         function set.UseTimeDiscreteC(this, value)
             if ~islogical(value)
                 error('The value must be a logical');
             end
-            if value && this.fIterations > 0
-                warning('error:IterationCompLemmaEstimator:NoIterationsWithTD','Cannot use iterations in conjunction with time-discrete C(t). Iteration value will have no effect now.');
-            end
-            this.fTDC = value;
-        end
-        
-        function value = get.Iterations(this)
-            value = this.fIterations;
-        end
-        
-        function value = get.UseTimeDiscreteC(this)
-            value = this.fTDC;
+            this.UseTimeDiscreteC = value;
         end
     end
     
@@ -320,13 +308,13 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             this.lstPreSolve.Enabled = false;
             
             % Iteration stuff
-            if ~this.fTDC && this.fIterations > 0
+            if ~this.UseTimeDiscreteC && this.Iterations > 0
                 % Switch on/off listeners
                 
                 this.mu = mu;
                 solver = this.ReducedModel.ODESolver;
                 e0 = this.getE0(mu);
-                for it = 1:this.fIterations
+                for it = 1:this.Iterations
                     % Set time-step counter to one
                     this.tstep = 1;
                     % Solve
@@ -359,17 +347,13 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             if (~isempty(this.mu))
                 f = this.ReducedModel.System.f;
                 hlp = this.Ma_norms ...
-                    .* f.TimeKernel.evaluate(t, this.c.ti) ...
-                    .* f.ParamKernel.evaluate(this.mu, this.c.mui);
+                    .* f.Expansion.TimeKernel.evaluate(t, this.c.ti) ...
+                    .* f.Expansion.ParamKernel.evaluate(this.mu, this.c.mui);
             else
                 hlp = this.Ma_norms;
             end
-            try
-                b = hlp * this.LocalLipschitzFcn.evaluate(...
-                    this.d_iValues(idx,:), this.errEst(idx))';
-            catch ME
-                a = 4;
-            end
+            b = hlp * this.LocalLipschitzFcn.evaluate(...
+                this.d_iValues(idx,:), this.errEst(idx))';
             
             e = b*eold + this.EstimationData(2,idx);
             
@@ -379,7 +363,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
         end
         
         function cbPreSolve(this, sender, data)%#ok
-            %fprintf('cbPreSolve in local kernel est, Lipfun:%s, It:%d, TDC:%d\n',class(this.LocalLipschitzFcn),this.fIterations,this.fTDC);
+            %fprintf('cbPreSolve in local kernel est, Lipfun:%s, It:%d, TDC:%d\n',class(this.LocalLipschitzFcn),this.Iterations,this.UseTimeDiscreteC);
             this.d_iValues = zeros(length(data.Times),size(this.c.xi,2));
         end
         
@@ -396,8 +380,8 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
         function errmsg = validModelForEstimator(model)
             % Validations
             errmsg = validModelForEstimator@error.BaseCompLemmaEstimator(model);
-            if isempty(errmsg) && ~isempty(model.Approx) && ~isa(model.Approx,'kernels.ParamTimeKernelExpansion')
-                errmsg = 'The model''s approximation function must be a subclass of kernels.ParamTimeKernelExpansion for this error estimator.';
+            if isempty(errmsg) && ~isempty(model.Approx) && ~isa(model.Approx,'dscomponents.ParamTimeKernelCoreFun')
+                errmsg = 'The model''s approximation function must be a subclass of dscomponents.ParamTimeKernelCoreFun for this error estimator.';
             end
             if isempty(errmsg) && isa(model.System.f,'kernels.KernelExpansion') ...
                     && ~isa(model.System.f.Kernel,'kernels.BellFunction')
@@ -413,10 +397,12 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             
             m.ErrorEstimator = e;
             m.offlineGenerations;
-            %m.ODESolver = solvers.Heun;
             r = m.buildReducedModel;
             
-            [t,y] = r.simulate(r.getRandomParam,[]);%#ok
+            r.simulate(r.getRandomParam,[]);
+            e.UseTimeDiscreteC = true;
+            r.simulate(r.getRandomParam,[]);
+            
             res = true;
         end
     end

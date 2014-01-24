@@ -127,46 +127,5 @@ classdef ExplEuler < solvers.BaseCustomSolver
             end
         end
     end
-    
-    methods(Access=public)
-        % brief upper
-        %
-        % detail
-        [tout, y] = solveMex(this, odefun, t, x0);
-        % brief lower
-        %
-        % detail lower
-    end
-    
-    methods(Static)
-        function res = test_solveMex
-            s = solvers.ExplEuler;
-            
-            times = 0:.05:1;
-            iter = 100;
-            tmex = zeros(1,iter);
-            tmat = zeros(1,iter);
-            
-            for it = 1:iter
-            
-            t = tic;
-            s.solveMex(@odefun, times, rand(10,1));
-            tmex(it) = toc(t);
-            
-            t = tic;
-            s.solve(@odefun, times, rand(10,1));
-            tmat(it) = toc(t);
-            
-            end
-            
-            fprintf('Mex time: %f, Mat time: %f\n',mean(tmex),mean(tmat));
-            
-            res = true;
-            
-            function y = odefun(t,x)
-                y = x+t*x;
-            end
-        end
-    end
 end
 

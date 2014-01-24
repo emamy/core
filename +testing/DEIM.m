@@ -798,20 +798,5 @@ classdef DEIM
                 est(end).Color = m.nextColor;
             end
         end
-        
-        %% General test methods
-        function [res, m, r] = test_DEIM
-            m = models.pcd.PCDModel(1);
-            m.EnableTrajectoryCaching = false;
-            m.Approx = approx.DEIM;
-            m.Approx.MaxOrder = 40;
-            m.System.Params(1).Desired = 10;
-            m.SpaceReducer = spacereduction.PODGreedy;
-            m.offlineGenerations;
-            m.Approx.Order = [20 4];
-            r = m.buildReducedModel;
-            %save approx.test_DEIM m r;
-            res = true;
-        end
     end    
 end

@@ -889,6 +889,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function test_LinearModel
             ts = testing.testsettings;
             m = ts.m;
+            m.Approx.Algorithm.ExpConfig.ParamConfig = [];
             s = m.System;
             s.f = dscomponents.PointerCoreFun(ts.flin,ts.testdim);
             s.x0 = ts.x0;
@@ -902,6 +903,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function test_LinearModelNoProj
             ts = testing.testsettings;
             m = ts.m;
+            m.Approx.Algorithm.ExpConfig.ParamConfig = [];
             m.SpaceReducer = [];
             s = m.System;
             s.f = dscomponents.PointerCoreFun(ts.flin,ts.testdim);
@@ -948,6 +950,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function test_LinearModelInputs
             ts = testing.testsettings;
             m = ts.m;
+            m.Approx.Algorithm.ExpConfig.ParamConfig = [];
             s = m.System;
             s.B = dscomponents.PointerInputConv(ts.B);
             s.f = dscomponents.PointerCoreFun(ts.flin,ts.testdim);
@@ -964,7 +967,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function test_LinearModelParamsInput
             ts = testing.testsettings;
             m = ts.m;
-            m.Approx.Expansion.ParamKernel = ts.ParamKernel;
             s = m.System;
             s.f = dscomponents.PointerCoreFun(ts.flin_p, ts.testdim);
             s.B = dscomponents.PointerInputConv(ts.B_p);
@@ -988,6 +990,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             s = m.System;
             s.f = dscomponents.PointerCoreFun(ts.fnlin,ts.testdim);
             s.x0 = ts.x0;
+            m.Approx.Algorithm.ExpConfig.ParamConfig = [];
             m.simulate();
             m.offlineGenerations;
             r = m.buildReducedModel;
@@ -998,7 +1001,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function test_NonlinearModelParams
             ts = testing.testsettings;
             m = ts.m;
-            m.Approx.Expansion.ParamKernel = ts.ParamKernel;
             s = m.System;
             s.f = dscomponents.PointerCoreFun(ts.fnlin_p,ts.testdim);
             s.x0 = ts.x0_p;
@@ -1016,6 +1018,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function test_NonlinearModelInputs
             ts = testing.testsettings;
             m = ts.m;
+            m.Approx.Algorithm.ExpConfig.ParamConfig = [];
             s = m.System;
             s.B = dscomponents.PointerInputConv(ts.B);
             s.f = dscomponents.PointerCoreFun(ts.fnlin,ts.testdim);
@@ -1051,6 +1054,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function test_TimeDependentOutput
             ts = testing.testsettings;
             m = ts.m;
+            m.Approx.Algorithm.ExpConfig.ParamConfig = [];
             s = m.System;
             s.f = dscomponents.PointerCoreFun(ts.flin,ts.testdim);
             s.x0 = ts.x0;
