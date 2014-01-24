@@ -131,11 +131,4 @@ classdef KernelLS < KerMorObject & IKernelCoeffComp
             this.MaxStraightInvDim = value;
         end
     end
-    
-    methods(Static)
-        function c = getDefaultConfig
-            c = general.regression.KernelLSConfig(.5:.5:1.5);
-        end
-    end
-    
-end
+ end

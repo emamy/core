@@ -172,13 +172,17 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             % Evaluates the kernel expansion.
             %
             % Parameters:
-            % x: The state space vector(s) to evaluate at @type matrix
             % idx: The column index @type integer
+            % x: The state space vector(s) to evaluate at @type matrix
+            % @default this.Centers.xi
             % varargin: Dummy variable to also allow calls to this class
             % with `t_i,\mu_i` parameters as in ParamTimeKernelExpansion.
             %
             % Return values:
             % phi: The kernel vector `\varphi(x) =\left(\Phi(x,x_i)\right)_{i}`.
+            if nargin < 3
+                x = this.Centers.xi;
+            end
             row = this.fSK.evaluate(x, x(:,idx));
         end
                 
@@ -220,11 +224,6 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
 %                 end
 %                 K = this.fSK.evaluate(cent,[]);
             end
-        end
-        
-        function ec = getDefaultExpansionConfig(this)
-            ec = kernels.config.ExpansionConfig;            
-            ec.StateConfig = this.Kernel.getDefaultConfig;
         end
         
         function v = scalarProductWith(this, f)
@@ -273,8 +272,6 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             if kexp.HasCustomBase
                 kexp.Ma = kexp.Ma/kexp.Base;
                 kexp.Base = 1;
-            %else
-            %    warning('KernelExpansion:toTranslateBase','No base defined. Returning simple clone.');
             end
         end
         

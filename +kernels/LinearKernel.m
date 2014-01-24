@@ -16,10 +16,6 @@ classdef LinearKernel < kernels.BaseKernel
             Nabla = y;
         end
         
-        function dc = getDefaultConfig(this)%#ok
-            error('not yet implemented');
-        end
-        
         function K = evaluate(this, x, y)
             if ~isempty(this.fP)
                 x = x(this.fP,:);

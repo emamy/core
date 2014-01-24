@@ -363,7 +363,7 @@ classdef Componentwise < approx.algorithms.ABase
             
             % Define prototype expansion
             ec = kernels.config.ExpansionConfig;
-            ec.StateConfig = kernels.config.GaussConfig('G',1:3);
+            ec.StateConfig = kernels.config.GaussConfig('G',.1:.3);
             
             a = approx.algorithms.Componentwise;
             a.ExpConfig = ec;

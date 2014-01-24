@@ -6,6 +6,9 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
 %
 % @author Daniel Wirtz @date 2012-02-09
 %
+% @new{0,7,dw,2014-01-24} Now can finally also use non-normalized kernels
+% with the VKOGA algorithm.
+%
 % @change{0,7,dw,2012-11-26} Renamed to VKOGA and starting to build in
 % IClassConfig interfaces
 %
@@ -97,9 +100,6 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                 pm.LeaveOpen = true;
             end
             
-            % Kernel matrix diagonal
-            Kdiag = ones(1,N);
-            
             %% Run loop for all desired distances
             pi = ProcessIndicator('VKOGA approximation for %d kernel configurations',nc,false,nc);
             for cidx = 1:nc
@@ -107,6 +107,16 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                 
                 % Set current hyperconfiguration
                 kexp = ec.configureInstance(cidx);
+                
+                % Compute Kernel matrix diagonal
+                if isa(kexp.Kernel,'kernels.ARBFKernel')
+                    Kdiag = kexp.Kernel.evaluate(xi(:,1),xi(:,1))*ones(1,N);
+                else
+                    Kdiag = zeros(1,N);
+                    for k=1:N
+                        Kdiag(k) = kexp.Kernel.evaluate(xi(k,1),xi(k,1));
+                    end
+                end
                 
                 % Values of Newton basis
                 NV = zeros(N,this.MaxExpansionSize);

@@ -179,16 +179,6 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
             end
         end
         
-        function ec = getDefaultExpansionConfig(this)
-            ec = getDefaultExpansionConfig@kernels.KernelExpansion(this);
-            if ~isempty(this.fTK)
-                ec.TimeConfig = this.fTK.getDefaultConfig;
-            end
-            if ~isempty(this.fPK)
-                ec.ParamConfig = this.fPK.getDefaultConfig;
-            end
-        end
-        
         function setCentersFromATD(this, atd, idx)
             % Sets the centers according to the indices 'idx' of the data.ApproxTrainData
             setCentersFromATD@kernels.KernelExpansion(this, atd, idx);

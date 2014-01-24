@@ -165,12 +165,5 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & IKernelCoeffComp
         %
         % See also: StopFlag
         [ci, sf] = regress(this, fxi, initialai);
-    end
-    
-    methods(Static)
-        function c = getDefaultConfig
-            c = general.regression.EpsSVRConfig([1; 1]);
-        end
-    end
-    
+    end    
 end

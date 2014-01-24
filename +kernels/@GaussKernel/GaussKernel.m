@@ -117,10 +117,6 @@ classdef GaussKernel < kernels.BellFunction
             phi = exp(-r.^2/this.Gamma^2);
         end
         
-        function dc = getDefaultConfig(this)
-            dc = kernels.config.GaussConfig('G',this.Gamma);
-        end
-        
         function g = setGammaForDistance(this, dist, ep)
             % Computes the `\gamma` value for which the Gaussian is smaller
             % than `\epsilon` in a distance of dist, i.e.

@@ -14,6 +14,10 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
     %
     % @author Daniel Wirtz @date 01.04.2010
     %
+    % @change{0,7,dw,2014-01-24} Removed the preconditioning stuff and LU
+    % factorization. Instead included the Newton basis computation method
+    % from \cite PS11
+    %
     % @change{0,7,dw,2013-01-23} Re-added the LU decomposition stuff to this class from
     % MemoryMatrix, as the class has been removed.
     %
@@ -39,25 +43,17 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
     % - Updated the documentation
     
     properties(SetObservable)
-        % Flag that indicates whether to keep an LU decomposition of the kernel
-        % matrix or not.
+        % Flag that indicates whether to apply the Newton basis for stable
+        % interpolation \cite PS11 .
         %
-        % @propclass{optional} Speedup maybe gained if subsequent calls to interpolation using the
-        % same kernel matrix are made.
+        % @propclass{optional} This can greatly improve numerical stability
+        % of computation, but possibly takes more time to compute.
         %
-        % @default false
-        UseLU = false;
-        
-        % Flag that indicates whether to apply the preconditioning technique from \cite S08.
-        %
-        % @propclass{optional} Stability maybe gained for solving the interpolation problem in
-        % the direct translate basis.
-        %
-        % @default false
-        UsePreconditioning = false;
+        % @default true
+        UseNewtonBasis = true;
     end
     
-    properties(Dependent)
+    properties(Access=private)
         % The kernel matrix K to use within interpolation.
         %
         % @propclass{data} Required for any interpolation computation.
@@ -67,22 +63,8 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
     end
     
     properties(Access=private)
-        fK;
-        
-        % Preconditioning matrix
-        P;
-        
-        % Private variable to store the lower left part of the optional LU
-        % decomp.
-        %
-        % See also: K UseLU
-        L;
-        
-        % Private variable to store the lower left part of the optional LU
-        % decomp.
-        %
-        % See also: K UseLU
-        U;
+        % The cholesky decomposition matrix for Newton basis case
+        kexp;
     end
     
     methods
@@ -90,47 +72,61 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
         function this = KernelInterpol
             this = this@KerMorObject;
             this.MultiTargetComputation = true;
-            this.registerProps('K','UseLU','UsePreconditioning');
+            this.registerProps('UseNewtonBasis');
         end
         
         function copy = clone(this)
             copy = general.interpolation.KernelInterpol;
             copy = clone@IKernelCoeffComp(this, copy);
-            copy.UseLU = this.UseLU;
-            copy.UsePreconditioning = this.UsePreconditioning;
-            copy.fK = this.fK;
-            copy.P = this.P;
-            copy.L = this.L;
-            copy.U = this.U;
+            copy.UseNewtonBasis = this.UseNewtonBasis;
+            copy.K = this.K;
+            copy.kexp = this.kexp;
         end
         
-        function a = interpolate(this, fxi)
+        function [a, base, used] = interpolate(this, fxi)
             % Computes the kernel expansion coefficients `\alpha_i`.
             %
             % Parameters:
             % fxi: The real function value samples at centers `x_i`
             %
             % Return values:
-            % a: The coefficient vector `\alpha`
-
-            if this.UseLU
-                a = this.U\(this.L\fxi');
-            elseif this.UsePreconditioning && ~isempty(this.P) 
-                a = this.fK\(this.P*fxi');
+            % a: The coefficient vector `\alpha` @type matrix<double>
+            % base: The newton basis values to set for
+            % kernels.KernelExpansion.Base @type matrix<double>
+            N = size(fxi,2);
+            if this.UseNewtonBasis   
+                NV = zeros(N,N);
+                c = zeros(size(fxi,1),N);
+                fxin = Norm.L2(fxi);
+                sumNsq = zeros(1,N);
+                fresidual = fxi;
+                used = zeros(1,N);
+                for m = 1:N
+                    res = sum(fresidual.^2,1);
+                    [~, maxidx] = max(res);
+                    col = this.kexp.getKernelMatrixColumn(maxidx);
+                    tN = col - NV(:,1:m-1)*NV(maxidx,1:m-1)';
+                    tNnorm = sqrt(col(maxidx)-sumNsq(maxidx));
+                    if max(res./fxin) < 1e-10 || ~isreal(tNnorm) || tNnorm <= 0
+                        used = used(1:m-1);
+                        break;
+                    end
+                    NV(:,m) = tN/tNnorm;
+                    c(:,m) = fresidual(:,maxidx)./tNnorm;                    
+                    fresidual = fresidual - c(:,m)*(NV(:,m))';
+                    sumNsq = sumNsq + (NV(:,m).^2)';
+                    used(m) = maxidx;
+                end
+                base = eye(N);
+                base(:,1:length(used)) = NV(:,used);
+                %a = zeros(size(c));
+                %a(:,1:length(used)) = c(:,used);
+                a = c(:,used);
             else
-                a = this.fK\fxi';
+                base = 1;
+                a = (this.K\fxi')';
+                used = 1:N;
             end
-        end
-        
-        function set.K(this, value)
-            if (isa(value,'handle') && ~isa(value, 'data.FileMatrix')) || (~ismatrix(value) || ~isa(value,'double'))
-                error('Value must be a data.FileMatrix or a double matrix.');
-            end
-            this.fK = value;
-        end
-        
-        function K = get.K(this)
-            K = this.fK;
         end
         
         %% IKernelCoeffComp interface members
@@ -139,31 +135,12 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
             %
             % Parameters:
             % kexp: The kernel expansion @type kernels.KernelExpansion
-            this.K = kexp.getKernelMatrix;
-            this.P = [];
-            if this.UseLU
-                [this.L, this.U] = lu(this.K);
-            elseif this.UsePreconditioning
-                if isa(kexp.Kernel,'kernels.ARBFKernel')% && 1/kexp.Kernel.Gamma < .01
-                    [this.P, k2] = this.getPreconditioner(kexp.Kernel, kexp.Centers.xi);
-                    % Overwrite current matrix with preconditioned one
-                    oldK = this.fK.K;
-                    this.fK = this.P*this.fK;
-                    x = kexp.Centers.xi;
-                    [m M] = Utils.getBoundingBox(x);
-                    c1 = cond(oldK);
-                    c2 = cond(this.fK.K);
-                    pl = '-';
-                    if c2<c1
-                        pl = '+';
-                    end
-                    if KerMor.App.Verbose > 3
-                        fprintf('Cond(K)=%e, Cond(P*K)=%e, size(x)=[%d %d], %s! eps=%e, xdiag=%e, k2=%d\n',...
-                            c1,c2,size(x,1),size(x,2),pl,1/kexp.Kernel.Gamma,norm(M-m),k2);
-                    end
-                else
-                    warning('KernelInterpol:preconditioning','Cannot apply preconditioning technique to kernels of class %s',class(kexp.Kernel));
-                end
+            this.K = [];
+            this.kexp = [];
+            if this.UseNewtonBasis
+                this.kexp = kexp;
+            else
+                this.K = kexp.getKernelMatrix;
             end
         end
         
@@ -178,188 +155,24 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
             % svidx: The support vector indices of all elements of `c_i`
             % that regarded to be support vectors. @type integer
             
-            % Transform to row vector
-            ci = this.interpolate(fxi)';
-            svidx = 1:size(ci,2);
+            [ci, base, svidx] = this.interpolate(fxi);
+            % Here: Transform the coefficients back to direct translate
+            % basis as the Base cannot be set here and might be different
+            % for each component function
+            if this.UseNewtonBasis
+                ci = ci / base;
+            end
             sf = StopFlag.SUCCESS;
         end
     end
     
-    
-    
     methods(Static)
-        function c = getDefaultConfig
-            c = general.interpolation.InterpolConfig;
-        end
-        
-        function [P, k2] = getPreconditioner(k, x)
-            % Computes the preconditioning matrix `D_\ep M` from the work \cite S08 given a kernel
-            % expansion and the centers at which the function values are to be interpolated.
-            %
-            % Parameters:
-            % k: A radial kernel `\Phi`. @type kernels.ARBFKernel
-            % x: The centers `x_1 \ldots x_N \in\R^n` at which to interpolate using the kernel `\Phi`
-            %
-            % Return values:
-            % P: The preconditioning matrix `P\in\R^{n\times n}`
-            % k2: The number `k_2` of \cite S08
-            
-            if ~isa(k,'kernels.ARBFKernel')
-                error('The kernel used must be a kernels.ARBFKernel subclass');
-            end
-            
-            N = size(x,2);
-            M = [];
-            I_N = eye(N);
-            pivi = 1;
-            cols = 1;
-            L = I_N; P = I_N;
-            tk = zeros(1,N);
-            mi = MonomialIterator(size(x,1));
-            
-            while pivi <= N
-                % Compute next monomial
-                
-                % Stragegy 1: Random
-                %                     deg = ceil(randn(1)*N);
-                %                     alpha = mi.getRandMonomial(deg);
-                
-                % Stragegy 2: Ordered list
-                if pivi == 1
-                    alpha = mi.getNullMonomial;
-                    deg = 0;
-                else
-                    [alpha, deg] = mi.nextMonomial;
-                end
-                
-                % Compute new moment matrix column
-                newMcol = prod(x .^ repmat(alpha,1,N),1)';
-                M = [M newMcol];%#ok
-                
-                % apply previous changes to new column
-                newMcol = L*P*newMcol;
-                
-                % Select pivot element candidate indices in current column
-                sel = pivi:N;
-                
-                % Strategy one: Use maximum pivoting
-                %                     [v, maxidx] = max(abs(newMcol(sel)));
-                %                     permidx = sel(maxidx);
-                
-                % Strategy two: Only find first nonzero-row and use it
-                permidx = sel(find(abs(newMcol(sel)) > sqrt(eps),1));
-                if ~isempty(permidx)
-                    v = abs(newMcol(permidx));
-                else
-                    v = 0;
-                end
-                
-                % step one column ahead if current column is already annihilated
-                if v < sqrt(eps)
-                    %v
-                    cols = cols+1;
-                    continue;
-                end
-                
-                % get new permutation matrix according to pivot
-                Pn = getPermMat(pivi, permidx, N);
-                % swap columns
-                newMcol = Pn*newMcol;
-                % compose L_k
-                Ln = I_N;
-                l_k = -newMcol(pivi+1:N)/newMcol(pivi);
-                Ln(pivi+1:N,pivi) = l_k;
-                
-                % keep record of the column indices at which the next linear independent
-                % monomial was added
-                tk(pivi) = deg;
-                
-                L = Ln*Pn*L*Pn;
-                P = Pn*P;
-                
-                pivi = pivi+1;
-                cols = cols+1;
-            end
-            
-            %U = L*P*M;
-            D = diag(k.Gamma.^tk);
-            %PM = P; % return accum. permutation matrix
-            P = D * L* P; % compute preconditioning matrixl
-            k2 = tk(end);
-            
-            function P = getPermMat(i,j,n)
-                P = eye(n);
-                P(i,i) = 0; P(j,j) = 0;
-                P(j,i) = 1; P(i,j) = 1;
-            end
-        end   
-        
-% ------------ USED IN PAPER WH10 synth. model tests
-%         function test_KernelInterpolation2()
-%             dim = 3;
-%             x = repmat(0:pi/10:50,dim,1);
-%             fx = -sin(.5*x).*x*.2;
-%             fx = fx(1,:);
-%             
-%             n = size(x,2);
-%             samp = 11:20:n;
-%             xi = x(:,samp);
-%             fxi = fx(samp);
-%             
-%             kernel = kernels.GaussKernel(1);
-%             ki = general.interpolation.KernelInterpol;
-%             figure(1);
-%             plot(x(1,:),fx,'r');
-%             
-%             g = 1:.1:3*pi^2;
-%             minidx = 0; mina = Inf; mintest = Inf;
-%             for idx = 1:length(g)
-%                 kernel.Gamma = g(idx);
-%                 ki.K = kernel.evaluate(xi,xi);
-%                 
-%                 [a,b] = ki.interpolate(fxi);
-%                 
-%                 svfun = @(x)a'*kernel.evaluate(xi,x)+b;
-% 
-%                 fsvr = svfun(x);
-%                 
-%                 if norm(fx-fsvr) < mina
-%                     mina = norm(fx-fsvr);
-%                     minidx=idx;
-%                     minfsvr = fsvr;
-%                 end
-%                 if norm(fx-fsvr)*norm(a) < mintest
-%                     minidxtest=idx;
-%                     minfsvrtest = fsvr;
-%                     minav = a;
-%                     minb = b;
-%                     mintest = norm(fx-fsvr)*norm(a);
-%                 end
-% 
-% %                 hold on;
-% % 
-% %                 % Plot approximated function
-% %                 plot(x,fsvr,'b--');
-% %                 %skipped = setdiff(1:length(x),svidx);
-% %                 plot(xi,fxi,'.r');
-% % 
-% %                 hold off;
-%                 
-%                 fprintf('g=%f, anorm=%f, diff=%f\n',g(idx),norm(a),norm(fx-fsvr));
-%             end
-%             hold on;
-%             plot(x,minfsvr,'b--',x,minfsvrtest,'g--');
-%             %skipped = setdiff(1:length(x),svidx);
-%             plot(xi,fxi,'.r');
-%             hold off;
-%             disp(g(minidx));
-%             disp(g(minidxtest));
-%             minav
-%             minb
-%         end
         
         function test_KernelInterpolation
             % Performs a test of this class
+            
+            pm = PlotManager(false,2,2);
+            pm.LeaveOpen = true;
             
 %             x = -5:.05:5;
 %             fx = sinc(x);
@@ -370,42 +183,47 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
             n = length(x);
             samp = 1:15:n;
             
-            k = kernels.GaussKernel(.5);
-            internal_test(x,fx,samp,k,10);
+            kexp = kernels.KernelExpansion;
             
-            internal_test(x,ones(size(x))*5,samp,k,13);
+            kexp.Kernel = kernels.GaussKernel(.5);
+            internal_test(x,fx,false);
+            internal_test(x,fx,true);
             
-            k = kernels.InvMultiquadrics(-1.4,2);
-            internal_test(x,fx,samp,k,11);
+            internal_test(x,ones(size(x))*5,false);
+            internal_test(x,ones(size(x))*5,true);
             
-            k = kernels.InvMultiquadrics(-4,5);
-            internal_test(x,fx,samp,k,12);
+            kexp.Kernel = kernels.InvMultiquadrics(-1.4,2);
+            internal_test(x,fx,true);
+            internal_test(x,fx,false);
             
-            function internal_test(x,fx,samp,kernel,fignr)
+            kexp.Kernel = kernels.InvMultiquadrics(-4,5);
+            internal_test(x,fx,true);
+            internal_test(x,fx,false);
+            
+            pm.done;
+            
+            function internal_test(x,fx,lu)
                 xi = x(samp);
                 fxi = fx(samp);
                 
                 ki = general.interpolation.KernelInterpol;
                 
-                ki.K = kernel.evaluate(xi,xi);
+                kexp.Centers.xi = xi;
+                ki.UseNewtonBasis = lu;
+                ki.init(kexp);
                 
-                figure(fignr);
-                plot(x,fx,'r');
+                h = pm.nextPlot('xx',sprintf('Interpolation test with kernel %s, newton=%d',class(kexp.Kernel),lu));
+                plot(h,x,fx,'r');
                 
-                a = ki.interpolate(fxi);
+                [kexp.Ma, kexp.Base] = ki.interpolate(fxi);
                 
-                svfun = @(x)a'*kernel.evaluate(xi,x);
+                fsvr = kexp.evaluate(x);
                 
-                fsvr = svfun(x);
-                
-                hold on;
-                
+                hold(h,'on');
                 % Plot approximated function
-                plot(x,fsvr,'b--');
+                plot(h,x,fsvr,'b--');
                 %skipped = setdiff(1:length(x),svidx);
-                plot(xi,fxi,'.r');
-                
-                hold off;
+                plot(h,xi,fxi,'.r');
             end
         end
         
@@ -413,7 +231,11 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
             realprec = 20;
             range = [-4 4];
             
-            kernel = kernels.GaussKernel(2);
+            pm = PlotManager(false,3,3);
+            pm.LeaveOpen = true;
+            
+            kexp = kernels.KernelExpansion;
+            kexp.Kernel = kernels.GaussKernel(1);
             testfun = @(x)sinc(x) * 2 .*sin(3*x);
             %             kernel = kernels.InvMultiquadrics(-1,1);
             %             testfun = @(x)x.^3+2*x.^2-3*x;
@@ -425,26 +247,25 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
             for n = 1:length(hsteps)
                 h = 1/hsteps(n);
                 xi = range(1):h:range(2);
+                xi = xi + rand(size(xi))*max(xi)/100;
                 fxi = testfun(xi);
                 
                 x = range(1):h/realprec:range(2);
                 fx = testfun(x);
                 
-                ki.K = kernel.evaluate(xi,xi);
-                a = ki.interpolate(fxi);
-                fint = a'*kernel.evaluate(xi,x);
+                kexp.Centers.xi = xi;
+                ki.init(kexp);
+                [kexp.Ma, kexp.Base] = ki.interpolate(fxi);
+                fint = kexp.evaluate(x);
                 
+                ax = pm.nextPlot(['step' n],sprintf('h=%g',h),'x','fx');
+                plot(ax,xi,fxi,'r',x,fx,'r--',x,fint,'b');
                 err(n) = max(abs(fx-fint));
-                
-                %                 figure(n+1);
-                %                 plot(xi,fxi,'r.',x,fx,'r',x,fint,'b--',x,abs(fx-fint),'g');
-                %                 title(sprintf('h=%f, ||f-sfx||=%f',h,err(n)));
             end
-            figure(1);
+            ax = pm.nextPlot('errors','Error development over h sizes','h','errors');
             h = 1./hsteps;
-            plot(h,exp(log(h)./h),'b',h,exp(-1./h),'b--',h,err,'r');
-            legend('exp(log(h)/h)','exp(-1/h)','||f-sfx||_\infty');
-            xlabel('h');
+            plot(ax,h,exp(log(h)./h),'b',h,exp(-1./h),'b--',h,err,'r');
+            legend(ax,'exp(log(h)/h)','exp(-1/h)','||f-sfx||_\infty');
         end
     end
 end

@@ -5,6 +5,9 @@ classdef BaseKernel < KerMorObject & ICloneable
     %
     % @author Daniel Wirtz @date 12.03.2010
     %
+    % @change{0,7,dw,2014-01-24} Removed getDefaultConfig. Exactly a year
+    % since added :-)
+    %
     % @new{0,7,dw,2013-01-24} Added a new interface getDefaultConfig to each kernel to provide
     % a default configuration when no custom set is provided. See IClassConfig
     %
@@ -168,17 +171,6 @@ classdef BaseKernel < KerMorObject & ICloneable
         %
         % Exprimental state as not implemented & checked for all kernels.
         c = getGlobalLipschitz(this);
-        
-        % Method that returns a default configuration for this kernel
-        %
-        % Should usually return a configuration with one setting which corresponds to the
-        % current kernels' state/configuration.
-        %
-        % See also: kernels.config IClassConfig
-        %
-        % Return values:
-        % c: The configuration. @type IClassConfig
-        c = getDefaultConfig(this);
     end
     
 end

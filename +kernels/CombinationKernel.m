@@ -48,10 +48,6 @@ classdef CombinationKernel < kernels.BaseKernel
             error('Not implemented yet');
         end
         
-        function dc = getDefaultConfig(this)%#ok
-            error('Not implemented yet');
-        end
-        
         function this = addKernel(this, kernel, weight)
             if nargin == 2
                 weight = 1;
