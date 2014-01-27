@@ -2,7 +2,7 @@ classdef KerMor < handle
     % Global configuration class for all KerMor run-time settings.
     %
     % Software documentation can be found at
-    % http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+    % http://www.morepas.org/software/kermor/index.html
     %
     % Any KerMor developers should check out the pages @ref development for coding guidelines and
     % conventions.
