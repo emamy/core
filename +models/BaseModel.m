@@ -393,7 +393,7 @@ classdef BaseModel < KerMorObject
             
             % Check explicit solvers
             if isempty(this.System.MaxTimestep) && ~isa(this.fODEs,'solvers.IImplSolver')
-                cprintf(KerMor.WarnColor,'Attention: Using an explicit solver without System.MaxTimestep set. Please check.\n');
+                warning('Attention: Using an explicit solver without System.MaxTimestep set. Please check.');
             end
             
             % Stop the time

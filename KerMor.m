@@ -312,8 +312,6 @@ classdef KerMor < handle
         %
         % See also: getPrefTag
         PrefTagPrefix = 'KerMor_at_';
-        
-        WarnColor = [1 .5 0];
     end
       
     properties(Dependent)
@@ -621,8 +619,6 @@ classdef KerMor < handle
             
             initParallelization;
             
-            disp('Entering startup path..');
-            cd(p);
             clear('p');
             
             if ~isempty(this.DesktopLayout)
@@ -672,25 +668,6 @@ classdef KerMor < handle
                     evalin('base','clear all;');
                     chdir(curdir);
                     disp('<<<<<<<<< Done Starting rbmatlab >>>>>>>>>>');
-                end
-                
-                % Auto-add external folders matching "z***" patterns
-                fprintf('Autoadding external folders to path... ');
-                hd = KerMor.App.HomeDirectory;
-                d = dir(hd);
-                found = false;
-                for n=1:length(d)
-                    e = d(n);
-                    if e.name(1) == 'z' && e.name(2) ~= 'z'
-                        found = true;
-                        addpath(fullfile(hd,e.name));
-                        fprintf('%s... ',e.name);
-                    end
-                end
-                if found
-                    fprintf('\n');
-                else
-                    fprintf('none found! (Create folders beginning with "z" like "zMyExternSources"\n');
                 end
                 
                 % Add KerMor-included external software paths
@@ -861,7 +838,7 @@ classdef KerMor < handle
                 b = fileread('.gitbranch');
                 delete .gitbranch;
             else
-                cprintf(KerMor.WarnColor,'KerMor.getGitBranch: %s\n',strrep(msg,char(10),''));
+                fprintf(2,'KerMor.getGitBranch: %s\n',strrep(msg,char(10),''));
                 b = [];
             end            
             cd(olddir);
