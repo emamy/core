@@ -121,8 +121,12 @@ classdef AAdaptiveBase < approx.algorithms.ABase
             % Performs adaptive approximation generation.
             %
             % Parameters:
-            % kexp: The kernel expansion. @type kernels.KernelExpansion
-            % atd: The approximation training data instance @type data.ApproxTrainData
+            % atd: The approximation training data instance @type
+            % data.ApproxTrainData
+            %
+            % Return values:
+            % kexp: The kernel expansion approximation. @type
+            % kernels.KernelExpansion
             
             %% Checks
             if size(atd.xi,2) < this.MaxExpansionSize

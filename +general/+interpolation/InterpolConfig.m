@@ -1,8 +1,6 @@
 classdef InterpolConfig < IClassConfig
 % InterpolConfig: 
 %
-% @docupdate
-%
 % @author Daniel Wirtz @date 2013-01-23
 %
 % @new{0,7,dw,2013-01-23} Added this class.
@@ -20,36 +18,32 @@ classdef InterpolConfig < IClassConfig
             this.Prototype = general.interpolation.KernelInterpol;
         end
         
-        % Returns the number of configurations that can be applied
-        %
-        % Return values:
-        % n: The number of configurations @type integer
-        function n = getNumConfigurations(this)%#ok
+        function n = getNumConfigurations(~)
             n = 1;
         end
         
-        % Returns the number of configurations that can be applied
-        %
-        % Parameters:
-        % nr: The configuration number @type integer
-        % object: The class object for which to apply the configuration @type handle
-        function object = configureInstance(this, nr)%#ok
+        
+        function object = configureInstance(this, ~)
+            % Returns the number of configurations that can be applied
+            %
+            % Return values:
+            % object: The class object for which to apply the configuration @type handle
             object = this.getProtoClass;
         end
         
-        % Returns the number of configurations that can be applied
-        %
-        % Return values:
-        % str:  @type integer
-        function str = getConfigurationString(this, nr, asCell)%#ok
+        function str = getConfigurationString(~, ~, ~)
+            % Returns the number of configurations that can be applied
+            %
+            % Return values:
+            % str: The configuration string @type char
             str = '';
         end
         
-        function str = getConfiguredPropertiesString(this)%#ok
+        function str = getConfiguredPropertiesString(~)
             str = 'none';
         end
         
-        function conf = getSubPart(this, partNr, totalParts)%#ok
+        function conf = getSubPart(this, ~, ~)
             conf = this;
         end
         
@@ -57,7 +51,7 @@ classdef InterpolConfig < IClassConfig
     
     methods(Access=protected)    
         
-        function collectRanges(this, ptable, proppath)
+        function collectRanges(~,~,~)
             % do nothing
         end
     end

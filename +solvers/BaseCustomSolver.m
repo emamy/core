@@ -167,6 +167,8 @@ classdef BaseCustomSolver < solvers.BaseSolver
         % setting the desired output times. Depending on the MaxStep
         % property, the solver can work with a finer time step internally.
         % x0: The initial value
+        % outputtimes: A logical vector indicating the output times of
+        % effective interest.
         %
         % See also: getCompTimes
         %

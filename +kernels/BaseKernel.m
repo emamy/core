@@ -1,5 +1,5 @@
 classdef BaseKernel < KerMorObject & ICloneable
-    %BASEKERNEL Basic KerMor Kernel
+    % Base class for all KerMor Kernels
     %
     % All Kernels have to inherit from this class.
     %
@@ -14,11 +14,8 @@ classdef BaseKernel < KerMorObject & ICloneable
     % @change{0,3,dw,2011-04-21} Removed the RotationInvariant property as it is now replaced by the
     % IRotationInvariant interface.
     %
-    % @todo 
-    % - Implement cloning for kernels
-    % - write universal tests for kernels that check the interface functions (IJacobian etc)
-    % - Implement eq-method for all kernels
-    % - implement HOCT4-Kernels http://onlinelibrary.wiley.com/doi/10.1111/j.1365-2966.2010.16577.x/full
+    % @todo implement HOCT4-Kernels
+    % http://onlinelibrary.wiley.com/doi/10.1111/j.1365-2966.2010.16577.x/full
     
     properties(SetObservable)
         % The matrix `\vG` that induces the state space scalar product
@@ -45,17 +42,6 @@ classdef BaseKernel < KerMorObject & ICloneable
         %
         % @default [] @type matrix<double>
         P = [];
-    
-        % A set of center vectors that is to be used upon calls to
-        % evaluateAtCenters.
-        %
-        % Setting the center values causes some pre-computations to be
-        % performed in order for increased performance.
-        %
-        % @propclass{data}
-        %
-        % @type matrix<double> @default []
-%         Centers;
     end
         
     properties(SetAccess=protected)
@@ -78,7 +64,6 @@ classdef BaseKernel < KerMorObject & ICloneable
     end
     
     properties(SetAccess=private, GetAccess=protected)
-%         fCenters = [];
         fG = 1;
         fP = [];
     end
@@ -86,17 +71,8 @@ classdef BaseKernel < KerMorObject & ICloneable
     methods
         function this = BaseKernel
             this = this@KerMorObject;
-%             this.registerProps('P', 'G', 'Centers');
             this.registerProps('P', 'G');
         end
-        
-%         function phix = evaluateAtCenters(this, xi)
-%             % Default implementation.
-%             %
-%             % Returns the kernel matrix for the points `x_i` and the
-%             % current Centers
-%             phix = this.evaluate(xi, this.fCenters);
-%         end
         
         function fcn = getLipschitzFunction(this)
             % Method that allows error estimators to obtain a lipschitz
@@ -136,9 +112,6 @@ classdef BaseKernel < KerMorObject & ICloneable
             P = this.fP;
         end
         
-%         function c = get.Centers(this)
-%             c = this.fCenters;
-%         end
     end
         
     methods(Abstract)
@@ -150,7 +123,7 @@ classdef BaseKernel < KerMorObject & ICloneable
         % is to be assumed. @type matrix<double>
         %
         % Return values:
-        % \K: The evaluation matrix `\K(x,y) \in \R^{n\times m}` of the kernel `\K`, with
+        % K: The evaluation matrix `\K(x,y) \in \R^{n\times m}` of the kernel `\K`, with
         % entries `\K(x_i,y_j)` at `i,j`.
         K = evaluate(this, x, y);
         

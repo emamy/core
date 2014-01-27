@@ -1,7 +1,5 @@
 classdef Constant < error.alpha.Base
-% Constant: 
-%
-%
+% Constant: Constant alpha terms
 %
 % @author Daniel Wirtz @date 2011-07-04
 %
@@ -29,9 +27,9 @@ classdef Constant < error.alpha.Base
             % the inputs.
             %
             % Parameters:
-            % fm: The full model @type models.BaseFullModel
-            % M: The projected coefficient matrix `\vM_{\alpha} - \vV\vW^T\vM_{\alpha})` @type
-            % matrix<double>
+            % rm: The reduced model @type models.ReducedModel
+            % M: The projected coefficient matrix `\vM_{\alpha} -
+            % \vV\vW^T\vM_{\alpha})` @type matrix<double>
             fm = rm.FullModel;
             if ~isempty(fm.System.B)
                 try

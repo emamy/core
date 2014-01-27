@@ -55,8 +55,19 @@ classdef AdaptiveSemiImplicitEuler < solvers.BaseCustomSolver
     end
     
     methods(Access=protected)
-        function x = customSolve(this, ~, t, x0, outputtimes)
+        function x = customSolve(this, ~, t, x0, ~)
             % Implements the actual semi-implicit solving of the given ODE system.
+            %
+            % Parameters:
+            % t: Either a two dimensional vector with t(1) < t(2) specifiying
+            % the start and end time, or a greater or equal to three
+            % dimensional, strictly monotoneously increasing vector explicitly
+            % setting the desired output times. Depending on the MaxStep
+            % property, the solver can work with a finer time step internally.
+            % x0: The initial value
+            %
+            % Return values:
+            % x: The computed trajectory @type matrix<double>
             
             s = this.model.System;
             if isempty(s.A)

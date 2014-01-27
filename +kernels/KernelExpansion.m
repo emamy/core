@@ -1,20 +1,22 @@
 classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipschitz
 % KernelExpansion: Base class for state-space kernel expansions
 %
-% The KernelExpansion class represents a function `f` in the space induced by a given kernel `\K`
-% as ``f(x) = \sum\limits_{i=1}^N c_i\K(x,x_i)``
+% The KernelExpansion class represents a function `f` in the space induced
+% by a given kernel `\K` as ``f(x) = \sum\limits_{i=1}^N c_i\K(x,x_i)``
 % 
-% This class has been introduced in order to allow standalone use of kernel expansions in
-% approximation contexts outside of the intended model reduction scheme.
+% This class has been introduced in order to allow standalone use of kernel
+% expansions in approximation contexts outside of the intended model
+% reduction scheme.
 %
 % @author Daniel Wirtz @date 2011-07-07
 %
-% @change{0,6,2012-04-25} Removed the RotationInvariant property from the
+% @change{0,6,dw,2012-04-25} Removed the RotationInvariant property from the
 % kernel expansions and introduced kernels.BaseKernel.IsRBF and
 % kernels.BaseKernel.IsScProd to indicate the properties on a per-kernel
 % basis.
 %
-% @change{0,5,dw,2011-07-28} Fixed the evaluate method, it had an argument Centers.xi too much.
+% @change{0,5,dw,2011-07-28} Fixed the evaluate method, it had an argument
+% Centers.xi too much.
 %
 % @new{0,5,dw,2011-07-07} Added this class.
 %
@@ -24,16 +26,12 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
 % - Removed the off property as proper RKHS functions dont have an offset
 % - No more setter for Ma property - too slow even during offline phase
 %
-% @new{0,3,dw,2011-04-21} Integrated this class to the property default value changed
-% supervision system @ref propclasses. This class now inherits from KerMorObject and has an
-% extended constructor registering any user-relevant properties using
-% KerMorObject.registerProps.
+% @new{0,3,dw,2011-04-21} Integrated this class to the property default
+% value changed supervision system @ref propclasses. This class now
+% inherits from KerMorObject and has an extended constructor registering
+% any user-relevant properties using KerMorObject.registerProps.
 %
 % @change{0,3,sa,2011-04-16} Implemented Setter for the property 'off'
-%
-% @todo implement getKernelMatrix so that a AKernelMatrix instance is passed back (either file
-% system or memory) and add an event "configChanged" to kernels in order to set a dirty flag
-% for the expansion, so that the next time getKernelMatrix is called it is recomputed!
 %
 % This class is part of the framework
 % KerMor - Model Order Reduction using Kernels:
@@ -96,23 +94,30 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         % The only required field is xi, others can be set to [] if not
         % used.
         %
-        % @propclass{data}
+        % @propclass{data} The expansion centers.
         %
-        % @default @code struct('xi',[]) @endcode
-        % @type struct
+        % @default struct('xi',[]) @type struct
         Centers = struct('xi',[]);
         
         % The coefficient data for each dimension.
         %
-        % @propclass{data}
+        % @propclass{data} The expansion coefficients.
         %
-        % @type matrix<double>
-        Ma;
+        % @type matrix<double> @default []
+        Ma = [];
         
+        % This property lets the user store a custom base, for which the
+        % coefficients are set. The custom base tells which linear
+        % combinations of center elements belong to which base.
         %
-        % @propclass{optional}
+        % In KerMor, this is typically set by the interpolating algorithms
+        % like approx.algorithm.VKOGA or
+        % general.interpolation.KernelInterpol
         %
-        % 
+        % @propclass{optional} A custom base for which the coefficients are
+        % set.
+        %
+        % @type matrix<double> @default 1
         Base = 1;
     end
     

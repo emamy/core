@@ -75,7 +75,7 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
         %
         % @propclass{optional} Standard kernel combination is pointwise multiplication.
         %
-        % @default @code @(t,s,p)t .* s .* p @endcode
+        % @default @(t,s,p)t .* s .* p
         %
         % See also: StateNablaCombinationFun
         SubKernelCombinationFun = @(t,s,p)t .* s .* p;
@@ -180,7 +180,13 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
         end
         
         function setCentersFromATD(this, atd, idx)
-            % Sets the centers according to the indices 'idx' of the data.ApproxTrainData
+            % Sets the centers according to the indices 'idx' of the
+            % training data
+            %
+            % Parameters:
+            % atd: The training data @type data.ApproxTrainData
+            % idx: The indices in the training data for centers @type
+            % rowvec<integer>
             setCentersFromATD@kernels.KernelExpansion(this, atd, idx);
             if atd.hasTime
                 this.Centers.ti = atd.ti(:,idx);

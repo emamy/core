@@ -396,7 +396,7 @@ classdef Speed
             % One-Argument test (self-evaluation)
             %
             % @note You need to compile/mex the files in the
-            % +kernels/@GaussKernel folder for this to work.
+            % "+kernels/@GaussKernel" folder for this to work.
             if nargin < 3
                 iter = 50;
                 if nargin < 2
@@ -449,7 +449,7 @@ classdef Speed
             % Two-Argument test.
             %
             % @note You need to compile/mex the files in the
-            % +kernels/@GaussKernel folder for this to work.
+            % "+kernels/@GaussKernel" folder for this to work.
             if nargin < 4
                 iter = 40;
                 if nargin < 3

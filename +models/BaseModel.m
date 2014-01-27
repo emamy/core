@@ -264,7 +264,7 @@ classdef BaseModel < KerMorObject
             % y: Depending on the existance of an output converter, this
             %    either returns the full trajectory or the processed output
             %    at times t. @type matrix<double>
-            % sec: the seconds needed for simulation. @typr double
+            % sec: the seconds needed for simulation. @type double
             % x: The (scaled, if used) state space variables before output conversion.
             %
             % @todo: fix Input checks (set inidx=1 iff one input is

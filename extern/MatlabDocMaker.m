@@ -278,7 +278,7 @@ classdef MatlabDocMaker
             if ~isempty(value)
                 fullPath = value;
                 if isempty(fileparts(value))
-                    fullPath = fullfile(MatlabDocMaker.getConfigDirectory,value);
+                    fullPath = fullfile(MatlabDocMaker.getConfigDirectory, value);
                 end
                 if ~exist(fullPath,'file')
                     error('Invalid logo file: Could not find "%s"',fullPath);

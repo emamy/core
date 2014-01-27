@@ -57,7 +57,7 @@ classdef ARBFKernel < kernels.BaseKernel
             % is assumed. @type matrix<double>
             %
             % Return values:
-            % \K: The evaluation matrix `\K(x, y) \in \R^{n\times m}` of the radial basis
+            % K: The evaluation matrix `\K(x, y) \in \R^{n\times m}` of the radial basis
             % function, with entries `\K(x_i,y_j)` at `i,j`.
             %
             % @attention Should your implementation effectively use the squared value directly,
