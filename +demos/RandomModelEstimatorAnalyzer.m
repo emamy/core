@@ -49,14 +49,15 @@ classdef RandomModelEstimatorAnalyzer < EstimatorAnalyzer
             
             %% Core function
             cf = dscomponents.ParamTimeKernelCoreFun;
-            cf.TimeKernel = kernels.NoKernel;
-            cf.ParamKernel = kernels.NoKernel;
-            cf.Centers.ti = [];
-            cf.Centers.mui = [];
+            kexp = cf.Expansion;
+            kexp.TimeKernel = kernels.NoKernel;
+            kexp.ParamKernel = kernels.NoKernel;
+            kexp.Centers.ti = [];
+            kexp.Centers.mui = [];
             
             %% System settings
             sys = models.BaseDynSystem(fm);
-            sys.MaxTimestep = [];
+            sys.MaxTimestep = fm.dt;
             sys.f = cf;
             
             fm.System = sys;
@@ -72,7 +73,7 @@ classdef RandomModelEstimatorAnalyzer < EstimatorAnalyzer
         function setup(this)
             k = kernels.GaussKernel(15);
             k.G = 1;
-            this.Model.System.f.Kernel = k;
+            this.Model.System.f.Expansion.Kernel = k;
             x0 = rand(this.Dims,1);
             if this.PositiveExpansion
                 base = linspace(0, 40, this.NumCenters);
@@ -81,7 +82,7 @@ classdef RandomModelEstimatorAnalyzer < EstimatorAnalyzer
                 base = linspace(-20, 20, this.NumCenters);
                 this.Model.System.x0 = dscomponents.ConstInitialValue(x0-.5);
             end
-            this.Model.System.f.Centers.xi = repmat(base,this.Dims,1);
+            this.Model.System.f.Expansion.Centers.xi = repmat(base,this.Dims,1);
             
             if  this.UniformExpansion
                 V = ones(this.Dims,1)*sqrt(1/this.Dims);
@@ -107,9 +108,9 @@ classdef RandomModelEstimatorAnalyzer < EstimatorAnalyzer
             % Create coefficients
             if this.UniformExpansion
                 ai = (rand(1,this.NumCenters)-offset);
-                this.Model.System.f.Ma = repmat(ai,this.Dims,1);
+                this.Model.System.f.Expansion.Ma = repmat(ai,this.Dims,1);
             else
-                this.Model.System.f.Ma = (rand(this.Dims,this.NumCenters)-offset);
+                this.Model.System.f.Expansion.Ma = (rand(this.Dims,this.NumCenters)-offset);
             end
             this.setup;
         end

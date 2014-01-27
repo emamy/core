@@ -29,7 +29,7 @@ classdef Base < handle
                 Ma = fm.Approx.Expansion.Ma;
             else
                 % Get full d x N coeff matrix of core function
-                Ma = fm.System.f.Ma;
+                Ma = fm.System.f.Expansion.Ma;
             end
             
             % Perform any offline computations/preparations

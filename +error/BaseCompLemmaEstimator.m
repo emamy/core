@@ -175,8 +175,8 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
                     errmsg = 'The full model''s approx function must be a subclass of approx.KernelApprox for this error estimator.'; 
                     return;
                 end
-            elseif ~isa(model.System.f,'kernels.ParamTimeKernelExpansion')
-                    errmsg = 'If no approximation is used, the full model''s core function must be a subclass of kernels.ParamTimeKernelExpansion for this error estimator.'; 
+            elseif ~isa(model.System.f,'dscomponents.ParamTimeKernelCoreFun')
+                    errmsg = 'If no approximation is used, the full model''s core function must be a subclass of kernels.ParamTimeKernelCoreFun for this error estimator.'; 
                     return;
             end
             if ~isa(model.System.C,'dscomponents.LinearOutputConv')

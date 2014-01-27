@@ -1,4 +1,4 @@
-classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun
+classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLipschitz
 % ParamTimeKernelCoreFun: Dynamical system core function which evaluates a
 % contained kernel expansion, either parametric or plain state-dependence.
 %
@@ -86,6 +86,10 @@ classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun
             % fx: The evaluation of the kernel expansion @type
             % matrix<double>
             fx = this.Expansion.evaluate(x, varargin{:});
+        end
+        
+        function L = getGlobalLipschitz(this, t, mu)
+            L = this.Expansion.getGlobalLipschitz(t, mu);
         end
                
         function copy = clone(this, copy)

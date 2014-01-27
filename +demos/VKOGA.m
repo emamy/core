@@ -180,8 +180,6 @@ classdef VKOGA
             atd.fxi = fxi;
             
             %% Algorithm setup
-            kexp = kernels.KernelExpansion;
-            
             alg = approx.algorithms.VKOGA;
             % Maximal number of data sites to be finally used
             alg.MaxExpansionSize = 200;
@@ -193,18 +191,16 @@ classdef VKOGA
             ec = kernels.config.ExpansionConfig;
             
             % Gaussian
-%             kexp.Kernel = kernels.GaussKernel;
 %             ec.StateConfig = kernels.config.RBFConfig('G',[1 2 3]); 
             
             % Wendland functions
-            kexp.Kernel = kernels.Wendland;
             wc = kernels.config.WendlandConfig('G',[1 2 3],'S',[1 1 1]);
             wc.Dimension = 2;
             ec.StateConfig = wc;
             
             alg.ExpConfig = ec;
 
-            alg.computeApproximation(kexp, atd);
+            kexp = alg.computeApproximation(atd);
             
             h = pm.nextPlot('circ','Selected data points');
             plot(h,X(1,:),X(2,:),'.',X(1,alg.Used),X(2,alg.Used),'ro');

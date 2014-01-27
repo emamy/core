@@ -143,13 +143,16 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             offlineComputations@error.BaseCompLemmaEstimator(this, fm);
             
             % Obtain the correct snapshots
-            f = fm.Approx.Expansion;
+            f = [];
+            if ~isempty(fm.Approx)
+                f = fm.Approx.Expansion;
+            end
             if isempty(f)
                 % This is the also possible case that the full core
                 % function of the system is a KernelExpansion.
                 %
                 % Get centers of full core function
-                f = fm.System.f;
+                f = fm.System.f.Expansion;
             end
             this.c = f.Centers;
             this.Ma_norms = f.Ma_norms;
@@ -280,14 +283,18 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
         end
         
         function set.Iterations(this, value)
-            if ~isscalar(value) || value < 0
+            if isempty(value)
+                value = 0;
+            elseif ~isscalar(value) || value < 0
                 error('Iterations value must be a non-negative integer.');
             end
             this.Iterations = value;
         end
         
         function set.UseTimeDiscreteC(this, value)
-            if ~islogical(value)
+            if isempty(value)
+                value = false;
+            elseif ~islogical(value)
                 error('The value must be a logical');
             end
             this.UseTimeDiscreteC = value;
@@ -383,8 +390,8 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             if isempty(errmsg) && ~isempty(model.Approx) && ~isa(model.Approx,'dscomponents.ParamTimeKernelCoreFun')
                 errmsg = 'The model''s approximation function must be a subclass of dscomponents.ParamTimeKernelCoreFun for this error estimator.';
             end
-            if isempty(errmsg) && isa(model.System.f,'kernels.KernelExpansion') ...
-                    && ~isa(model.System.f.Kernel,'kernels.BellFunction')
+            if isempty(errmsg) && isa(model.System.f.Expansion,'kernels.KernelExpansion') ...
+                    && ~isa(model.System.f.Expansion.Kernel,'kernels.BellFunction')
                 errmsg = 'The system''s kernel must be a kernels.BellFunction for this error estimator.';
             end
         end

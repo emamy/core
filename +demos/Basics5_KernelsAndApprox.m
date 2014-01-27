@@ -49,7 +49,7 @@ end
 pm.done;
 
 %% Run a VKOGA algorithm
-load +demos\spine_training_data_set.mat;
+load(fullfile('+demos','spine_training_data_set.mat'));
 
 % Get VKOGA instance
 alg = approx.algorithms.VKOGA;
@@ -58,10 +58,8 @@ alg.MaxExpansionSize = 600;
 % Choose variant
 alg.UsefPGreedy = false;
 
-kexp = kernels.KernelExpansion;
 nG = 10;
 k = [1 3];
-kexp.Kernel = kernels.Wendland;
 
 % Create configuration for VKOGA
 gammas = linspace(15,70,nG);
@@ -73,6 +71,6 @@ ec.StateConfig = wc;
 alg.ExpConfig = ec;
 
 %% Execute computations
-alg.computeApproximation(kexp, atd);
+kexp = alg.computeApproximation(atd);
 kexp_dbase = kexp.toTranslateBase;
 save basics5_kernelsandapprox;

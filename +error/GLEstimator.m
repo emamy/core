@@ -88,7 +88,7 @@ classdef GLEstimator < error.BaseCompLemmaEstimator
         function errmsg = validModelForEstimator(model)
             % Validations
             errmsg = validModelForEstimator@error.BaseCompLemmaEstimator(model);
-            if isempty(errmsg) && ~isa(model.System.f,'dscomponents.IGlobalLipschitz')
+            if isempty(errmsg) && ~isa(model.System.f.Expansion,'dscomponents.IGlobalLipschitz')
                 errmsg = 'The full model''s core function must implement the dscomponents.IGlobalLipschitz interface for this error estimator.';
             end
         end

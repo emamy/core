@@ -35,7 +35,7 @@ classdef WendlandConfig < kernels.config.RBFConfig
                 error('Need same amount of k values than gamma values');
             end
             this.Dimension = r.Dim;
-            this.RequiredPrototypeClass = 'kernels.WendlandKernel';
+            this.RequiredPrototypeClass = 'kernels.Wendland';
             this.Prototype = kernels.Wendland;
         end
         

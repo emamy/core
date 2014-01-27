@@ -528,9 +528,9 @@ classdef EstimatorAnalyzer < handle
             if isempty(msg)
                 
                 if ~isempty(this.Model.Approx)
-                    k = this.Model.Approx.Kernel;
+                    k = this.Model.Approx.Expansion.Kernel;
                 else
-                    k = this.Model.System.f.Kernel;
+                    k = this.Model.System.f.Expansion.Kernel;
                 end
                 
                 reps = this.EstimatorIterations;
