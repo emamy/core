@@ -2,7 +2,7 @@ classdef KernelApprox < approx.BaseApprox & dscomponents.ParamTimeKernelCoreFun
 % KernelApprox: Base class for component-wise kernel approximations
 %
 % For each dimension `k` there is a representation
-% ``f_k(x) = \sum\limits_{i=1}^N \alpha_{k,i}\Phi(x,x_i)``
+% ``f_k(x) = \sum\limits_{i=1}^N \alpha_{k,i}\K(x,x_i)``
 % for the approximation. The property Ma contains in row `k` all
 % indices `\alpha_k` used in the `k`-th dimension.
 %

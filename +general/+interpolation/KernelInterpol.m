@@ -2,7 +2,7 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
     % Provides kernel interpolation.
     %
     % The basic interpolation form is 
-    % `` f(x) = \sum\limits_{i=1}^N \alpha_i \Phi(x,x_i)``
+    % `` f(x) = \sum\limits_{i=1}^N \alpha_i \K(x,x_i)``
     % Interpolation finds coefficients such that 
     % `fx_i = RHS(x_i)` for `i=1\ldots N`.
     %
@@ -16,7 +16,7 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
     %
     % @change{0,7,dw,2014-01-24} Removed the preconditioning stuff and LU
     % factorization. Instead included the Newton basis computation method
-    % from \cite PS11
+    % from \cite PS11 and controllable interpolation precision via RelTol
     %
     % @change{0,7,dw,2013-01-23} Re-added the LU decomposition stuff to this class from
     % MemoryMatrix, as the class has been removed.
@@ -44,13 +44,35 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
     
     properties(SetObservable)
         % Flag that indicates whether to apply the Newton basis for stable
-        % interpolation \cite PS11 .
+        % interpolation \cite PS11 . Using this interpolation scheme also
+        % allows to control the interpolation precision via setting RelTol.
         %
         % @propclass{optional} This can greatly improve numerical stability
         % of computation, but possibly takes more time to compute.
         %
-        % @default true
+        % @type logical @default true
+        %
+        % See also: RelTol
         UseNewtonBasis = true;
+        
+        % Maximum relative error tolerance (L2 in function dimension) over
+        % the given training data. Only relevant when UseNewtonBasis =
+        % true. This setting causes the iterative Newton algorithm to
+        % stop as soon as the maximum relative error over the training data
+        % is less than RelTol, e.g. ensures an interpolation on the
+        % training data up to the specified precision.
+        %
+        % This is useful in particular, if the training data is
+        % highly/almost redundant and the direct inversion is too
+        % numericall ill conditioned.
+        %
+        % @type double @default 1e-13
+        %
+        % @propclass{important} Specifying a higher tolerance results in
+        % sparser but less precise approximations
+        %
+        % See also: UseNewtonBasis
+        RelTol = 1e-13;
     end
     
     properties(Access=private)
@@ -83,16 +105,17 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
             copy.kexp = this.kexp;
         end
         
-        function [a, base, used] = interpolate(this, fxi)
+        function [ai, nbase, usedcenteridx] = interpolate(this, fxi)
             % Computes the kernel expansion coefficients `\alpha_i`.
             %
             % Parameters:
             % fxi: The real function value samples at centers `x_i`
             %
             % Return values:
-            % a: The coefficient vector `\alpha` @type matrix<double>
-            % base: The newton basis values to set for
+            % ai: The coefficient vector `\alpha` @type matrix<double>
+            % nbase: The newton basis values to set for
             % kernels.KernelExpansion.Base @type matrix<double>
+            % usedcenteridx: The indices of the used centers.
             N = size(fxi,2);
             if this.UseNewtonBasis   
                 NV = zeros(N,N);
@@ -100,32 +123,36 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
                 fxin = Norm.L2(fxi);
                 sumNsq = zeros(1,N);
                 fresidual = fxi;
-                used = zeros(1,N);
+                usedcenteridx = zeros(1,N);
                 for m = 1:N
                     res = sum(fresidual.^2,1);
                     [~, maxidx] = max(res);
                     col = this.kexp.getKernelMatrixColumn(maxidx);
                     tN = col - NV(:,1:m-1)*NV(maxidx,1:m-1)';
                     tNnorm = sqrt(col(maxidx)-sumNsq(maxidx));
-                    if max(res./fxin) < 1e-10 || ~isreal(tNnorm) || tNnorm <= 0
-                        used = used(1:m-1);
+                    if max(res./fxin) < this.RelTol || ~isreal(tNnorm) || tNnorm <= 0
+                        m = m-1;%#ok
                         break;
                     end
                     NV(:,m) = tN/tNnorm;
                     c(:,m) = fresidual(:,maxidx)./tNnorm;                    
                     fresidual = fresidual - c(:,m)*(NV(:,m))';
                     sumNsq = sumNsq + (NV(:,m).^2)';
-                    used(m) = maxidx;
+                    usedcenteridx(m) = maxidx;
                 end
-                base = eye(N);
-                base(:,1:length(used)) = NV(:,used);
-                %a = zeros(size(c));
-                %a(:,1:length(used)) = c(:,used);
-                a = c(:,used);
+                usedcenteridx = usedcenteridx(1:m);
+                nbase = NV(:,1:m);
+                ai = c(:,1:m);
+                
+                usedcenteridx = sort(usedcenteridx,'ascend');
+                nbase = nbase(usedcenteridx,:);
+                if length(usedcenteridx) < N && nargout < 3
+                    error('Less basis translates required than given, but their indices are not considered as output. Please receive the "used" output and select the indicated subset as centers.');
+                end
             else
-                base = 1;
-                a = (this.K\fxi')';
-                used = 1:N;
+                nbase = 1;
+                ai = (this.K\fxi')';
+                usedcenteridx = 1:N;
             end
         end
         
@@ -183,20 +210,25 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
             n = length(x);
             samp = 1:15:n;
             
-            kexp = kernels.KernelExpansion;
+            ke = kernels.KernelExpansion;
             
-            kexp.Kernel = kernels.GaussKernel(.5);
+            ke.Kernel = kernels.GaussKernel(.5);
             internal_test(x,fx,false);
             internal_test(x,fx,true);
             
             internal_test(x,ones(size(x))*5,false);
             internal_test(x,ones(size(x))*5,true);
             
-            kexp.Kernel = kernels.InvMultiquadrics(-1.4,2);
+            ke.Kernel = kernels.InvMultiquadrics(-1.4,2);
             internal_test(x,fx,true);
             internal_test(x,fx,false);
             
-            kexp.Kernel = kernels.InvMultiquadrics(-4,5);
+            ke.Kernel = kernels.InvMultiquadrics(-4,5);
+            internal_test(x,fx,true);
+            internal_test(x,fx,false);
+            
+            % 2D test
+            fx = [fx; x.^3.*sin(.4*x)];
             internal_test(x,fx,true);
             internal_test(x,fx,false);
             
@@ -204,26 +236,27 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
             
             function internal_test(x,fx,lu)
                 xi = x(samp);
-                fxi = fx(samp);
+                fxi = fx(:,samp);
                 
                 ki = general.interpolation.KernelInterpol;
                 
-                kexp.Centers.xi = xi;
+                ke.Centers.xi = xi;
                 ki.UseNewtonBasis = lu;
-                ki.init(kexp);
+                ki.init(ke);
                 
-                h = pm.nextPlot('xx',sprintf('Interpolation test with kernel %s, newton=%d',class(kexp.Kernel),lu));
-                plot(h,x,fx,'r');
+                [ke.Ma, ke.Base] = ki.interpolate(fxi);
                 
-                [kexp.Ma, kexp.Base] = ki.interpolate(fxi);
+                fsvr = ke.evaluate(x);
                 
-                fsvr = kexp.evaluate(x);
-                
+                h = pm.nextPlot('xx',sprintf('Interpolation test with kernel %s, newton=%d',class(ke.Kernel),lu));
                 hold(h,'on');
-                % Plot approximated function
-                plot(h,x,fsvr,'b--');
-                %skipped = setdiff(1:length(x),svidx);
-                plot(h,xi,fxi,'.r');
+                for k=1:size(fx,1)
+                    plot(h,x,fx(k,:),'r');
+                    % Plot approximated function
+                    plot(h,x,fsvr(k,:),'b--');
+                    %skipped = setdiff(1:length(x),svidx);
+                    plot(h,xi,fxi(k,:),'.r');
+                end
             end
         end
         
@@ -231,14 +264,13 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
             realprec = 20;
             range = [-4 4];
             
-            pm = PlotManager(false,3,3);
+            pm = PlotManager(false,2,3);
             pm.LeaveOpen = true;
             
-            kexp = kernels.KernelExpansion;
-            kexp.Kernel = kernels.GaussKernel(1);
+            ke = kernels.KernelExpansion;
+            ke.Kernel = kernels.GaussKernel(1);
             testfun = @(x)sinc(x) * 2 .*sin(3*x);
-            %             kernel = kernels.InvMultiquadrics(-1,1);
-            %             testfun = @(x)x.^3+2*x.^2-3*x;
+            ke.Kernel = kernels.InvMultiquadrics(-1,1);
             
             ki = general.interpolation.KernelInterpol;
             
@@ -247,25 +279,28 @@ classdef KernelInterpol < KerMorObject & IKernelCoeffComp
             for n = 1:length(hsteps)
                 h = 1/hsteps(n);
                 xi = range(1):h:range(2);
-                xi = xi + rand(size(xi))*max(xi)/100;
+                xi = xi + rand(size(xi))*max(xi)/100+.1;
                 fxi = testfun(xi);
                 
                 x = range(1):h/realprec:range(2);
                 fx = testfun(x);
                 
-                kexp.Centers.xi = xi;
-                ki.init(kexp);
-                [kexp.Ma, kexp.Base] = ki.interpolate(fxi);
-                fint = kexp.evaluate(x);
+                ke.Centers.xi = xi;
+                ki.init(ke);
+                [ke.Ma, ke.Base, used] = ki.interpolate(fxi);
+                ke.Centers.xi = xi(:,used);
+                fint = ke.evaluate(x);
                 
                 ax = pm.nextPlot(['step' n],sprintf('h=%g',h),'x','fx');
-                plot(ax,xi,fxi,'r',x,fx,'r--',x,fint,'b');
+                plot(ax,xi,fxi,'r.',x,fx,'r',x,fint,'b');
                 err(n) = max(abs(fx-fint));
             end
-            ax = pm.nextPlot('errors','Error development over h sizes','h','errors');
+            pm = PlotManager; pm.LeaveOpen = true;
+            ax = pm.nextPlot('errors','Error development over h sizes','1/h','errors');
             h = 1./hsteps;
-            plot(ax,h,exp(log(h)./h),'b',h,exp(-1./h),'b--',h,err,'r');
+            semilogy(ax,hsteps,exp(log(h)./h),'b',hsteps,exp(-1./h),'b--',hsteps,err,'r');
             legend(ax,'exp(log(h)/h)','exp(-1/h)','||f-sfx||_\infty');
+            pm.done;
         end
     end
 end

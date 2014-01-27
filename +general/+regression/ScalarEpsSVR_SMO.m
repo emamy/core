@@ -431,7 +431,7 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
                 ki = ki - n;
             end
             [dist, idx] = sort(sqrt(1-this.K(ki,:)));
-            % Extract indices of alpha^+ that are "close" wrt to the kernel metric \sqrt{1-\Phi(x_i,x_j)}
+            % Extract indices of alpha^+ that are "close" wrt to the kernel metric \sqrt{1-\K(x_i,x_j)}
             % Start at 2 as i itself is not an option for second index
             nidx = idx(2: min(this.NNk+1,numel(idx)));
             % Of course also consider the \alpha^-

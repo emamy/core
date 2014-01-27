@@ -1,8 +1,8 @@
 classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipschitz
 % KernelExpansion: Base class for state-space kernel expansions
 %
-% The KernelExpansion class represents a function `f` in the space induced by a given kernel `\Phi`
-% as ``f(x) = \sum\limits_{i=1}^N c_i\Phi(x,x_i)``
+% The KernelExpansion class represents a function `f` in the space induced by a given kernel `\K`
+% as ``f(x) = \sum\limits_{i=1}^N c_i\K(x,x_i)``
 % 
 % This class has been introduced in order to allow standalone use of kernel expansions in
 % approximation contexts outside of the intended model reduction scheme.
@@ -151,7 +151,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             % with `t_i,\mu_i` parameters as in ParamTimeKernelExpansion.
             %
             % Return values:
-            % fxi: The evaluation `f(x) = \sumi c_i \Phi(x,x_i)`
+            % fxi: The evaluation `f(x) = \sumi c_i \K(x,x_i)`
             fx = this.Ma * (this.Base \ this.getKernelVector(x)');
         end
         
@@ -164,7 +164,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             % with `t_i,\mu_i` parameters as in ParamTimeKernelExpansion.
             %
             % Return values:
-            % phi: The kernel vector `\varphi(x) =\left(\Phi(x,x_i)\right)_{i}`.
+            % phi: The kernel vector `\varphi(x) =\left(\K(x,x_i)\right)_{i}`.
             phi = this.fSK.evaluate(x, this.Centers.xi);
         end
         
@@ -179,7 +179,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             % with `t_i,\mu_i` parameters as in ParamTimeKernelExpansion.
             %
             % Return values:
-            % phi: The kernel vector `\varphi(x) =\left(\Phi(x,x_i)\right)_{i}`.
+            % phi: The kernel vector `\varphi(x) =\left(\K(x,x_i)\right)_{i}`.
             if nargin < 3
                 x = this.Centers.xi;
             end

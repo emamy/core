@@ -2,7 +2,7 @@ classdef GaussKernel < kernels.BellFunction
     % Radial Basis Function Kernel
     %   
     % Uses the notation
-    % ``\Phi(x,y) = e^{\frac{||x-y||^2}{\gamma^2}},``
+    % ``\K(x,y) = e^{\frac{||x-y||^2}{\gamma^2}},``
     % so be careful with the `\gamma` constant.
     %
     % @author Daniel Wirtz @date 11.03.2011

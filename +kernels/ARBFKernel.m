@@ -1,7 +1,7 @@
 classdef ARBFKernel < kernels.BaseKernel
     % Abstract class for radial basis function / rotation- and translation invariant kernels
     %
-    % All rbf kernels have the form `\Phi(x,y) := \phi(\noG{x-y}), \vx\in\R^d` for some
+    % All rbf kernels have the form `\K(x,y) := \phi(\noG{x-y}), \vx\in\R^d` for some
     % real-valued scalar function `\phi: [0, \infty] \longrightarrow \R` and a given
     % norm-inducing matrix `\vG`.
     %
@@ -43,7 +43,7 @@ classdef ARBFKernel < kernels.BaseKernel
             this.IsRBF = true;
         end
         
-        function Phi = evaluate(this, x, y)
+        function K = evaluate(this, x, y)
             % Evaluates the rotation and translation invariant kernel.
             %
             % Default implementation, computes the squared difference norm, takes the square
@@ -57,13 +57,13 @@ classdef ARBFKernel < kernels.BaseKernel
             % is assumed. @type matrix<double>
             %
             % Return values:
-            % Phi: The evaluation matrix `\Phi(x, y) \in \R^{n\times m}` of the radial basis
-            % function, with entries `\Phi(x_i,y_j)` at `i,j`.
+            % \K: The evaluation matrix `\K(x, y) \in \R^{n\times m}` of the radial basis
+            % function, with entries `\K(x_i,y_j)` at `i,j`.
             %
             % @attention Should your implementation effectively use the squared value directly,
             % consider overriding this method in your subclass for speed (avoid subsequent
             % squarerooting and squaring)
-            Phi = this.evaluateScalar(sqrt(this.getSqDiffNorm(x, y)));
+            K = this.evaluateScalar(sqrt(this.getSqDiffNorm(x, y)));
         end
         
         function bool = eq(A ,B)

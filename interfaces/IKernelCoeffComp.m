@@ -3,7 +3,7 @@ classdef IKernelCoeffComp < ICloneable
     %
     % Any algorithm that can compute onedimensional coefficients
     % given a kernel matrix `K` for a kernel expansion of the type
-    % ``f(x) = \sum\limits_{i=1}^N \alpha_i\Phi(x,x_i)``
+    % ``f(x) = \sum\limits_{i=1}^N \alpha_i\K(x,x_i)``
     % should implement this interface in order to be available as strategy
     % within any approx.KernelApprox subclass.
     %

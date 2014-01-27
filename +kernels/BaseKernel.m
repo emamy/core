@@ -60,7 +60,7 @@ classdef BaseKernel < KerMorObject & ICloneable
         
     properties(SetAccess=protected)
         % Flag that determines if the current kernel is a radial basis function, i.e. its
-        % evaluation is of the form `\Phi(x,y) = \phi(\noG{x-y})` for some scalar function
+        % evaluation is of the form `\K(x,y) = \phi(\noG{x-y})` for some scalar function
         % `\phi`.
         %
         % Set in subclasses according to current kernel.
@@ -69,7 +69,7 @@ classdef BaseKernel < KerMorObject & ICloneable
         IsRBF = false;
         
         % Flag that determines if the current kernel bases on scalar product evaluations, i.e.
-        % are of the form `\Phi(x,y) = \phi(\spG{x}{y})` for some scalar function `\phi`.
+        % are of the form `\K(x,y) = \phi(\spG{x}{y})` for some scalar function `\phi`.
         %
         % Set in subclasses according to current kernel.
         %
@@ -150,8 +150,8 @@ classdef BaseKernel < KerMorObject & ICloneable
         % is to be assumed. @type matrix<double>
         %
         % Return values:
-        % Phi: The evaluation matrix `\Phi(x,y) \in \R^{n\times m}` of the kernel `\Phi`, with
-        % entries `\Phi(x_i,y_j)` at `i,j`.
+        % \K: The evaluation matrix `\K(x,y) \in \R^{n\times m}` of the kernel `\K`, with
+        % entries `\K(x_i,y_j)` at `i,j`.
         K = evaluate(this, x, y);
         
         % Computes the partial derivatives with respect to each component of the first argument.

@@ -1,8 +1,8 @@
 classdef ParamTimeKernelExpansion < kernels.KernelExpansion
 % ParamTimeKernelExpansion: Kernel expansion class for time and/or parameter dependent kernels.
 %
-% This class represents a function `f` in the space induced by given kernels `\Phi_{s,t,\mu}` for state, time
-% and parameter space as ``f(x,t,\mu) = \sum\limits_{i=1}^N c_i\Phi_s(x,x_i)\Phi_t(t,t_i)\Phi_\mu(\mu,\mu_i)``
+% This class represents a function `f` in the space induced by given kernels `\K_{s,t,\mu}` for state, time
+% and parameter space as ``f(x,t,\mu) = \sum\limits_{i=1}^N c_i\K_s(x,x_i)\K_t(t,t_i)\K_\mu(\mu,\mu_i)``
 %
 % This class is the composition of three different kernels, which are
 % one for time, parameters and state variables. Those kernels are
@@ -127,7 +127,7 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
         end
         
         function phi = getKernelVector(this, x, t, mu)
-            % Returns the kernel vector `\varphi(x,t,\mu) = (\Phi(x,x_i)\Phi(t,t_i)\Phi(\mu,\mu_i))_i`.
+            % Returns the kernel vector `\varphi(x,t,\mu) = (\K(x,x_i)\K(t,t_i)\K(\mu,\mu_i))_i`.
             % (for the case of a product 'SubKernelCombinationFun'
             phi = this.SubKernelCombinationFun(...
                 this.fTK.evaluate(t, this.Centers.ti), ...

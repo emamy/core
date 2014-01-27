@@ -62,7 +62,7 @@ classdef Base < handle
         % Template method.
         %
         % Parameters:
-        % phi: The kernel vector `\Phi(x,x_i)` @type colvec
+        % phi: The kernel vector `\K(x,x_i)` @type colvec
         % ut: The evaluation of the current input `u(t)` at time `t`
         % @type double
         % t: The current time `t` @type double

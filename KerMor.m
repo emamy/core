@@ -154,7 +154,7 @@ classdef KerMor < handle
     %
     % @todo: use new matlab classes possibilities!
     %
-    % @todo: Kern mit `\Phi(x,y) = (1-||x-y||_2)_+` oder so
+    % @todo: Kern mit `\K(x,y) = (1-||x-y||_2)_+` oder so
     %
     % @todo: p-partitioning
     %

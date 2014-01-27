@@ -155,7 +155,7 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & IKernelCoeffComp
         %
         % Parameters:
         % fxi: The `f(x_i)` values to regress given the kernel matrix `K` computed from
-        % `\Phi(x_i,x_j)`.
+        % `\K(x_i,x_j)`.
         % initialai: The initial values to use for the coefficients `c_i`.
         % @default [] @type rowvec
         %

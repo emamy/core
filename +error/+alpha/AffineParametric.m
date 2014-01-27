@@ -46,7 +46,7 @@ classdef AffineParametric < error.alpha.Base
             % estimator.
             %
             % Parameters:
-            % phi: The kernel vector `\Phi(x,x_i)` @type colvec
+            % phi: The kernel vector `\K(x,x_i)` @type colvec
             % ut: The evaluation of the current input `\vu(t)` at time `t` @type colvec<double>
             % t: The current time `t` @type double
             % mu: The current parameter `\vmu` @type colvec<double>

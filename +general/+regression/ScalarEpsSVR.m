@@ -50,7 +50,7 @@ classdef ScalarEpsSVR < general.regression.BaseQPSVR
             %
             % Parameters:
             % fxi: The `f(x_i)` values to regress given the kernel matrix `K` computed from
-            % `\Phi(x_i,x_j)`.
+            % `\K(x_i,x_j)`.
             % ainit: [Optional] An initial value set for the coefficients.
             %
             % Return values:
