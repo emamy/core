@@ -174,12 +174,13 @@ classdef GaussKernel < kernels.BellFunction
     methods(Static)
         function res = test_InterpolGamma            
             ki = general.interpolation.KernelInterpol;
-            %ki.UseLU = true;
+            ki.UseNewtonBasis = false;
+            kexp = kernels.KernelExpansion;
             k = kernels.GaussKernel;
+            kexp.Kernel = k;
             dx = .2;
             x = -3:dx:3;
-            %xfine = -3:dx/2:3;
-            fx = sin(x*pi); %+rand(size(x))
+            fx = sin(x*pi);
             plot(x,fx);
             epsteps = 0.05:.05:.95;
             dlog = zeros(3,length(epsteps));
@@ -192,18 +193,19 @@ classdef GaussKernel < kernels.BellFunction
                     fx2 = fx;
                     fx2(idx) = [];
                     
-                    ki.K = k.evaluate(x2,[]);
-                    a = ki.interpolate(fx2);
+                    kexp.Centers.xi = x2;
+                    ki.init(kexp);
+                    kexp.Ma = ki.interpolate(fx2);
                     
-                    fxi = a'*k.evaluate(x2,x);
-                    diff(idx) = abs(fx(idx) - fxi(idx));
+                    fxi = kexp.evaluate(x);
+                    diff(idx) = abs(fx(idx) - fxi(idx));%#ok
                 end
                 dlog(1,epidx) = ep;
                 dlog(2,epidx) = min(diff);
                 dlog(3,epidx) = max(diff);
             end            
             disp(dlog);
-            [val, idx] = min(dlog(2,:));
+            [~, idx] = min(dlog(2,:));
             fprintf('Min distance: %f at ep=%f\n',dlog(2,idx),dlog(1,idx));
             res = true;
         end
