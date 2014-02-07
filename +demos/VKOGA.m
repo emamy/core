@@ -74,14 +74,10 @@ classdef VKOGA
             h2 = pm.nextPlot('nfun','Newton Basis Functions on training data','x','N(x)');
             plot(h2,x,alg.bestNewtonBasisValuesOnATD); 
             
-            h3 = pm.nextPlot('err','Absolute error','x','|f(x)-f^m(x)|');
-            ph = LogPlot.cleverPlot(h3,1:m,alg.MaxErrors(:,1:m));
-            set(ph(alg.ExpConfig.vBestConfigIndex),'LineWidth',2);
-            
-            h4 = pm.nextPlot('relerr','Relative error','x','|(f(x)-f^m(x))/f(x)|');
-            ph = LogPlot.cleverPlot(h4,1:m,alg.MaxRelErrors(:,1:m));
-            set(ph(alg.ExpConfig.vBestConfigIndex),'LineWidth',2);
+            alg.plotSummary(pm, 'VKOGA Demo');
             pm.done;
+            
+            alg.getApproximationSummary;
             
             res.kexp = kexp;
             res.atd = atd;

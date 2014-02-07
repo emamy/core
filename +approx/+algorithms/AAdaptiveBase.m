@@ -92,28 +92,6 @@ classdef AAdaptiveBase < approx.algorithms.ABase
             copy.InitialCenter = this.InitialCenter;
             copy.Used = this.Used;
         end
-        
-        function pm = plotErrors(this, pm)
-            if nargin < 2
-                pm = PlotManager(false,1,2);
-                pm.LeaveOpen = true;
-            end
-            
-            h = pm.nextPlot('abs','Absolute errors','step','value');
-            ph = semilogy(h,1:size(this.MaxErrors,2),this.MaxErrors');
-            if ~isempty(this.ExpConfig)
-                set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
-            end
-            h = pm.nextPlot('rel','Relative errors','step','value');
-            ph = semilogy(h,1:size(this.MaxRelErrors,2),this.MaxRelErrors');
-            if ~isempty(this.ExpConfig)
-                set(ph(this.ExpConfig.vBestConfigIndex),'LineWidth',2);
-            end
-            
-            if nargin < 2
-                pm.done;
-            end
-        end
     end
     
     methods(Access=protected, Sealed)
@@ -144,9 +122,6 @@ classdef AAdaptiveBase < approx.algorithms.ABase
             
             % Compute initial center
             [~, this.initialidx] = this.getInitialCenter(atd);
-            if isempty(this.initialidx)
-                keyboard;
-            end
             
             % Start adaptive extension part of subclass
             kexp = this.startAdaptiveExtension(atd);

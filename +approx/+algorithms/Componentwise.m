@@ -1,4 +1,4 @@
-classdef Componentwise < approx.algorithms.ABase
+classdef Componentwise < approx.algorithms.ABase & IParallelizable
 % Componentwise: Component-wise kernel approximation with fixed center set.
 %
 % @author Daniel Wirtz @date 2011-06-01
@@ -85,13 +85,14 @@ classdef Componentwise < approx.algorithms.ABase
 
             % copy local props
             copy.BestCoeffConfig = this.BestCoeffConfig;
-            % Dont copy the config (no scenario yet known that requires
-            % this)
-            copy.CoeffConfig = this.CoeffConfig;
+            if ~isempty(this.CoeffConfig)
+                copy.CoeffConfig = this.CoeffConfig.clone;
+            end
             copy.SingleRuntimes = this.SingleRuntimes;
         end
         
-        function pm = plotErrors(this, pm)
+        function pm = plotSummary(this, pm)
+            % Overrides the approx.algorithms.ABase function
             if nargin < 2
                 pm = PlotManager(false,1,2);
                 pm.LeaveOpen = true;
@@ -119,8 +120,8 @@ classdef Componentwise < approx.algorithms.ABase
         function [str, rangetab] = getApproximationSummary(this)
             [str, rangetab] = getApproximationSummary@approx.algorithms.ABase(this);
             cc = this.CoeffConfig;
-            str = [str sprintf('Best coefficient comp configuration at index %d:\n%s\n',cc.vBestConfigIndex,...
-                cc.getConfigurationString(cc.vBestConfigIndex))];
+            str = [str sprintf('Best coefficient comp configuration at index %d:\n%s\n',this.BestCoeffConfig,...
+                cc.getConfigurationString(this.BestCoeffConfig))];
             rangetab = rangetab.append(cc.getValueRanges);
             if nargout < 2
                 str = [str sprintf('Configuration ranges:\n%s\n',...
@@ -211,10 +212,6 @@ classdef Componentwise < approx.algorithms.ABase
                         if KerMor.App.Verbose > 3
                             fprintf(' w: %.5e  (rel %.5e)',val,rel);
                         end
-                    end
-
-                    if KerMor.App.Verbose > 3
-                        fprintf(' ||Ma||:%.5e\n',sum(kexp.Ma_norms));
                     end
                     pi.step;
                 end
@@ -333,7 +330,7 @@ classdef Componentwise < approx.algorithms.ABase
     %% Getter & Setter
     methods
         function set.CoeffConfig(this, value)
-            if ~isa(value,'IClassConfig')
+            if ~isempty(value) && ~isa(value,'IClassConfig')
                 error('Property value must implement the IClassConfig interface');
             end
             this.CoeffConfig = value;

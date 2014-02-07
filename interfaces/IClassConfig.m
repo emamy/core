@@ -1,4 +1,4 @@
-classdef IClassConfig < KerMorObject
+classdef IClassConfig < KerMorObject & ICloneable
 % IClassConfig: Abstract interface for a set of configurations that can be applied to a given
 % algorithm
 %
@@ -15,15 +15,6 @@ classdef IClassConfig < KerMorObject
 % - \c License @ref licensing
 
     properties
-        % The index of the configuration with the best results.
-        %
-        % Set inside the algorithm this configuration set is used for.
-        %
-        % @propclass{verbose} Helps identifying the effectively used configuration.
-        %
-        % @type integer @default []
-        vBestConfigIndex = [];
-        
         % The prototype class that is to be used as base class before
         % configuring a new instance.
         %
@@ -70,6 +61,16 @@ classdef IClassConfig < KerMorObject
                     this.RequiredPrototypeClass);%#ok
             end
             this.Prototype = value;
+        end
+        
+        function copy = clone(this, copy)
+            if nargin < 2
+                error('You must call this clone method passing a cloned subclass instance.');
+            end
+            % Dont clone the prototype here; it's cloned anyways every time
+            % a new instance is configured.
+            copy.Prototype = this.Prototype;
+            copy.RequiredPrototypeClass = this.RequiredPrototypeClass;
         end
     end
     

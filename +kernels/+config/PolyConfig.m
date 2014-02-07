@@ -51,8 +51,14 @@ classdef PolyConfig < IClassConfig
         end
         
         function conf = getSubPart(this, partNr, totalParts)
-            idx = this.getPartIndices(partNr, totalParts);
-            conf = kernels.config.PolyConfig(this.Degrees(idx));
+            conf = this.clone;
+            conf.Degrees = this.Degrees(this.getPartIndices(partNr, totalParts));
+        end
+        
+        function copy = clone(this)
+            copy = kernels.config.PolyConfig;
+            copy = clone@IClassConfig(this, copy);
+            copy.Degrees = this.Degrees;
         end
         
     end

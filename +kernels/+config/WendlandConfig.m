@@ -70,10 +70,9 @@ classdef WendlandConfig < kernels.config.RBFConfig
         end
         
         function copy = clone(this)
-            copy = kernels.config.WendlandConfig('G',[]);
+            copy = kernels.config.WendlandConfig('G',this.Gammas,...
+                'S',this.Smoothnesses, 'Dim',this.Dimension);
             copy = clone@kernels.config.RBFConfig(this, copy);
-            copy.Smoothnesses = this.Smoothnesses;
-            copy.Dimension = this.Dimension;
         end
     end
     

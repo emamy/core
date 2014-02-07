@@ -50,9 +50,17 @@ classdef NuSVRConfig < IClassConfig
         end
         
         function conf = getSubPart(this, partNr, totalParts)
-            v = [this.Nus; this.Lambdas];
-            v = v(:,this.getPartIndices(partNr, totalParts));
-            conf = general.regression.EpsSVRConfig(v);
+            conf = this.clone;
+            idx = this.getPartIndices(partNr, totalParts);
+            conf.Nus = this.Nus(idx);
+            conf.Lambdas = this.Lambdas(idx);
+        end
+        
+        function copy = clone(this)
+            copy = general.regression.NuSVRConfig;
+            copy = clone@IClassConfig(this, copy);
+            copy.Nus = this.Nus;
+            copy.Lambdas = this.Lambdas;
         end
         
     end

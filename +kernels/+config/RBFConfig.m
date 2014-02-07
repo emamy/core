@@ -1,4 +1,4 @@
-classdef RBFConfig < IClassConfig & ICloneable
+classdef RBFConfig < IClassConfig
 % RBFConfig: Base configuration settings for kernels implementing ARBFKernel.
 %
 % @docupdate
@@ -71,6 +71,7 @@ classdef RBFConfig < IClassConfig & ICloneable
             if nargin < 2
                 copy = kernels.config.RBFConfig;
             end
+            copy = clone@IClassConfig(this, copy);
             copy.Gammas = this.Gammas;
         end
     end

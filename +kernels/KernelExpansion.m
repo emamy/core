@@ -343,6 +343,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             if nargin < 2
                 dir = pwd;
             end
+            Utils.ensureDir(dir);
             k = this.Kernel;
             if isa(k,'kernels.GaussKernel')
                 kdata = [1 k.Gamma];
@@ -351,9 +352,9 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             else
                 error('Cannot export a kernel of type %s yet.',class(this.Kernel));
             end
-            export.Util.saveRealVector(kdata,'kernel.bin',dir);
-            export.Util.saveRealMatrix(this.Centers.xi,'centers.bin',dir);
-            export.Util.saveRealMatrix(this.Ma,'coeffs.bin',dir);
+            Util.saveRealVector(kdata,'kernel.bin',dir);
+            Util.saveRealMatrix(this.Centers.xi,'centers.bin',dir);
+            Util.saveRealMatrix(this.Ma,'coeffs.bin',dir);
         end
         
         function json = toJSON(this, filename)

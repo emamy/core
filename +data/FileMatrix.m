@@ -167,6 +167,8 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             if nb == 1
                 % Trigger creation & caching of the first and only block
                 this.loadBlock(1);
+                rmdir(this.DataDirectory);
+                this.DataDirectory = '';
             end
             % Matrix case: Assign value directly
             if matrixin

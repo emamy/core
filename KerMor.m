@@ -553,41 +553,47 @@ classdef KerMor < handle
 
             % Check if preferences are set (i.e. KerMor.setup has been run on this machine)
             disp('Checking environment...')
-            p = getpref;
-            pset = isfield(p,this.getPrefTag);
+            pset = ~isempty(getpref(this.getPrefTag,'DATASTORE',[]));
             if ~pset
-                fprintf(2,'No KerMor preferences on this host found. Searching for settings from other hosts...\n');
-                fn = fieldnames(p);
-                op = strfind(fn,KerMor.PrefTagPrefix);
-                for i=1:numel(op)
-                    if op{i} == 1
-                        fprintf('Do you want to copy the following preferences from host "%s"?\n',fn{i}(length(KerMor.PrefTagPrefix)+1:end));
-                        disp(p.(fn{i}));
-                        r = lower(input('(Y)es, (N)o or (C)ancel and start KerMor setup: ','s'));
-                        % Yes: copy prefs
-                        if r == 'y'
-                            % Select preferences substruct from host and copy
-                            % NOT using Utils.xx here as this is not yet on
-                            % the PATH!
-                            localp = p.(fn{i});
-                            pfn = fieldnames(localp);
-                            for k = 1:numel(pfn)
-                                setpref(this.getPrefTag,pfn{k},localp.(pfn{k}));
+                if numlabs > 1
+                    % For parallel computing case, throw an error as KerMor
+                    % must be setup on each machine running parallel jobs!
+                    error('You must run KerMor.setup on each machine you want to run parallel jobs with KerMor!');
+                else
+                    fprintf(2,'No KerMor preferences on this host found. Searching for settings from other hosts...\n');
+                    p = getpref;
+                    fn = fieldnames(p);
+                    op = strfind(fn,KerMor.PrefTagPrefix);
+                    for i=1:numel(op)
+                        if op{i} == 1
+                            fprintf('Do you want to copy the following preferences from host "%s"?\n',fn{i}(length(KerMor.PrefTagPrefix)+1:end));
+                            disp(p.(fn{i}));
+                            r = lower(input('(Y)es, (N)o or (C)ancel and start KerMor setup: ','s'));
+                            % Yes: copy prefs
+                            if r == 'y'
+                                % Select preferences substruct from host and copy
+                                % NOT using Utils.xx here as this is not yet on
+                                % the PATH!
+                                localp = p.(fn{i});
+                                pfn = fieldnames(localp);
+                                for k = 1:numel(pfn)
+                                    setpref(this.getPrefTag,pfn{k},localp.(pfn{k}));
+                                end
+                                pset = true;
+                                break;
+                                % cancel: start setup
+                            elseif r == 'c'
+                                break;
                             end
-                            pset = true;
-                            break;
-                            % cancel: start setup
-                        elseif r == 'c'
-                            break;
                         end
                     end
-                end
-                if ~pset
-                    if i == numel(op)
-                        fprintf(2,'No preferences copied from other hosts. Have to run setup.\n');
+                    if ~pset
+                        if i == numel(op)
+                            fprintf(2,'No preferences copied from other hosts. Have to run setup.\n');
+                        end
+                        fprintf(2,'Entering KerMor setup...\n');
+                        KerMor.setup;
                     end
-                    fprintf(2,'Entering KerMor setup...\n');
-                    KerMor.setup;
                 end
             else
                 fprintf('KerMor preferences/settings found for tag "%s"...\n',this.getPrefTag);
@@ -597,12 +603,27 @@ classdef KerMor < handle
             
             warning off MATLAB:dispatcher:nameConflict;
             
-            % Preferences & Environment
-            setpref('Internet','SMTP_Server','localhost');
-                        
-            % Figure position settings
-            if ~isempty(this.DefaultFigurePosition)
-                set(0,'DefaultFigurePosition',this.DefaultFigurePosition);
+            % Stuff only for single instance mode
+            if numlabs == 1
+                % Preferences & Environment
+                setpref('Internet','SMTP_Server','localhost');
+                
+                % Desktop-only stuff
+                if usejava('desktop')
+                    % Figure position settings
+                    if ~isempty(this.DefaultFigurePosition)
+                        set(0,'DefaultFigurePosition',this.DefaultFigurePosition);
+                    end
+
+                    if ~isempty(this.DesktopLayout)
+                        fprintf('Applying desktop layout %s..\n',this.DesktopLayout);
+                        desktop = com.mathworks.mde.desk.MLDesktop.getInstance;
+                        desktop.restoreLayout(this.DesktopLayout);
+                    end
+                end
+                
+                disp('Calling ''dbstop if error''..');
+                dbstop if error;
             end
             
             p = this.HomeDirectory;
@@ -620,15 +641,6 @@ classdef KerMor < handle
             initParallelization;
             
             clear('p');
-            
-            if ~isempty(this.DesktopLayout)
-                fprintf('Applying desktop layout %s..\n',this.DesktopLayout);
-                desktop = com.mathworks.mde.desk.MLDesktop.getInstance;
-                desktop.restoreLayout(this.DesktopLayout);
-            end
-            
-            disp('Calling ''dbstop if error''..');
-            dbstop if error;
             
             if this.UseDiary
                 % Fix for non-unix log files
@@ -671,7 +683,7 @@ classdef KerMor < handle
                 end
                 
                 % Add KerMor-included external software paths
-                disp('Initializing 3rd party software...')
+                disp('Initializing external tools...')
                 addpath(fullfile(p,'extern'));
                 addpath(fullfile(p,'extern','matlabtools'));
                 addpath(fullfile(p,'extern','matlabtools','dpcm'));

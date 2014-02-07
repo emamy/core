@@ -131,8 +131,6 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                 
                 fresidual = fxi;
                 
-                free = true(1,N);
-                free(this.initialidx) = false;
                 used = zeros(1,N);
                 used(1) = this.initialidx;
                 
@@ -177,7 +175,8 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     if this.UsefPGreedy
                         % Cap too small norms!
                         div = Kdiag - sumNsq;
-                        div(div <= 0) = Inf;
+                        div(used(1:m)) = Inf;
+                        %div(div <= 0) = Inf;
                     else
                         div = 1;
                     end
@@ -223,7 +222,6 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     NV(:,m) = tN/tNnorm;
                     c(:,m) = fresidual(:,maxidx)./tNnorm;
                     sumNsq = sumNsq + (NV(:,m).^2)';
-                    free(maxidx) = false;
                     used(m) = maxidx;
                     
                     % Debug stuff
@@ -374,12 +372,11 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             alg = approx.algorithms.VKOGA;
             alg.MaxExpansionSize = 100;
             alg.UsefPGreedy = true;
-            ec = kernels.config.ExpansionConfig;            
-            gammas = linspace(.5,2,5);
-            kexp = kernels.KernelExpansion;
-            kexp.Kernel = kernels.GaussKernel;
-            ec.Prototype = kexp;
-            ec.StateConfig = kernels.config.GaussConfig('G',gammas);
+            ec = kernels.config.ExpansionConfig;
+            ec.Prototype.Kernel = kernels.Wendland;
+            c = Utils.createCombinations(linspace(.5,2,5),[2 3]);
+            ec.StateConfig = kernels.config.WendlandConfig(...
+                'G',c(1,:),'S',c(2,:),'Dim',1);
             alg.ExpConfig = ec;
 
             kexp = alg.computeApproximation(atd);
@@ -404,14 +401,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             Z = reshape(alg.bestNewtonBasisValuesOnATD(:,end),length(x1),[]);
             surf(h,X,Y,Z);
             
-            m = length(alg.Used);
-            h = pm.nextPlot('err','Absolute error','x','|f(x)-f^m(x)|');
-            ph = LogPlot.cleverPlot(h,1:m,alg.MaxErrors(:,1:m));
-            set(ph(alg.ExpConfig.vBestConfigIndex),'LineWidth',2);
-            
-            h = pm.nextPlot('MaxRelErrors','Relative error','x','|(f(x)-f^m(x))/f(x)|');
-            ph = LogPlot.cleverPlot(h,1:m,alg.MaxRelErrors(:,1:m));
-            set(ph(alg.ExpConfig.vBestConfigIndex),'LineWidth',2);
+            alg.plotSummary(pm, 'test_VKOGA');
             pm.done;
             
             d = struct;

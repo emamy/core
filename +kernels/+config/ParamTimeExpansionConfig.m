@@ -85,7 +85,7 @@ classdef ParamTimeExpansionConfig < kernels.config.ExpansionConfig
         end
         
         function conf = getSubPart(this, partNr, totalParts)
-            conf = kernels.config.ParamTimeExpansionConfig;
+            conf = this.clone;
             if ~isempty(this.StateConfig)
                 conf.StateConfig = this.StateConfig.getSubPart(partNr, totalParts);
             end
@@ -96,6 +96,18 @@ classdef ParamTimeExpansionConfig < kernels.config.ExpansionConfig
                 conf.ParamConfig = this.ParamConfig.getSubPart(partNr, totalParts);
             end
         end
+        
+        function copy = clone(this)
+            copy = kernels.config.ParamTimeExpansionConfig;
+            copy = clone@kernels.config.ExpansionConfig(this, copy);
+            if ~isempty(this.TimeConfig)
+                copy.TimeConfig = this.TimeConfig.clone;
+            end
+            if ~isempty(this.ParamConfig)
+                copy.ParamConfig = this.ParamConfig.clone;
+            end
+        end
+        
     end
     
     methods(Access=protected)

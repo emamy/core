@@ -59,7 +59,14 @@ classdef KernelLSConfig < IClassConfig
         end
         
         function conf = getSubPart(this, partNr, totalParts)
-            conf = general.regression.KernelLSConfig(this.Lambdas(this.getPartIndices(partNr, totalParts)));
+            conf = this.clone;
+            conf.Lambdas = this.Lambdas(this.getPartIndices(partNr, totalParts));
+        end
+        
+        function copy = clone(this)
+            copy = general.regression.KernelLSConfig;
+            copy = clone@IClassConfig(this, copy);
+            copy.Lambdas = this.Lambdas;
         end
         
     end

@@ -55,9 +55,19 @@ classdef ExpansionConfig < IClassConfig
         end
         
         function conf = getSubPart(this, partNr, totalParts)
-            conf = kernels.config.ExpansionConfig;
+            conf = this.clone;
             if ~isempty(this.StateConfig)
                 conf.StateConfig = this.StateConfig.getSubPart(partNr, totalParts);
+            end
+        end
+        
+        function copy = clone(this, copy)
+            if nargin < 2
+                copy = kernels.config.ExpansionConfig;
+            end
+            copy = clone@IClassConfig(this, copy);
+            if ~isempty(this.StateConfig)
+                copy.StateConfig = this.StateConfig.clone;
             end
         end
         

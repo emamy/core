@@ -1,4 +1,4 @@
-classdef ABase < KerMorObject & IParallelizable & ICloneable & IReductionSummaryPlotProvider
+classdef ABase < KerMorObject & ICloneable & IReductionSummaryPlotProvider
 % ABase: Base class for any approximation generation algorithms for kernel
 % expansions,
 %
@@ -109,7 +109,9 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable & IReductionSummary
         end
         
         function copy = clone(this, copy)
-            copy.ExpConfig = this.ExpConfig;
+            if ~isempty(this.ExpConfig)
+                copy.ExpConfig = this.ExpConfig.clone;
+            end
             copy.UsefScaling = this.UsefScaling;
             copy.ErrorFun = this.ErrorFun;
             copy.MaxErrors = this.MaxErrors;
@@ -117,6 +119,7 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable & IReductionSummary
             copy.LastCompTime = this.LastCompTime;
             copy.StopFlags = this.StopFlags;
             copy.ScalingG = this.ScalingG;
+            copy.BestExpConfig = this.BestExpConfig;
         end
         
         
@@ -185,8 +188,8 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable & IReductionSummary
                 ec.getNumConfigurations,this.LastCompTime,...
                 this.LastCompTime/60,this.LastCompTime/3600)];
             % Configuration
-            str = [str sprintf('Best expansion configuration at index %d:\n%s\n',ec.vBestConfigIndex,...
-                ec.getConfigurationString(ec.vBestConfigIndex))];
+            str = [str sprintf('Best expansion configuration at index %d:\n%s\n',this.BestExpConfig,...
+                ec.getConfigurationString(this.BestExpConfig))];
             rangetab = ec.getValueRanges;
             if nargout < 2
                 str = [str sprintf('Expansion configuration ranges:\n%s\n',...
@@ -198,14 +201,32 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable & IReductionSummary
         end
         
         function plotSummary(this, pm, context)
-            str = sprintf('%s: approx max errors',context);
-            h = pm.nextPlot('approx_maxerrors',str,...
-                'expansion size','errors');
-            semilogy(h,this.MaxErrors');
-            str = sprintf('%s: approx max relative errors',context);
-            h = pm.nextPlot('approx_maxrelerrors',str,...
-                'expansion size','errors');
-            semilogy(h,this.MaxRelErrors');
+            if nargin < 3
+                context = 'Summary';
+                if nargin < 2
+                    pm = PlotManager(false,1,2);
+                    pm.LeaveOpen = true;
+                end
+            end
+            
+            str = sprintf('%s: Max absolute errors',context);
+            h = pm.nextPlot('maxerrors',str,...
+                'expansion size','error');
+            ph = semilogy(h,1:size(this.MaxErrors,2),this.MaxErrors');
+            if ~isempty(this.ExpConfig)
+                set(ph(this.BestExpConfig),'LineWidth',2);
+            end
+            str = sprintf('%s: Max relative errors',context);
+            h = pm.nextPlot('maxrelerrors',str,...
+                'expansion size','error');
+            ph = semilogy(h,1:size(this.MaxRelErrors,2),this.MaxRelErrors');
+            if ~isempty(this.ExpConfig)
+                set(ph(this.BestExpConfig),'LineWidth',2);
+            end
+            
+            if nargin < 2
+                pm.done;
+            end
         end
         
         function nc = getTotalNumConfigurations(this)
@@ -237,18 +258,6 @@ classdef ABase < KerMorObject & IParallelizable & ICloneable & IReductionSummary
             errs = this.ErrorFun(this.ScalingG*e);
             [val, idx] = max(errs);
         end
-    end
-    
-    methods(Abstract)
-        % Plots the errors computed during the last run.
-        %
-        % Parameters:
-        % pm: A PlotManager instance @type PlotManager @default PlotManager
-        %
-        % Return values:
-        % pm: The PlotManager instance, created if none is passed, otherwise the same. @type
-        % PlotManager
-        pm = plotErrors(this, pm);
     end
     
     methods(Abstract, Access=protected)

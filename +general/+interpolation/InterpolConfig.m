@@ -47,6 +47,11 @@ classdef InterpolConfig < IClassConfig
             conf = this;
         end
         
+        function copy = clone(this)
+            copy = general.interpolation.InterpolConfig;
+            copy = clone@IClassConfig(this, copy);
+        end
+        
     end
     
     methods(Access=protected)    

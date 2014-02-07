@@ -202,6 +202,16 @@ classdef ApproxTrainData < handle
             end
         end
         
+        function [minDist, meanDist, maxDist] = getXiDists(this)
+            xi = this.xi.toMemoryMatrix;
+            xisq = ones(size(xi,2),1)*sum(xi.^2);
+            dist = sqrt(xisq' + xisq - 2*(xi'*xi));
+            maxDist = max(dist(:));
+            meanDist = mean(dist(:));
+            dist(logical(eye(size(xi,2)))) = Inf;
+            minDist = min(dist(:));
+        end
+        
         function set.xi(this, value)
             if ~isempty(value)
                 if ~isa(value,'data.FileMatrix') && ismatrix(value)

@@ -50,9 +50,17 @@ classdef EpsSVRConfig < IClassConfig
         end
         
         function conf = getSubPart(this, partNr, totalParts)
-            v = [this.Epsilons; this.Lambdas];
-            v = v(:,this.getPartIndices(partNr, totalParts));
-            conf = general.regression.EpsSVRConfig(v);
+            conf = this.clone;
+            idx = this.getPartIndices(partNr, totalParts);
+            conf.Epsilons = this.Epsilons(idx);
+            conf.Lambdas = this.Lambdas(idx);
+        end
+        
+        function copy = clone(this)
+            copy = general.regression.EpsSVRConfig;
+            copy = clone@IClassConfig(this, copy);
+            copy.Epsilons = this.Epsilons;
+            copy.Lambdas = this.Lambdas;
         end
         
     end

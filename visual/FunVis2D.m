@@ -484,6 +484,9 @@ if c.iske
     C = C(:,sel);
     c.curCenters = C;
     c.curCenterSelInATD = Utils.findVecInMatrix(c.td.xi.toMemoryMatrix,C);
+    if all(c.curCenterSelInATD == 0)
+        c.curCenterSelInATD = [];
+    end
     xf = repmat(c.basex,1,size(C,2));
     xsel = c.idxmap([c.d1 c.d2]);
     xf(xsel,:) = C(xsel,:);
@@ -619,7 +622,7 @@ end
 if c.iske
     C = c.curCenters;
     % Only plot center at original points if no error is displayed
-    if get(h.rbErr,'Value') == 0
+    if get(h.rbErr,'Value') == 0 && ~isempty(c.curCenterSelInATD)
         % Also plot the centers at their original value
         orig = c.td.fxi(c.dout,c.curCenterSelInATD);
         plot3(h.ax,C(xsel(1),:),C(xsel(2),:),orig,'black.','MarkerSize',13);
