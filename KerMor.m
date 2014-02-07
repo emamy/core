@@ -844,10 +844,13 @@ classdef KerMor < handle
             host = regexprep(strtrim(host),'[^\d\w]','');
         end
         
-        function b = getGitBranch
+        function b = getGitBranch(dir)
             % Returns the current git commit in a descriptive string
+            if nargin < 1
+                dir = KerMor.App.HomeDirectory;
+            end
             olddir = pwd;
-            cd(KerMor.App.HomeDirectory);
+            cd(dir);
             %[s, m] = system(sprintf('export TERM=%s; git log -n 1 --pretty=format:"%%H: %%s%%+ai by %%an<%%ae>"',getenv('TERM')));
             [s, msg] = system('git log -n 1 --pretty=format:"%H: %s%+ai by %an<%ae>" > .gitbranch');
             if s == 0
