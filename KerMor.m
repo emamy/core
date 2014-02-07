@@ -788,11 +788,15 @@ classdef KerMor < handle
            
             %% Setup KerMor development
             if isempty(getpref('KERMOR_DEVEL','author',''))
-                str = sprintf('Do you want to setup variables for KerMor development?\n(Y)es/(N)o: ');
+                str = sprintf('Do you want to develop KerMor on this machine?\n(Y)es/(N)o: ');
                 ds = lower(input(str,'s'));
                 if isequal(ds,'y')
                     addpath(fullfile(a.HomeDirectory,'tools'));
                     Devel.setup;
+                    
+                    %% Call setup for documentation creation
+                    addpath(fullfile(a.HomeDirectory,'extern'));
+                    MatlabDocMaker.setup;
                 end
             end
             
@@ -918,10 +922,6 @@ classdef KerMor < handle
         
         function setupextern
             a = KerMor.App;
-            
-            %% Call setup for documentation creation
-            addpath(fullfile(a.HomeDirectory,'extern'));
-            MatlabDocMaker.setup;
             
             %% Optional: rbmatlab
             rbmat = a.rbmatlabDirectory;

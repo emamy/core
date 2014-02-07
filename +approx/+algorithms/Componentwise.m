@@ -103,15 +103,9 @@ classdef Componentwise < approx.algorithms.ABase & IParallelizable
             [X,Y] = meshgrid(1:nc,1:nco);
             
             h = pm.nextPlot('abs','Absolute errors','expansion config','coeff comp config');
-            ph = LogPlot.logsurf(h,X,Y,this.MaxErrors');
-            if ~isempty(this.BestCoeffConfig) && numel(ph) <= this.BestCoeffConfig
-                set(ph(this.BestCoeffConfig),'LineWidth',2);
-            end
+            LogPlot.logsurf(h,X,Y,this.MaxErrors');
             h = pm.nextPlot('rel','Relative errors','expansion config','coeff comp config');
-            ph = LogPlot.logsurf(h,X,Y,this.MaxRelErrors');
-            if ~isempty(this.BestCoeffConfig) && numel(ph) <= this.BestCoeffConfig
-                set(ph(this.BestCoeffConfig),'LineWidth',2);                 
-            end
+            LogPlot.logsurf(h,X,Y,this.MaxRelErrors');
             if nargin < 2
                 pm.done;
             end

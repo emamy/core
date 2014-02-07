@@ -29,11 +29,7 @@ classdef RBFConfig < IClassConfig
         end
         
         function n = getNumConfigurations(this)
-            if ~isempty(this.Gammas)
-                n = length(this.Gammas);
-            else
-                n = length(this.Distances);
-            end
+            n = length(this.Gammas);
         end
         
         function k = configureInstance(this, nr)
