@@ -144,6 +144,17 @@ classdef IClassConfig < KerMorObject & ICloneable
         collectRanges(this, ptable, proppath);
     end
     
+    methods(Access=protected)
+        function obj = loadobj(obj, from)
+            if nargin < 2 || ~isa(from,'IClassConfig')
+                error('Must call this loadobj method from subclass with subclass instance');
+            end
+            obj = loadobj@KerMorObject(obj, from);
+            obj.Prototype = from.Prototype;
+            obj.RequiredPrototypeClass = from.RequiredPrototypeClass;
+        end
+    end
+    
     methods(Static)
         function test_ClassConfigPlots
             

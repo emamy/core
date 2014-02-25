@@ -95,12 +95,13 @@ classdef AAdaptiveBase < approx.algorithms.ABase
     end
     
     methods(Access=protected, Sealed)
-        function kexp = templateComputeApproximation(this, atd)
+        function kexp = templateComputeApproximation(this, atd, atd_val)
             % Performs adaptive approximation generation.
             %
             % Parameters:
             % atd: The approximation training data instance @type
             % data.ApproxTrainData
+            % atd_val: A validation data set. Not used with VKOGA yet.
             %
             % Return values:
             % kexp: The kernel expansion approximation. @type

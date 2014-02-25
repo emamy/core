@@ -50,6 +50,10 @@ classdef Componentwise < approx.algorithms.ABase & IParallelizable
         %
         % See also: CoeffConfig
         BestCoeffConfig;
+        
+        ValidationErrors = [];
+        
+        ValidationRelErrors = [];
     end
     
     properties(SetAccess=private)
@@ -102,10 +106,15 @@ classdef Componentwise < approx.algorithms.ABase & IParallelizable
             nco = this.CoeffConfig.getNumConfigurations;
             [X,Y] = meshgrid(1:nc,1:nco);
             
-            h = pm.nextPlot('abs','Absolute errors','expansion config','coeff comp config');
+            h = pm.nextPlot('abs','Absolute errors (train)','expansion config','coeff comp config');
             LogPlot.logsurf(h,X,Y,this.MaxErrors');
-            h = pm.nextPlot('rel','Relative errors','expansion config','coeff comp config');
+            h = pm.nextPlot('rel','Relative errors (train)','expansion config','coeff comp config');
             LogPlot.logsurf(h,X,Y,this.MaxRelErrors');
+            
+            h = pm.nextPlot('abs','Absolute errors (val)','expansion config','coeff comp config');
+            LogPlot.logsurf(h,X,Y,this.ValidationErrors');
+            h = pm.nextPlot('rel','Relative errors (val)','expansion config','coeff comp config');
+            LogPlot.logsurf(h,X,Y,this.ValidationRelErrors');
             if nargin < 2
                 pm.done;
             end
@@ -132,10 +141,33 @@ classdef Componentwise < approx.algorithms.ABase & IParallelizable
                 nc = nc * this.CoeffConfig.getNumConfigurations;
             end
         end
+        
+        function mink = collectFromExpConfigSplit(this, algs)
+            np = length(algs);
+            rs = RangeSplitter(this.ExpConfig.getNumConfigurations, 'Num', np);
+            minerr = Inf;
+            for k=1:np
+                algk = algs{k};
+                idx = rs.getPart(k);
+                this.MaxErrors(idx,:) = algk.MaxErrors;
+                this.MaxRelErrors(idx,:) = algk.MaxRelErrors;
+                this.ValidationErrors(idx,:) = algk.ValidationErrors;
+                this.ValidationRelErrors(idx,:) = algk.ValidationRelErrors;
+                this.SingleRuntimes(idx,:) = algk.SingleRuntimes;
+                this.StopFlags(idx,:) = algk.StopFlags;
+                hlp = algk.MaxErrors(algk.BestExpConfig,algk.BestCoeffConfig);
+                if hlp < minerr
+                    minerr = hlp;
+                    mink = k;
+                    this.BestExpConfig = idx(algk.BestExpConfig);
+                    this.BestCoeffConfig = algk.BestCoeffConfig;
+                end
+            end
+        end
     end
     
     methods(Access=protected, Sealed)
-        function kexp = templateComputeApproximation(this, atd)
+        function kexp = templateComputeApproximation(this, atd, avd)
             ec = this.ExpConfig;
             
             kexp = ec.Prototype;
@@ -152,10 +184,11 @@ classdef Componentwise < approx.algorithms.ABase & IParallelizable
             end
             
             % Keep track of maximum errors (matrix-wise for expansion config / coeff config)
-            this.MaxErrors = zeros(nc,nco);
-            this.MaxRelErrors = zeros(nc,nco);
-            this.StopFlags = zeros(nc,nco);
-            this.SingleRuntimes = zeros(nc,nco);
+            hlp = zeros(nc,nco);
+            this.MaxErrors = hlp;
+            this.MaxRelErrors = hlp;
+            this.StopFlags = hlp;
+            this.SingleRuntimes = hlp;
             
             minerr = Inf;
             bestcidx = [];
@@ -184,14 +217,20 @@ classdef Componentwise < approx.algorithms.ABase & IParallelizable
                     % Call protected method
                     time = tic;
                     sf = this.computeCoeffs(kexp, atd.fxi, []);
-%                     sf = this.computeCoeffs(kexp, atd.fxi, kexp.Ma);
                     this.StopFlags(kcidx,coidx) = sf;
-
-                    % Determine maximum error
+ 
+                    % Determine maximum error on training data
                     [val, maxidx] = this.getError(kexp, atd);
                     rel = val / (norm(atd.fxi(:,maxidx))+eps);
                     this.MaxErrors(kcidx,coidx) = val;
                     this.MaxRelErrors(kcidx,coidx) = rel;
+                    % Determine maximum error on validation data (and use
+                    % for optimal approx selection)
+                    [val, maxidx] = this.getError(kexp, avd);
+                    rel = val / (norm(avd.fxi(:,maxidx))+eps);
+                    this.ValidationErrors(kcidx,coidx) = val;
+                    this.ValidationRelErrors(kcidx,coidx) = rel;
+
                     this.SingleRuntimes(kcidx,coidx) = toc(time);
                     
                     if val < minerr
@@ -337,7 +376,7 @@ classdef Componentwise < approx.algorithms.ABase & IParallelizable
                 newinst = approx.algorithms.Componentwise;
                 if isfield(this, 'SingleRuntimes')
                     newinst.SingleRuntimes = this.SingleRuntimes;
-                end
+                end           
                 this = loadobj@approx.algorithms.ABase(newinst, this);
             else
                 this = loadobj@approx.algorithms.ABase(this);

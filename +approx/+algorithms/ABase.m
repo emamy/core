@@ -123,8 +123,12 @@ classdef ABase < KerMorObject & ICloneable & IReductionSummaryPlotProvider
         end
         
         
-        function kexp = computeApproximation(this, atd)
+        function kexp = computeApproximation(this, atd, atd_val)
             time = tic;
+            
+            if nargin < 3
+                atd_val = atd;
+            end
             
             if isempty(this.ExpConfig)
                 error('No ExpConfig set. Aborting.');
@@ -138,19 +142,27 @@ classdef ABase < KerMorObject & ICloneable & IReductionSummaryPlotProvider
                 s = max(abs(fm),abs(fM));
                 s(s==0) = 1;
                 oldfxi = atd.fxi.toMemoryMatrix;
+                oldvalfxi = atd_val.fxi.toMemoryMatrix;
                 atd.fxi(:,:) = oldfxi ./ repmat(s,1,size(atd.fxi,2));
+                % Apply same scaling to validation data
+                if nargin > 2
+                    atd_val.fxi(:,:) = oldvalfxi ./ repmat(s,1,size(atd_val.fxi,2));
+                end
                 this.ScalingG = diag(s);
             else
                 this.ScalingG = 1;
             end
             
             % Call template method for component wise approximation
-            kexp = this.templateComputeApproximation(atd);
+            kexp = this.templateComputeApproximation(atd, atd_val);
             
             % Rescale if set
             if this.UsefScaling
                 kexp.Ma = this.ScalingG*kexp.Ma;
                 atd.fxi(:,:) = oldfxi;
+                if nargin > 2
+                    atd_val.fxi(:,:) = oldvalfxi;
+                end
             end
             
             % Reduce the snapshot array and coeff data to the

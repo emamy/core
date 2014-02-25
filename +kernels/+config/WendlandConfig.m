@@ -82,5 +82,16 @@ classdef WendlandConfig < kernels.config.RBFConfig
             this.addRange(ptable, [proppath {'Smoothnesses'}],min(this.Smoothnesses),max(this.Smoothnesses));
             this.addRange(ptable, [proppath {'Dimension'}],min(this.Dimension),max(this.Dimension));
         end
+        
+        function this = loadobj(this)
+            if ~isa(this,'kernels.config.WendlandConfig')
+                
+                this = kernels.config.WendlandConfig;
+            end
+        end
     end
 end
+
+
+
+

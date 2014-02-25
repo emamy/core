@@ -160,6 +160,16 @@ classdef ApproxTrainData < handle
             satd.fxi = this.fxi(:,sel);
         end
         
+        function [train, validation] = splitToTrainValidationSets(this, perc, seed)
+            % Creates a training and validation data set from this approx
+            % train data instance.
+            s = RandStream('mt19937ar','Seed',seed);
+            randidx = s.randperm(size(this.xi,2));
+            valnum = round(size(this.xi,2)*perc);
+            train = this.subset(valnum+1:size(this.xi,2));
+            validation = this.subset(randidx(1:valnum));
+        end
+        
         function relocate(this, new_dir)
             % Convenience method. Relocates the xi and fxi FileMatrix instances if present.
             %

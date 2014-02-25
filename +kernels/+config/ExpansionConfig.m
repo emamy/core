@@ -127,6 +127,15 @@ classdef ExpansionConfig < IClassConfig
                     [proppath {sprintf('State(%s)',this.StateConfig.getClassName)}]);
             end
         end
+        
+        function obj = loadobj(obj)
+            if ~isa(obj, 'kernels.config.ExpansionConfig')
+                from = obj;
+                obj = kernels.config.ExpansionConfig;
+                obj = loadobj@IClassConfig(obj, from);
+                obj.StateConfig = from.StateConfig;
+            end
+        end
     end
     
 end
