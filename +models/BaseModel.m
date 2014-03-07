@@ -114,7 +114,14 @@ classdef BaseModel < KerMorObject
         % @default .1 @type double
         %
         % @see RealTimePlotting
-        RealTimePlottingMinPause = .1;
+        RealTimePlottingMinPause = .1;        
+               
+        % Determines if the model is time dependent or static
+        %
+        % See also simulate
+        %
+        % @default false @type logical
+        IsStatic = false;
     end
     
     properties(SetAccess=private, Dependent)
@@ -593,7 +600,7 @@ classdef BaseModel < KerMorObject
         function tau = get.tau(this)
             tau = this.ftau;
         end
-        
+                
         function set.T(this, value)
             if ~isscalar(value) || value < 0
                 error('T must be a positive real scalar.');
