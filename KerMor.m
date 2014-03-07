@@ -604,7 +604,7 @@ classdef KerMor < handle
             warning off MATLAB:dispatcher:nameConflict;
             
             % Stuff only for single instance mode
-            if numlabs == 1
+            if exist('numlabs','builtin') == 5 && numlabs == 1
                 % Preferences & Environment
                 setpref('Internet','SMTP_Server','localhost');
                 
