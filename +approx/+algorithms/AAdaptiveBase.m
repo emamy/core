@@ -95,13 +95,13 @@ classdef AAdaptiveBase < approx.algorithms.ABase
     end
     
     methods(Access=protected, Sealed)
-        function kexp = templateComputeApproximation(this, atd, atd_val)
+        function kexp = templateComputeApproximation(this, atd, avd)
             % Performs adaptive approximation generation.
             %
             % Parameters:
             % atd: The approximation training data instance @type
             % data.ApproxTrainData
-            % atd_val: A validation data set. Not used with VKOGA yet.
+            % avd: A validation data set. @type data.ApproxTrainData
             %
             % Return values:
             % kexp: The kernel expansion approximation. @type
@@ -119,13 +119,15 @@ classdef AAdaptiveBase < approx.algorithms.ABase
             nc = this.ExpConfig.getNumConfigurations;
             this.MaxErrors = zeros(nc,this.MaxExpansionSize);
             this.MaxRelErrors = this.MaxErrors;
+            this.ValidationErrors = zeros(nc,2);
+            this.ValidationRelErrors = zeros(nc,2);
             this.ExpansionSizes = zeros(nc,1);
             
             % Compute initial center
             [~, this.initialidx] = this.getInitialCenter(atd);
             
             % Start adaptive extension part of subclass
-            kexp = this.startAdaptiveExtension(atd);
+            kexp = this.startAdaptiveExtension(atd, avd);
         end
     end
     

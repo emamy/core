@@ -170,6 +170,44 @@ classdef ApproxTrainData < handle
             validation = this.subset(randidx(1:valnum));
         end
         
+        function [e,lbl,pt] = getErrorsFor(this, fun)
+            fxi = this.fxi.toMemoryMatrix;
+            diff = fxi - fun.evaluate(this.xi.toMemoryMatrix);
+            fxino = Norm.L2(this.fxi);
+            l2 = Norm.L2(diff);
+            lbl{1} = 'Max abs l2';
+            e(1) = max(l2);
+            lbl{2} = 'Max rel l2';
+            e(2) = max(l2./fxino);
+            lbl{3} = 'Mean abs l2';
+            e(3) = mean(l2);
+            lbl{4} = 'Mean rel l2';
+            e(4) = mean(l2./fxino);
+            
+            l1 = Norm.L1(diff);
+            fxino = Norm.L1(fxi);
+            lbl{5} = 'Max abs l1';
+            e(5) = max(l1);
+            lbl{6} = 'Max rel l1';
+            e(6) = max(l1./fxino);
+            lbl{7} = 'Mean abs l1';
+            e(7) = mean(l1);
+            lbl{8} = 'Mean rel l1';
+            e(8) = mean(l1./fxino);
+            
+            pt = PrintTable;
+            pt.Caption = sprintf('Errors on ApproxTrainData (#xi = %d)',size(this.xi,2));
+            pt.HasRowHeader = true;
+            for k = 1:8
+                pt.addRow(lbl{k}, e(k), {'%4.2g'});
+            end
+            pt = pt';
+            
+            if nargout < 3
+                pt.print;
+            end
+        end
+        
         function relocate(this, new_dir)
             % Convenience method. Relocates the xi and fxi FileMatrix instances if present.
             %

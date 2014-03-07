@@ -107,7 +107,7 @@ classdef VKOGA
             ms = 7;
             fx = res.atd.fxi.toMemoryMatrix;
             x = res.atd.xi.toMemoryMatrix;
-            
+                        
             %% Zero function plot
             k = [];
             h0 = doPlot(0,zeros(size(fx)));
