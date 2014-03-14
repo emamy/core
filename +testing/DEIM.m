@@ -1,4 +1,4 @@
-classdef DEIM
+classdef DEIM < dscomponents.ACompEvalCoreFun
 % DEIM: Tests regarding the DEIM method.
 %
 % See also: approx.DEIM
@@ -12,8 +12,66 @@ classdef DEIM
 % - \c Homepage http://www.morepas.org/software/index.html
 % - \c Documentation http://www.morepas.org/software/kermor/index.html
 % - \c License @ref licensing
+
+    properties(Access=private)
+        data;
+    end
+
+    methods
+        
+        function this = DEIM(dim)
+            if nargin < 1
+                dim = 200;
+            end
+            this.xDim = dim;
+            this.fDim = dim;
+            this.data = rand(dim,1);
+            % Commenting this out will let KerMor issue a warning.
+            this.JSparsityPattern = sparse(dim,dim);
+            this.MultiArgumentEvaluations = true;
+        end
+        
+        function fx = evaluateCoreFun(this, x, t, mu)
+            fx = bsxfun(@mtimes,this.data,mu(1,:)) + repmat(t,this.fDim,1);
+        end
+    end
+    
+    methods(Access=protected)
+        function fx = evaluateComponents(this, pts, ends, idx, self, x, t, mu)
+            fx = bsxfun(@mtimes,this.data(pts),mu(1,:)) + repmat(t,length(pts),1);
+        end
+    end
     
     methods(Static)
+        
+        function test_DEIMNoSpatialDependence
+            dim = 400;
+            f = testing.DEIM(dim);
+            
+            d = general.DEIM;
+            d.MaxOrder = round(dim/2);
+            
+            x = rand(dim,dim*2);
+            fx = rand(dim,dim*2);
+            atd = data.ApproxTrainData(x,[],[]);%#ok
+            atd.fxi = fx;
+            
+            d.computeDEIM(f,atd.fxi);
+            
+            x = double.empty(dim,0);
+            t = linspace(0,1,20);
+            mu = rand(1,20);
+            
+            fxall = f.evaluate(x,t,mu);
+            
+            for k = 1:5:d.MaxOrder
+                d.Order = k;
+                afx = d.evaluate(x,t,mu);
+                fprintf('Relative errors for Order k=%d: %s\n',k,...
+                    sprintf('%g ',sum(Norm.L2(fxall-afx)))); %./Norm.L2(fxall)
+            end
+        end
+        
         function analysis_DEIM_approx(m)
             ma = ModelAnalyzer(m.buildReducedModel);
             

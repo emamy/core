@@ -814,7 +814,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 error('The model class has changed but the loadobj method does not implement backwards-compatible loading behaviour.\nPlease implement the loadobj-method in your subclass and pass the loaded object struct as second argument.');
             end
             if nargin == 2
-                this.Data = sobj.Data;
+                this = loadobj@models.BaseModel(this, sobj);
                 this.SpaceReducer = sobj.SpaceReducer;
                 this.Approx = sobj.Approx;
                 this.JKerMorExport = sobj.JKerMorExport;
@@ -831,8 +831,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 if isfield(sobj,'AutoSave')
                     this.AutoSave = logical(sobj.AutoSave);
                 end
+                % Load data class at last; any other components that might
+                % make use of stuff inside the model folder should be able
+                % to clean up
+                this.Data = sobj.Data;
+            else
+                this = loadobj@models.BaseModel(this);
             end
-            this = loadobj@models.BaseModel(this);
             this.addlistener('T','PreSet', @this.intTimeChanging);
             this.addlistener('dt','PreSet', @this.intTimeChanging);
             this.addlistener('T','PostSet', @this.intTimeChanged);
