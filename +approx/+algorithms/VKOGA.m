@@ -31,15 +31,18 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
         % @default 1e-5 @type double
         MaxAbsResidualErr = 1e-5;
         
-        % Determines which error measure is to use to select a solution if the algorithm stops
-        % for any reason but matching one of the MaxRelErr or MaxAbsResidualErr tolerances.
+        % Determines which error measure is to use to select the "best"
+        % solution w.r.t. to the validation data set (the training data set
+        % is used if not given)
         %
         % Allowed values are 'abs' and 'rel'
         %
         % @type char @default 'abs'
-        FailureErrorMeasure = 'abs';
+        ValidationErrorMeasure = 'abs';
         
         VKOGABound;
+        
+        AllExpansions;
     end
     
     properties(SetAccess=private)
@@ -61,18 +64,16 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             copy.UsefPGreedy = this.UsefPGreedy;
             copy.MaxAbsResidualErr = this.MaxAbsResidualErr;
             copy.MaxRelErrors = this.MaxRelErrors;
-            copy.FailureErrorMeasure = this.FailureErrorMeasure;
+            copy.ValidationErrorMeasure = this.ValidationErrorMeasure;
             copy.VKOGABound = this.VKOGABound;
             copy.basis_norms = this.basis_norms;
+            copy.AllExpansions = this.AllExpansions;
         end
     end
     
     methods(Access=protected, Sealed)
-        function kexp = startAdaptiveExtension(this, atd)
+        function kexp = startAdaptiveExtension(this, atd, avd)
             % Starts the adaptive extension of the VKOGA algorithm.
-            
-            % Flag for experimental mode
-            exp_mode = 1 == 0;
             vb = KerMor.App.Verbose;
             
             ec = this.ExpConfig;
@@ -82,23 +83,24 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             this.StopFlags = zeros(nc,1);
             this.VKOGABound = this.basis_norms;
             this.BestExpConfig = 0;
+            this.AllExpansions = eval(sprintf('%s.empty',class(ec.Prototype)));
 
             xi = atd.xi.toMemoryMatrix;
             fxi = atd.fxi.toMemoryMatrix;
             fxinorm = this.ErrorFun(fxi);
             fxinorm(fxinorm == 0) = 1;
+            if ~isempty(avd)
+                vxi = avd.xi.toMemoryMatrix;
+                vfxi = avd.fxi.toMemoryMatrix;
+                vfxinorm = this.ErrorFun(vfxi);
+                vfxinorm(vfxinorm == 0) = 1;
+            end
             N = size(xi,2);
             
             minerr = Inf;
-            minrelerr = Inf;
             bestNV = [];
             bestc = [];
             bestused = [];
-
-            if exp_mode
-                pm = PlotManager(false,ceil((size(fxi,1)+4)/2),2);
-                pm.LeaveOpen = true;
-            end
             
             %% Run loop for all desired distances
             pi = ProcessIndicator('VKOGA approximation for %d kernel configurations',nc,false,nc);
@@ -139,11 +141,11 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                 %% Main extension loop
                 while true
                                         
-                    %% Residual and error computation                    
-                    fresidual = fresidual - c(:,m)*(NV(:,m))'; % Cumulative computation (eff.)
-%                     fresidual1 = fxi - c(:,1:m)*(NV(:,1:m))'; % Complete computation
-%                     figure(1);
-%                     semilogy(abs(fresidual1 - fresidual));
+                    %% Residual and error computation          
+                    % Cumulative computation (more effective)
+                    fresidual = fresidual - c(:,m)*(NV(:,m))'; 
+                    % Complete computation
+%                     fresidual1 = fxi - c(:,1:m)*(NV(:,1:m))'; 
 
                     e = this.ErrorFun(fresidual);
                     this.MaxErrors(cidx,m) = max(e);
@@ -185,26 +187,6 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     [~, maxidx] = max(sum_fresidual);
                     tN = kexp.getKernelMatrixColumn(maxidx, xi) - NV(:,1:m)*NV(maxidx,1:m)';
                     
-                    if exp_mode
-                        pm.resetCount;
-                        for fdim = 1:size(fxi,1)
-                            h1 = pm.nextPlot('fun','Function','x','f(x)');
-                            plot(h1,xi(1,:),fxi(fdim,:)','b.');
-                            hold(h1,'on');
-                            plot(h1,xi(1,:),c(fdim,1:m)*(NV(:,1:m))','g.');
-                        end
-                        h2 = pm.nextPlot('nfun','Newton Basis Function','x','N_i(x)');
-                        plot(h2,xi(1,:),NV(:,1:m));
-                        h3 = pm.nextPlot('err','Absolute error','x','|f(x)-f^m(x)|');
-                        LogPlot.cleverPlot(h3,1:m,this.MaxErrors(:,1:m)); 
-                        h4 = pm.nextPlot('MaxRelErrors','Relative error','x','|(f(x)-f^m(x))/f(x)|');
-                        LogPlot.cleverPlot(h4,1:m,this.MaxRelErrors(:,1:m));
-                        h5 = pm.nextPlot('sum_fresidual','Squared residual ||f-f^m||^2','x','||f-f^m||^2');
-                        LogPlot.cleverPlot(h5,1:N,sum_fresidual);
-                        pm.done;
-%                         pause;
-                    end
-                    
                     %% Emergency break:
                     % An entry of the power function for which a value greater than one has
                     % been summed up would be chosen, leading to imaginary norms.
@@ -224,49 +206,44 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     sumNsq = sumNsq + (NV(:,m).^2)';
                     used(m) = maxidx;
                     
-                    % Debug stuff
                     this.basis_norms(cidx,m) = tNnorm;
                     this.VKOGABound(cidx, m) = this.VKOGABound(cidx, m-1) + 1/max(Kdiag - sumNsq);
-%                     if exp_mode
-%                         h = pm.nextPlot('sumNSq','Power fun','x','P(x)');
-%                         LogPlot.cleverPlot(h,xi(1,:),sumNsq); 
-%                         pm.done;
-%                     end
                 end
                 
-                better = false;
-                if stopflag == StopFlag.ABS_ERROR
-                    bestm = m;
-                    if this.MaxErrors(cidx,m) < minerr
-                        better = true;
-                        minerr = this.MaxErrors(cidx,m);
-                    end
-                elseif stopflag == StopFlag.REL_ERROR
-                    bestm = m;
-                    if this.MaxRelErrors(cidx,m) < minrelerr
-                        better = true;
-                        minrelerr = this.MaxRelErrors(cidx,m);
-                    end
-                elseif stopflag == StopFlag.NEGATIVE_POWFUN || stopflag == StopFlag.MAX_SIZE
-                    if strcmp(this.FailureErrorMeasure,'rel')
-                        [val, bestm] = min(this.MaxRelErrors(cidx,1:m));
-                        if val < minrelerr
-                            better = true;
-                            minrelerr = val;
-                        end
-                    else
-                        [val, bestm] = min(this.MaxErrors(cidx,1:m));
-                        if val < minerr
-                            better = true;
-                            minerr = val;
-                        end
-                    end
+                this.ExpansionSizes(cidx) = m;
+                this.MaxErrors(cidx,m+1:end) = Inf;
+                this.MaxRelErrors(cidx,m+1:end) = Inf;
+                
+                kexp.setCentersFromATD(atd, used(1:m));
+                kexp.Ma = c(:,1:m);
+                kexp.Base = NV(used(1:m),1:m);
+                this.AllExpansions(cidx) = kexp;
+                
+                % If set, compute error on validation set
+                if ~isempty(avd)
+                    e = this.ErrorFun(vfxi - kexp.evaluate(vxi));
+                    this.ValidationErrors(cidx,1) = max(e);
+                    this.ValidationRelErrors(cidx,1) = max(e./vfxinorm);
+                    this.ValidationErrors(cidx,2) = mean(e);
+                    this.ValidationRelErrors(cidx,2) = mean(e./vfxinorm);
+                else
+                    % Otherwise just copy the training set error
+                    this.ValidationErrors(cidx,1) = this.MaxErrors(cidx,m);
+                    this.ValidationRelErrors(cidx,1) = this.MaxRelErrors(cidx,m);
+                    this.ValidationErrors(cidx,2) = mean(e);
+                    this.ValidationRelErrors(cidx,2) = mean(e./fxinorm);
                 end
-                this.ExpansionSizes(cidx) = bestm;
-                if better
-                    bestused = used(1:bestm);
-                    bestNV = NV(:,1:bestm);
-                    bestc = c(:,1:bestm);
+                
+                if strcmp(this.ValidationErrorMeasure,'rel')
+                    val = this.ValidationRelErrors(cidx,2);
+                else
+                    val = this.ValidationErrors(cidx,2);
+                end
+                if val < minerr
+                    minerr = val;
+                    bestused = used(1:m);
+                    bestNV = NV(:,1:m);
+                    bestc = c(:,1:m);
                     this.BestExpConfig = cidx;
                 end
                 this.StopFlags(cidx) = stopflag;
@@ -317,7 +294,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                 elseif isfield(this,'UseOGA')
                     a.UsefPGreedy = this.UseOGA;
                 end
-                if isfield(this,'UsefPGreedy')
+                if isfield(this,'MaxAbsResidualErr')
                     a.MaxAbsResidualErr = this.MaxAbsResidualErr;
                 end
                 if isfield(this,'bestNewtonBasisValuesOnATD')

@@ -50,10 +50,6 @@ classdef Componentwise < approx.algorithms.ABase & IParallelizable
         %
         % See also: CoeffConfig
         BestCoeffConfig;
-        
-        ValidationErrors = [];
-        
-        ValidationRelErrors = [];
     end
     
     properties(SetAccess=private)
@@ -146,6 +142,7 @@ classdef Componentwise < approx.algorithms.ABase & IParallelizable
             np = length(algs);
             rs = RangeSplitter(this.ExpConfig.getNumConfigurations, 'Num', np);
             minerr = Inf;
+            this.LastCompTime = 0;
             for k=1:np
                 algk = algs{k};
                 idx = rs.getPart(k);
@@ -155,7 +152,8 @@ classdef Componentwise < approx.algorithms.ABase & IParallelizable
                 this.ValidationRelErrors(idx,:) = algk.ValidationRelErrors;
                 this.SingleRuntimes(idx,:) = algk.SingleRuntimes;
                 this.StopFlags(idx,:) = algk.StopFlags;
-                hlp = algk.MaxErrors(algk.BestExpConfig,algk.BestCoeffConfig);
+                this.LastCompTime = this.LastCompTime + algk.LastCompTime;
+                hlp = algk.ValidationErrors(algk.BestExpConfig,algk.BestCoeffConfig);
                 if hlp < minerr
                     minerr = hlp;
                     mink = k;

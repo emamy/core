@@ -77,13 +77,29 @@ classdef ABase < KerMorObject & ICloneable & IReductionSummaryPlotProvider
         % @default [] @type matrix<double>
         MaxRelErrors = [];
         
+        % For each configuration, contains a row with the maximum errors on the
+        % validation data.
+        % The number of columns depends on the type of algorithm implemented by the subclasses.
+        %
+        % @default [] @type matrix<double>
+        ValidationErrors = [];
+        
+        % For each configuration, contains a row with the maximum relative errors on the
+        % validation data.
+        % The number of columns depends on the type of algorithm implemented by the subclasses.
+        %
+        % @default [] @type matrix<double>
+        ValidationRelErrors = [];
+        
         % For each effective configuration, the stop flags are stored here.
         %
         % @default [] @type matrix<integer>
         %
         % See also: StopFlag
-        StopFlags = [];
-        
+        StopFlags = [];    
+    end
+    
+    properties
         % Index of the best expansion config determined by the algorithm
         %
         % @type integer
@@ -116,18 +132,19 @@ classdef ABase < KerMorObject & ICloneable & IReductionSummaryPlotProvider
             copy.ErrorFun = this.ErrorFun;
             copy.MaxErrors = this.MaxErrors;
             copy.MaxRelErrors = this.MaxRelErrors;
+            copy.ValidationErrors = this.ValidationErrors;
+            copy.ValidationRelErrors = this.ValidationRelErrors;
             copy.LastCompTime = this.LastCompTime;
             copy.StopFlags = this.StopFlags;
             copy.ScalingG = this.ScalingG;
             copy.BestExpConfig = this.BestExpConfig;
         end
         
-        
-        function kexp = computeApproximation(this, atd, atd_val)
+        function kexp = computeApproximation(this, atd, avd)
             time = tic;
             
             if nargin < 3
-                atd_val = atd;
+                avd = atd;
             end
             
             if isempty(this.ExpConfig)
@@ -142,11 +159,11 @@ classdef ABase < KerMorObject & ICloneable & IReductionSummaryPlotProvider
                 s = max(abs(fm),abs(fM));
                 s(s==0) = 1;
                 oldfxi = atd.fxi.toMemoryMatrix;
-                oldvalfxi = atd_val.fxi.toMemoryMatrix;
+                oldvalfxi = avd.fxi.toMemoryMatrix;
                 atd.fxi(:,:) = oldfxi ./ repmat(s,1,size(atd.fxi,2));
                 % Apply same scaling to validation data
                 if nargin > 2
-                    atd_val.fxi(:,:) = oldvalfxi ./ repmat(s,1,size(atd_val.fxi,2));
+                    avd.fxi(:,:) = oldvalfxi ./ repmat(s,1,size(avd.fxi,2));
                 end
                 this.ScalingG = diag(s);
             else
@@ -154,14 +171,14 @@ classdef ABase < KerMorObject & ICloneable & IReductionSummaryPlotProvider
             end
             
             % Call template method for component wise approximation
-            kexp = this.templateComputeApproximation(atd, atd_val);
+            kexp = this.templateComputeApproximation(atd, avd);
             
             % Rescale if set
             if this.UsefScaling
                 kexp.Ma = this.ScalingG*kexp.Ma;
                 atd.fxi(:,:) = oldfxi;
                 if nargin > 2
-                    atd_val.fxi(:,:) = oldvalfxi;
+                    avd.fxi(:,:) = oldvalfxi;
                 end
             end
             
@@ -221,20 +238,32 @@ classdef ABase < KerMorObject & ICloneable & IReductionSummaryPlotProvider
                 end
             end
             
-            str = sprintf('%s: Max absolute errors',context);
+            str = sprintf('%s: Max absolute training errors',context);
             h = pm.nextPlot('maxerrors',str,...
                 'expansion size','error');
             ph = semilogy(h,1:size(this.MaxErrors,2),this.MaxErrors');
             if ~isempty(this.ExpConfig)
                 set(ph(this.BestExpConfig),'LineWidth',2);
             end
-            str = sprintf('%s: Max relative errors',context);
+            str = sprintf('%s: Max relative training errors',context);
             h = pm.nextPlot('maxrelerrors',str,...
                 'expansion size','error');
             ph = semilogy(h,1:size(this.MaxRelErrors,2),this.MaxRelErrors');
             if ~isempty(this.ExpConfig)
                 set(ph(this.BestExpConfig),'LineWidth',2);
             end
+            str = sprintf('%s: Absolute validation errors',context);
+            h = pm.nextPlot('valerrors',str,...
+                'configuration nr','error');
+            semilogy(h,1:length(this.ValidationErrors),this.ValidationErrors);
+            legend('max','mean');
+            
+            str = sprintf('%s: Relative validation errors',context);
+            h = pm.nextPlot('valrelerrors',str,...
+                'configuration nr','error');
+            semilogy(h,1:length(this.ValidationRelErrors),this.ValidationRelErrors);
+            legend('max','mean');
+            
             
             if nargin < 2
                 pm.done;
@@ -276,7 +305,7 @@ classdef ABase < KerMorObject & ICloneable & IReductionSummaryPlotProvider
         % Performs the actual approximation after scaling.
         %
         % Template method.
-        templateComputeApproximation(this, kexp, atd);
+        templateComputeApproximation(this, kexp, atd, avd);
     end
     
      methods(Static,Access=protected)
@@ -297,6 +326,12 @@ classdef ABase < KerMorObject & ICloneable & IReductionSummaryPlotProvider
                     this.MaxRelErrors = initfrom.MaxRelErrors;
                 elseif isfield(initfrom,'relerr')
                     this.MaxRelErrors = initfrom.relerr;
+                end
+                if isfield(initfrom,'ValidationErrors') && ~isempty(initfrom.ValidationErrors)
+                    this.ValidationErrors = initfrom.ValidationErrors;
+                end
+                if isfield(initfrom,'ValidationRelErrors') && ~isempty(initfrom.ValidationRelErrors)
+                    this.ValidationRelErrors = initfrom.ValidationRelErrors;
                 end
                 if ~isfield(initfrom,'StopFlags') || isempty(initfrom.StopFlags)
                     this.StopFlags = zeros(size(this.MaxErrors));

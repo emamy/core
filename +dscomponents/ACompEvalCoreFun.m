@@ -159,51 +159,55 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             jr = []; js = logical.empty(0,1);
             je = zeros(1,length(pts));
             SP = this.JSparsityPattern;
-            % Jacobian extras
-            if nargin == 4
-                deri = [];
-                full_mapping = [];
-                requested_len = 0;
-                dfx_sel = sparse(length(pts),0);
-            end
-            for i=1:length(pts)
-                sprow = SP(pts(i),:);
-                inew = find(sprow);
-                jr = [jr inew];%#ok
-                js = [js inew == pts(i)];%#ok
-                je(i) = length(jr);
+            if ~isempty(SP)
                 % Jacobian extras
                 if nargin == 4
-                    des_der = jpd{i};
-                    % Select elements of sparsity pattern that have been
-                    % requested to be evaluated on evaluateJacobianSet
-                    full_mapping = [full_mapping sprow(des_der)];%#ok
-                    % deri contains the accumulated indices of 
-                    % jacobian entries that are nonzero and thus make sense
-                    % to evaluate.
-                    [~, dpos, matchidx] = intersect(des_der, inew);
-                    % Take the match indices, but sort them in the order
-                    % the elements occur in jpd{i} to maintain correct
-                    % ordering.
-                    [~, sidx] = sort(dpos);
-                    pos = reshape(matchidx(sidx),1,[]);
-                    
-%                     pos1 = jpd{i}(deriv_elem);
-                    if ~isempty(pos)
-                        if i==1
-                            offs = 0;
-                        else
-                            offs = je(i-1);
-                        end    
-                        deri = [deri pos+offs];%#ok
-                    end
-                    % Sum up the total length for later transformation
-                    requested_len = requested_len + length(des_der);
-                    
-                    % Augment dfx selection matrix (only needed for default
-                    % finite differences implementation)
-                    dfx_sel(i,(end+1):(end+length(inew))) = 1;%#ok
+                    deri = [];
+                    full_mapping = [];
+                    requested_len = 0;
+                    dfx_sel = sparse(length(pts),0);
                 end
+                for i=1:length(pts)
+                    sprow = SP(pts(i),:);
+                    inew = find(sprow);
+                    jr = [jr inew];%#ok
+                    js = [js inew == pts(i)];%#ok
+                    je(i) = length(jr);
+                    % Jacobian extras
+                    if nargin == 4
+                        des_der = jpd{i};
+                        % Select elements of sparsity pattern that have been
+                        % requested to be evaluated on evaluateJacobianSet
+                        full_mapping = [full_mapping sprow(des_der)];%#ok
+                        % deri contains the accumulated indices of 
+                        % jacobian entries that are nonzero and thus make sense
+                        % to evaluate.
+                        [~, dpos, matchidx] = intersect(des_der, inew);
+                        % Take the match indices, but sort them in the order
+                        % the elements occur in jpd{i} to maintain correct
+                        % ordering.
+                        [~, sidx] = sort(dpos);
+                        pos = reshape(matchidx(sidx),1,[]);
+
+    %                     pos1 = jpd{i}(deriv_elem);
+                        if ~isempty(pos)
+                            if i==1
+                                offs = 0;
+                            else
+                                offs = je(i-1);
+                            end    
+                            deri = [deri pos+offs];%#ok
+                        end
+                        % Sum up the total length for later transformation
+                        requested_len = requested_len + length(des_der);
+
+                        % Augment dfx selection matrix (only needed for default
+                        % finite differences implementation)
+                        dfx_sel(i,(end+1):(end+length(inew))) = 1;%#ok
+                    end
+                end
+            else
+                warning('Empty JSparsityPattern. DEIM approximation will not use any state space arguments.');
             end
             this.jrow{nr} = jr;
             this.jself{nr} = js;

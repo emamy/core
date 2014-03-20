@@ -484,7 +484,7 @@ if c.iske
     C = C(:,sel);
     c.curCenters = C;
     c.curCenterSelInATD = Utils.findVecInMatrix(c.td.xi.toMemoryMatrix,C);
-    if all(c.curCenterSelInATD == 0)
+    if any(c.curCenterSelInATD == 0)
         c.curCenterSelInATD = [];
     end
     xf = repmat(c.basex,1,size(C,2));

@@ -272,6 +272,9 @@ classdef Utils
             idx = zeros(1,size(b,2));
             for n = 1:size(b,2)
                 tmp = strfind(reshape(A,1,[]),b(:,n)');
+                % Exclude positions where the position is not at the start
+                % of a found vector!
+                tmp(mod(tmp,size(b,1)) ~= 1) = [];
                 if ~isempty(tmp)
                     idx(n) = (tmp(1)+size(b,1)-1)/size(b,1);
                 end
