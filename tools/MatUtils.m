@@ -183,7 +183,8 @@ classdef MatUtils
         end
         
         function A = generalizedLaplacemat3D(h, g, sigma)
-            %Computes a 3D generalized laplacian sparse matrix
+            % Computes a 3D generalized laplacian sparse matrix
+            % `\nabla\cdot\sigma\nabla`
             %
             % Arguments:
             % h: discretization spatial stepwidth in all three directions
@@ -267,7 +268,7 @@ classdef MatUtils
             createStencil([-1 -m -m*k] ,[s1+s2+s3 -s1 -s2 -s3],g.Edges.BaBoR);
             
             %% Compile matrix
-            A = -sparse(i,j,s,g.Points+1,g.Points);
+            A = -sparse(i,j,s,g.Points,g.Points);
             
             % Some comment on how createStencil works - ABOVE
             function createStencil ( stencil , weights , points )
