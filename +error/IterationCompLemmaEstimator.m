@@ -390,7 +390,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             if isempty(errmsg) && ~isempty(model.Approx) && ~isa(model.Approx,'dscomponents.ParamTimeKernelCoreFun')
                 errmsg = 'The model''s approximation function must be a subclass of dscomponents.ParamTimeKernelCoreFun for this error estimator.';
             end
-            if isempty(errmsg) && isa(model.System.f.Expansion,'kernels.KernelExpansion') ...
+            if isempty(errmsg) && isa(model.System.f,'dscomponents.ParamTimeKernelCoreFun') ...
                     && ~isa(model.System.f.Expansion.Kernel,'kernels.BellFunction')
                 errmsg = 'The system''s kernel must be a kernels.BellFunction for this error estimator.';
             end
