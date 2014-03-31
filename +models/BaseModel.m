@@ -115,6 +115,13 @@ classdef BaseModel < KerMorObject
         %
         % @see RealTimePlotting
         RealTimePlottingMinPause = .1;
+        
+        % Determines if the model is time dependent or static
+        %
+        % See also simulate
+        %
+        % @default false @type logical
+        IsStatic = false;    
     end
     
     properties(SetAccess=private, Dependent)
@@ -281,8 +288,13 @@ classdef BaseModel < KerMorObject
             if this.RealTimePlotting
                 this.ctime = tic;
             end
-            % Get scaled state trajectory
-            [t, x, time] = this.computeTrajectory(mu, inputidx);
+            if this.IsStatic
+                % solve static equation
+                [t, x, time] = this.solveStatic(mu, inputidx);
+            else
+                % Get scaled state trajectory
+                [t, x, time] = this.computeTrajectory(mu, inputidx);
+            end
             
             % Measure rest of time
             starttime = tic;
@@ -363,6 +375,39 @@ classdef BaseModel < KerMorObject
             % varargin: Any arguments that should be passed on to inner plotting methods (model
             % dependent)
             this.plot(t, y, varargin{:});
+        end
+        
+        function [t, x, ctime] = solveStatic(this, mu, inputidx)
+            % solves the linear system A(t,mu)*x + B(t,mu)*u(t) = 0.
+            if nargin < 3
+                inputidx = [];
+                if nargin < 2
+                    mu = [];
+                end
+            end
+            sys = this.System;
+            if ~isempty(sys.f)
+                error('Solving static nonlinear equations is not implemented yet');
+            end
+            % Stop the time
+            st = tic;
+            
+            % Prepare the system by setting mu and inputindex.
+            sys.setConfig(mu, inputidx);
+            t = this.scaledTimes;
+            x = zeros(sys.A.xDim,length(t));
+            if ~sys.A.TimeDependent
+                % precompute lu decomposition
+                [l,u] = lu(sys.A.evaluate(1,0,sys.mu));
+            end
+            for idx = 1:length(t)
+                if ~sys.A.TimeDependent
+                    x(:,idx) = -u\(l\(sys.B.evaluate(t(idx), sys.mu)*sys.u(t(idx))));
+                else
+                    x(:,idx) = -sys.A.evaluate(1,t(idx),sys.mu)\(sys.B.evaluate(t(idx), sys.mu)*sys.u(t(idx)));
+                end
+            end
+            ctime = toc(st);
         end
         
         function [t, x, ctime] = computeTrajectory(this, mu, inputidx)
@@ -593,7 +638,7 @@ classdef BaseModel < KerMorObject
         function tau = get.tau(this)
             tau = this.ftau;
         end
-        
+                
         function set.T(this, value)
             if ~isscalar(value) || value < 0
                 error('T must be a positive real scalar.');

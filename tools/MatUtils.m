@@ -182,6 +182,116 @@ classdef MatUtils
             end
         end
         
+        function A = generalizedLaplacemat3D(h, g, sigma)
+            % Computes a 3D generalized laplacian sparse matrix
+            % `\nabla\cdot\sigma\nabla`
+            %
+            % Arguments:
+            % h: discretization spatial stepwidth in all three directions
+            % g: the general.geometry.RectGrid3D instance describing the
+            % geometry.
+            % sigma: the conductivity tensor, assumed to be diagonal
+            %
+            % @author Daniel Wirtz @date 2011-10-06
+            
+            s1 = sigma(1,1)/h(1)^2; s2 = sigma(2,2)/h(2)^2; s3 = sigma(3,3)/h(3)^2;
+            %h1 = h(1)^2; h2 = h(2)^2; h3 = h(3)^2;
+            i = []; j = []; s =[];
+            m = g.Dims(1);
+            k = g.Dims(2);
+            L = g.IndexMatrix;
+            
+            %% Inner points
+            createStencil([-1 m 1 -m -m*k m*k],[2*(s1+s2+s3) -s1 -s2 -s1 -s2 -s3 -s3], g.Inner);
+            
+            %% Points that are on inner boundaries
+            % Front boundary neumann
+            createStencil([-1 m 1 -m m*k] ,[2*s1+2*s2+s3 -s1 -s2 -s1 -s2 -s3],g.Sides.F);
+            % Back boundary neumann
+            createStencil([-1 m 1 -m -m*k] ,[2*s1+2*s2+s3 -s1 -s2 -s1 -s2 -s3],g.Sides.Ba);
+            % Left boundary neumann
+            createStencil([-1 1 m m*k -m*k] ,[2*s1+s2+2*s3 -s1 -s1 -s2 -s3 -s3],g.Sides.L);
+            % Right boundary neumann
+            createStencil([-1 1 -m m*k -m*k] ,[2*s1+s2+2*s3 -s1 -s1 -s2 -s3 -s3],g.Sides.R);
+            % Top boundary neumann
+            createStencil([1 m -m m*k -m*k] ,[s1+2*s2+2*s3 -s1 -s2 -s2 -s3 -s3],g.Sides.T);
+            % Bottom boundary neumann
+            createStencil([-1 m -m m*k -m*k] ,[s1+2*s2+2*s3 -s1 -s2 -s2 -s3 -s3],g.Sides.Bo);
+
+            % Corner points
+            %% Front side corners
+            % Front top
+            createStencil([1 m -m m*k] ,[s1+2*s2+s3 -s1 -s2 -s2 -s3],g.Corners.FT);
+            % Front bottom
+            createStencil([-1 m -m m*k] ,[s1+2*s2+s3 -s1 -s2 -s2 -s3],g.Corners.FBo);
+            % Front left
+            createStencil([1 -1 m m*k] ,[2*s1+s2+s3 -s1 -s1 -s2 -s3],g.Corners.FL);
+            % Front right
+            createStencil([1 -1 -m m*k] ,[2*s1+s2+s3 -s1 -s1 -s2 -s3],g.Corners.FR);
+            
+            %% Back side corners
+            % Back top
+            createStencil([1 m -m -m*k] ,[s1+2*s2+s3 -s1 -s2 -s2 -s3],g.Corners.BaT);
+            % Back bottom
+            createStencil([-1 m -m -m*k] ,[s1+2*s2+s3 -s1 -s2 -s2 -s3],g.Corners.BaBo);
+            % Back left
+            createStencil([1 -1 m -m*k] ,[2*s1+s2+s3 -s1 -s1 -s2 -s3],g.Corners.BaL);
+            % Back right
+            createStencil([1 -1 -m -m*k] ,[2*s1+s2+s3 -s1 -s1 -s2 -s3],g.Corners.BaR);
+            
+            %% front-back connecting corners
+            % top left
+            createStencil([1 m m*k -m*k] ,[s1+s2+2*s3 -s1 -s2 -s3 -s3],g.Corners.TL);
+            % top right
+            createStencil([1 -m m*k -m*k] ,[s1+s2+2*s3 -s1 -s2 -s3 -s3],g.Corners.TR);
+            % bottom left
+            createStencil([-1 m m*k -m*k] ,[s1+s2+2*s3 -s1 -s2 -s3 -s3],g.Corners.BoL);
+            % bottom right
+            createStencil([-1 -m m*k -m*k] ,[s1+s2+2*s3 -s1 -s2 -s3 -s3],g.Corners.BoR);
+
+            %% Edge points
+            % Front Top left
+            createStencil([1 m m*k] ,[s1+s2+s3 -s1 -s2 -s3],g.Edges.FTL);
+            % Front Top right
+            createStencil([1 -m m*k] ,[s1+s2+s3 -s1 -s2 -s3],g.Edges.FTR);
+            % Front bottom left
+            createStencil([-1 m m*k] ,[s1+s2+s3 -s1 -s2 -s3],g.Edges.FBoL);
+            % Front bottom right
+            createStencil([-1 -m m*k] ,[s1+s2+s3 -s1 -s2 -s3],g.Edges.FBoR);
+            % Rear Top left
+            createStencil([1 m -m*k] ,[s1+s2+s3 -s1 -s2 -s3],g.Edges.BaTL);
+            % Rear Top right
+            createStencil([1 -m -m*k] ,[s1+s2+s3 -s1 -s2 -s3],g.Edges.BaTR);
+            % Rear bottom left
+            createStencil([-1 m -m*k] ,[s1+s2+s3 -s1 -s2 -s3],g.Edges.BaBoL);
+            % Rear bottom right
+            createStencil([-1 -m -m*k] ,[s1+s2+s3 -s1 -s2 -s3],g.Edges.BaBoR);
+            
+            %% Compile matrix
+            A = -sparse(i,j,s,g.Points,g.Points);
+            
+            % Some comment on how createStencil works - ABOVE
+            function createStencil ( stencil , weights , points )
+                % Some comment on how createStencil works - BELOW
+                %
+                % Parameters:
+                % stencil - Testdescription
+                %
+                % weights - bla bla
+                
+                i = [i; L(points)];
+                j = [j; L(points)];
+                s = [s; weights(1)* ones(size(points))];
+                cnt=2;
+                for offset = stencil
+                    i = [i; L(points)]; %#ok
+                    j = [j; L(points+offset)];%#ok
+                    s = [s; weights(cnt)*ones(size(points))];%#ok
+                    cnt=cnt+1;
+                end
+            end
+        end
+        
         function Kinv = getExtendedInverse(Kinv, v, mode)
             % For a matrix K with known inverse Kinv the matrix is extended by the vector
             % @docupdate
