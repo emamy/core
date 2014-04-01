@@ -192,14 +192,13 @@ classdef MatUtils
             % geometry.
             % sigma: the conductivity tensor, assumed to be diagonal
             %
-            % @author Daniel Wirtz @date 2011-10-06
+            % @author Timm Strecker @date 2014-03-20
             
             s1 = sigma(1,1)/h(1)^2; s2 = sigma(2,2)/h(2)^2; s3 = sigma(3,3)/h(3)^2;
             %h1 = h(1)^2; h2 = h(2)^2; h3 = h(3)^2;
             i = []; j = []; s =[];
             m = g.Dims(1);
             k = g.Dims(2);
-            L = g.IndexMatrix;
             
             %% Inner points
             createStencil([-1 m 1 -m -m*k m*k],[2*(s1+s2+s3) -s1 -s2 -s1 -s2 -s3 -s3], g.Inner);
@@ -279,13 +278,13 @@ classdef MatUtils
                 %
                 % weights - bla bla
                 
-                i = [i; L(points)];
-                j = [j; L(points)];
+                i = [i; points];
+                j = [j; points];
                 s = [s; weights(1)* ones(size(points))];
                 cnt=2;
                 for offset = stencil
-                    i = [i; L(points)]; %#ok
-                    j = [j; L(points+offset)];%#ok
+                    i = [i; points]; %#ok
+                    j = [j; points+offset];%#ok
                     s = [s; weights(cnt)*ones(size(points))];%#ok
                     cnt=cnt+1;
                 end
