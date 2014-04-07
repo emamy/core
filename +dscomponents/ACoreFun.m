@@ -264,7 +264,7 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(mu,1,d);
             I = speye(d,d)*dt;
             % Evaluate makes use of built-in multi-argument evaluation
-            J = (this.evaluate(X+I,T,MU) - this.evaluate(X,T,MU))/dt;
+            J = (this.evaluate(X+I,T,MU) - repmat(this.evaluate(x,t,mu),1,d))/dt;
             % Create sparse matrix if pattern is set
             if ~isempty(this.JSparsityPattern)
                 [i, j] = find(this.JSparsityPattern);

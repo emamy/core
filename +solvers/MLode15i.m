@@ -38,10 +38,10 @@ classdef MLode15i < solvers.MLWrapper & solvers.IImplSolver
         % @propclass{critical} The correct relative tolerance guarantees the right number of
         % significant figures.
         %
-        % @default 1e-4 @type double
+        % @default 1e-3 @type double
         %
         % See also: AbsTol ode15i odeset
-        RelTol = 1e-4;
+        RelTol = 1e-3;
         
         % Absolute error tolerance for solver.
         %
@@ -52,10 +52,10 @@ classdef MLode15i < solvers.MLWrapper & solvers.IImplSolver
         % @propclass{critical} Absolute error tolerances require adoption to the current situation
         % and scale of computations.
         %
-        % @default 1e-9 @type double
+        % @default 1e-6 @type double
         %
         % See also: RelTol ode15i odeset
-        AbsTol = 1e-9;
+        AbsTol = 1e-6;
     end
     
     properties(Access=private)
