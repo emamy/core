@@ -122,10 +122,14 @@ classdef ReducedSystem < models.BaseDynSystem
             
             % SV ~= 1 means that projection or nontrivial scaling is used.
             if ~isequal(SV,1) 
-                this.x0 = fullsys.x0.project(SV,SW);
+                if ~isempty(fullsys.x0)  % otherwise error for static models
+                    this.x0 = fullsys.x0.project(SV,SW);
+                end
                 this.C = fullsys.C.project(SV,SW);
             else
-                this.x0 = fullsys.x0.clone;
+                if ~isempty(fullsys.x0)  % otherwise error for static models
+                    this.x0 = fullsys.x0.clone;
+                end
                 this.C = fullsys.C.clone;
             end
             

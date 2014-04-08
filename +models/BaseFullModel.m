@@ -673,7 +673,11 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 end
             else
                 st = tic;
-                [t, x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
+                if this.isStatic
+                    [t, x] = solveStatic(this, mu, inputidx);
+                else
+                    [t, x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
+                end
                 time = toc(st);
                 if this.EnableTrajectoryCaching
                     this.Data.SimCache.addTrajectory(x, [this.T; this.dt; mu], inputidx, time);

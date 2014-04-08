@@ -121,7 +121,7 @@ classdef BaseModel < KerMorObject
         % See also simulate
         %
         % @default false @type logical
-        IsStatic = false;    
+        isStatic = false;    
     end
     
     properties(SetAccess=private, Dependent)
@@ -288,7 +288,7 @@ classdef BaseModel < KerMorObject
             if this.RealTimePlotting
                 this.ctime = tic;
             end
-            if this.IsStatic
+            if this.isStatic
                 % solve static equation
                 [t, x, time] = this.solveStatic(mu, inputidx);
             else
@@ -395,14 +395,17 @@ classdef BaseModel < KerMorObject
             % Prepare the system by setting mu and inputindex.
             sys.setConfig(mu, inputidx);
             t = this.scaledTimes;
-            x = zeros(sys.A.xDim,length(t));
+            x = zeros(size(sys.A.evaluate(1,0,sys.mu),2), length(t));
             if ~sys.A.TimeDependent
                 % precompute lu decomposition
                 [l,u] = lu(sys.A.evaluate(1,0,sys.mu));
             end
             for idx = 1:length(t)
                 if ~sys.A.TimeDependent
-                    x(:,idx) = -u\(l\(sys.B.evaluate(t(idx), sys.mu)*sys.u(t(idx))));
+                    input = sys.u(t(idx));
+                    input = sys.B.evaluate(t(idx), sys.mu)*input;
+                    x(:,idx) = -u\(l\input);
+%                    x(:,idx) = -u\(l\(sys.B.evaluate(t(idx), sys.mu)*sys.u(t(idx))));
                 else
                     x(:,idx) = -sys.A.evaluate(1,t(idx),sys.mu)\(sys.B.evaluate(t(idx), sys.mu)*sys.u(t(idx)));
                 end
