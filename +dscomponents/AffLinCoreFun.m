@@ -40,6 +40,10 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
         % @type char @default ''
         CoeffClass = '';
     end
+    
+    properties(Transient, Access=private)
+        cachedA;
+    end
    
     methods
         function this = AffLinCoreFun
@@ -49,19 +53,34 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
             this.CustomProjection = true;
             this.TimeDependent = false;
             this.MultiArgumentEvaluations = true;
+            this.cachedA = [];
         end
         
         function fx = evaluate(this, x, t, mu)
             % Evaluates affine-linear core function by matrix-vector
             % multiplication.
             if numel(t) == 1
-                fx = this.compose(t, mu)*x;
+                if ~isempty(this.cachedA)
+                    fx = this.cachedA*x;
+                else
+                    fx = this.compose(t, mu)*x;
+                end
             else
                 % Multi-Argument case
                 fx = zeros(size(x));
                 for k = 1:size(x,2)
                     fx(:,k) = this.compose(t(k), mu(:,k))*x(:,k);
                 end
+            end
+        end
+        
+        function cacheMatrix(this, mu) 
+            this.cachedA = [];
+            if ~isempty(mu)
+                if this.TimeDependent
+                    error('Cannot cache a time-dependent AffLinCoreFun');
+                end
+                this.cachedA = this.compose(0, mu);
             end
         end
         
@@ -77,7 +96,11 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
             % Overrides the default jacobian finite difference
             % implementation. Jacobian of linear operator is the operator
             % itself, i.e. in this case the linear combination of the matrices.
-            J = this.compose(t, mu);
+            if ~isempty(this.cachedA)
+                J = this.cachedA;
+            else
+                J = this.compose(t, mu);
+            end
         end
         
         function c = getGlobalLipschitz(this, t, mu)

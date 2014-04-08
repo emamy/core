@@ -54,9 +54,7 @@ classdef MatUtils
             %% Compile matrix
             A = (1/h^2)*sparse(i,j,s,m,m);
             
-            % Some comment on how createStencil works - ABOVE
             function createStencil ( stencil , weights , points )
-                % Some comment on how createStencil works - BELOW
                 %
                 % Parameters:
                 % stencil - Testdescription
@@ -72,6 +70,78 @@ classdef MatUtils
                     j = [j; idxmat(points+offset)];
                     s = [s; weights(idx)*ones(size(points))];
                     idx=idx+1;
+                end
+            end
+        end
+        
+        function A = divcdivumat(px, py, gradc)
+            % Computes the 2D matrix for the expression `\nabla c(x) \cdot
+            % \nabla u` arising in the general spatial-dependent diffusion
+            % term `\nabla\cdot(c(x)\nabla u(x))`.
+            %
+            % The coordinates in px and py have to be equally spaced, e.g.
+            % meshgrid'ed.
+            %
+            % Arguments:
+            % px: Matrix of x coordinates @type matrix<double>
+            % py: Matrix of y coordinates @type matrix<double>
+            % gradc: Function handle `\R^2 \to \R^2` for gradient
+            % evaluation of `grad c(x)` function at points [px;py].
+            %
+            % Return values:
+            % A: The matrix with discretized entries @type matrix<double>
+            %
+            % @author Daniel Wirtz @date 2014-04-07
+            
+            h = diff(px);
+            if any(any(abs((h(1) - h)./h) > 1e-13)) || any(any(abs((h(1) - diff(py'))./diff(py')) > 1e-13))
+                error('Need equidistant points in both directions.');
+            end
+            
+            d1 = size(px,1);
+            d2 = size(px,2);
+            m = d1*d2;
+            idxmat = zeros(d1,d2);
+            idxmat(:) = 1:m;
+            
+            inner = find(conv2(ones(size(idxmat)),[0 1 0;1 0 1; 0 1 0],'same')==4);
+            
+            i = []; j = []; s =[];
+            %% Inner points
+            % N E S W
+            createStencil([-1 d1 1 -d1], .5*[1 1 -1 -1], [1 2 1 2], inner);
+            
+            %% Points that are on a boundaries
+            % Left boundary neumann
+            createStencil([-1 1 0 d1] ,[-.5 .5 -1 1],[1 1 2 2],(2:d1-1)');
+            % Right boundary neumann
+            createStencil([-1 1 -d1 0] ,[-.5 .5 -1 1],[1 1 2 2],(m-d1+2:m-1)');
+            % Top boundary neumann
+            createStencil([-d1 d1 0 1] ,[-.5 .5 -1 1],[2 2 1 1],(d1+1:d1:m-2*d1+1)');
+            % Bottom boundary neumann
+            createStencil([-d1 d1 -1 0] ,[-.5 .5 -1 1],[2 2 1 1],(2*d1:d1:m-d1)');
+            
+            % Edge points
+            % Top left
+            createStencil([0 1 0 d1] ,[-1 1 -1 1],[1 1 2 2],1);
+            % Top right
+            createStencil([0 1 -d1 0] ,[-1 1 -1 1],[1 1 2 2],m-d1+1);
+            % bottom left
+            createStencil([-1 0 0 d1] ,[-1 1 -1 1],[1 1 2 2],d1);
+            % bottom right
+            createStencil([-1 0 -d1 0] ,[-1 1 -1 1],[1 1 2 2],m);
+            %% Compile matrix
+            A = sparse(i,j,s,m,m)/h(1);
+            
+            function createStencil (stencil, weights, component, points)
+                grad = zeros(length(points),2);
+                for k=1:length(points)
+                    grad(k,:) = gradc([px(points(k)); py(points(k))]);
+                end
+                for pos = 1:length(stencil)
+                    i = [i; idxmat(points)];%#ok
+                    j = [j; idxmat(points+stencil(pos))];%#ok
+                    s = [s; weights(pos)*grad(:,component(pos))];%#ok
                 end
             end
         end
@@ -344,6 +414,24 @@ classdef MatUtils
     end
     
     methods(Static)
+        
+        function res = test_DivCDivUMat
+            [x,y] = meshgrid(-1:1);
+            gradc = @(x)[1 1];
+            
+            A = MatUtils.divcdivumat(x,y,gradc);
+            
+            gradc = @(x)[0 1];
+            
+            A1 = MatUtils.divcdivumat(x,y,gradc);
+            
+            gradc = @(x)[1 0];
+            
+            A2 = MatUtils.divcdivumat(x,y,gradc);
+            
+            res = isequal(A, A1 + A2);
+        end
+        
         function test_ExtendedInverseDirect
             % Tests direct inversion extension for a matrix of size s
             % for a fixed number of experiments each.
