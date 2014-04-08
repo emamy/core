@@ -242,6 +242,10 @@ classdef BaseDynSystem < KerMorObject
             end
             this.mu = mu;
             
+            if isa(this.A,'dscomponents.AffLinCoreFun') && ~this.A.TimeDependent
+                this.A.cacheMatrix(mu);
+            end
+            
             if isempty(inputidx) && ~isempty(this.Inputs)
                 cprintf('red','Attention: Starting simulations without input, but the system has configured some.\n');
                 %inputidx = 1;
@@ -254,6 +258,12 @@ classdef BaseDynSystem < KerMorObject
             else
                 this.u = [];
                 this.inputidx = [];
+            end
+        end
+        
+        function postSimulate(this)
+            if isa(this.A,'dscomponents.AffLinCoreFun') && ~this.A.TimeDependent
+                this.A.cacheMatrix([]);
             end
         end
     

@@ -514,6 +514,9 @@ classdef BaseModel < KerMorObject
                 x = [x(:,1), x(:,end)];
             end
             
+            % Let the system know we're done simulating.
+            sys.postSimulate;
+            
             % Get used time
             ctime = toc(st);
         end

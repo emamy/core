@@ -100,6 +100,10 @@ classdef AffParamMatrix < general.AProjectable
             end
             M = reshape(this.Matrices * sparse(this.cfun(t,mu)),this.dims(1),[]);
         end
+        
+        function c = evalCoeffFun(this, t, mu)
+            c = this.cfun(t,mu);
+        end
                 
         function copy = clone(this, copy)
             % Creates a copy of this affine parametric matrix.
