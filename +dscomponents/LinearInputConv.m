@@ -9,6 +9,7 @@ classdef LinearInputConv < dscomponents.AInputConv
     methods
         function this = LinearInputConv(B)
             this.B = B;
+            this.TimeDependent = false;
         end
         
         function res = evaluate(this, ~, ~)
