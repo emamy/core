@@ -394,7 +394,7 @@ classdef BaseModel < KerMorObject
             t = this.scaledTimes;
             
             % Prepare the right-hand side
-            rhs = zeros(sys.A.fDim, length(t));
+            rhs = zeros(size(sys.A.evaluate(1,0),1), length(t));
             if ~isempty(sys.B)
                 if ~sys.B.TimeDependent
                     rhs = sys.B.evaluate(0, sys.mu)*sys.u(t);
@@ -405,12 +405,12 @@ classdef BaseModel < KerMorObject
                 end
             end
             if ~isempty(sys.f)
-                warning('All spatial information of f is neglected in the current implementation!');
+                warning('All spatial dependence of f is neglected in the current implementation!');
                 if sys.f.MultiArgumentEvaluations
-                    rhs = rhs + sys.f.evaluate([], t, repmat(sys.mu,1,length(t)));
+                    rhs = rhs + sys.f.evaluate(zeros(sys.f.xDim,0), t, repmat(sys.mu,1,length(t)));
                 else
                     for tdx = 1:length(t)
-                        rhs(:,tdx) = rhs(:,tdx) + sys.f.evaluate([], t(tdx), sys.mu);
+                        rhs(:,tdx) = rhs(:,tdx) + sys.f.evaluate(zeros(sys.f.xDim,0), t(tdx), sys.mu);
                     end
                 end
             end
