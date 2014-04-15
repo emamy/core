@@ -16,8 +16,8 @@ classdef MatUtils
             %
             % Arguments:
             % h - discretization spatial stepwidth
-            % d1 - region dimension 1
-            % d2 - region dimension 2
+            % d1 - region dimension 1 (steps in [0 d1*h])
+            % d2 - region dimension 2 (steps in [0 d2*h])
             %
             % @author Daniel Wirtz @date 11.03.2010
             
@@ -80,7 +80,9 @@ classdef MatUtils
             % term `\nabla\cdot(c(x)\nabla u(x))`.
             %
             % The coordinates in px and py have to be equally spaced, e.g.
-            % meshgrid'ed.
+            % meshgrid'ed. Further the coordinate system origin is assumed
+            % to be in the top left corner, so x+ to the right and y+ to
+            % the bottom (accorcind
             %
             % Arguments:
             % px: Matrix of x coordinates @type matrix<double>
@@ -94,7 +96,9 @@ classdef MatUtils
             % @author Daniel Wirtz @date 2014-04-07
             
             h = diff(px);
-            if any(any(abs((h(1) - h)./h) > 1e-13)) || any(any(abs((h(1) - diff(py'))./diff(py')) > 1e-13))
+            if h == 0
+                error('px must increase along first dimension.');
+            elseif any(any(abs((h(1) - h)./h) > 1e-13)) || any(any(abs((h(1) - diff(py'))./diff(py')) > 1e-13))
                 error('Need equidistant points in both directions.');
             end
             
@@ -109,7 +113,7 @@ classdef MatUtils
             i = []; j = []; s =[];
             %% Inner points
             % N E S W
-            createStencil([-1 d1 1 -d1], .5*[1 1 -1 -1], [1 2 1 2], inner);
+            createStencil([-1 d1 1 -d1], .5*[-1 1 1 -1], [1 2 1 2], inner);
             
             %% Points that are on a boundaries
             % Left boundary neumann
@@ -141,7 +145,7 @@ classdef MatUtils
                 for pos = 1:length(stencil)
                     i = [i; idxmat(points)];%#ok
                     j = [j; idxmat(points+stencil(pos))];%#ok
-                    s = [s; weights(pos)*grad(:,component(pos))];%#ok
+                    s = [s; weights(pos)*abs(grad(:,component(pos)))];%#ok
                 end
             end
         end
@@ -417,10 +421,11 @@ classdef MatUtils
         
         function res = test_DivCDivUMat
             [x,y] = meshgrid(-1:1);
+            x = x'; y = y';
             gradc = @(x)[1 1];
             
             A = MatUtils.divcdivumat(x,y,gradc);
-            
+         
             gradc = @(x)[0 1];
             
             A1 = MatUtils.divcdivumat(x,y,gradc);

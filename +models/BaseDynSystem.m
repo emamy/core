@@ -499,6 +499,13 @@ classdef BaseDynSystem < KerMorObject
             this.B = value;
         end
         
+        function set.A(this,value)
+            if ~isempty(value) && ~(isa(value, 'dscomponents.LinearCoreFun') || isa(value, 'dscomponents.AffLinCoreFun'))
+                error('The property "A" has to be a LinearCoreFun or AffLinCoreFun.');
+            end
+            this.A = value;
+        end
+        
         function set.C(this,value)
             if isempty(value)
                 value = dscomponents.LinearOutputConv(1);
