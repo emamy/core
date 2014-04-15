@@ -121,7 +121,7 @@ classdef BaseModel < KerMorObject
         % See also simulate
         %
         % @default false @type logical
-        IsStatic = false;    
+        isStatic = false;    
     end
     
     properties(SetAccess=private, Dependent)
@@ -288,7 +288,7 @@ classdef BaseModel < KerMorObject
             if this.RealTimePlotting
                 this.ctime = tic;
             end
-            if this.IsStatic
+            if this.isStatic
                 % solve static equation
                 [t, x, time] = this.solveStatic(mu, inputidx);
             else
@@ -386,27 +386,47 @@ classdef BaseModel < KerMorObject
                 end
             end
             sys = this.System;
-            if ~isempty(sys.f)
-                error('Solving static nonlinear equations is not implemented yet');
-            end
             % Stop the time
             st = tic;
             
             % Prepare the system by setting mu and inputindex.
             sys.setConfig(mu, inputidx);
             t = this.scaledTimes;
-            x = zeros(sys.A.xDim,length(t));
-            if ~sys.A.TimeDependent
-                % precompute lu decomposition
-                [l,u] = lu(sys.A.evaluate(1,0,sys.mu));
-            end
-            for idx = 1:length(t)
-                if ~sys.A.TimeDependent
-                    x(:,idx) = -u\(l\(sys.B.evaluate(t(idx), sys.mu)*sys.u(t(idx))));
+            
+            % Prepare the right-hand side
+            rhs = zeros(size(sys.A.evaluate(1,0),1), length(t));
+            if ~isempty(sys.B)
+                if ~sys.B.TimeDependent
+                    rhs = sys.B.evaluate(0, sys.mu)*sys.u(t);
                 else
-                    x(:,idx) = -sys.A.evaluate(1,t(idx),sys.mu)\(sys.B.evaluate(t(idx), sys.mu)*sys.u(t(idx)));
+                    for tdx = 1:length(t)
+                        rhs(:,tdx) = sys.B.evaluate(t(tdx), sys.mu)*sys.u(t(tdx));
+                    end
                 end
             end
+            if ~isempty(sys.f)
+                warning('All spatial dependence of f is neglected in the current implementation!');
+                if sys.f.MultiArgumentEvaluations
+                    rhs = rhs + sys.f.evaluate(zeros(sys.f.xDim,0), t, repmat(sys.mu,1,length(t)));
+                else
+                    for tdx = 1:length(t)
+                        rhs(:,tdx) = rhs(:,tdx) + sys.f.evaluate(zeros(sys.f.xDim,0), t(tdx), sys.mu);
+                    end
+                end
+            end
+            
+            % solve the system A*x + rhs = 0 for x
+            if ~sys.A.TimeDependent  % @todo: override mldivide in LinCoreFun - but how to pass x, t and mu then?
+                % precompute lu decomposition
+                [l,u] = lu(sys.A.evaluate(1,0,sys.mu));
+                x = -u\(l\rhs);
+            else
+                x = zeros(sys.A.xDim, length(t));
+                for tdx = 1:length(t) 
+                    x(:,tdx) = -sys.A.evaluate(1,t(tdx),sys.mu)\rhs(:,tdx);
+                end
+            end
+            
             ctime = toc(st);
         end
         

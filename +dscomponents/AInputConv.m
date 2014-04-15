@@ -11,6 +11,22 @@ classdef AInputConv < KerMorObject & general.AProjectable
     %
     % @change{0,5,dw,2011-07-07} Fixed output name from `C` to `B`
     
+    properties(SetObservable)
+        % Flag that indicates if the AInputConv is (truly) time-dependent.
+        %
+        % Set in subclasses to the correct value for your implementation.
+        % Most built-in KerMor classes set their values correctly or guess them.
+        %
+        % This will cause different behaviour for e.g. ODE solvers.
+        %
+        % @propclass{critical} Not setting this value in implementing subclasses causes
+        % KerMor's ODE solvers to (possibly) produce wrong results due to wrong assumptions on
+        % the time dependence of the core function.
+        %
+        % @type logical @default true
+        TimeDependent = true;
+    end
+    
     methods(Abstract)
         % Template method that evaluates the input conversion matrix `B` at the current time `t`
         % and [optional] parameter `\mu`.
