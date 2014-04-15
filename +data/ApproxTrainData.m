@@ -96,12 +96,28 @@ classdef ApproxTrainData < handle
     
     methods
         function this = ApproxTrainData(xi, ti, mui)
+            % Creates a new approx train data instance
+            %
+            % Parameters:
+            % xi: The state space samples `x_i` @type matrix<double>
+            % ti: The time instances `t_i` @type rowvec<double>
+            % mui: The parameter samples `\mu_i` @type matrix<double>
+            %
+            % Leave `t_i` and/or `\mu_i` empty if no time or parameter
+            % training data is present.
+            %
             % Assign local variables
             if ~isa(xi,'data.FileMatrix')
                 xi = data.FileMatrix(xi);
             end
             this.xi = xi;
+            if isempty(ti)
+                ti = double.empty(0,size(xi,2));
+            end
             this.ti = ti;
+            if isempty(mui)
+                mui = double.empty(0,size(xi,2));
+            end
             this.mui = mui;
             
             % Build box values

@@ -122,7 +122,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                 
                 % Values of Newton basis
                 NV = zeros(N,this.MaxExpansionSize);
-                NV(:,1) = kexp.getKernelMatrixColumn(this.initialidx, xi);
+                NV(:,1) = kexp.getKernelMatrixColumn(this.initialidx, xi, atd.ti, atd.mui);
                 
                 % Coefficients of Newton basis
                 c = zeros(size(atd.fxi,1),this.MaxExpansionSize);
@@ -185,7 +185,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                     sum_fresidual = sum(fresidual.^2,1) ./ div;
                     
                     [~, maxidx] = max(sum_fresidual);
-                    tN = kexp.getKernelMatrixColumn(maxidx, xi) - NV(:,1:m)*NV(maxidx,1:m)';
+                    tN = kexp.getKernelMatrixColumn(maxidx, xi, atd.ti, atd.mui) - NV(:,1:m)*NV(maxidx,1:m)';
                     
                     %% Emergency break:
                     % An entry of the power function for which a value greater than one has
@@ -221,7 +221,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
                 
                 % If set, compute error on validation set
                 if ~isempty(avd)
-                    e = this.ErrorFun(vfxi - kexp.evaluate(vxi));
+                    e = this.ErrorFun(vfxi - kexp.evaluate(vxi,avd.ti,avd.mui));
                     this.ValidationErrors(cidx,1) = max(e);
                     this.ValidationRelErrors(cidx,1) = max(e./vfxinorm);
                     this.ValidationErrors(cidx,2) = mean(e);
@@ -252,7 +252,7 @@ classdef VKOGA < approx.algorithms.AAdaptiveBase
             
             %% Set (& apply) best configuration
             if isempty(bestused)
-                warning();
+                error('No centers found');
             end
             this.Used = bestused;
             kexp = ec.configureInstance(this.BestExpConfig);

@@ -179,6 +179,30 @@ classdef ParamTimeKernelExpansion < kernels.KernelExpansion
             end
         end
         
+        function K = getKernelMatrixColumn(this, idx, x, t, mu)
+            % Computes the kernel matrix for the currently set center data.
+            %
+            % Convenience method, equal to call evaluateAtCenters with
+            % passing the center data as arguments. However, this method is
+            % (possibly, depends on kernel implementation) faster as it
+            % calls the kernels kernels.BaseKernel.evaluate -method with
+            % one argument.
+            %
+            % See also: evaluateAtCenters
+            K = [];
+            if nargin < 3
+                x = this.Centers.xi;
+                t = this.Centers.ti;
+                mu = this.Centers.mui;
+            end
+            if ~isempty(this.Centers)
+                K = this.SubKernelCombinationFun(...
+                    this.fTK.evaluate(t,t(idx)), ...
+                    getKernelMatrixColumn@kernels.KernelExpansion(this, idx, x), ...
+                    this.fPK.evaluate(mu,mu(:,idx)));
+            end
+        end
+        
         function setCentersFromATD(this, atd, idx)
             % Sets the centers according to the indices 'idx' of the
             % training data
