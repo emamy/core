@@ -92,20 +92,29 @@ classdef MLWrapper < solvers.BaseSolver & solvers.AJacobianSolver
             end
             opts = odeset(opts, 'JPattern', JP);
                 
-            % Pass Mass Matrix to solver (only applicable for non-ode15i
-            % solvers, the latter one makes use of M in a different way,
-            % see the class solvers.MLode15i)
-            M = []; yp0 = []; MS = [];
+            % Pass Mass Matrix and initial slope to solver (if set)
+            M = []; yp0 = odefun(0,x0); MS = [];
             if ~isempty(this.M)
                 if ~this.M.TimeDependent
                     M = this.M.evaluate(0);
-                    % This setting seems to have been removed in R2013A
-                    %opts = odeset(opts,'MassConstant','true');
+                    Mmat = M;
                 else
-                    M = @(t)this.M.evaluate(t);
+                    M = @(t,notused)this.M.evaluate(t);
+                    Mmat = M(0);
                 end
-                % Compute initial slope
-                yp0 = this.M.evaluate(0)\odefun(0,x0);
+                % Compute initial slope (considering possibly
+                % rank-deficient M)
+                if issparse(Mmat)
+                    r = sprank(Mmat);
+                else
+                    r = rank(Mmat);
+                end
+                if r < size(Mmat,1)
+                    odeset(opts,'MassSingular','yes');
+                end
+                warning('off','MATLAB:singularMatrix');
+                yp0 = Mmat\yp0;
+                warning('on','MATLAB:singularMatrix');
                 MS = 'none';
             end
             opts = odeset(opts,'Mass',M,'MStateDependence',MS,...

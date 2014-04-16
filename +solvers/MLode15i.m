@@ -90,6 +90,10 @@ classdef MLode15i < solvers.MLWrapper & solvers.IImplSolver
             % x: The system's state `x_i` at time `t_i` as collection of column vectors
             opts = odeset(opts, 'RelTol', this.RelTol, 'AbsTol', this.AbsTol);
             
+            if isempty(opts.InitialSlope)
+                error('The ode15i solver must be provided with an initial slope.');
+            end
+            
             %% Use properties from AJacobianSolver
             % Set Jacobian or Mass matrix
             if ~isempty(this.JacFun) || ~isempty(this.M)
@@ -113,15 +117,25 @@ classdef MLode15i < solvers.MLWrapper & solvers.IImplSolver
             %% Call implicit solver
             % implfun: A handle to the implicit function `f` which describes
             % the ODE via `f(t,x,x') = 0`
-            xp0 = odefun(0,x0);
             if ~isempty(this.M)
-                implfun = @(t,x,xp)this.M.evaluate(t)*xp - odefun(t,x);
-                xp0 = this.M.evaluate(0)\xp0;
+                if this.M.TimeDependent
+                    implfun = @(t,x,xp)this.M.evaluate(t)*xp - odefun(t,x);
+                else
+                    M = this.M.evaluate(0);
+                    implfun = @(t,x,xp)M*xp - odefun(t,x);
+                end
             else
                 implfun = @(t,x,xp)xp - odefun(t,x);
             end
+            
+            % Final check for consistent initial condition
+            initialnorm = norm(implfun(0,x0,opts.InitialSlope));
+            if initialnorm > 1e-13
+                warning('Initial conditions possibly inconsistent. ||f(0,x0,dx0)|| = %g',initialnorm);
+            end
+            
             % Call ode15i solver
-            [varargout{1:nargout}] = this.MLSolver(implfun, t, x0, xp0, opts);
+            [varargout{1:nargout}] = this.MLSolver(implfun, t, x0, opts.InitialSlope, opts);
         end
     end
     
