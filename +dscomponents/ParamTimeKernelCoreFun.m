@@ -37,11 +37,10 @@ classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLi
     end
     
     methods
-        function this = ParamTimeKernelCoreFun
-            this = this@dscomponents.ACoreFun;
+        function this = ParamTimeKernelCoreFun(sys)
+            this = this@dscomponents.ACoreFun(sys);
             
             this.CustomProjection = true;
-            this.MultiArgumentEvaluations = true;
             this.TimeDependent = false;
             this.addlistener('Expansion','PostSet',@this.ExpansionPostSet);
             % addDimListeners is triggered in Expansion post set!
@@ -72,7 +71,7 @@ classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLi
             projected.Expansion = kexp;
         end
         
-        function fx = evaluate(this, x, varargin)
+        function fx = evaluate(this, x, t)
             % Evaluates this CoreFun
             %
             % Parameters:
@@ -85,6 +84,25 @@ classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLi
             % Return values:
             % fx: The evaluation of the kernel expansion @type
             % matrix<double>
+            if nargin < 3
+                t = 0;
+            end
+            fx = this.Expansion.evaluate(x, t, this.mu);
+        end
+        
+        function fx = evaluateMulti(this, x, varargin)
+            % Evaluates this CoreFun for multiple values
+            %
+            % Parameters:
+            % x: The state space positions @type matrix<double>
+            % varargin: For ParamTimeKernelExpansions, additionally `t` and
+            % `\mu` can be provided.
+            % t: The times `t` @type rowvec<double>
+            % mu: The parameters `\mu` @type matrix<double>
+            %
+            % Return values:
+            % fx: The evaluation of the kernel expansion on all data @type
+            % matrix<double>
             fx = this.Expansion.evaluate(x, varargin{:});
         end
         
@@ -94,7 +112,7 @@ classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLi
                
         function copy = clone(this, copy)
             if nargin < 2
-                copy = dscomponents.ParamTimeKernelCoreFun;
+                copy = dscomponents.ParamTimeKernelCoreFun(this.System);
             end
             copy.Expansion = this.Expansion.clone;
             copy = clone@dscomponents.ACoreFun(this, copy);

@@ -57,21 +57,38 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
     end
 
     methods
-        function fx = evaluateComponentSet(this, nr, x, t, mu)
+        
+        function this = ACompEvalCoreFun(sys)
+            this = this@dscomponents.ACoreFun(sys);
+        end
+        
+        function fx = evaluateComponentSet(this, nr, x, t)
             % Computes the full or reduced component functions of the given point set.
             %
             % Parameters:
             % nr: The number of the PointSet to use. @type integer
             % x: The state space location `\vx` @type colvec<double>
             % t: The corresponding times `t` for the state `\vx` @type double
-            % mu: The corresponding parameter `\mu` for the state `\vx` @type colvec<double>
             %
             % See also: PointSet
             fx = this.evaluateComponents(this.PointSets{nr},...
+                this.jend{nr}, this.jrow{nr}, this.jself{nr}, this.S{nr}*x, t);
+        end
+
+        function fx = evaluateComponentSetMulti(this, nr, x, t, mu)
+            % Computes the full or reduced component functions of the given point set.
+            %
+            % Parameters:
+            % nr: The number of the PointSet to use. @type integer
+            % x: The state space location `\vx` @type colvec<double>
+            % t: The corresponding times `t` for the state `\vx` @type double
+            %
+            % See also: PointSet
+            fx = this.evaluateComponentsMulti(this.PointSets{nr},...
                 this.jend{nr}, this.jrow{nr}, this.jself{nr}, this.S{nr}*x, t, mu);
         end
         
-        function dfx = evaluateComponentSetGradientsAt(this, nr, x, t, mu)
+        function dfx = evaluateComponentSetGradientsAt(this, nr, x, t)
             % Computes the full/reduced gradients of all component
             % functions of the given point set.
             %
@@ -79,7 +96,6 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             % nr: The number of the PointSet to use. @type integer
             % x: The state space location `\vx` @type colvec<double>
             % t: The corresponding times `t` for the state `\vx` @type double
-            % mu: The corresponding parameter `\mu` for the state `\vx` @type colvec<double>
             %
             % See also: PointSet
             %
@@ -87,7 +103,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             % finite differences.
             dfx = this.evaluateComponentGradientsAt(this.PointSets{nr},...
                     this.jend{nr}, this.jrow{nr}, this.jself{nr},...
-                    this.S{nr}*x, t, mu) * this.S{nr};
+                    this.S{nr}*x, t) * this.S{nr};
             
             % the multiplication by S{nr} from the right is due to the
             % inner derivative (chain rule).
@@ -98,7 +114,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             % setPointSet).
         end
         
-        function J = evaluateJacobianSet(this, nr, x, t, mu)
+        function J = evaluateJacobianSet(this, nr, x, t)
             % Returns the jacobian entries of the point set that have been
             % specified using setPointSet's argument jpd.
             %
@@ -107,8 +123,6 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             % x: A matrix `\vX` with the state space locations `\vx_i` in its columns @type
             % matrix<double>
             % t: The corresponding times `t_i` for each state `\vx_i` @type rowvec<double>
-            % mu: The corresponding parameters `\mu_i` for each state `\vx_i`, as column matrix
-            % @type matrix<double>
             %
             % Return values:
             % J: The values of the given points (linear indexing) in the Jacobian in each row,
@@ -118,7 +132,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             
             J = this.evaluateComponentPartialDerivatives(this.PointSets{nr},...
                 this.jend{nr}, this.jrow{nr}, this.deriv{nr}, ...
-                this.jself{nr}, this.S{nr}*x, t, mu, this.dfxsel{nr});
+                this.jself{nr}, this.S{nr}*x, t, this.dfxsel{nr});
             % The deriv{nr} contains only derivative indices for non-zero
             % jacobian elements (determined in setPointSet using the
             % JSparsityPattern). Thus, the return values of
@@ -288,7 +302,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             x = rand(this.xDim,xsize);
             mu = rand(20,xsize); % simply assume param dim<=20
             t = rand(1,xsize);
-            fx = this.evaluate(x, t, mu);
+            fx = this.evaluateMulti(x, t, mu);
             oldpts = [];
             if ~isempty(this.PointSets)
                 oldpts = this.PointSets{1};
@@ -329,7 +343,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
     end
     
     methods(Access=protected)
-        function dfx = evaluateComponentGradientsAt(this, pts, ends, idx, self, x, t, mu)
+        function dfx = evaluateComponentGradientsAt(this, pts, ends, idx, self, x, t)
             % Default implementation of gradient computation via finite
             % differences.
             %
@@ -349,7 +363,6 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             % @type rowvec<integer>
             % x: The state space location `\vx` @type colvec<double>
             % t: The corresponding times `t` for the state `\vx` @type double
-            % mu: The corresponding parameter `\mu` for the state `\vx` @type colvec<double>
             %
             % Return values:
             % dfx: A length(pts) x size(x,1) matrix containing the
@@ -357,13 +370,14 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             % specified by pts. @type matrix<double>
             dt = sqrt(eps);
             d = size(x,1);
-            X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(mu,1,d);
+            X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(this.mu,1,d);
             I = speye(d,d)*dt;
-            dfx = (this.evaluateComponents(pts, ends, idx, self, X+I, T, MU) ...
-                - this.evaluateComponents(pts, ends, idx, self, X, T, MU))/dt;
+            hlp = this.evaluateComponents(pts, ends, idx, self, x, t, this.mu);
+            dfx = (this.evaluateComponentsMulti(pts, ends, idx, self, X+I, T, MU) ...
+                - repmat(hlp,1,d))/dt;
         end
         
-        function dfx = evaluateComponentPartialDerivatives(this, pts, ends, idx, deriv, self, x, t, mu, dfxsel)
+        function dfx = evaluateComponentPartialDerivatives(this, pts, ends, idx, deriv, self, x, t, dfxsel)
             % Computes specified partial derivatives of `f` of the components given by pts and
             % the selected partial derivatives by dfxsel.
             %
@@ -384,7 +398,6 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             % @type rowvec<integer>
             % x: The state space location `\vx` @type colvec<double>
             % t: The corresponding times `t` for the state `\vx` @type double
-            % mu: The corresponding parameter `\mu` for the state `\vx` @type colvec<double>
             % dfxsel: A derivative selection matrix. Contains the mapping for each row of x to
             % the output points pts. As deriv might contain less than 'size(x,1)' values, use
             % 'dfxsel(:,deriv)' to select the mapping for the actually computed derivatives.
@@ -398,19 +411,28 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             d = length(deriv);
             xd = size(x,2);
             if xd == 1
-                X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(mu,1,d); %#ok<*PROP>
+                X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(this.mu,1,d); %#ok<*PROP>
                 I = sparse(deriv,1:d,ones(1,d),size(x,1),d)*dt;
             else
                 el = reshape(repmat(1:xd,d,1),1,[]);
-                X = x(:,el); T = t(el); MU = mu(:,el);
+                X = x(:,el); T = t(el); MU = this.mu(:,el);
                 I = repmat(sparse(deriv,1:d,ones(1,d),size(x,1),d)*dt,1,xd);
             end
             
-            dfx = (this.evaluateComponents(pts, ends, idx, self, X+I, T, MU) ...
-                - this.evaluateComponents(pts, ends, idx, self, X, T, MU))/dt;
+            dfx = (this.evaluateComponentsMulti(pts, ends, idx, self, X+I, T, MU) ...
+                - this.evaluateComponentsMulti(pts, ends, idx, self, X, T, MU))/dt;
             dfx = dfx(repmat(dfxsel(:,deriv),1,xd));
             if xd > 1
                 dfx = reshape(dfx,[],xd);
+            end
+        end
+
+        function fx = evaluateComponentsMulti(this, pts, ends, idx, self, x, t, mu)
+            % @todo improve performance!
+            fx = zeros(size(pts,1),size(x,2));
+            for k=1:size(x,2)
+                this.prepareSimulation(mu(:,k));
+                fx(:,k) = this.evaluateComponents(this, pts, ends, idx, self, x(:,k), t(k));
             end
         end
     end
@@ -435,8 +457,6 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
         % x: A matrix `\vX` with the state space locations `\vx_i` in its columns @type
         % matrix<double>
         % t: The corresponding times `t_i` for each state `\vx_i` @type rowvec<double>
-        % mu: The corresponding parameters `\mu_i` for each state `\vx_i`, as column matrix
-        % @type matrix<double>
         %
         % Return values:
         % fx: A matrix with pts-many component function evaluations `f_i(\vx)` as rows and as

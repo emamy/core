@@ -854,18 +854,20 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         
         function test_BaseModels
             m = models.BaseFullModel;
-            af = dscomponents.AffLinCoreFun;
+            af = dscomponents.AffLinCoreFun(m.System);
             af.addMatrix('1', rand(4,4));
             af.addMatrix('sum(mu)*5', rand(4,4)*3);
             
             m.System.f = af;
             m.System.x0 = dscomponents.ConstInitialValue(sin(1:4)');
+            m.System.addParam('test',[0 1],10);
+            m.System.MaxTimestep = m.dt/2;
             
             m.offlineGenerations;
             red = m.buildReducedModel;
             % Test simulations
-            m.simulate();
-            red.simulate();
+            m.simulate(m.getRandomParam);
+            red.simulate(m.getRandomParam);
             
             % dont forget to free resources! (static handles seem to
             % persist over several method calls)

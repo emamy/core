@@ -52,18 +52,19 @@ classdef BaseApprox < dscomponents.ACoreFun
     end
     
     methods
-        function set.TrainDataSelector(this, value)
-            this.checkType(value, 'data.selection.ASelector');
-            this.TrainDataSelector = value;
-        end
-        
-        function this = BaseApprox
+        function this = BaseApprox(sys)
+            this = this@dscomponents.ACoreFun(sys);
             this.TrainDataSelector = data.selection.DefaultSelector;
         end
         
         function copy = clone(this, copy)
             copy = clone@dscomponents.ACoreFun(this, copy);
             copy.TrainDataSelector = this.TrainDataSelector.clone;
+        end
+        
+        function set.TrainDataSelector(this, value)
+            this.checkType(value, 'data.selection.ASelector');
+            this.TrainDataSelector = value;
         end
     end
     
@@ -115,7 +116,7 @@ classdef BaseApprox < dscomponents.ACoreFun
             pr.Value = 2;
             pr.Mode = 'abs';
             v = pr.computePOD(x);
-            ap = approx.KernelApprox;
+            ap = approx.KernelApprox(ts.m.System);
             res = true;
             for idx=1:length(a)
                 try
@@ -130,8 +131,8 @@ classdef BaseApprox < dscomponents.ACoreFun
                     ap.Expansion = app.computeApproximation(atd);
                     b{idx} = ap.project(v,v);
                     
-                    ifxfull = ap.evaluate(x,t,[]);
-                    ifxred = v * b{idx}.evaluate(v' * x,[],[]);
+                    ifxfull = ap.evaluate(x,t);
+                    ifxred = v * b{idx}.evaluate(v' * x,[]);
                     fprintf('Max L2 error: %g\n',max(Norm.L2(ifxfull-ifxred)));
                 catch ME
                     res = false;

@@ -22,9 +22,9 @@ classdef DEIM < approx.BaseApprox & general.DEIM
 % - \c License @ref licensing
     
     methods
-        function this = DEIM
+        function this = DEIM(sys)
             this = this@general.DEIM;
-            this = this@approx.BaseApprox;
+            this = this@approx.BaseApprox(sys);
             
             this.CustomProjection = true;
             this.TimeDependent = true;
@@ -34,12 +34,18 @@ classdef DEIM < approx.BaseApprox & general.DEIM
             this.computeDEIM(model.System.f, model.Data.ApproxTrainData.fxi);
         end
         
-        function fx = evaluate(this, x, t, mu)
-            fx = evaluate@general.DEIM(this, x, t, mu);
+        function fx = evaluate(this, x, t)
+            fx = evaluate@general.DEIM(this, x, t);
+        end
+
+        function prepareSimulation(this, mu)
+            prepareSimulation@approx.BaseApprox(this, mu);
+            % Forward the parameter setting to the inner ACompEvalCoreFun
+            this.f.prepareSimulation(mu);
         end
         
-        function J = getStateJacobian(this, x, t, mu)
-            J = getStateJacobian@general.DEIM(this, x, t, mu);
+        function J = getStateJacobian(this, x, t)
+            J = getStateJacobian@general.DEIM(this, x, t);
             % Finite difference one:
             %J2 = getStateJacobian@dscomponents.ACoreFun(this, x, t, mu);
         end
@@ -73,7 +79,7 @@ classdef DEIM < approx.BaseApprox & general.DEIM
         function test_DEIM
             m = models.pcd.PCDModel(1);
             m.EnableTrajectoryCaching = false;
-            m.Approx = approx.DEIM;
+            m.Approx = approx.DEIM(m.System);
             m.Approx.MaxOrder = 40;
             m.System.Params(1).Desired = 10;
             m.SpaceReducer = spacereduction.PODGreedy;

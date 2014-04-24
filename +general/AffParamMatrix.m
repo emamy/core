@@ -257,6 +257,17 @@ classdef AffParamMatrix < general.AProjectable
             end
         end
         
+        function dotprod = times(A, B)
+            if isa(A,'general.AffParamMatrix') && isa(B,'general.AffParamMatrix')
+                error('Not yet implemented');
+            elseif isa(A,'general.AffParamMatrix')
+                dotprod = A.clone;
+                dotprod.Matrices = A.Matrices .* repmat(B(:),1,A.N);
+            elseif isa(B,'general.AffParamMatrix')
+                dotprod = B.times(A);
+            end
+        end
+        
         function M = getMatrix(this, idx)
             % Returns the `i`-th matrix of the AffParamMatrix.
             %

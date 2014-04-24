@@ -106,7 +106,7 @@ classdef SemiImplicitEuler < solvers.BaseCustomSolver
             fdep = s.A.TimeDependent;
             if ~fdep
                 % Evaluation with x=1 "extracts" the matrix A of the (affine) linear system
-                A = s.A.evaluate(1, 0, s.mu);
+                A = s.A.getStateJacobian;
             end
             
             % Precompute lu decomp for iteration steps if all components are not time-dependent
@@ -119,7 +119,7 @@ classdef SemiImplicitEuler < solvers.BaseCustomSolver
             for idx = 2:steps;
                 RHS = M*oldx;
                 if ~isempty(s.f)
-                    RHS = RHS + dt*s.f.evaluate(oldx, t(idx-1), s.mu);
+                    RHS = RHS + dt*s.f.evaluate(oldx, t(idx-1));
                 end
                 if ~isempty(s.u)
                     RHS = RHS + dt*s.B.evaluate(t(idx-1), s.mu)*s.u(t(idx-1));
@@ -131,7 +131,7 @@ classdef SemiImplicitEuler < solvers.BaseCustomSolver
                     % Time-dependent case: compute time-dependent components with updated time
                 else
                     if fdep
-                        A = s.A.evaluate(1, t(idx), s.mu);
+                        A = s.A.evaluate(1, t(idx));
                     end
                     if mdep
                         M = s.M.evaluate(t(idx));

@@ -35,7 +35,7 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
           % which implements dscomponents.ACompEvalCoreFun
           
           % Call superclass constructor
-          this = this@dscomponents.ACompEvalCoreFun;
+          this = this@dscomponents.ACompEvalCoreFun(f.System);
           
           if nargin == 1
               % Checks
@@ -46,7 +46,6 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
               this.f = f;
 
               % ACoreFun settings
-              this.MultiArgumentEvaluations = true;
               this.xDim = f.xDim;
               % output dim is size of jacobian
               if ~isempty(f.JSparsityPattern)
@@ -64,7 +63,7 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
           end
         end
         
-        function fx = evaluate(this, x, t, mu)
+        function fx = evaluate(this, x, t)
             % Evaluates the jacobian of the wrapped function and returns a
             % vector corresponding to the natural linear indexing of
             % matlab.
@@ -79,10 +78,41 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
             else
                 nonzero = 1:this.f.fDim*this.f.xDim;
             end
+            J = this.f.getStateJacobian(x,t,this.mu);
+            fx = J(nonzero);
+        end
+        
+        function fx = evaluateMulti(this, x, t, mu)
+            % Evaluates the jacobian of the wrapped function at multiple
+            % locations and returns a vector corresponding to the natural
+            % linear indexing of matlab.
+            %
+            % Return values:
+            % fx: The linearly indexed jacobian of `f`, so `fx =
+            % (\d{f_1}{x_1}, \d{f_2}{x_1}, \ldots, \d{f_n}{x_1},
+            % \d{f_2}{x_1}, \ldots)`. @type colvec<double>
+            
+            if ~isempty(this.f.JSparsityPattern)
+                nonzero = find(this.f.JSparsityPattern);
+            else
+                nonzero = 1:this.f.fDim*this.f.xDim;
+            end
             fx = zeros(length(nonzero),size(x,2));
-            for i=1:size(x,2)
-                J = this.f.getStateJacobian(x(:,i),t(i),mu(:,i));
-                fx(:,i) = J(nonzero);
+            singlemu = size(mu,2) == 1;
+            if singlemu
+                oldmu = this.f.mu;
+                this.f.prepareSimulation(mu);
+            else
+                for i=1:size(x,2)
+                    if ~singlemu
+                        this.f.prepareSimulation(mu(:,i));
+                    end
+                    J = this.f.getStateJacobian(x(:,i),t(i));
+                    fx(:,i) = J(nonzero);
+                end
+            end
+            if singlemu
+                this.f.prepareSimulation(oldmu);
             end
         end
         

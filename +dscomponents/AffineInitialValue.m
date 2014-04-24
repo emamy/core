@@ -19,8 +19,8 @@ classdef AffineInitialValue < dscomponents.AInitialValue & general.AffParamMatri
         end
         
         function x0 = compose(this, mu)
-            % Call affine function evaluate with empty time
-            x0 = full(compose@general.AffParamMatrix(this, [], mu));
+            % Call affine function evaluate
+            x0 = full(compose@general.AffParamMatrix(this, 0, mu));
         end
         
         function projected = project(this, V, W)%#ok

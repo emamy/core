@@ -295,7 +295,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             s.MaxTimestep = dt;
             m.System = s;
             
-            f = dscomponents.ParamTimeKernelCoreFun;
+            f = dscomponents.ParamTimeKernelCoreFun(m.System);
             kexp = kernels.ParamTimeKernelExpansion;
             kexp.Kernel = kernels.GaussKernel(40);
             kexp.TimeKernel = kernels.NoKernel;

@@ -77,10 +77,9 @@ classdef KernelEI < approx.BaseApprox
     end
     
     methods
-        function this = KernelEI
-            this = this@approx.BaseApprox;
+        function this = KernelEI(sys)
+            this = this@approx.BaseApprox(sys);
             this.CustomProjection = true;
-            this.MultiArgumentEvaluations = true;
             this.TimeDependent = true;
         end
         
@@ -276,7 +275,7 @@ classdef KernelEI < approx.BaseApprox
             a.UsefPGreedy = false;
             a.ExpConfig = ec;
             
-            kei = approx.KernelEI;
+            kei = approx.KernelEI(m.System);
             kei.Algorithm = a;
             kei.Variant = 2;
             

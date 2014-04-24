@@ -19,7 +19,8 @@ classdef DEIM < dscomponents.ACompEvalCoreFun
 
     methods
         
-        function this = DEIM(dim)
+        function this = DEIM(sys, dim)
+            this = this@dscomponents.ACompEvalCoreFun(sys);
             if nargin < 1
                 dim = 200;
             end
@@ -28,11 +29,10 @@ classdef DEIM < dscomponents.ACompEvalCoreFun
             this.data = rand(dim,1);
             % Commenting this out will let KerMor issue a warning.
             this.JSparsityPattern = sparse(dim,dim);
-            this.MultiArgumentEvaluations = true;
         end
         
-        function fx = evaluateCoreFun(this, x, t, mu)
-            fx = bsxfun(@mtimes,this.data,mu(1,:)) + repmat(t,this.fDim,1);
+        function fx = evaluateCoreFun(this, ~, t)
+            fx = bsxfun(@mtimes,this.data,this.mu(1,:)) + repmat(t,this.fDim,1);
         end
     end
     
@@ -44,9 +44,9 @@ classdef DEIM < dscomponents.ACompEvalCoreFun
     
     methods(Static)
         
-        function test_DEIMNoSpatialDependence
+        function res = test_DEIMNoSpatialDependence
             dim = 400;
-            f = testing.DEIM(dim);
+            f = testing.DEIM([],dim);
             
             d = general.DEIM;
             d.MaxOrder = round(dim/2);
@@ -62,11 +62,11 @@ classdef DEIM < dscomponents.ACompEvalCoreFun
             t = linspace(0,1,20);
             mu = rand(1,20);
             
-            fxall = f.evaluate(x,t,mu);
+            fxall = f.evaluateMulti(x,t,mu);
             
             for k = 1:5:d.MaxOrder
                 d.Order = k;
-                afx = d.evaluate(x,t,mu);
+                afx = d.evaluate(x,t);
                 fprintf('Relative errors for Order k=%d: %s\n',k,...
                     sprintf('%g ',sum(Norm.L2(fxall-afx)))); %./Norm.L2(fxall)
             end

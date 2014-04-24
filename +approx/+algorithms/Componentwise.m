@@ -397,7 +397,7 @@ classdef Componentwise < approx.algorithms.ABase & IParallelizable
             a.ExpConfig = ec;
             a.CoeffConfig = general.interpolation.InterpolConfig;
             
-            ap = approx.KernelApprox;
+            ap = approx.KernelApprox(m.System);
             ap.Algorithm = a;
             
             m.Approx = ap;

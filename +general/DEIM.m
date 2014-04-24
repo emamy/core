@@ -182,12 +182,12 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
             end
         end
         
-        function fx = evaluate(this, x, t, mu)
-            fx = this.U * this.f.evaluateComponentSet(1, x, t, mu);
+        function fx = evaluate(this, x, t)
+            fx = this.U * this.f.evaluateComponentSet(1, x, t);
         end
-        
-        function J = getStateJacobian(this, x, t, mu)
-            hlp = this.U * this.f.evaluateComponentSetGradientsAt(1, x, t, mu);
+
+        function J = getStateJacobian(this, x, t)
+            hlp = this.U * this.f.evaluateComponentSetGradientsAt(1, x, t);
             if isempty(this.V)
                 p = logical(this.f.JSparsityPattern);
                 J = sparse(this.f.fDim,this.f.xDim);
@@ -201,8 +201,8 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
             if this.fOrder(2) == 0
                 error('No error estimation possible with zero ErrorOrder property');
             end
-            err = this.Uerr1 * this.f.evaluateComponentSet(1, x, t, mu) ...
-                - this.Uerr2 * this.f.evaluateComponentSet(2, x, t, mu);
+            err = this.Uerr1 * this.f.evaluateComponentSetMulti(1, x, t, mu) ...
+                - this.Uerr2 * this.f.evaluateComponentSetMulti(2, x, t, mu);
         end
         
         function target = project(this, V, W, target)

@@ -242,10 +242,6 @@ classdef BaseDynSystem < KerMorObject
             end
             this.mu = mu;
             
-            if isa(this.A,'dscomponents.AffLinCoreFun') && ~this.A.TimeDependent
-                this.A.cacheMatrix(mu);
-            end
-            
             if isempty(inputidx) && ~isempty(this.Inputs)
                 cprintf('red','Attention: Starting simulations without input, but the system has configured some.\n');
                 %inputidx = 1;
@@ -259,55 +255,31 @@ classdef BaseDynSystem < KerMorObject
                 this.u = [];
                 this.inputidx = [];
             end
-        end
-        
-        function postSimulate(this)
-            if isa(this.A,'dscomponents.AffLinCoreFun') && ~this.A.TimeDependent
-                this.A.cacheMatrix([]);
+            
+            % Forward preparation call to nonlinearity, if present
+            if ~isempty(this.A)
+                this.A.prepareSimulation(mu);
+            end
+            
+            % Forward preparation call to nonlinearity, if present
+            if ~isempty(this.f)
+                this.f.prepareSimulation(mu);
             end
         end
     
-        %% ODE functions for different combinations
-        function y = ODEFun_A(this, t, x)
-            % Evaluates the ODE function for the currently set up parameter mu and input u.
-            %
-            % See also: setConfig Inputs Params
-            y = this.A.evaluate(x, t, this.mu);
-        end
-        
-        function y = ODEFun_f(this, t, x)
-            % Evaluates the ODE function for the currently set up parameter mu and input u.
-            %
-            % See also: setConfig Inputs Params
-            y = this.f.evaluate(x, t, this.mu);
-        end
-        
-        function y = ODEFun_Af(this, t, x)
-            % Evaluates the ODE function for the currently set up parameter mu and input u.
-            %
-            % See also: setConfig Inputs Params
-            y = this.A.evaluate(x, t, this.mu) + this.f.evaluate(x, t, this.mu);
-        end
-        
-        function y = ODEFun_AB(this, t, x)
-            % Evaluates the ODE function for the currently set up parameter mu and input u.
-            %
-            % See also: setConfig Inputs Params
-            y = this.A.evaluate(x, t, this.mu) + this.B.evaluate(t, this.mu)*this.u(t);
-        end
-        
-        function y = ODEFun_fB(this, t, x)
-            % Evaluates the ODE function for the currently set up parameter mu and input u.
-            %
-            % See also: setConfig Inputs Params
-            y = this.f.evaluate(x, t, this.mu) + this.B.evaluate(t, this.mu)*this.u(t);
-        end
-        
-        function y = ODEFun_AfB(this, t, x)
-            % Evaluates the ODE function for the currently set up parameter mu and input u.
-            %
-            % See also: setConfig Inputs Params
-            y = this.A.evaluate(x, t, this.mu) + this.f.evaluate(x, t, this.mu) + this.B.evaluate(t, this.mu)*this.u(t);
+        function odefun = getODEFun(this)
+            % Determine correct ODE function (A,f,B combination)
+            str = {};
+            if ~isempty(this.A)
+                str{end+1} = 'this.A.evaluate(x, t)';
+            end
+            if ~isempty(this.f)
+                str{end+1} = 'this.f.evaluate(x, t)';
+            end
+            if ~isempty(this.B) && ~isempty(this.inputidx)
+                str{end+1} = 'this.B.evaluate(t, this.mu)*this.u(t)';
+            end
+            odefun = eval(['@(t,x)' Utils.implode(str,' + ')]);
         end
         
         function p = addParam(this, name, range, desired)

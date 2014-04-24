@@ -46,25 +46,28 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
     end
    
     methods
-        function this = AffLinCoreFun
+        function this = AffLinCoreFun(sys)
             % Creates a new instance of the AffLinCoreFun.
             this = this@general.AffParamMatrix;
-            this = this@dscomponents.ACoreFun;
+            this = this@dscomponents.ACoreFun(sys);
             this.CustomProjection = true;
             this.TimeDependent = false;
-            this.MultiArgumentEvaluations = true;
             this.cachedA = [];
         end
         
-        function fx = evaluate(this, x, t, mu)
+        function fx = evaluate(this, x, t)
             % Evaluates affine-linear core function by matrix-vector
             % multiplication.
-            if numel(t) == 1
-                if ~isempty(this.cachedA)
-                    fx = this.cachedA*x;
-                else
-                    fx = this.compose(t, mu)*x;
-                end
+            if this.TimeDependent
+                fx = this.compose(t, this.mu)*x;
+            else
+                fx = this.cachedA*x;
+            end
+        end
+        
+        function fx = evaluateMulti(this, x, t, mu)
+            if (~this.TimeDependent || numel(t) == 1) && size(mu,2) == 1
+                fx = this.compose(t, mu)*x;
             else
                 % Multi-Argument case
                 fx = zeros(size(x));
@@ -74,7 +77,8 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
             end
         end
         
-        function cacheMatrix(this, mu) 
+        function prepareSimulation(this, mu) 
+            prepareSimulation@dscomponents.ACoreFun(this, mu);
             this.cachedA = [];
             if ~isempty(mu)
                 if this.TimeDependent
@@ -92,14 +96,14 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
             error('This method should never be called.');
         end
         
-        function J = getStateJacobian(this, ~, t, mu)
+        function J = getStateJacobian(this, ~, t)
             % Overrides the default jacobian finite difference
             % implementation. Jacobian of linear operator is the operator
             % itself, i.e. in this case the linear combination of the matrices.
-            if ~isempty(this.cachedA)
-                J = this.cachedA;
+            if this.TimeDependent
+                J = this.compose(t, this.mu);
             else
-                J = this.compose(t, mu);
+                J = this.cachedA;
             end
         end
         
@@ -199,7 +203,7 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
     
     methods(Sealed)
         function copy = clone(this)
-            copy = dscomponents.AffLinCoreFun;
+            copy = dscomponents.AffLinCoreFun(this.System);
             copy = clone@general.AffParamMatrix(this, copy);
             copy = clone@dscomponents.ACoreFun(this, copy);
             copy.CoeffClass = this.CoeffClass;
