@@ -87,8 +87,7 @@ classdef TPWLApprox < approx.BaseApprox
         end
         
         function copy = clone(this)
-            % Implements ICloneable.clone()
-            copy = approx.TPWLApprox;
+            copy = approx.TPWLApprox(this.System);
             copy = clone@approx.BaseApprox(this, copy);
             copy.Ai = this.Ai;
             copy.bi = this.bi;

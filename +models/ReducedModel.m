@@ -215,7 +215,7 @@ classdef ReducedModel < models.BaseModel
             cpost = 0;
             if ~isempty(this.ErrorEstimator) && this.ErrorEstimator.Enabled
                 x = xext(1:end-this.ErrorEstimator.ExtraODEDims,:);
-                cpost = this.ErrorEstimator.postProcess(xext, t, mu, inputidx);
+                cpost = this.ErrorEstimator.postProcess(xext, t, inputidx);
             else
                 x = xext;
             end

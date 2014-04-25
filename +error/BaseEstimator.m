@@ -77,7 +77,11 @@ classdef BaseEstimator < KerMorObject & ICloneable
         ReducedModel = [];
     end
     
-    properties%(Access=private)
+    properties(SetAccess=private, Transient)
+        mu;
+    end
+    
+    properties(Access=private)
         fEnabled = true;
         e0Comp;
     end
@@ -98,23 +102,19 @@ classdef BaseEstimator < KerMorObject & ICloneable
             end
         end
         
-        function ct = postProcess(this, x, t, mu, inputidx)
+        function ct = postProcess(this, ~, t, ~)
             % Post-processes the error estimator ODE part after reduced simulation computation
             %
             % Here the OutputError fields
             %
             % Parameters:
-            % t: The times at which the reduced simulation was computed @type rowvec
             % x: The reduced simulation's system state PLUS the error
             % estimation values in the last this.ExtraODEDims rows. @type matrix<double>
-            % mu: The current parameter `\mu` @type rowvec
+            % t: The times at which the reduced simulation was computed @type rowvec
             % inputidx: The current input index @type integer
             %
             % Return values:
             % ct: The time needed for postprocessing @type double
-            
-            % Call template method to compute the state error in subclasses
-            ct = this.postprocess(x, t, mu, inputidx);
             
             if all(this.StateError == 0)
                 warning('BaseEstimator:postProcess','State error is all zero. Attention!');
@@ -133,10 +133,10 @@ classdef BaseEstimator < KerMorObject & ICloneable
                 if C.TimeDependent
                     e = this.StateError;
                     for idx=1:length(t)
-                        e(idx) = norm(m.System.C.evaluate(t(idx),mu))*e(idx);
+                        e(idx) = norm(m.System.C.evaluate(t(idx),this.mu))*e(idx);
                     end
                 else
-                    Ce = C.evaluate([],mu);
+                    Ce = C.evaluate([],this.mu);
                     if issparse(Ce)
                         Cn = normest(Ce);
                     else
@@ -147,7 +147,7 @@ classdef BaseEstimator < KerMorObject & ICloneable
             else
                 this.OutputError = this.StateError;
             end
-            ct = ct + toc(st);
+            ct = toc(st);
         end
         
         function clear(this)
@@ -170,6 +170,7 @@ classdef BaseEstimator < KerMorObject & ICloneable
             copy.e0Comp = this.e0Comp; 
             % No cloning of the associated reduced model.
             copy.ReducedModel = this.ReducedModel;
+            copy.mu = this.mu;
         end
         
         function e0 = getE0(this, mu)
@@ -177,7 +178,8 @@ classdef BaseEstimator < KerMorObject & ICloneable
             e0 = this.e0Comp.getE0(mu);
         end
         
-        function ct = prepareConstants(~, ~, ~)
+        function ct = prepareConstants(this, mu, ~)
+            this.mu = mu;
             ct = 0;
         end
         
@@ -234,26 +236,14 @@ classdef BaseEstimator < KerMorObject & ICloneable
         % values if any function evaluations are performed within the
         % integral part. @type colvec
         % t: The current time `t` @type double
-        % mu: The current parameter `\mu` @type colvec
         % ut: The value of the input function `u(t)` if given, [] else.
         % @type double
         %
         % Return values:
         % eint: The auxiliary ode part value.
-        eint = evalODEPart(this, x, t, mu, ut);
+        eint = evalODEPart(this, x, t, ut);
     end
-    
-    methods(Abstract, Access=protected)
-        % Allows for any post-processing after the ODE solver finished
-        % integration of the system/error system part.
-        %
-        % Parameters:
-        % t: The times at which the reduced simulation was computed
-        % x: The reduced simulation's system state PLUS the error
-        % estimation values in the last this.ExtraODEDims rows.
-        postprocess(this, x, t, mu, inputidx);
-    end
-    
+  
     methods(Static)
         function est = getEstimator(model)
             % Factory method that creates a suitable error estimator for

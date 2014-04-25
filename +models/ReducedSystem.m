@@ -171,97 +171,31 @@ classdef ReducedSystem < models.BaseDynSystem
             % method just calls the plot method of the original full system
             this.plotPtr(model, t, y);
         end
-                
-        function y = ODEFun_A(this, t, x)
-            % Overrides the default implementation in BaseDynSystem and extends the functionality of
-            % the ODE function if any error estimators are enabled.
-            est = this.Model.ErrorEstimator;
-            if ~isempty(est) && est.Enabled
-                y = [this.A.evaluate(x(1:end-est.ExtraODEDims,:), t, this.mu);...
-                     est.evalODEPart(x, t, this.mu, [])];
-            else
-                % If no estimator is used or is disabled just call the "normal" ODE function from the
-                % base class.
-                y = ODEFun_A@models.BaseDynSystem(this, t, x);
-            end
-        end
         
-        function y = ODEFun_f(this, t, x)
-            % Overrides the default implementation in BaseDynSystem and extends the functionality of
-            % the ODE function if any error estimators are enabled.
+        function odefun = getODEFun(this)
+            % Determine correct ODE function (A,f,B combination)
+            xarg = 'x';
             est = this.Model.ErrorEstimator;
-            if ~isempty(est) && est.Enabled
-                y = [this.f.evaluate(x(1:end-est.ExtraODEDims,:),t,this.mu);...
-                     est.evalODEPart(x, t, this.mu, [])];
-            else
-                % If no estimator is used or is disabled just call the "normal" ODE function from the
-                % base class.
-                y = ODEFun_f@models.BaseDynSystem(this, t, x);
+            haveest = ~isempty(est) && est.Enabled;
+            if haveest
+                xarg = 'x(1:end-est.ExtraODEDims,:)';
             end
-        end
-        
-        function y = ODEFun_Af(this, t, x)
-            % Overrides the default implementation in BaseDynSystem and extends the functionality of
-            % the ODE function if any error estimators are enabled.
-            est = this.Model.ErrorEstimator;
-            if ~isempty(est) && est.Enabled
-                y = [this.A.evaluate(x(1:end-est.ExtraODEDims,:), t, this.mu) + ...
-                     this.f.evaluate(x(1:end-est.ExtraODEDims,:), t, this.mu); ...
-                     est.evalODEPart(x, t, this.mu, [])];
-            else
-                % If no estimator is used or is disabled just call the "normal" ODE function from the
-                % base class.
-                y = ODEFun_Af@models.BaseDynSystem(this, t, x);
+            
+            str = {};
+            if ~isempty(this.A)
+                str{end+1} = sprintf('this.A.evaluate(%s, t)',xarg);
             end
-        end
-        
-        function y = ODEFun_AB(this, t, x)
-            % Overrides the default implementation in BaseDynSystem and extends the functionality of
-            % the ODE function if any error estimators are enabled.
-            est = this.Model.ErrorEstimator;
-            if ~isempty(est) && est.Enabled
-                ut = this.u(t);    
-                y = [this.A.evaluate(x(1:end-est.ExtraODEDims,:), t, this.mu) + ...
-                     this.B.evaluate(t,this.mu)*ut; ...
-                     est.evalODEPart(x, t, this.mu, ut)];
-            else
-                % If no estimator is used or is disabled just call the "normal" ODE function from the
-                % base class.
-                y = ODEFun_AB@models.BaseDynSystem(this, t, x);
+            if ~isempty(this.f)
+                str{end+1} = sprintf('this.f.evaluate(%s, t)',xarg);
             end
-        end
-        
-        function y = ODEFun_fB(this, t, x)
-            % Overrides the default implementation in BaseDynSystem and extends the functionality of
-            % the ODE function if any error estimators are enabled.
-            est = this.Model.ErrorEstimator;
-            if ~isempty(est) && est.Enabled
-                ut = this.u(t);    
-                y = [this.f.evaluate(x(1:end-est.ExtraODEDims,:),t,this.mu) + ...
-                     this.B.evaluate(t,this.mu)*ut; ...
-                     est.evalODEPart(x, t, this.mu, ut)];
-            else
-                % If no estimator is used or is disabled just call the "normal" ODE function from the
-                % base class.
-                y = ODEFun_fB@models.BaseDynSystem(this, t, x);
+            if ~isempty(this.B) && ~isempty(this.inputidx)
+                str{end+1} = 'this.B.evaluate(t, this.mu)*this.u(t)';
             end
-        end
-        
-        function y = ODEFun_AfB(this, t, x)
-            % Overrides the default implementation in BaseDynSystem and extends the functionality of
-            % the ODE function if any error estimators are enabled.
-            est = this.Model.ErrorEstimator;
-            if ~isempty(est) && est.Enabled
-                ut = this.u(t);    
-                y = [this.A.evaluate(x(1:end-est.ExtraODEDims,:), t, this.mu) + ...
-                     this.f.evaluate(x(1:end-est.ExtraODEDims,:), t, this.mu) + ...
-                     this.B.evaluate(t,this.mu)*ut; ...
-                     est.evalODEPart(x, t, this.mu, ut)];
-            else
-                % If no estimator is used or is disabled just call the "normal" ODE function from the
-                % base class.
-                y = ODEFun_AfB@models.BaseDynSystem(this, t, x);
+            funstr = Utils.implode(str,' + ');
+            if haveest
+                funstr = ['[' funstr '; est.evalODEPart(x, t, this.u(t))]'];
             end
+            odefun = eval(['@(t,x)' funstr]);
         end
     end
     

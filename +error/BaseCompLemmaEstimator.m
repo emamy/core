@@ -74,7 +74,7 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
             prepared.lstPreSolve = addlistener(rm.ODESolver,'PreSolve',@prepared.cbPreSolve);
          end
         
-        function e = evalODEPart(this, x, t, mu, ut)
+        function e = evalODEPart(this, x, t, ut)
             % Evaluates the auxiliary ode part for the comparison-lemma
             % based error estimators.
             %
@@ -91,24 +91,24 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
             %
             % Return values:
             % e: The auxiliary ode part value.
-            phi = this.ReducedModel.System.f.Expansion.getKernelVector(x(1:end-1), t, mu);
+            phi = this.ReducedModel.System.f.Expansion.getKernelVector(x(1:end-1), t, this.mu);
             
-            a = this.aComp.getAlpha(phi, ut, t, mu);
-            b = this.getBeta(x, t, mu);
+            a = this.aComp.getAlpha(phi, ut, t, this.mu);
+            b = this.getBeta(x, t);
             e = b*x(end) + a;
             
             this.EstimationData(:,this.StepNr) = [t; a; b];
             this.StepNr = this.StepNr + 1;
         end
         
-        function ct = prepareConstants(this, ~, ~)
+        function ct = prepareConstants(this, mu, inputidx)
             st = tic;
             if isempty(this.lstPreSolve)
                 this.lstPreSolve = addlistener(this.ReducedModel.ODESolver,'PreSolve',@this.cbPreSolve);
             end
             this.lstPreSolve.Enabled = true;
             this.StepNr = 1;
-            ct = toc(st);
+            ct = toc(st) + prepareConstants@error.BaseEstimator(this, mu, inputidx);
         end
         
         function copy = clone(this, copy)
@@ -127,21 +127,19 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
             this.EstimationData = [];
         end
         
-        function a = getAlpha(this, x, t, mu, ut)
+        function a = getAlpha(this, x, t, ut)
             % Convenience access method for semi-implicit euler method
-            phi = this.ReducedModel.System.f.getKernelVector(x, t, mu);
-            a = this.aComp.getAlpha(phi, ut, t, mu);
+            phi = this.ReducedModel.System.f.getKernelVector(x, t, this.mu);
+            a = this.aComp.getAlpha(phi, ut, t, this.mu);
         end
-    end
-    
-    methods(Access=protected)
-        function ct = postprocess(this, x, t, mu, inputidx)%#ok
+        
+        function ct = postProcess(this, x, t, inputidx)
             % Return values:
             % ct: The time needed for postprocessing @type double
             if ~isempty(this.lstPreSolve)
                 this.lstPreSolve.Enabled = false;
             end
-            ct = 0;
+            ct = postProcess@error.BaseEstimator(this, x, t, inputidx);
         end
     end
     
@@ -152,8 +150,7 @@ classdef BaseCompLemmaEstimator < error.BaseEstimator
         % x: The current reduced state variable, composed by `Vz(t)` and any extra dimensions set up
         % by the error estimator. @type colvec
         % t: The current time `t\in[0,T]` @type double
-        % mu: The current parameter `\mu` @type colvec
-        b = getBeta(this, x, t, mu);
+        b = getBeta(this, x, t);
     end
     
     methods(Access=private)

@@ -124,8 +124,11 @@ classdef ACoreFun < KerMorObject & general.AProjectable
         %
         % @type models.BaseDynSystem
         System;
-        
-        % The current model parameter mu for evaluations
+    end
+    
+    properties(SetAccess=private, Transient)
+        % The current model parameter mu for evaluations. Will not be
+        % persisted as only valid for runtime during simulations.
         %
         % @type colvec<double> @default []
         %
@@ -234,9 +237,10 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             % arguments directly
             singlemu = size(mu,2) == 1;
             if isempty(mu)
-                mu = double.empty(0,size(x,2));
-            elseif singlemu
-                oldmu = this.mu;
+                mu = [];
+                singlemu = true;
+            end
+            if singlemu
                 this.prepareSimulation(mu);
             end
             if isempty(t)
@@ -244,16 +248,16 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             elseif length(t) == 1
                 t = ones(1,size(x,2))*t;
             end
-            fx = zeros(this.fDim, size(x,2));
+            m = size(x,2);
+            if m == 0
+                m = length(t);
+            end
+            fx = zeros(this.fDim, m);
             for idx = 1:size(x,2)
                 if ~singlemu
                     this.prepareSimulation(mu(:, idx));
                 end
                 fx(:,idx) = this.evaluate(x(:,idx), t(:,idx));
-            end
-            % Restore previous state
-            if singlemu
-                this.mu = oldmu;
             end
         end
         

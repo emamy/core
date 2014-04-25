@@ -449,7 +449,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         % Evaluate fxi on current values if required
                         if this.ComputeTrajectoryFxiData
                             hlp = tic;
-                            fx = this.System.f.evaluate(x,t,repmat(mu,1,length(t)));
+                            fx = this.System.f.evaluateMulti(x, t, mu);
                             ctime = toc(hlp);
                             this.Data.TrajectoryFxiData.addTrajectory(fx, mu, inputidx, ctime);
                         end
@@ -673,6 +673,12 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 end
             else
                 st = tic;
+                
+                % Preparation call to approximation, if present
+                if ~isempty(this.Approx)
+                    this.Approx.prepareSimulation(mu);
+                end
+                
                 if this.isStatic
                     [t, x] = solveStatic(this, mu, inputidx);
                 else

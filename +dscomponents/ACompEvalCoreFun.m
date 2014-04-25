@@ -76,12 +76,15 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
         end
 
         function fx = evaluateComponentSetMulti(this, nr, x, t, mu)
-            % Computes the full or reduced component functions of the given point set.
+            % Computes the full component functions of the given point set.
             %
             % Parameters:
             % nr: The number of the PointSet to use. @type integer
-            % x: The state space location `\vx` @type colvec<double>
-            % t: The corresponding times `t` for the state `\vx` @type double
+            % x: The state space locations `\vx` @type matrix<double>
+            % t: The corresponding times `t` for the state `\vx` @type
+            % rowvec<double>
+            % mu: The corresponding parameters `\mu`. Can be a single
+            % parameter or as many as the size of x @type matrix<double>
             %
             % See also: PointSet
             fx = this.evaluateComponentsMulti(this.PointSets{nr},...
@@ -120,13 +123,12 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             %
             % Parameters:
             % nr: The number of the PointSet to use. @type integer
-            % x: A matrix `\vX` with the state space locations `\vx_i` in its columns @type
-            % matrix<double>
-            % t: The corresponding times `t_i` for each state `\vx_i` @type rowvec<double>
+            % x: A state space column vector `\vX` @type colvec<double>
+            % t: The corresponding time `t` @type double
             %
             % Return values:
-            % J: The values of the given points (linear indexing) in the Jacobian in each row,
-            % with as many columns as `\vX` had.
+            % J: The values of the given points (linear indexing) in the
+            % Jacobian in each row.
             %
             % See also: setPointSet
             
@@ -144,7 +146,64 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             %
             % See setPointSet
             J = this.T{nr} * J;
-        end        
+        end
+        
+        function J = evaluateJacobianSetMulti(this, nr, x, t, mu)
+            % Returns the jacobian entries at multiple locations/times/parameters of the point set that have been
+            % specified using setPointSet's argument jpd.
+            %
+            % Multi-argument version of evaluateJacobianSet.
+            %
+            % Parameters:
+            % nr: The number of the PointSet to use. @type integer
+            % x: A matrix `\vX` with the state space locations `\vx_i` in its columns @type
+            % matrix<double>
+            % t: The corresponding times `t_i` for each state `\vx_i` @type rowvec<double>
+            %
+            % Return values:
+            % J: The values of the given points (linear indexing) in the Jacobian in each row,
+            % with as many columns as `\vX` had.
+            %
+            % See also: setPointSet
+            singlemu = size(mu,2) == 1;
+            if isempty(mu)
+                mu = [];
+                singlemu = true;
+            end
+            if singlemu
+                this.prepareSimulation(mu);
+            end
+            if isempty(t)
+                t = double.empty(0,size(x,2));
+            elseif length(t) == 1
+                t = ones(1,size(x,2))*t;
+            end
+            m = size(x,2);
+            if m == 0
+                m = length(t);
+            end
+            J = zeros(length(this.deriv{nr}), m);
+            for idx = 1:size(x,2)
+                if ~singlemu
+                    this.prepareSimulation(mu(:, idx));
+                end
+                J(:,idx) = this.evaluateComponentPartialDerivatives(this.PointSets{nr},...
+                this.jend{nr}, this.jrow{nr}, this.deriv{nr}, ...
+                this.jself{nr}, this.S{nr}*x(:,idx), t(idx), this.dfxsel{nr});
+            end
+            
+            % The deriv{nr} contains only derivative indices for non-zero
+            % jacobian elements (determined in setPointSet using the
+            % JSparsityPattern). Thus, the return values of
+            % evaluateComponentPartialDerivatives only are of the size of
+            % the actually non-zero jacobian values.
+            % The T matrix is a sparse transformation, that places those
+            % values into the correct spots with all other values that have
+            % been demanded to be evaluated but are actually zero.
+            %
+            % See setPointSet
+            J = this.T{nr} * J;
+        end  
                
         function setPointSet(this, nr, pts, jpd)
             % Parameters:
@@ -325,7 +384,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             for idx=1:length(sets)
                 set = sets{idx};
                 this.setPointSet(1, set);
-                fxc = this.evaluateComponentSet(1, x, t, mu);
+                fxc = this.evaluateComponentSetMulti(1, x, t, mu);
                 tmp = fx(set,:);
                 err = abs((tmp-fxc)./tmp);
                 err = err(tmp ~= 0);
@@ -410,21 +469,29 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             dt = sqrt(eps);
             d = length(deriv);
             xd = size(x,2);
-            if xd == 1
-                X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(this.mu,1,d); %#ok<*PROP>
-                I = sparse(deriv,1:d,ones(1,d),size(x,1),d)*dt;
-            else
-                el = reshape(repmat(1:xd,d,1),1,[]);
-                X = x(:,el); T = t(el); MU = this.mu(:,el);
-                I = repmat(sparse(deriv,1:d,ones(1,d),size(x,1),d)*dt,1,xd);
-            end
             
+            X = repmat(x,1,d); T = repmat(t,1,d); %#ok<*PROP>
+            I = sparse(deriv,1:d,ones(1,d),size(x,1),d)*dt;
+            dfx = (this.evaluateComponentsMulti(pts, ends, idx, self, X+I, T, this.mu) ...
+                - this.evaluateComponentsMulti(pts, ends, idx, self, X, T, this.mu))/dt;
+            dfx = dfx(repmat(dfxsel(:,deriv),1,xd));
+        end
+        
+        function dfx = evaluateComponentPartialDerivativesMulti(this, pts, ends, idx, deriv, self, x, t, mu, dfxsel)
+            % Multi-argument evaluation method for partial derivatives.
+            % Not used so far in KerMor, this is "legacy code" to keep
+            % around if needed at any stage as default finite
+            % difference-implementation.
+            dt = sqrt(eps);
+            d = length(deriv);
+            xd = size(x,2);
+            el = reshape(repmat(1:xd,d,1),1,[]);
+            X = x(:,el); T = t(el); MU = mu(:,el);
+            I = repmat(sparse(deriv,1:d,ones(1,d),size(x,1),d)*dt,1,xd);
             dfx = (this.evaluateComponentsMulti(pts, ends, idx, self, X+I, T, MU) ...
                 - this.evaluateComponentsMulti(pts, ends, idx, self, X, T, MU))/dt;
             dfx = dfx(repmat(dfxsel(:,deriv),1,xd));
-            if xd > 1
-                dfx = reshape(dfx,[],xd);
-            end
+            dfx = reshape(dfx,[],xd);
         end
 
         function fx = evaluateComponentsMulti(this, pts, ends, idx, self, x, t, mu)

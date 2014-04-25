@@ -37,7 +37,11 @@ classdef DEIM < dscomponents.ACompEvalCoreFun
     end
     
     methods(Access=protected)
-        function fx = evaluateComponents(this, pts, ends, idx, self, x, t, mu)
+        function fx = evaluateComponents(this, pts, ends, idx, self, x, t)
+            fx = evaluateComponentsMulti(this, pts, ends, idx, self, x, t, this.mu);
+        end
+        
+        function fx = evaluateComponentsMulti(this, pts, ends, idx, self, x, t, mu)
             fx = bsxfun(@mtimes,this.data(pts),mu(1,:)) + repmat(t,length(pts),1);
         end
     end
@@ -66,10 +70,11 @@ classdef DEIM < dscomponents.ACompEvalCoreFun
             
             for k = 1:5:d.MaxOrder
                 d.Order = k;
-                afx = d.evaluate(x,t);
+                afx = d.evaluateMulti(x,t,mu);
                 fprintf('Relative errors for Order k=%d: %s\n',k,...
                     sprintf('%g ',sum(Norm.L2(fxall-afx)))); %./Norm.L2(fxall)
             end
+            res = true;
         end
         
         function analysis_DEIM_approx(m)

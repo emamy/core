@@ -248,12 +248,11 @@ classdef BaseDynSystem < KerMorObject
             elseif inputidx > length(this.Inputs)
                 error('Invalid input index "%d". There are %d possible inputs configured.',inputidx,length(this.Inputs));
             end
+            this.u = @(t)[];
+            this.inputidx = [];
             if ~isempty(inputidx)
                 this.u = this.Inputs{inputidx};
                 this.inputidx = inputidx;
-            else
-                this.u = [];
-                this.inputidx = [];
             end
             
             % Forward preparation call to nonlinearity, if present
@@ -264,7 +263,7 @@ classdef BaseDynSystem < KerMorObject
             % Forward preparation call to nonlinearity, if present
             if ~isempty(this.f)
                 this.f.prepareSimulation(mu);
-            end
+            end            
         end
     
         function odefun = getODEFun(this)

@@ -37,11 +37,18 @@ classdef DEIM < approx.BaseApprox & general.DEIM
         function fx = evaluate(this, x, t)
             fx = evaluate@general.DEIM(this, x, t);
         end
+        
+        function fx = evaluateMulti(this, x, t, mu)
+            fx = evaluateMulti@general.DEIM(this, x, t, mu);
+        end
 
         function prepareSimulation(this, mu)
             prepareSimulation@approx.BaseApprox(this, mu);
             % Forward the parameter setting to the inner ACompEvalCoreFun
-            this.f.prepareSimulation(mu);
+            % (if already set)
+            if ~isempty(this.f)
+                this.f.prepareSimulation(mu);
+            end
         end
         
         function J = getStateJacobian(this, x, t)
@@ -62,7 +69,7 @@ classdef DEIM < approx.BaseApprox & general.DEIM
         end
         
         function copy = clone(this)
-            copy = approx.DEIM;
+            copy = approx.DEIM(this.System);
             copy = clone@approx.BaseApprox(this, copy);
             copy = clone@general.DEIM(this, copy);
         end
@@ -76,7 +83,7 @@ classdef DEIM < approx.BaseApprox & general.DEIM
     end
     
     methods(Static)
-        function test_DEIM
+        function res = test_DEIM
             m = models.pcd.PCDModel(1);
             m.EnableTrajectoryCaching = false;
             m.Approx = approx.DEIM(m.System);
@@ -92,6 +99,7 @@ classdef DEIM < approx.BaseApprox & general.DEIM
             r.simulate(mu);
             r.System.f.Order = 40;
             r.simulate(mu);
+            res = true;
         end
     end
 end

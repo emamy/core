@@ -121,7 +121,7 @@ classdef SemiImplicitEuler < solvers.BaseCustomSolver
                 if ~isempty(s.f)
                     RHS = RHS + dt*s.f.evaluate(oldx, t(idx-1));
                 end
-                if ~isempty(s.u)
+                if ~isempty(s.B)
                     RHS = RHS + dt*s.B.evaluate(t(idx-1), s.mu)*s.u(t(idx-1));
                 end
                 
@@ -149,7 +149,7 @@ classdef SemiImplicitEuler < solvers.BaseCustomSolver
                     %bet = est.getBeta(newx, t(idx), s.mu);
                     
                     % Explicit
-                    odepart = est.evalODEPart([newx; oldex], t(idx-1), s.mu, ut);
+                    odepart = est.evalODEPart([newx; oldex], t(idx-1), ut);
                     newex = oldex + dt * odepart;
                     %newex = oldex + dt*(bet*oldex + al);
                     

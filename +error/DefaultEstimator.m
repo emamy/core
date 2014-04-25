@@ -60,7 +60,7 @@ classdef DefaultEstimator < error.BaseEstimator
             % No local properties there.
         end
         
-        function eint = evalODEPart(this, x, t, mu, ut)%#ok
+        function eint = evalODEPart(varargin)
             % The default estimator does not have an ODE part as it
             % computes the full error in the postprocessing step.
             %
@@ -86,23 +86,13 @@ classdef DefaultEstimator < error.BaseEstimator
             e0 = [];
         end
         
-        function ct = prepareConstants(this, mu, inputidx)%#ok
-            % Return values:
-            % ct: The time needed for postprocessing @type double
-            
-            % Nothing to do here
-            ct = 0;
-        end
-    end
-    
-    methods(Access=protected)
-        function ct = postprocess(this, x, ~, mu, inputidx)
+        function ct = postProcess(this, x, t, inputidx)
             % Overwrites the default postprocess method.
             
             m = this.ReducedModel.FullModel;
             
             % Compute full solution
-            [~, yf, ct, xf] = m.simulate(mu, inputidx);
+            [~, yf, ct, xf] = m.simulate(this.mu, inputidx);
             st = tic;
             xr = x(1:end-this.ExtraODEDims,:);
             if ~isempty(this.ReducedModel.V)
@@ -116,6 +106,15 @@ classdef DefaultEstimator < error.BaseEstimator
             yr = this.ReducedModel.System.computeOutput(xr);
             this.RealOutputError = Norm.L2(yf-yr);
             ct = ct + toc(st);
+            ct = ct + postProcess@error.BaseEstimator(x, t, inputidx);
+        end
+        
+        function ct = prepareConstants(this, mu, inputidx)
+            % Return values:
+            % ct: The time needed for postprocessing @type double
+            
+            % Nothing to do here
+            ct = prepareConstants@error.BaseEstimator(this, mu, inputidx);
         end
     end
     

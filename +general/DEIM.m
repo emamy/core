@@ -113,7 +113,7 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
         M2;
     end
     
-    properties%(SetAccess=private)
+    properties(SetAccess=private)
         % The function which DEIM is applied to
         %
         % Is a subclass of dscomponents.ACompEvalCoreFun
@@ -184,6 +184,10 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
         
         function fx = evaluate(this, x, t)
             fx = this.U * this.f.evaluateComponentSet(1, x, t);
+        end
+        
+        function fx = evaluateMulti(this, x, t, mu)
+            fx = this.U * this.f.evaluateComponentSetMulti(1, x, t, mu);
         end
 
         function J = getStateJacobian(this, x, t)

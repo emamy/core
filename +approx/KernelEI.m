@@ -122,7 +122,7 @@ classdef KernelEI < approx.BaseApprox
             if this.Variant == 1
                 % Compute Vz and f(Vz) values globally
                 zi = model.Data.W'*atd.xi;
-                fzi = model.System.f.evaluate(model.Data.V*zi,atd.ti,atd.mui);
+                fzi = model.System.f.evaluateMulti(model.Data.V*zi,atd.ti,atd.mui);
                 vatd = data.ApproxTrainData(zi,atd.ti,atd.mui);
                 mo = this.MaxOrder;
                 vatd.fxi = sparse(this.pts,1:mo,ones(mo,1),size(atd.fxi,1),mo)'*fzi;
@@ -146,9 +146,9 @@ classdef KernelEI < approx.BaseApprox
             end
         end
         
-        function fx = evaluateCoreFun(this, x, t, mu)
+        function fx = evaluateCoreFun(this, x, t)
             if this.Variant == 1
-                fu = this.V1Expansion.evaluate(x, t, mu);
+                fu = this.V1Expansion.evaluate(x, t, this.mu);
                 c = fu(1:this.fOrder);
             elseif this.Variant == 2
                 c = zeros(this.fOrder,size(x,2));
@@ -160,7 +160,7 @@ classdef KernelEI < approx.BaseApprox
                     if o > 1
                         off = off + this.jend(o-1);
                     end
-                    c(o,:) = this.V2Expansions{o}.evaluate(this.S(off:this.jend(o),:)*x,t,mu);
+                    c(o,:) = this.V2Expansions{o}.evaluate(this.S(off:this.jend(o),:)*x,t,this.mu);
                 end
             end
             fx = this.U * c;
@@ -173,7 +173,7 @@ classdef KernelEI < approx.BaseApprox
         end
         
         function copy = clone(this)
-            copy = approx.KernelEI;
+            copy = approx.KernelEI(this.System);
             copy = clone@approx.BaseApprox(this, copy);
             copy.fOrder = this.fOrder;
             copy.u = this.u;
