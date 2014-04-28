@@ -182,7 +182,7 @@ classdef Componentwise < approx.algorithms.ABase & IParallelizable
             end
             
             % Keep track of maximum errors (matrix-wise for expansion config / coeff config)
-            hlp = zeros(nc,nco);
+            hlp = zeros(nc, nco);
             this.MaxErrors = hlp;
             this.MaxRelErrors = hlp;
             this.StopFlags = hlp;
