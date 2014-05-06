@@ -111,10 +111,13 @@ classdef MLWrapper < solvers.BaseSolver & solvers.AJacobianSolver
                 end
                 if r < size(Mmat,1)
                     odeset(opts,'MassSingular','yes');
+                    warning('off','MATLAB:singularMatrix');
                 end
-                warning('off','MATLAB:singularMatrix');
                 yp0 = Mmat\yp0;
-                warning('on','MATLAB:singularMatrix');
+                if r < size(Mmat,1)
+                    warning('on','MATLAB:singularMatrix');
+                    yp0(isinf(yp0)) = 0;
+                end
                 MS = 'none';
             end
             opts = odeset(opts,'Mass',M,'MStateDependence',MS,...

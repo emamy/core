@@ -130,7 +130,7 @@ classdef FullyImplEuler < solvers.BaseCustomSolver & solvers.IImplSolver
             end
             function [dx, jac] = nonlin_fun(x)
                 dx = M * (x - oldx) - dt*odefun(t(idx+1), x);
-                jac = M - dt * s.f.getStateJacobian(x, t(idx+1), s.mu);
+                jac = M - dt * s.f.getStateJacobian(x, t(idx+1));
             end
         end
     end
