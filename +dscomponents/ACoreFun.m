@@ -287,18 +287,7 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             %
             % Return values:
             % J: The jacobian matrix at `x,t,\mu`.
-            dt = sqrt(eps);
-            d = size(x,1);
-            
-            X = repmat(x,1,d);
-            I = speye(d,d)*dt;
-            % Evaluate makes use of built-in multi-argument evaluation
-            J = (this.evaluateMulti(X+I,t,this.mu) - repmat(this.evaluate(x,t),1,d))/dt;
-            % Create sparse matrix if pattern is set
-            if ~isempty(this.JSparsityPattern)
-                [i, j] = find(this.JSparsityPattern);
-                J = sparse(i,j,J(logical(this.JSparsityPattern)),this.fDim,this.xDim);
-            end            
+            J = this.getStateJacobianFD(x, t);
         end
         
         function copy = clone(this, copy)
@@ -314,6 +303,47 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             copy.TimeDependent = this.TimeDependent;
             copy.xDim = this.xDim;
             copy.fDim = this.fDim;
+        end
+    end
+    
+    methods(Sealed)
+        function J = getStateJacobianFD(this, x, t, partidx)
+            % Implementation of jacobian matrix evaluation via
+            % finite differences.
+            %
+            % Parameters:
+            % x: The state variable vector/matrix (with colum state
+            % vectors)
+            % t: The corresponding times for each state vector. Set to []
+            % if no time is used.
+            % mu: The parameter(s) to use. Set to [] if the function does not
+            % support parameters.
+            % partidx: An index vector for desired derivative components.
+            % Can be used to compute full jacobians in parts that would
+            % otherwise not fit into memory @type rowvec<integer> @default
+            % 1:xDim
+            %
+            % Return values:
+            % J: The jacobian matrix at `x,t,\mu`, possibly only the part
+            % specified by the partidx indices. @type matrix<double>
+            dt = sqrt(eps);
+            d = size(x,1);
+            if nargin < 4
+                partidx = 1:this.xDim;
+            end
+            len = length(partidx);
+            X = repmat(x,1,len);
+            I = speye(d,d)*dt;
+            del = 1:this.xDim;
+            del(partidx) = [];
+            I(:,del) = [];
+            % Evaluate makes use of built-in multi-argument evaluation
+            J = (this.evaluateMulti(X+I,t,this.mu) - repmat(this.evaluate(x,t),1,len))/dt;
+            % Create sparse matrix if pattern is set
+            if ~isempty(this.JSparsityPattern) && nargin < 4
+                [i, j] = find(this.JSparsityPattern);
+                J = sparse(i,j,J(logical(this.JSparsityPattern)),this.fDim,this.xDim);
+            end            
         end
     end
         
@@ -369,21 +399,18 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             if nargin < 2
                 mudim = 100;
             end
-            if true || (this.MultiArgumentEvaluations)
-                x = rand(this.xDim,200);
-                mu = rand(mudim,200);
-                fxm = this.evaluate(x,1:200,mu);
-                fxs = zeros(size(x));
-                for i=1:200
-                    fxs(:,i) = this.evaluate(x(:,i),i,mu(:,i));
-                end
-                err = sum((fxm-fxs).^2,1);
-                res = all(err < eps);
-                if ~res
-                    plot(err);
-                end
-            else
-                error('MultiArgumentEvaluations not switched on.');
+            x = rand(this.xDim,200);
+            mui = rand(mudim,200);
+            fxm = this.evaluateMulti(x,1:200,mui);
+            fxs = zeros(size(x));
+            for idx = 1:size(x,2)
+                this.prepareSimulation(mui(:, idx));
+                fxs(:,idx) = this.evaluate(x(:,idx), idx);
+            end
+            err = sum((fxm-fxs).^2,1);
+            res = all(err < eps);
+            if ~res
+                plot(err);
             end
         end
         
@@ -406,7 +433,6 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             % less than 1e-7 @type logical
             
             reltol = 1e-7;
-            dt = sqrt(eps);
             if nargin < 2
                 xa = rand(this.xDim,20);
                 ta = 1:20;
@@ -420,8 +446,7 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                 end
             end
             d = size(xa,1);
-            I = speye(d,d)*dt;
-            perstep = floor((256*1024^2)/(8*d));
+            perstep = floor((256*1024^2)/(8*d)); % 256MB chunks
             steps = ceil(d/perstep);
             gpi = steps == 1 && size(xa,2) > 1;
             if gpi
@@ -432,35 +457,35 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                 mua = repmat(mua,1,size(xa,2));
             end
             for i = 1:size(xa,2)
-                x = xa(:,i); t = ta(:,i); mu = mua(:,i);
-                Jc = this.getStateJacobian(x, t, mu);
+                x = xa(:,i); t = ta(:,i);
+                this.prepareSimulation(mua(:,i))
+                Jc = this.getStateJacobian(x, t);
                 
                 %% Numerical jacobian
-                X = repmat(x,1,perstep); T = repmat(t,1,perstep); MU = repmat(mu,1,perstep);
                 if ~gpi
                     pi = ProcessIndicator('Comparing %dx%d jacobian with finite differences over %d blocks of size %d',...
                         steps,false,this.fDim,this.xDim,steps,perstep);
                 end
                 for k = 1:steps
-                    if k == steps
-                        num = d-(k-1)*perstep;
-                        X = repmat(x,1,num); T = repmat(t,1,num); MU = repmat(mu,1,num);
-                    end
+                    num = 6;
+%                     if k == steps
+%                         num = d-(k-1)*perstep;
+%                     end
                     pos = (k-1)*perstep+1:min(d,k*perstep);
-                    J = (this.evaluate(X+I(:,pos),T,MU) - this.evaluate(X,T,MU))/dt;
+                    J = this.getStateJacobianFD(x, t, pos);
                     pi.step;
                     abserr = max(max(abs(J-Jc(:,pos))));
-                    maxJ = max(max(abs(J)));
                     relerr = max(max(abs(J-Jc(:,pos))./J));
-                    diff = abs(J-Jc);
-                    [v, pos] = sort(diff(:),'descend');
                     [posi,posj] = ind2sub(size(J), pos(1:num));
-                    num = 6;
-                    M = [v(1:num) v(1:num)./J(pos(1:num)) v(1:num)/maxJ];
-                    
                     indic = sprintf('%d, ',posi(1:num));
                     indjc = sprintf('%d, ',posj(1:num));
                     if relerr >= reltol;
+                        diff = abs(J-Jc(:,pos));
+                        [v, pos] = sort(diff(:),'descend');
+                        
+                        maxJ = max(max(abs(J)));
+                        M = [v(1:num) v(1:num)./J(pos(1:num)) v(1:num)/maxJ];
+                        
                         pi.stop;
                         disp(M);
                         fprintf('Failed at test vector %d. Max absolute error %g, relative %g, max %d errors at rows %s, cols %s (maxJ=%g)\n',i,abserr,relerr,num,indic,indjc,J(pos(1)));
