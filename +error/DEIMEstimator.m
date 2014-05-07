@@ -88,7 +88,7 @@ classdef DEIMEstimator < error.BaseEstimator & IReductionSummaryPlotProvider
         UseTrueDEIMErr = false;
     end
     
-    properties%(SetAccess=private)
+    properties(SetAccess=private)
         % The complete similarity transformation `\vQ` matrix of size
         % `d \times JacSimTransMaxSize`
         %
@@ -285,6 +285,7 @@ classdef DEIMEstimator < error.BaseEstimator & IReductionSummaryPlotProvider
         end
                
         function ct = prepareConstants(this, mu, inputidx)
+            prepareConstants@error.BaseEstimator(this, mu, inputidx);
             if this.deim.Order(2) == 0 && ~this.UseTrueDEIMErr
                 warning('KerMor:DEIMEstimator','No DEIM error order set. Disabling error estimator.');
                 this.Enabled = false;
@@ -297,31 +298,37 @@ classdef DEIMEstimator < error.BaseEstimator & IReductionSummaryPlotProvider
                 if this.UseTrueLogLipConst || this.UseJacobianLogLipConst
                     [~, this.fullsol, ct] = rm.FullModel.computeTrajectory(mu, inputidx);
                 else
+                    this.JacMDEIM.f.prepareSimulation(mu);
                     ct = 0;
                 end            
-                % Get initial values of alpha/beta for completeness
-                ut = [];
-                t0 = rm.scaledTimes(1);
-                if ~isempty(inputidx)
-                    ut = rm.System.Inputs{inputidx}(t0);
-                end
-                x0 = rm.System.x0.evaluate(mu);
                 this.LastAlpha = zeros(1,length(rm.Times));
                 this.LastBeta = zeros(1,length(rm.Times));
                 this.lastvalpos = [1 1];
-                this.LastAlpha(1) = this.getAlpha(x0, t0, mu, ut);
-                this.LastBeta(1) = this.getBeta(x0, t0, mu);
+                
+                if ~isempty(this.M6)
+                    this.M6.prepareSimulation(mu);
+                end
+                if ~isempty(this.M7)
+                    this.M7.prepareSimulation(mu);
+                end
+                if ~isempty(this.M8)
+                    this.M8.prepareSimulation(mu);
+                end
+                if ~isempty(this.M9)
+                    this.M9.prepareSimulation(mu);
+                end
             end
             this.kexp = [];
         end
         
-        function a = getAlpha(this, x, t, mu, ut)
+        function a = getAlpha(this, x, t, ut)
             % More expensive variant, using the true DEIM approximation
             % error instead of the estimated ones using M,M' technique
+            mu = this.mu;
             if this.UseTrueDEIMErr
                 rm = this.ReducedModel;
                 fs = rm.FullModel.System;
-                A = fs.A.evaluate(rm.V*x,t,mu);
+                A = fs.A.evaluate(rm.V*x,t);
                 if isempty(rm.W)
                     a = A - rm.V*(rm.W'*A);
                 else
@@ -336,17 +343,17 @@ classdef DEIMEstimator < error.BaseEstimator & IReductionSummaryPlotProvider
                 a = Norm.LG(a,rm.FullModel.G);
             else
                 f = this.ReducedModel.System.f.f;
-                v1 = f.evaluateComponentSet(1, x, t, mu);
-                v2 = f.evaluateComponentSet(2, x, t, mu);
+                v1 = f.evaluateComponentSet(1, x, t);
+                v2 = f.evaluateComponentSet(2, x, t);
 
                 % NOTE: The factors 2 before some summands are added at offline
                 % stage!!
                 a = v1'*this.M3*v1 - v1'*this.M4*v2 + v2'*this.M5*v2;
                 if ~isempty(this.M6) % An time/param affine A is set
-                    a = a + x'*this.M6.evaluate(x,t,mu) + v1'*this.M7.evaluate(x,t,mu) ...
-                        - v2'*this.M8.evaluate(x,t,mu);
+                    a = a + x'*this.M6.evaluate(x,t) + v1'*this.M7.evaluate(x,t) ...
+                        - v2'*this.M8.evaluate(x,t);
                     if ~isempty(ut)
-                        a = a + x'*this.M9.evaluate(ut,t,mu);
+                        a = a + x'*this.M9.evaluate(ut,t);
                     end
                 end
                 if ~isempty(ut) % An input function u is set
@@ -376,12 +383,12 @@ classdef DEIMEstimator < error.BaseEstimator & IReductionSummaryPlotProvider
             this.lastvalpos(1) = this.lastvalpos(1)+1;
         end
         
-        function b = getBeta(this, x, t, mu)
+        function b = getBeta(this, x, t)
             % Old log lip const kernel learning code
             %x = x .* (this.scale(:,2) - this.scale(:,1)) + this.scale(:,1);
             %             x = (x - this.scale(:,1)) ./ (this.scale(:,2) - this.scale(:,1));
             %             b = this.kexp.evaluate(x, t, mu)*olderr + sqrt(abs(a));
-            
+            mu = this.mu;
             % Validation code
             if this.UseTrueLogLipConst || this.UseJacobianLogLipConst
                 rm = this.ReducedModel;
@@ -411,7 +418,7 @@ classdef DEIMEstimator < error.BaseEstimator & IReductionSummaryPlotProvider
                     b = Utils.logNorm(J);
                 end
             else
-                DJ = this.JacMDEIM.evaluate(x,t,mu);
+                DJ = this.JacMDEIM.evaluate(x,t);
                 b = Utils.logNorm(DJ);
             end
             
@@ -444,9 +451,35 @@ classdef DEIMEstimator < error.BaseEstimator & IReductionSummaryPlotProvider
             this.lastvalpos(2) = this.lastvalpos(2) + 1;
         end
         
-        function eint = evalODEPart(this, x, t, mu, ut)
+        function eint = evalODEPart(this, x, t, ut)
             % Compose the ode function
-            eint = this.getBeta(x(1:end-1), t, mu)*x(end) + this.getAlpha(x(1:end-1), t, mu, ut);
+            eint = this.getBeta(x(1:end-1), t)*x(end) + this.getAlpha(x(1:end-1), t, ut);
+        end
+        
+        function time = postProcess(this, x, t, inputidx)
+            % Postprocessing for the error estimate.
+            %
+            % Parameters:
+            % x: The whole just computed trajectory @type matrix<double>
+            % varargin: Any further arguments that are passed, but ignored
+            % here as not necessary. @type varargin
+            %
+            % t, mu, inputidx
+            % do nothing
+            time = tic;
+            rm = this.ReducedModel;
+            % Get initial values of alpha/beta for completeness
+            ut = [];
+            t0 = rm.scaledTimes(1);
+            if ~isempty(inputidx)
+                ut = rm.System.Inputs{inputidx}(t0);
+            end
+            x0 = rm.System.x0.evaluate(this.mu);
+            this.LastAlpha(1) = this.getAlpha(x0, t0, ut);
+            this.LastBeta(1) = this.getBeta(x0, t0);
+            
+            this.StateError = x(end,:);
+            time = toc(time) + postProcess@error.BaseEstimator(this, x, t, inputidx);
         end
         
         function copy = clone(this)
@@ -524,23 +557,6 @@ classdef DEIMEstimator < error.BaseEstimator & IReductionSummaryPlotProvider
                     'transformation size','singular values');
                 semilogy(h,this.QSingVals,'LineWidth',2);
             end
-        end
-    end
-    
-    methods(Access=protected)
-        function time = postprocess(this, x, varargin)
-            % Postprocessing for the error estimate.
-            %
-            % Parameters:
-            % x: The whole just computed trajectory @type matrix<double>
-            % varargin: Any further arguments that are passed, but ignored
-            % here as not necessary. @type varargin
-            %
-            % t, mu, inputidx
-            % do nothing
-            time = tic;
-            this.StateError = x(end,:);
-            time = toc(time);
         end
     end
     

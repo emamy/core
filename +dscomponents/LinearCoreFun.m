@@ -10,6 +10,8 @@ classdef LinearCoreFun < dscomponents.ACoreFun
     
     methods
         function this = LinearCoreFun(A)
+            % No system reference needed for constant linear core fun
+            this = this@dscomponents.ACoreFun([]);
             if nargin > 0
                 this.A = A;
                 % If not set here, subclasses must take care to set xDim
@@ -22,7 +24,6 @@ classdef LinearCoreFun < dscomponents.ACoreFun
                 end
             end
             this.CustomProjection = true;
-            this.MultiArgumentEvaluations = true;
             this.TimeDependent = false;
         end
         
@@ -39,6 +40,10 @@ classdef LinearCoreFun < dscomponents.ACoreFun
         end
         
         function fx = evaluate(this, x, ~, ~)
+            fx = this.A*x;
+        end
+        
+        function fx = evaluateMulti(this, x, ~, ~)
             fx = this.A*x;
         end
         

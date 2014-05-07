@@ -134,7 +134,7 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
             end
         end
         
-        function e = evalODEPart(this, x, t, mu, ut)
+        function e = evalODEPart(this, x, t, ut)
             % Evaluates the auxiliary ode part for the TPWL estimator.
             %
             % @attention: NOT WORKING PROPERLY YET.
@@ -206,7 +206,7 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
             beta = wf.evaluateScalar(max(0,di-Ct)) * this.Ainorms';
             % Part two of beta
             av = cellfun(@(A)sqrt(z'*A*z),this.AV);
-            beta = beta + av * this.KernelLipschitzFcn(di,Ct,t,mu)';
+            beta = beta + av * this.KernelLipschitzFcn(di,Ct,t,this.mu)';
             
             e(2) = beta*(eold(1) + eold(2));
             
@@ -218,7 +218,9 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
 %             end
         end
         
-        function process(this, t, x, mu, inputidx)%#ok
+        function ct = postProcess(this, t, x, inputidx)
+            ct = postProcess@error.BaseEstimator(this, t, x, mu, inputidx);
+            ts = tic;
             eint = x(end-this.ExtraODEDims+1:end,:);
             if all(eint == 0)
                 warning('CompWiseErrorEstimator:process','Integral part is all zero. Attention!');
@@ -243,6 +245,8 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
             % Tranform to output error estimation
             C = this.ReducedModel.FullModel.System.C.evaluate(0,[]);
             this.StateError = norm(C)*this.StateError;
+            
+            ct = ct + toc(ts);
         end
         
         function e0 = init(this, mu)
@@ -253,19 +257,7 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
         function clear(this)
             clear@error.BaseEstimator(this);
             this.neg_e1 = false;
-%             this.times = [];
-%             this.e1vals = [];
-%             this.divals = [];
         end
-        
-%         function set.Iterations(this, value)
-%             if value > 0 && (isa(this.ReducedModel.ODESolver,'solvers.MLWrapper') || isa(this.ReducedModel.ODESolver,'solvers.MLode15i'))%#ok
-%                 warning('errorEst:LocalLipEst',...
-%                     'Build-In Matlab solvers cannot be use with this Error Estimator if Iterations are turned on.\nSetting Iterations = 0.');
-%                 this.Iterations = 0;
-%             end
-%             this.Iterations = value;
-%         end
     end
     
    
@@ -290,7 +282,7 @@ classdef TPWLLocalLipEstimator < error.BaseEstimator
 %             r.ErrorEstimator = error.IterationCompLemmaEstimator(r);
 %             
 % %             try
-% %                 m.ODESolver = solvers.sMLWrapper(@ode23);
+% %                 m.ODESolver = solvers.MLWrapper(@ode23);
 % %                 r.ErrorEstimator = error.IterationCompLemmaEstimator(r);
 % %                 r.ErrorEstimator.Iterations = 1;
 % %             catch ME%#ok

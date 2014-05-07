@@ -34,8 +34,13 @@ classdef MatrixDEIM < general.DEIM
     end
     
     methods
-        function M = evaluate(this, x, t, mu)
-            fx = evaluate@general.DEIM(this, x, t, mu);
+        function M = evaluate(this, x, t)
+            fx = evaluate@general.DEIM(this, x, t);
+            M = reshape(fx, this.effNumRows, []);
+        end
+        
+        function M = evaluateMulti(this, x, t)
+            fx = evaluateMulti@general.DEIM(this, x, t);
             M = reshape(fx, this.effNumRows, []);
         end
         

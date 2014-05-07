@@ -368,7 +368,7 @@ classdef ApproxTrainData < handle
                     if ~isempty(atd.mui)
                         mui = atd.mui(:,pos);
                     end
-                    hlp = f.evaluate(xi(:,pos), atd.ti(pos), mui);
+                    hlp = f.evaluateMulti(xi(:,pos), atd.ti(pos), mui);
                     fxi(:,pos) = hlp;
                     if KerMor.App.Verbose > 1
                         pi.step;

@@ -34,37 +34,35 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
           % Creates a new jacobian matrix wrapper for linear indexing,
           % which implements dscomponents.ACompEvalCoreFun
           
-          % Call superclass constructor
-          this = this@dscomponents.ACompEvalCoreFun;
-          
-          if nargin == 1
-              % Checks
-              if ~isa(f,'dscomponents.ACompEvalCoreFun')
-                  error('The system''s nonlinearity must be a component-wise evaluable function.');
-              end
-              % Original full system function
-              this.f = f;
-
-              % ACoreFun settings
-              this.MultiArgumentEvaluations = true;
-              this.xDim = f.xDim;
-              % output dim is size of jacobian
-              if ~isempty(f.JSparsityPattern)
-                  fdim = length(find(f.JSparsityPattern));
-              else
-                  fdim = f.fDim * f.xDim;
-              end
-              this.fDim = fdim;
-              % So sparsity pattern for the wrapper
-              this.JSparsityPattern = [];
-
-              % Extra: Store original full dimension, as f gets possibly
-              % projected
-              this.fullxDim = f.xDim;
+          % Checks
+          if ~isa(f,'dscomponents.ACompEvalCoreFun')
+              error('The system''s nonlinearity must be a component-wise evaluable function.');
           end
+          
+          % Call superclass constructor
+          this = this@dscomponents.ACompEvalCoreFun(f.System);
+              
+          % Original full system function
+          this.f = f;
+
+          % ACoreFun settings
+          this.xDim = f.xDim;
+          % output dim is size of jacobian
+          if ~isempty(f.JSparsityPattern)
+              fdim = length(find(f.JSparsityPattern));
+          else
+              fdim = f.fDim * f.xDim;
+          end
+          this.fDim = fdim;
+          % So sparsity pattern for the wrapper
+          this.JSparsityPattern = [];
+
+          % Extra: Store original full dimension, as f gets possibly
+          % projected
+          this.fullxDim = f.xDim;
         end
         
-        function fx = evaluate(this, x, t, mu)
+        function fx = evaluate(this, x, t)
             % Evaluates the jacobian of the wrapped function and returns a
             % vector corresponding to the natural linear indexing of
             % matlab.
@@ -79,11 +77,47 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
             else
                 nonzero = 1:this.f.fDim*this.f.xDim;
             end
-            fx = zeros(length(nonzero),size(x,2));
-            for i=1:size(x,2)
-                J = this.f.getStateJacobian(x(:,i),t(i),mu(:,i));
-                fx(:,i) = J(nonzero);
+            J = this.f.getStateJacobian(x,t,this.mu);
+            fx = J(nonzero);
+        end
+        
+        function fx = evaluateMulti(this, x, t, mu)
+            % Evaluates the jacobian of the wrapped function at multiple
+            % locations and returns a vector corresponding to the natural
+            % linear indexing of matlab.
+            %
+            % Return values:
+            % fx: The linearly indexed jacobian of `f`, so `fx =
+            % (\d{f_1}{x_1}, \d{f_2}{x_1}, \ldots, \d{f_n}{x_1},
+            % \d{f_2}{x_1}, \ldots)`. @type colvec<double>
+            
+            if ~isempty(this.f.JSparsityPattern)
+                nonzero = find(this.f.JSparsityPattern);
+            else
+                nonzero = 1:this.f.fDim*this.f.xDim;
             end
+            fx = zeros(length(nonzero),size(x,2));
+            singlemu = size(mu,2) == 1;
+            if singlemu
+                oldmu = this.f.mu;
+                this.f.prepareSimulation(mu);
+            else
+                for i=1:size(x,2)
+                    if ~singlemu
+                        this.f.prepareSimulation(mu(:,i));
+                    end
+                    J = this.f.getStateJacobian(x(:,i),t(i));
+                    fx(:,i) = J(nonzero);
+                end
+            end
+            if singlemu
+                this.f.prepareSimulation(oldmu);
+            end
+        end
+        
+        function prepareSimulation(this, mu)
+            prepareSimulation@dscomponents.ACompEvalCoreFun(this,mu);
+            this.f.prepareSimulation(mu);
         end
         
         function evaluateCoreFun(varargin)
@@ -136,15 +170,19 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
             this.trafo{nr} = sparse(pos, 1:l, ones(l,1),l,l);
         end
         
-        function fx = evaluateComponentSet(this, nr, x, t, mu)
-            dfx = this.f.evaluateJacobianSet(nr+2, x, t, mu);
+        function fx = evaluateComponentSet(this, nr, x, t)
+            dfx = this.f.evaluateJacobianSet(nr+2, x, t);
+            fx = this.trafo{nr}*dfx;
+        end
+        
+        function fx = evaluateComponentSetMulti(this, nr, x, t, mu)
+            dfx = this.f.evaluateJacobianSetMulti(nr+2, x, t, mu);
             fx = this.trafo{nr}*dfx;
         end
         
         function copy = clone(this)
-            copy = general.JacCompEvalWrapper;
+            copy = general.JacCompEvalWrapper(this.f);
             copy = clone@dscomponents.ACompEvalCoreFun(this, copy);
-            copy.f = this.f.clone;
             copy.trafo = this.trafo;
             copy.fullxDim = this.fullxDim;
         end
@@ -161,8 +199,9 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
     end
     
     methods(Access=protected)
-        function varargout = evaluateComponents(varargin)
+        function evaluateComponents(varargin)
             % nothing to do here as this is a wrapper
+            error('This should not be called as this is a wrapper for ACompEvalCoreFuns');
         end
     end
 end

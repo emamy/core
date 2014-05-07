@@ -73,8 +73,8 @@ classdef TPWLApprox < approx.BaseApprox
             value = this.fBeta;
         end
                 
-        function this = TPWLApprox
-            this = this@approx.BaseApprox;
+        function this = TPWLApprox(sys)
+            this = this@approx.BaseApprox(sys);
             
             % Beta from Paper is e^{-25 d/m}, for gauss: e^{d/(m*g^2)}, so g=.2
             % Initialize the gaussian weight with what ever Beta is set to
@@ -83,13 +83,11 @@ classdef TPWLApprox < approx.BaseApprox
             
             % Set training data selection to epsselector (default strategy for original TPWL)
             this.TrainDataSelector = data.selection.EpsSelector;
-            this.MultiArgumentEvaluations = true;
             this.CustomProjection = true;
         end
         
         function copy = clone(this)
-            % Implements ICloneable.clone()
-            copy = approx.TPWLApprox;
+            copy = approx.TPWLApprox(this.System);
             copy = clone@approx.BaseApprox(this, copy);
             copy.Ai = this.Ai;
             copy.bi = this.bi;
@@ -181,7 +179,7 @@ classdef TPWLApprox < approx.BaseApprox
         function res = test_TWPLApprox
             m = models.synth.KernelTest(100,false);
             m.ErrorEstimator = [];
-            m.Approx = approx.TPWLApprox;
+            m.Approx = approx.TPWLApprox(m.System);
             m.Approx.Beta = 25;
             m.dt = 0.01;
             m.Sampler = sampling.ManualSampler(m.getRandomParam);

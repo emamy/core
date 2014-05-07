@@ -72,9 +72,9 @@ classdef KernelApprox < approx.BaseApprox & dscomponents.ParamTimeKernelCoreFun
     
     methods
         
-        function this = KernelApprox
-            this = this@approx.BaseApprox;
-            this = this@dscomponents.ParamTimeKernelCoreFun;
+        function this = KernelApprox(sys)
+            this = this@approx.BaseApprox(sys);
+            this = this@dscomponents.ParamTimeKernelCoreFun(sys);
             
             this.Algorithm = approx.algorithms.VKOGA;
              
@@ -109,7 +109,7 @@ classdef KernelApprox < approx.BaseApprox & dscomponents.ParamTimeKernelCoreFun
             % to a double execution of the clone method from
             % dscomponents.ACoreFcn, but this is rather done than ommitted
             % and causing trouble later on.
-            copy = approx.KernelApprox;
+            copy = approx.KernelApprox(this.System);
                        
             copy = clone@dscomponents.ParamTimeKernelCoreFun(this, copy);
             copy = clone@approx.BaseApprox(this, copy);

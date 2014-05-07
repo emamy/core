@@ -60,6 +60,7 @@ classdef ScalarEpsSVR < general.regression.BaseQPSVR
             
             % Problem setup
             Q = T'*this.K*T;
+            Q = (Q+Q')/2;
             c = (this.Eps*ones(2*m,1) - (fxi*T)');
             
             % Starting point

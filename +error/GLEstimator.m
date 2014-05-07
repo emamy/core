@@ -37,19 +37,19 @@ classdef GLEstimator < error.BaseCompLemmaEstimator
             copy.f = this.f;
         end
         
-        function b = getBeta(this, x, t, mu)%#ok
+        function b = getBeta(this, x, t)%#ok
             if ~isempty(this.cf)
                 b = this.cf;
             else
-                b = this.f.getGlobalLipschitz(t, mu);
+                b = this.f.getGlobalLipschitz(t, this.mu);
             end
         end
         
-        function ct = prepareConstants(this, mu, inputidx)%#ok
+        function ct = prepareConstants(this, mu, inputidx)
             % Return values:
             % ct: The time needed for preprocessing @type double
             
-            ct = prepareConstants@error.BaseCompLemmaEstimator(this);
+            ct = prepareConstants@error.BaseCompLemmaEstimator(this, mu, inputidx);
             % Standard case: the approx function is a kernel expansion. it
             % can also be that the system's core function is already a
             % kernel expansion
@@ -71,16 +71,14 @@ classdef GLEstimator < error.BaseCompLemmaEstimator
             end
             ct = ct + toc(st);
         end
-    end
-    
-    methods(Access=protected)
-        function ct = postprocess(this, x, t, mu, inputidx)
+        
+        function ct = postProcess(this, x, t, inputidx)
             % Return values:
             % ct: The time needed for postprocessing @type double
             
             st = tic;
             this.StateError(1,:) = x(end,:);
-            ct = postprocess@error.BaseCompLemmaEstimator(this, t, x, mu, inputidx) + toc(st);
+            ct = postProcess@error.BaseCompLemmaEstimator(this, t, x, mu, inputidx) + toc(st);
         end
     end
     

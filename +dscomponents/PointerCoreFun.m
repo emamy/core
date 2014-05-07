@@ -1,6 +1,6 @@
 classdef PointerCoreFun < dscomponents.ACoreFun
     % Allows for core functions provided by function handles.
-    %   
+    %
     % In many contexts the creation of a specific class implementing
     % ACoreFun is not necessary due to the simplicity of the core function
     % or because no function-specific properties have to be changed or
@@ -16,7 +16,7 @@ classdef PointerCoreFun < dscomponents.ACoreFun
     end
     
     methods
-        function this = PointerCoreFun(funPtr, xdim, multieval, timedep)
+        function this = PointerCoreFun(funPtr, xdim, timedep)
             % Creates a new core function `\vf` using the function pointer as inner function.
             %
             % Parameters:
@@ -30,13 +30,15 @@ classdef PointerCoreFun < dscomponents.ACoreFun
             %
             % @change{0,6,dw,2012-01-19} Added a new optional \c multieval parameter to
             % indicate that the function handle can take matrix valued arguments `x,t,\mu`.
-            if nargin < 4
+            
+            % Create ACoreFun without associated system (cannot be used
+            % here)
+            this = this@dscomponents.ACoreFun([]);
+            if nargin < 3
                 % Assume worst case: set time dependency to true!
                 timedep = true;
-                if nargin < 3
-                    multieval = false;
-                end
             end
+            
             % Creates a new wrapper for a core function handle.
             if ~isa(funPtr,'function_handle')
                 error('Argument funPtr must be a function handle.');
@@ -44,18 +46,17 @@ classdef PointerCoreFun < dscomponents.ACoreFun
                 error('funPtr nargin must equal three (= x,t,mu).');
             end
             this.CustomProjection = false;
-            this.MultiArgumentEvaluations = multieval;
             this.TimeDependent = timedep;
             this.target = funPtr;
             this.xDim = xdim;
             this.fDim = size(funPtr(rand(xdim,1),0,rand(100,1)),1);
         end
         
-        function fx = evaluateCoreFun(this, x, t, mu)
+        function fx = evaluateCoreFun(this, x, t)
             % Evaluates the core function at x,t,mu
-            fx = this.target(x,t,mu);
+            fx = this.target(x, t, this.mu);
         end
-                
+        
         function proj = project(this, V, W)
             % Projects the core function into the reduced space.
             % Creates a new PointerCoreFun and computes `\hat{f}(z) =

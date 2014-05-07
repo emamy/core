@@ -92,7 +92,6 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
     properties(Access=private)
         Ma_norms;
         c; % the expansion centers
-        mu;
         fIterations = 0;
         fTDC = true;
         G;
@@ -122,7 +121,6 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             copy.d_iValues = this.d_iValues;
             copy.errEst = this.errEst;
             copy.tstep = this.tstep;
-            copy.mu = this.mu;
             if ~isempty(copy.ReducedModel)
                 copy.lstPreSolve = addlistener(copy.ReducedModel.ODESolver,'PreSolve',@copy.cbPreSolve);
                 copy.lstPreSolve.Enabled = this.lstPreSolve.Enabled;
@@ -199,7 +197,7 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             end
         end
         
-        function b = getBeta(this, xfull, t, mu)
+        function b = getBeta(this, xfull, t)
             % Compute the local lipschitz constant estimations
             %
             % Parameters:
@@ -228,11 +226,11 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             end
             
             % Check if time and param kernels are used
-            if (~isempty(mu))
+            if (~isempty(this.mu))
                 f = this.ReducedModel.System.f;
                 hlp = this.Ma_norms ...
                     .* f.Expansion.TimeKernel.evaluate(t, this.c.ti) ...
-                    .* f.Expansion.ParamKernel.evaluate(mu, this.c.mui);
+                    .* f.Expansion.ParamKernel.evaluate(this.mu, this.c.mui);
             else
                 hlp = this.Ma_norms;
             end
@@ -271,6 +269,38 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
             ct = ct + toc(st);
         end
         
+        function ct = postProcess(this, x, t, inputidx)
+            % Return values:
+            % ct: The time needed for postprocessing @type double
+            st = tic;
+            this.StateError = x(end,:);
+            
+            % PreSolve not needed during iterations
+            this.lstPreSolve.Enabled = false;
+            
+            % Iteration stuff
+            if ~this.UseTimeDiscreteC && this.Iterations > 0
+                % Switch on/off listeners
+                
+                solver = this.ReducedModel.ODESolver;
+                e0 = this.getE0(this.mu);
+                for it = 1:this.Iterations
+                    % Set time-step counter to one
+                    this.tstep = 1;
+                    % Solve
+                    [~, e] = solver.solve(@this.iterationODEPart, t, e0);
+                end
+                this.StateError = e;
+            end
+            
+            % PostSolve still needed during iterations
+            this.lstPostSolve.Enabled = false;
+            
+            ct = postProcess@error.BaseCompLemmaEstimator(this, x, t, inputidx);
+            
+            ct = ct + toc(st);
+        end
+        
     end
     
     %% Getter & Setter
@@ -298,42 +328,6 @@ classdef IterationCompLemmaEstimator < error.BaseCompLemmaEstimator
                 error('The value must be a logical');
             end
             this.UseTimeDiscreteC = value;
-        end
-    end
-    
-    methods(Access=protected)
-        
-        function ct = postprocess(this, x, t, mu, inputidx)
-            % Return values:
-            % ct: The time needed for postprocessing @type double
-            
-            ct = postprocess@error.BaseCompLemmaEstimator(this, t, x, mu, inputidx);
-            st = tic;
-            this.StateError = x(end,:);
-            
-            % PreSolve not needed during iterations
-            this.lstPreSolve.Enabled = false;
-            
-            % Iteration stuff
-            if ~this.UseTimeDiscreteC && this.Iterations > 0
-                % Switch on/off listeners
-                
-                this.mu = mu;
-                solver = this.ReducedModel.ODESolver;
-                e0 = this.getE0(mu);
-                for it = 1:this.Iterations
-                    % Set time-step counter to one
-                    this.tstep = 1;
-                    % Solve
-                    [~, e] = solver.solve(@this.iterationODEPart, t, e0);
-                end
-                this.StateError = e;
-            end
-            
-            % PostSolve still needed during iterations
-            this.lstPostSolve.Enabled = false;
-            
-            ct = ct + toc(st);
         end
     end
     

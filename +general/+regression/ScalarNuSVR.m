@@ -68,6 +68,7 @@ classdef ScalarNuSVR < general.regression.BaseQPSVR
             T = [diag(ones(1,m)) -diag(ones(1,m))];
             
             Q = T'*this.K*T;
+            Q = (Q+Q')/2;
             c = -(fxi*T)';
             A = ones(1,2*m);
             

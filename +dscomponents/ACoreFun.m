@@ -81,24 +81,6 @@ classdef ACoreFun < KerMorObject & general.AProjectable
         % projection set this flag to true in the subclass constructor.
         CustomProjection = false;
         
-        % Flag that indicates whether this core function can be evaluated passing a matrix of
-        % vectors instead of a single vector
-        %
-        % In case the custom implementation allows for such a call a significant speedup can be
-        % achieved when using matlabs vector-based expressions
-        %
-        % @note Regarding parameters and their processing in multiargument-evaluations, the bsxfun
-        % method from matlab may be of great help. See the models.pcd.CoreFun1D class for an
-        % example.
-        %
-        % @propclass{optional} Speedup can be gained if subclasses allow matrices to be passed
-        % instead of single vectors.
-        %
-        % @default false
-        %
-        % See also: evaluate bsxfun models.pcd.CoreFun1D
-        MultiArgumentEvaluations = false;
-        
         % Sparsity pattern for the jacobian matrix.
         %
         % KerMor automatically detects nonempty values and forwards them as appropriate to any
@@ -137,13 +119,31 @@ classdef ACoreFun < KerMorObject & general.AProjectable
         fDim = [];
     end
     
+    properties(SetAccess=private)
+        % The system associated with the current ACoreFun
+        %
+        % @type models.BaseDynSystem
+        System;
+    end
+    
+    properties(SetAccess=private, Transient)
+        % The current model parameter mu for evaluations. Will not be
+        % persisted as only valid for runtime during simulations.
+        %
+        % @type colvec<double> @default []
+        %
+        % See also evaluate
+        mu = [];
+    end
+    
     methods
         
-        function this = ACoreFun
+        function this = ACoreFun(sys)
             this = this@KerMorObject;
             this.registerProps('CustomProjection',...
                 'MultiArgumentEvaluations','JSparsityPattern',...
                 'TimeDependent','xDim','fDim');
+            this.System = sys;
         end
         
         function target = project(this, V, W, target)
@@ -189,7 +189,7 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             end
         end
         
-        function fx = evaluate(this, x, t, mu)
+        function fx = evaluate(this, x, t)
             % Evaluates the f-approximation. Depending on a possible
             % projection and the CustomProjection-property the function
             % either calls the inner evaluation directly which assumes
@@ -198,9 +198,9 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             % `f = V'f(Vz)`
             %
             % Attention:
-            % If you override this method directly, you will have to make sure it can handle
-            % matrix-based `x` inputs and causes correct evaluation after projection has been
-            % performed.
+            % If you override this method directly, you will have to make
+            % sure it computes the correct evaluation after projection has
+            % been performed.
             %
             % Parameters:
             % x: The state variable vector/matrix (with colum state
@@ -219,29 +219,58 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             if proj
                 x = this.V*x;
             end
-            % check if fast evaluation is possible
-            if size(x,2) == 1 || this.MultiArgumentEvaluations
-                fx = this.evaluateCoreFun(x, t, mu);
-            else
-                % evaluate each point extra
-                if isempty(mu)
-                    mu = double.empty(0,size(x,2));
-                end
-                if isempty(t)
-                    t = double.empty(0,size(x,2));
-                end
-                % Detect output size from first evaluation
-                fx = zeros(this.fDim, size(x,2));
-                for idx = 1:size(x,2)
-                    fx(:,idx) = this.evaluateCoreFun(x(:,idx), t(:,idx), mu(:,idx));
-                end    
-            end
+            fx = this.evaluateCoreFun(x, t);
             if proj
                 fx = this.W'*fx;
             end
         end
+        
+        function fx = evaluateMulti(this, x, t, mu)
+            % Evaluates this function on multiple locations and maybe
+            % multiple times and parameters.
+            %
+            % The parameters t and mu can either be single or as many as
+            % there are columns in x. Overriding classes must adhere to
+            % this principle.
+            %
+            % Override in subclasses if the "evaluate" can handle matrix
+            % arguments directly
+            singlemu = size(mu,2) == 1;
+            if isempty(mu)
+                mu = [];
+                singlemu = true;
+            end
+            if singlemu
+                this.prepareSimulation(mu);
+            end
+            if isempty(t)
+                t = double.empty(0,size(x,2));
+            elseif length(t) == 1
+                t = ones(1,size(x,2))*t;
+            end
+            m = size(x,2);
+            if m == 0
+                m = length(t);
+            end
+            fx = zeros(this.fDim, m);
+            for idx = 1:size(x,2)
+                if ~singlemu
+                    this.prepareSimulation(mu(:, idx));
+                end
+                fx(:,idx) = this.evaluate(x(:,idx), t(:,idx));
+            end
+        end
+        
+        function prepareSimulation(this, mu)
+            % A method that allows parameter-dependent computations to be
+            % performed before a simulation using this parameter starts.
+            %
+            % Override in subclasses (with calling this method!) for
+            % customized behaviour
+            this.mu = mu;
+        end
 
-        function J = getStateJacobian(this, x, t, mu)
+        function J = getStateJacobian(this, x, t)
             % Default implementation of jacobian matrix evaluation via
             % finite differences.
             %
@@ -261,10 +290,10 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             dt = sqrt(eps);
             d = size(x,1);
             
-            X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(mu,1,d);
+            X = repmat(x,1,d);
             I = speye(d,d)*dt;
             % Evaluate makes use of built-in multi-argument evaluation
-            J = (this.evaluate(X+I,T,MU) - repmat(this.evaluate(x,t,mu),1,d))/dt;
+            J = (this.evaluateMulti(X+I,t,this.mu) - repmat(this.evaluate(x,t),1,d))/dt;
             % Create sparse matrix if pattern is set
             if ~isempty(this.JSparsityPattern)
                 [i, j] = find(this.JSparsityPattern);
@@ -279,7 +308,8 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             copy = clone@general.AProjectable(this, copy);
             % Copy local properties
             copy.CustomProjection = this.CustomProjection;
-            copy.MultiArgumentEvaluations = this.MultiArgumentEvaluations;
+            % Dont clone the associated system
+            copy.System = this.System;
             copy.JSparsityPattern = this.JSparsityPattern;
             copy.TimeDependent = this.TimeDependent;
             copy.xDim = this.xDim;
@@ -290,12 +320,15 @@ classdef ACoreFun < KerMorObject & general.AProjectable
     methods(Abstract)
         % Actual method used to evaluate the dynamical sytems' core function.
         %
-        % Subclasses might implement this method and set the flags CustomProjection and
-        % MultiArgumentEvaluations appropriately.
-        % However, for speed reasons, if both are true one might as well override the 'evaluate' member directly as it
-        % basically cares for the cases when one of the flags is not true. In that case it is still
-        % important to set both flags to true as some components rely on them.
-        fx = evaluateCoreFun(this, x, t, mu);
+        % Subclasses might implement this method and set the flag
+        % CustomProjection appropriately.
+        % However, for speed reasons, if both are true one might as well
+        % override the 'evaluate' member directly as it
+        % basically cares for the cases when one of the flags is not true.
+        % In that case it is still
+        % important to set both flags to true as some components rely on
+        % them.
+        fx = evaluateCoreFun(this, x, t);
     end
     
     %% Getter & Setter
@@ -305,13 +338,6 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                 error('Property must be logical/boolean. either true or false');
             end
             this.CustomProjection = value;
-        end
-        
-        function set.MultiArgumentEvaluations(this, value)
-            if ~islogical(value)
-                error('Property must be logical/boolean. either true or false');
-            end
-            this.MultiArgumentEvaluations = value;
         end
         
         function set.JSparsityPattern(this, value)
@@ -456,7 +482,6 @@ classdef ACoreFun < KerMorObject & general.AProjectable
         function obj = loadobj(obj, from)
             if nargin == 2
                 obj.CustomProjection = from.CustomProjection;
-                obj.MultiArgumentEvaluations = from.MultiArgumentEvaluations;
                 obj.JSparsityPattern = from.JSparsityPattern;
                 obj.TimeDependent = from.TimeDependent;
                 obj.xDim = from.xDim;

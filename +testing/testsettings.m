@@ -26,7 +26,7 @@ s.m.Sampler.Samples = 10;
 s.m.System.MaxTimestep = s.m.dt;
 s.m.ODESolver = solvers.ExplEuler;
 
-a = approx.KernelApprox;
+a = approx.KernelApprox(s.m.System);
 ap = approx.algorithms.VKOGA;
 ec = kernels.config.ParamTimeExpansionConfig;
 ec.StateConfig = kernels.config.GaussConfig('G',1:2);

@@ -406,13 +406,7 @@ classdef BaseModel < KerMorObject
             end
             if ~isempty(sys.f)
                 warning('All spatial dependence of f is neglected in the current implementation!');
-                if sys.f.MultiArgumentEvaluations
-                    rhs = rhs + sys.f.evaluate(zeros(sys.f.xDim,0), t, repmat(sys.mu,1,length(t)));
-                else
-                    for tdx = 1:length(t)
-                        rhs(:,tdx) = rhs(:,tdx) + sys.f.evaluate(zeros(sys.f.xDim,0), t(tdx), sys.mu);
-                    end
-                end
+                rhs = rhs + sys.f.evaluateMulti(zeros(sys.f.xDim,0), t, repmat(sys.mu,1,length(t)));
             end
             
             % solve the system A*x + rhs = 0 for x
@@ -484,19 +478,19 @@ classdef BaseModel < KerMorObject
                 % are not available [or required] in general)
                 if isa(this, 'models.BaseFullModel')
                     if ~isempty(sys.A) && ~isempty(sys.f)
-                        slv.JacFun = @(t, x)sys.A.getStateJacobian(x, t, mu) + sys.f.getStateJacobian(x, t, mu);
+                        slv.JacFun = @(t, x)sys.A.getStateJacobian(x, t) + sys.f.getStateJacobian(x, t);
                         if ~isempty(sys.A.JSparsityPattern) && ~isempty(sys.f.JSparsityPattern)
                             [i,j] = find(sys.A.JSparsityPattern + sys.f.JSparsityPattern);
                             slv.JPattern = sparse(i,j,ones(length(i),1),...
                                 sys.A.fDim,sys.A.xDim);
                         end
                     elseif ~isempty(sys.A)
-                        slv.JacFun = @(t, x)sys.A.getStateJacobian(x, t, mu);
+                        slv.JacFun = @(t, x)sys.A.getStateJacobian(x, t);
                         if  ~isempty(sys.A.JSparsityPattern)
                             slv.JPattern = sys.A.JSparsityPattern;
                         end
                     elseif ~isempty(sys.f)
-                        slv.JacFun = @(t, x)sys.f.getStateJacobian(x, t, mu);
+                        slv.JacFun = @(t, x)sys.f.getStateJacobian(x, t);
                         if  ~isempty(sys.f.JSparsityPattern)
                             slv.JPattern = sys.f.JSparsityPattern;
                         end
@@ -510,29 +504,13 @@ classdef BaseModel < KerMorObject
                 slv.M = sys.M;
             end
             
-            % Determine correct ODE function (A,f,B combination)
-            str = '';
-            if ~isempty(sys.A)
-                str = [str 'A'];
-            end
-            if ~isempty(sys.f)
-                str = [str 'f'];
-            end
-            if ~isempty(sys.B) &&  ~isempty(inputidx)
-                str = [str 'B'];
-            end
-            odefun = eval(sprintf('@(t,x)sys.ODEFun_%s(t,x)',str));
-            
             % Call solver
-            [t, x] = slv.solve(odefun, this.scaledTimes, this.getX0(mu));
+            [t, x] = slv.solve(sys.getODEFun, this.scaledTimes, this.getX0(mu));
             
             if length(this.scaledTimes) == 2
                 t = [t(1), t(end)];
                 x = [x(:,1), x(:,end)];
             end
-            
-            % Let the system know we're done simulating.
-            sys.postSimulate;
             
             % Get used time
             ctime = toc(st);
