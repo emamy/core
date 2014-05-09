@@ -1,6 +1,0 @@
-[submodule "Matlab Tools"]
-	path = extern/matlabtools
-	url = ../matlabtools
-[submodule "Matlab to JaRMoS"]
-	path = extern/matlabtojarmos
-	url = ../matlabtojarmos
