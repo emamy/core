@@ -118,7 +118,7 @@ classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLi
             copy = clone@dscomponents.ACoreFun(this, copy);
         end
         
-        function J = getStateJacobian(this, x, varargin)
+        function J = getStateJacobian(this, x, t)
             % Implement explicitly as both ACoreFun and KernelExpansion
             % provide getStateJacobian methods.
             %
@@ -127,11 +127,10 @@ classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLi
             % varargin: For ParamTimeKernelExpansions, additionally `t` and
             % `\mu` can be provided.
             % t: The time `t` @type double
-            % mu: The parameter `\mu` @type colvec<double>
             %
             % Return values:
             % J: The state jacobian @type matrix<double>
-            J = this.Expansion.getStateJacobian(x, varargin{:});
+            J = this.Expansion.getStateJacobian(x, t, this.mu);
         end
         
         function y = evaluateCoreFun(this)%#ok
