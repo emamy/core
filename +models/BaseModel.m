@@ -292,10 +292,10 @@ classdef BaseModel < KerMorObject
                 % solve static equation
                 [t, x, time] = this.solveStatic(mu, inputidx);
             else
+                
                 % Get scaled state trajectory
                 [t, x, time] = this.computeTrajectory(mu, inputidx);
             end
-            
             % Measure rest of time
             starttime = tic;
             
@@ -378,7 +378,7 @@ classdef BaseModel < KerMorObject
         end
         
         function [t, x, ctime] = solveStatic(this, mu, inputidx)
-            % solves the linear system A(t,mu)*x + B(t,mu)*u(t) = 0.
+            % Solves the linear system `A(t,mu)*x + B(t,mu)*u(t) = 0`.
             if nargin < 3
                 inputidx = [];
                 if nargin < 2

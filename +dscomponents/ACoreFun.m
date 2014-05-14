@@ -430,9 +430,9 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             %
             % Return values:
             % res: A flag indicating if each test had a relative error of
-            % less than 1e-7 @type logical
+            % less than 1e-5 @type logical
             
-            reltol = 1e-7;
+            reltol = 1e-5;
             if nargin < 2
                 xa = rand(this.xDim,20);
                 ta = 1:20;
@@ -456,50 +456,75 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             if size(mua,2) == 1
                 mua = repmat(mua,1,size(xa,2));
             end
+            res = true;
             for i = 1:size(xa,2)
                 x = xa(:,i); t = ta(:,i);
                 this.prepareSimulation(mua(:,i))
                 Jc = this.getStateJacobian(x, t);
                 
                 %% Numerical jacobian
-                if ~gpi
+                if ~gpi && steps > 1
                     pi = ProcessIndicator('Comparing %dx%d jacobian with finite differences over %d blocks of size %d',...
-                        steps,false,this.fDim,this.xDim,steps,perstep);
+                        steps,false,this.fDim,this.xDim,steps,min(d,perstep));
                 end
                 for k = 1:steps
-                    num = 6;
-%                     if k == steps
-%                         num = d-(k-1)*perstep;
-%                     end
                     pos = (k-1)*perstep+1:min(d,k*perstep);
                     J = this.getStateJacobianFD(x, t, pos);
-                    pi.step;
-                    abserr = max(max(abs(J-Jc(:,pos))));
-                    relerr = max(max(abs(J-Jc(:,pos))./J));
-                    [posi,posj] = ind2sub(size(J), pos(1:num));
-                    indic = sprintf('%d, ',posi(1:num));
-                    indjc = sprintf('%d, ',posj(1:num));
-                    if relerr >= reltol;
-                        diff = abs(J-Jc(:,pos));
-                        [v, pos] = sort(diff(:),'descend');
-                        
-                        maxJ = max(max(abs(J)));
-                        M = [v(1:num) v(1:num)./J(pos(1:num)) v(1:num)/maxJ];
-                        
-                        pi.stop;
-                        disp(M);
-                        fprintf('Failed at test vector %d. Max absolute error %g, relative %g, max %d errors at rows %s, cols %s (maxJ=%g)\n',i,abserr,relerr,num,indic,indjc,J(pos(1)));
-                        %return;
+                    if steps > 1
+                        pi.step;
+                    end
+
+                    iszero = J == 0;
+                    diff = abs(J-Jc(:,pos));
+                    abserr = max(diff(:));
+                    absmeanmagnitude = mean(log10(abs(J(~iszero))));
+                    meanreldiff = diff / (10^absmeanmagnitude);
+                    maxmeanrelerr = max(max(meanreldiff));
+                    
+                    % Check if mean relative error is greater than
+                    % tolerance
+                    if maxmeanrelerr >= reltol
+                        res = false;
+                        fprintf('Failed at test vector %d. Max absolute error %g, mean magnitude relative error %g (mean magnitude: %g i.e. log10-avg value: %g)\n',i,abserr,maxmeanrelerr,absmeanmagnitude,10^absmeanmagnitude);
                     else
-                        fprintf('Max absolute error %g, relative %g, max %d errors at rows %s, cols %s (maxJ=%g)\n',abserr,relerr,num,indic,indjc,J(pos(1)));
+                        % Continue with pointwise relative error
+                        pointwisereldiff = abs(diff./J);
+                        pointwisereldiff(iszero) = 0;
+                        [pointwisereldiff, idx] = sort(pointwisereldiff(:),'descend');
+                        num = length(find(pointwisereldiff > reltol));
+                        maxpwrelerr = pointwisereldiff(1); 
+                        
+%                         dispnum = min(20,num);
+                        dispnum = num;
+                        [posi,posj] = ind2sub(size(J), idx(1:dispnum));
+                        indic = sprintf('%d, ',posi);
+                        indjc = sprintf('%d, ',posj);
+                        vals = sprintf('%g, ',pointwisereldiff(1:dispnum));
+                        Jvals = sprintf('%g, ',J(idx(1:dispnum)));
+                        Jcvals = sprintf('%g, ',full(Jc(idx(1:dispnum))));
+                        maxJval = max(abs(J(idx(1:num))));
+                        % Check if/where the pointwise relative error is greater
+                        % than the tolerance
+                        if maxpwrelerr >= reltol;
+                            if abserr > 1e-6
+                                res = false;
+                                fprintf('Failed. Max absolute error %g >= %g\n',abserr,1e-6);
+                            elseif maxJval > reltol
+                                res = false;
+                                fprintf('Failed. Some points with relative error >= %g have jacobian absolute values >= %g \n',reltol,maxJval);
+                            end
+                            fprintf(2,'Max absolute error %g, max relative %g, %d are >= %g pointwise tolerance (all <= %g <= %g).\n',abserr,maxpwrelerr,num,reltol,maxJval, reltol);
+                            fprintf('Max errors: %s\nJFD: %s\nJ: %s\nRows: %s\nCols: %s\n',vals,Jvals,Jcvals,indic,indjc);
+                        end
                     end
                 end
-                if ~gpi
+                if ~gpi && steps > 1
                     pi.stop;
                 end
             end
-            pi.stop;
-            res = true;
+            if gpi
+                pi.stop;
+            end
         end
     end
     

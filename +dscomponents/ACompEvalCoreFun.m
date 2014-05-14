@@ -243,6 +243,10 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
                 for i=1:length(pts)
                     sprow = SP(pts(i),:);
                     inew = find(sprow);
+                    if isempty(inew)
+                        inew = 1;
+                        warning('setPointSet: Found all-zero Jacobian row for point %d. Using first state-space dof as "dependency"',pts(i));
+                    end
                     jr = [jr inew];%#ok
                     js = [js inew == pts(i)];%#ok
                     je(i) = length(jr);
@@ -499,7 +503,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             fx = zeros(size(pts,1),size(x,2));
             for k=1:size(x,2)
                 this.prepareSimulation(mu(:,k));
-                fx(:,k) = this.evaluateComponents(this, pts, ends, idx, self, x(:,k), t(k));
+                fx(:,k) = this.evaluateComponents(pts, ends, idx, self, x(:,k), t(k));
             end
         end
     end

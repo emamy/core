@@ -103,6 +103,19 @@ classdef KernelEI < approx.BaseApprox
             
             % Compose argument indices arrays
             SP = this.f.JSparsityPattern;
+            if isempty(SP)
+                SP = this.computeEmpiricalSparsityPattern;
+            end
+            
+            invalid = sum(SP,2) == 0;
+            if any(invalid(this.pts))
+                invalididx = find(invalid);
+                this.pts = setdiff(this.pts, invalididx, 'stable');
+                old = this.MaxOrder;
+                this.MaxOrder = length(this.pts);
+                warning('Detected Jacobian rows with all zero entries. New MaxOrder=%d (Prev: %d)',this.MaxOrder,old);
+            end
+            
             jr = [];
             je = zeros(1,length(this.pts));
             for i=1:length(this.pts)
@@ -164,6 +177,10 @@ classdef KernelEI < approx.BaseApprox
                 end
             end
             fx = this.U * c;
+        end
+        
+        function ESP = computeEmpiricalSparsityPattern(this)
+            
         end
         
         function projected = project(this, V, W)
