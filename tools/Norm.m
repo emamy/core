@@ -27,6 +27,11 @@ classdef Norm
             n = sqrt(sum(x.^2,1));
         end
         
+        function vecs = normalizeL2(vecs)
+            no = Norm.L2(vecs);
+            vecs = vecs ./ (ones(1,size(vecs,1))' * no);
+        end
+        
         function n = L1(x)
             % Returns the discrete `L^1` norm for each column vector in x.
             %

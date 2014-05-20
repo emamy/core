@@ -326,19 +326,21 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             % Return values:
             % J: The jacobian matrix at `x,t,\mu`, possibly only the part
             % specified by the partidx indices. @type matrix<double>
-            dt = sqrt(eps);
             d = size(x,1);
             if nargin < 4
                 partidx = 1:this.xDim;
             end
             len = length(partidx);
             X = repmat(x,1,len);
-            I = speye(d,d)*dt;
+            dx = ones(d,1)*sqrt(eps(class(x))).*max(abs(x),1);
+            
+            DX = sparse(1:d,1:d,dx,d,d);
             del = 1:this.xDim;
             del(partidx) = [];
-            I(:,del) = [];
+            DX(:,del) = [];
+            
             % Evaluate makes use of built-in multi-argument evaluation
-            J = (this.evaluateMulti(X+I,t,this.mu) - repmat(this.evaluate(x,t),1,len))/dt;
+            J = (this.evaluateMulti(X+DX,t,this.mu) - repmat(this.evaluate(x,t),1,len))*diag(1./dx);
             % Create sparse matrix if pattern is set
             if ~isempty(this.JSparsityPattern) && nargin < 4
                 [i, j] = find(this.JSparsityPattern);
@@ -432,7 +434,6 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             % res: A flag indicating if each test had a relative error of
             % less than 1e-5 @type logical
             
-            reltol = 1e-5;
             if nargin < 2
                 xa = rand(this.xDim,20);
                 ta = 1:20;
@@ -473,7 +474,7 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                     if steps > 1
                         pi.step;
                     end
-
+                    
                     iszero = J == 0;
                     diff = abs(J-Jc(:,pos));
                     abserr = max(diff(:));
@@ -483,19 +484,31 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                     
                     % Check if mean relative error is greater than
                     % tolerance
-                    if maxmeanrelerr >= reltol
+                    if maxmeanrelerr >= 1e-3
                         res = false;
                         fprintf('Failed at test vector %d. Max absolute error %g, mean magnitude relative error %g (mean magnitude: %g i.e. log10-avg value: %g)\n',i,abserr,maxmeanrelerr,absmeanmagnitude,10^absmeanmagnitude);
                     else
+                        reltol = 1e-5;
+                        
                         % Continue with pointwise relative error
                         pointwisereldiff = abs(diff./J);
+                        % Remove those where the computed finite difference
+                        % jacobian is exactly zero
                         pointwisereldiff(iszero) = 0;
+                        % Remove difference values, for which the finite
+                        % difference jacobian has values smaller than
+                        % 5e-7 and the corresponding values of the
+                        % given jacobian are even 4 orders of magnitude
+                        % smaller
+                        hlp = (abs(Jc) < 1e-4*abs(J)) & (abs(J) < 1e-6);
+                        pointwisereldiff(hlp) = 0;
+                        
                         [pointwisereldiff, idx] = sort(pointwisereldiff(:),'descend');
                         num = length(find(pointwisereldiff > reltol));
                         maxpwrelerr = pointwisereldiff(1); 
                         
-%                         dispnum = min(20,num);
-                        dispnum = num;
+                        dispnum = min(20,num);
+%                         dispnum = num;
                         [posi,posj] = ind2sub(size(J), idx(1:dispnum));
                         indic = sprintf('%d, ',posi);
                         indjc = sprintf('%d, ',posj);
@@ -520,6 +533,9 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                 end
                 if ~gpi && steps > 1
                     pi.stop;
+                end
+                if gpi
+                    pi.step;
                 end
             end
             if gpi
