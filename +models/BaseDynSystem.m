@@ -254,6 +254,10 @@ classdef BaseDynSystem < KerMorObject
                 this.u = this.Inputs{inputidx};
                 this.inputidx = inputidx;
             end
+        end
+        
+        function prepareSimulation(this, mu, inputidx)
+            this.setConfig(mu, inputidx);
             
             % Forward preparation call to nonlinearity, if present
             if ~isempty(this.A)

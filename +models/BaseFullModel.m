@@ -671,6 +671,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     error(['Inconsistent trajectory data! Size of (mu,inputidx)-matching trajectory differs from the model''s Times property.\n'...
                            'Did you change model.dt or model.T and leave model.Data filled with old trajectories?']);
                 end
+                % Also set the current mu config for output mapping &
+                % plotting to work correctly.
+                this.System.setConfig(mu, inputidx);
             else
                 st = tic;
                 

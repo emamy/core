@@ -450,16 +450,16 @@ classdef BaseModel < KerMorObject
             end
             sys = this.System;
             
-            % Check explicit solvers
-            if isempty(this.System.MaxTimestep) && ~isa(this.fODEs,'solvers.IImplSolver')
-                warning('Attention: Using an explicit solver without System.MaxTimestep set. Please check.');
-            end
-            
             % Stop the time
             st = tic;
             
             % Prepare the system by setting mu and inputindex.
-            sys.setConfig(mu, inputidx);
+            sys.prepareSimulation(mu, inputidx);
+            
+            % Check explicit solvers
+            if isempty(this.System.MaxTimestep) && ~isa(this.fODEs,'solvers.IImplSolver')
+                warning('Attention: Using an explicit solver without System.MaxTimestep set. Please check.');
+            end
             
             %% Solve ODE
             slv = this.ODESolver;
@@ -644,7 +644,8 @@ classdef BaseModel < KerMorObject
             if ~isscalar(value) || value < 0
                 error('T must be a positive real scalar.');
             elseif value < this.fdt
-                error('Timestep dt must be smaller or equal to T.');
+                warning('Timestep dt must be smaller or equal to T. Using dt=%g',value/2);
+                this.fdt = value/2;
             end
             if value ~= this.fT
                 this.fT = value;

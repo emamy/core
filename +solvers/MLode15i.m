@@ -130,7 +130,7 @@ classdef MLode15i < solvers.MLWrapper & solvers.IImplSolver
             
             % Final check for consistent initial condition
             initialnorm = norm(implfun(0,x0,opts.InitialSlope));
-            if initialnorm > 1e-12
+            if initialnorm > 1e-11
                 warning('Initial conditions possibly inconsistent. ||f(0,x0,dx0)|| = %g',initialnorm);
             end
             
