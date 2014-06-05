@@ -689,7 +689,12 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 end
                 time = toc(st);
                 if this.EnableTrajectoryCaching
-                    this.Data.SimCache.addTrajectory(x, [this.T; this.dt; mu], inputidx, time);
+                    if size(x,2) == length(this.Times)
+                        this.Data.SimCache.addTrajectory(x, [this.T; this.dt; mu], inputidx, time);
+                    else
+                        warning('KerMor:InconsistentTrajectoryData',...
+                            'Not caching trajectory: Returned result size differs from simulation times.');
+                    end
                 end
                 cache = 0;
             end

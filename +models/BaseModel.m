@@ -121,7 +121,19 @@ classdef BaseModel < KerMorObject
         % See also simulate
         %
         % @default false @type logical
-        isStatic = false;    
+        isStatic = false;
+        
+        % The default parameter value if none is given
+        %
+        % @type colvec<double> @default []
+        DefaultMu = [];
+        
+        % The default input to use if none is given
+        %
+        % The default is [], so use NO input (even if there are some)
+        %
+        % @type integer @default []
+        DefaultInput = [];
     end
     
     properties(SetAccess=private, Dependent)
@@ -278,9 +290,9 @@ classdef BaseModel < KerMorObject
             % there, otherwise error)
             % @todo: switch return arguments sec & x + tests
             if nargin < 3
-                inputidx = [];
+                inputidx = this.DefaultInput;
                 if nargin < 2
-                    mu = [];
+                    mu = this.DefaultMu;
                 end
             end
             this.WorkspaceVariableName = inputname(1);
@@ -574,6 +586,14 @@ classdef BaseModel < KerMorObject
             % Store the current GIT branch in the object.
             this.gitRefOnSave = KerMor.getGitBranch;
         end
+        
+%         function value = getSimCacheExtra(this)
+%             % Return values:
+%             % value: A column vector with additional values to distinguish
+%             % the simulation from others (internal configurations) @type
+%             % colvec<double>
+%             value = [];
+%         end
     end
     
     methods(Static, Access=protected)
