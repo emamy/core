@@ -389,6 +389,23 @@ classdef BaseModel < KerMorObject
             this.plot(t, y, varargin{:});
         end
         
+        function plotInputs(this, pm)
+            if nargin < 2
+                pm = PlotManager;
+                pm.LeaveOpen = true;
+            end
+            h = pm.nextPlot('inputs','Model inputs','t','u(t)');
+            hold(h,'on');
+            leg = {};
+            cg = LineSpecIterator;
+            for k=1:this.System.InputCount
+                plot(h,this.Times,this.System.Inputs{k}(this.scaledTimes),'Color',cg.nextColor);
+                leg{k} = sprintf('u_%d(t)',k);%#ok
+            end
+            legend(h,leg{:});
+            pm.done;
+        end
+        
         function [t, x, ctime] = solveStatic(this, mu, inputidx)
             % Solves the linear system `A(t,mu)*x + B(t,mu)*u(t) = 0`.
             if nargin < 3
