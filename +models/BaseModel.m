@@ -407,7 +407,10 @@ classdef BaseModel < KerMorObject
         end
         
         function [t, x, ctime] = solveStatic(this, mu, inputidx)
-            % Solves the linear system `A(t,mu)*x + B(t,mu)*u(t) = 0`.
+            % Solves the linear system `A(t,\mu)*x + f(t,\mu) + B(t,\mu)*u(t) = 0`. 
+            % Spatial dependence of f is neglected in the current
+            % implementation (since this would require solving a nonlinear
+            % system).
             if nargin < 3
                 inputidx = [];
                 if nargin < 2
@@ -419,7 +422,7 @@ classdef BaseModel < KerMorObject
             st = tic;
             
             % Prepare the system by setting mu and inputindex.
-            sys.setConfig(mu, inputidx);
+            sys.prepareSimulation(mu, inputidx);
             t = this.scaledTimes;
             
             % Prepare the right-hand side
@@ -434,7 +437,6 @@ classdef BaseModel < KerMorObject
                 end
             end
             if ~isempty(sys.f)
-                warning('All spatial dependence of f is neglected in the current implementation!');
                 rhs = rhs + sys.f.evaluateMulti(zeros(sys.f.xDim,0), t, repmat(sys.mu,1,length(t)));
             end
             
