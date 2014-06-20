@@ -477,6 +477,9 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                     
                     iszero = J == 0;
                     diff = abs(J-Jc(:,pos));
+                    Jc = full(Jc);
+%                     diff(55:108,1:12)./J(55:108,1:12)
+%                     [J(55:108,1:3) zeros(54,1) Jc(55:108,1:3) zeros(54,1) diff(55:108,1:3)]
                     abserr = max(diff(:));
                     absmeanmagnitude = mean(log10(abs(J(~iszero))));
                     meanreldiff = diff / (10^absmeanmagnitude);

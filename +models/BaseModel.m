@@ -439,7 +439,7 @@ classdef BaseModel < KerMorObject
             end
             
             % solve the system A*x + rhs = 0 for x
-            if ~sys.A.TimeDependent  % @todo: override mldivide in LinCoreFun - but how to pass x, t and mu then?
+            if ~sys.A.TimeDependent
                 % precompute lu decomposition
                 [l,u] = lu(sys.A.evaluate(1,0,sys.mu));
                 x = -u\(l\rhs);
@@ -631,7 +631,11 @@ classdef BaseModel < KerMorObject
                 this.steplistener = s.steplistener;
                 this.ctime = s.ctime;
                 this.dtscaled = s.dtscaled;
-                this.gitRefOnSave = s.gitRefOnSave;
+                this.gitRefOnSave = s.gitRefOnSave;                
+                if isfield(s,'DefaultMu')
+                    this.DefaultMu = s.DefaultMu;
+                    this.DefaultInput = s.DefaultInput;
+                end
             end
             this = loadobj@DPCMObject(this);
         end

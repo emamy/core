@@ -504,11 +504,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 fprintf('Computing reduced space...\n');
                 [V, W] = this.SpaceReducer.generateReducedSpace(this);
                 this.Data.V = data.FileMatrix(V,'Dir',this.Data.DataDirectory);
-                if ~isempty(W)
-                    this.Data.W = data.FileMatrix(W,'Dir',this.Data.DataDirectory);
-                else 
-                    this.Data.W = this.Data.V;
+                if isempty(W) 
+                    W = computeWfromV(this, V);
                 end
+                this.Data.W = data.FileMatrix(W,'Dir',this.Data.DataDirectory);
             else
                 this.Data.V = [];
                 this.Data.W = [];
@@ -698,6 +697,16 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 end
                 cache = 0;
             end
+        end
+        
+        function W = computeWfromV(this, V)%#ok
+            % Override this method to implement a custom behaviour, should
+            % the test space span<W> somehow differ from the ansatz space
+            % span<V>
+            %
+            % The default implementation just uses the same space
+            % (Galerkin-Projection)
+            W = V;
         end
         
         function file = save(this)

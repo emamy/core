@@ -145,6 +145,8 @@ classdef ReducedModel < models.BaseModel
             this.dt = fullmodel.dt;
             this.tau = fullmodel.tau;
             this.isStatic = fullmodel.isStatic;
+            this.DefaultMu = fullmodel.DefaultMu;
+            this.DefaultInput = fullmodel.DefaultInput;
             fms = fullmodel.ODESolver;
             if isa(fms,'solvers.SemiImplicitEuler')
                 this.ODESolver = solvers.SemiImplicitEuler(this);

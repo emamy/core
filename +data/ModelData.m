@@ -246,6 +246,16 @@ classdef ModelData < data.FileData
             % Copy existing data
             this.TrajectoryFxiData.transferFrom(old);
         end
+        
+        function [t, y, mu, inputidx, ct] = getCachedTrajectory(this, nr)
+            % Shorthand for retrieval of cached trajectories that have been
+            % created during simulations of a models.BaseFullModel.
+            %
+            % See also: models.BaseFullModel.computeTrajectory
+            [y, mu, inputidx, ct] = this.SimCache.getTrajectoryNr(nr);
+            t = 0:mu(2):mu(1);
+            mu = mu(3:end);
+        end
     end
     
     methods(Static, Access=protected)
