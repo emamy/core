@@ -683,6 +683,13 @@ classdef Utils
                 setpref(to,pfn{k},localp.(pfn{k}));
             end
         end
+        
+        function entries = getLegendFromVector(values, format_string)
+            if nargin < 2
+                format_string = '%g';
+            end
+            entries = cellfun(@(v)sprintf(format_string,v),num2cell(values),'UniformOutput',false);
+        end
     end
     
     methods(Static)
