@@ -295,6 +295,10 @@ classdef BaseModel < KerMorObject
                     mu = this.DefaultMu;
                 end
             end
+            % Transpose if necessary
+            if size(mu,2) > 1 && size(mu,1) == 1
+                mu =mu';
+            end
             this.WorkspaceVariableName = inputname(1);
             
             if this.RealTimePlotting
