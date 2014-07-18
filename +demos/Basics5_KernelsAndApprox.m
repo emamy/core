@@ -49,6 +49,7 @@ end
 pm.done;
 
 %% Run a VKOGA algorithm
+fprintf('Just ignore the following two warnings about file locations!\n');
 load(fullfile('+demos','spine_training_data_set.mat'));
 
 % Get VKOGA instance
@@ -74,3 +75,6 @@ alg.ExpConfig = ec;
 kexp = alg.computeApproximation(atd);
 kexp_dbase = kexp.toTranslateBase;
 save basics5_kernelsandapprox;
+
+%% Plot the results
+FunVis2D(kexp, atd, [], [], lbl);
