@@ -119,7 +119,7 @@ classdef ParamTimeExpansionConfig < kernels.config.ExpansionConfig
             end
             if ~isempty(this.ParamConfig)
                 this.ParamConfig.collectRanges(ptable, ...
-                    [proppath {sprintf('Param(%s)',this.TimeConfig.getClassName)}]);
+                    [proppath {sprintf('Param(%s)',this.ParamConfig.getClassName)}]);
             end
         end
     end

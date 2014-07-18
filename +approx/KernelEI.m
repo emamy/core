@@ -36,6 +36,12 @@ classdef KernelEI < approx.BaseApprox
         %
         % See also: Variant
         Algorithm;
+        
+        % nJacobians: number of Jacobian samples to use for 
+        % empirical sparsity detection i.e.
+        % we choose nJacobians many Jacobian samples from trajectories
+        % @type natural number
+        nJacobians = 5;
     end
     
     properties(SetAccess=private)
@@ -59,8 +65,8 @@ classdef KernelEI < approx.BaseApprox
         Order;
     end
 
-    properties(Access=private)
-        fOrder = 5;
+    properties(SetAccess=private, GetAccess=public)
+        fOrder = 10;
         
         % The full approximation base
         u;
@@ -134,15 +140,28 @@ classdef KernelEI < approx.BaseApprox
             this.V2Expansions = [];
             if this.Variant == 1
                 % Compute Vz and f(Vz) values globally
-                zi = model.Data.W'*atd.xi;
-                fzi = model.System.f.evaluateMulti(model.Data.V*zi,atd.ti,atd.mui);
+                
+		% no space projection via W,V
+                if isempty(model.Data.W) 
+                    zi = atd.xi;
+                else
+                    zi = model.Data.W'*atd.xi;
+                end
+                
+                if isempty(model.Data.V)
+                    Vzi = zi;
+                else
+                    Vzi = model.Data.V*zi;
+                end
+                
+                fzi = model.System.f.evaluateMulti(Vzi,atd.ti,atd.mui);
                 vatd = data.ApproxTrainData(zi,atd.ti,atd.mui);
                 mo = this.MaxOrder;
                 vatd.fxi = sparse(this.pts,1:mo,ones(mo,1),size(atd.fxi,1),mo)'*fzi;
                 this.V1Expansion = this.Algorithm.computeApproximation(vatd);
             elseif this.Variant == 2
                 % Compose x-entry selection matrix
-                pi = ProcessIndicator(sprintf('KernelEI: Computing %d approximations',this.MaxOrder),this.MaxOrder);
+                pi = ProcessIndicator(sprintf('KernelEI: Computing %d approximations\n',this.MaxOrder),this.MaxOrder);
                 for idx = 1:this.MaxOrder
                     % Select the elements of x that are effectively used in f
                     off = 0;
@@ -181,6 +200,79 @@ classdef KernelEI < approx.BaseApprox
         
         function ESP = computeEmpiricalSparsityPattern(this)
             
+	    %% this method uses finite differences in the neighbourhood of
+            %% trajectory points and checks which entries of the Jacobian 
+            %% turn out non-zero
+            
+            % reproducable (for now), uses matlabs default mt19937ar rand stream
+            s = RandStream('mt19937ar','Seed',42);
+            
+            nTraj = this.System.Model.Data.TrajectoryData.getNumTrajectories();
+            nJac = this.nJacobians;
+            ntimes = size(this.System.Model.Data.TrajectoryData,2);
+            nJac =  min(nJac, nTraj*ntimes); 
+            nMu = size(this.System.Model.Data.ParamSamples, 2);
+
+            m = this.System.Model;
+            dim = m.Approx.f.xDim;
+            JSP = logical(sparse(dim,dim));
+
+            if m.System.ParamCount == 0 
+                %get several trajectories, i.e Xi = dim x ntimes x nTraj
+                [Xi, ~, ~, ~] = m.Data.TrajectoryData.getTrajectoryNr(s.randperm(nTraj,min(nJac,nTraj)));
+                
+                for j = s.randperm(size(Xi,2),nJac) % choose random time
+                        tt = []; %TODO: Falls f = f(..,t) dann wissen wir nicht, was für ein t zu Xi(:,col) gehört.. ?
+                        % Ist das t (immer?) äquidist und dann 
+                        % X(:,col) ~=> t =  m.T / nCols * col ?
+                        
+                        k = s.randperm(size(Xi,3),1); %choose random traj. number
+                        JJ = this.System.f.getStateJacobianFD(Xi(:,j,k), tt);
+
+                        JSP = JSP | JJ;
+                end
+            else % have parameters
+                if  nMu == 0 
+                    error('Have no parameter samples, yet the system has configured some.');
+                end
+                
+                nMuToUse = min(nMu, nJac);
+                nJacPerMu = floor(nJac/nMuToUse);
+                
+                origMu = this.System.f.mu; %TODO: do I have to restore mu?
+                mus = m.Data.ParamSamples(:, s.randperm(nMu,nMuToUse));
+                
+                 
+                nJacDone = 0;
+                for muu = mus
+                        
+                    %%TODO Lorin: what inputidx should i use?           
+                    % What happens when inputIndex is used when
+                    % storing? Then hashes only exist for hash([mu; inidx]) 
+                    % and not for hash([mu; [] ] ) ..
+                    inputindex = m.System.inputidx; % TODO: is this only the current inIdx.. ?
+                    [Xi, ~] = m.Data.TrajectoryData.getTrajectory(muu,inputindex);
+                    
+                    for j = randperm(size(Xi,2),nJacPerMu)
+                        tt = []; %TODO: Falls f = f(..,t) dann wissen wir nicht, was für ein t zu Xi(:,col) gehört.. ?
+                        % Ist das t (immer?) äquidist. und dann 
+                        % X(:,col) ~=> t =  m.T / nCols * col ?
+
+                        %mu is used inside jacobianFD
+                        this.System.f.prepareSimulation(muu); %sets mu
+                        
+                        JJ = this.System.f.getStateJacobianFD(Xi(:,j), tt);
+                        
+                        
+                        JSP = JSP | JJ;
+                        nJacDone = nJacDone + 1;
+                    end
+                end        
+                %TODO: maybe floor(nJac/nMu)*nMu << nJac ?
+            end
+            
+            ESP = sparse(JSP);
+            this.System.f.prepareSimulation(origMu);
         end
         
         function projected = project(this, V, W)
@@ -216,6 +308,8 @@ classdef KernelEI < approx.BaseApprox
     
     methods(Access=private)
         function pts = getInterpolationPoints(~, u)
+            % cf. Magic Indices Algorithm, Wirtz2014, p.81 and
+            % Chaturantabut/Sorensen paper
             n =size(u,1);
             m = size(u,2);
             pts = zeros(1, m);
@@ -235,6 +329,7 @@ classdef KernelEI < approx.BaseApprox
         end
         
         function updateOrderData(this)
+            %% calculates U_m when m is changed
             n = size(this.u,1);
             o = this.fOrder;
             P = sparse(this.pts(1:o),1:o,ones(o,1),n,o);
@@ -265,7 +360,7 @@ classdef KernelEI < approx.BaseApprox
                 error('Cannot set DEIM order as approximateSystemFunction has not been called yet.');
             end
             if value > size(this.u,2) || value < 1
-                error('Invalid Order value. Allowed are integers in [1, %d]',size(this.u,2));
+                    error('Invalid Order value. Allowed are integers in [1, %d]',size(this.u,2));
             end
             this.fOrder = value;
             

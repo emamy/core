@@ -385,6 +385,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
                 sets{end+1} = 1:size(fx,1);
             end
             res = true;
+	    
             for idx=1:length(sets)
                 set = sets{idx};
                 this.setPointSet(1, set);
@@ -500,7 +501,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
 
         function fx = evaluateComponentsMulti(this, pts, ends, idx, self, x, t, mu)
             % @todo improve performance!
-            fx = zeros(size(pts,1),size(x,2));
+            fx = zeros(length(pts),size(x,2));
             for k=1:size(x,2)
                 this.prepareSimulation(mu(:,k));
                 fx(:,k) = this.evaluateComponents(pts, ends, idx, self, x(:,k), t(k));

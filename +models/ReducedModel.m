@@ -261,16 +261,16 @@ classdef ReducedModel < models.BaseModel
     end
     
     methods(Sealed)
-        function plot(this, t, y, varargin)
-            this.FullModel.plot(t, y, varargin{:});
+        function [f, ax] = plot(this, t, y, varargin)
+            [f,ax] = this.FullModel.plot(t, y, varargin{:});
         end
         
-        function plotState(this, t, y, varargin)
-            this.FullModel.plotState(t, y, varargin{:});
+        function [f, ax] = plotState(this, t, y, varargin)
+            [f,ax] = this.FullModel.plotState(t, y, varargin{:});
         end
         
-        function plotSingle(this, t, y, varargin)
-            this.FullModel.plotSingle(t, y, varargin{:});
+        function [f, ax] = plotSingle(this, t, y, varargin)
+            [f,ax] = this.FullModel.plotSingle(t, y, varargin{:});
         end
     end
     

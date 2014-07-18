@@ -378,7 +378,7 @@ classdef BaseModel < KerMorObject
             xlabel(ax,'Time'); ylabel(ax,'State space values');
         end
         
-        function plotSingle(this, t, y, varargin)
+        function [f,ax] = plotSingle(this, t, y, varargin)
             % Plots a single solution.
             % Override in subclasses for specific plot behaviour.
             %
@@ -390,7 +390,7 @@ classdef BaseModel < KerMorObject
             % y: The system's output `y(t)` @type colvec<double>
             % varargin: Any arguments that should be passed on to inner plotting methods (model
             % dependent)
-            this.plot(t, y, varargin{:});
+            [f,ax] = this.plot(t, y, varargin{:});
         end
         
         function plotInputs(this, pm)
