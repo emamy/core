@@ -59,7 +59,7 @@ classdef Componentwise < approx.algorithms.ABase & IParallelizable
         SingleRuntimes;
     end
     
-    properties(Access=private, Transient)
+    properties(Access=private)
         % A temporarily stored IKernelCoeffComp instance
         ccomp;
     end
@@ -237,11 +237,11 @@ classdef Componentwise < approx.algorithms.ABase & IParallelizable
                         bestcidx = kcidx;
                         bestcoidx = coidx;
                         if KerMor.App.Verbose > 3
-                            fprintf(' b: %.5e (rel %.5e)',val,rel);
+                            fprintf('better: %.5e (rel %.5e)',val,rel);
                         end
                     else
                         if KerMor.App.Verbose > 3
-                            fprintf(' w: %.5e  (rel %.5e)',val,rel);
+                            fprintf('worse : %.5e  (rel %.5e)',val,rel);
                         end
                     end
                     pi.step;
@@ -289,14 +289,8 @@ classdef Componentwise < approx.algorithms.ABase & IParallelizable
                 initialalpha = double.empty(size(fxi,1),0);
             end
             if this.ComputeParallel
-                if KerMor.App.Verbose > 3
-                    fprintf('Starting parallel component-wise coefficient computation\n');
-                end
                 sf = this.computeCoeffsParallel(kexp, fxi, initialalpha);
             else
-                if KerMor.App.Verbose > 3
-                    fprintf('Starting component-wise coefficient computation\n');
-                end
                 sf = this.computeCoeffsSerial(kexp, fxi, initialalpha);
             end
         end
@@ -346,15 +340,19 @@ classdef Componentwise < approx.algorithms.ABase & IParallelizable
             fdims = size(fxi,1);
             fprintf('Starting parallel component-wise approximation computation of %d dimensions on %d workers...\n',fdims,matlabpool('size'));
             Ma = zeros(fdims, n);
+            sf = zeros(fdims, 1);
             parfor fdim = 1:fdims
                 % Call template method
-                [ai, sv, sf] = this.ccomp.computeKernelCoefficients(...
+                [ai, sv, sf(fdim)] = this.ccomp.computeKernelCoefficients(...
                     fxi(fdim,:),initialalpha(fdim,:));%#ok
                 Ai = zeros(1,n);
                 Ai(sv) = ai;
                 Ma(fdim,:) = Ai;
             end
             kexp.Ma = Ma;
+            % FIXME: Only allowing for one stopflag thus far, taking last
+            % one to stay according with serial computation
+            sf = sf(end);
         end
     end
     

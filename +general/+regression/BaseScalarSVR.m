@@ -35,7 +35,7 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & IKernelCoeffComp
         AlphaRelMinValue = eps;
     end
     
-    properties(Transient)
+    properties%(Transient)
         % The kernel matrix to use.
         %
         % The reason why this is a property and not an argument is that

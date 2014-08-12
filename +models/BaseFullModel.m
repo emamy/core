@@ -269,6 +269,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         %
         % @type rowvec<double> @default []
         OfflinePhaseTimes = [];
+        
+        % Contains a flag for each input/parameter combination which has
+        % been successfully computed during the offline phase.
+        TrajectoriesCompleted = [];
     end
     
     properties(Access=private)
@@ -345,26 +349,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         
         function off2_genTrainingData(this)
             % Offline phase 2: Snapshot generation for subspace computation
-            %
-            % @todo
-            % - Optimize snapshot array augmentation by preallocation
-            % (later will be some storage class)
-            % - Remove waitbar and connect to messaging system
             time = tic;
-            
-            %             if this.Data.SampleCount == 0 && this.TrainingInputCount == 0
-            %                 fprintf('BaseFullModel.genTrainingData: No parameters or inputs configured for training, nothing to do.\n');
-            %                 time = toc(time);
-            %                 return;
-            %             end
             
             num_s = max(1,this.Data.SampleCount);
             num_in = max(1,this.TrainingInputCount);
             
-            %             if num_s*num_in < matlabpool('size')
-            %                 % @\todo: switch back if changed!
-            %                 this.ComputeParallel = false;
-            %             end
+            completed = zeros(3,num_s*num_in);
+            tlen = length(this.Times);
             
             % Clear old trajectory data.
             this.Data.TrajectoryData.clearTrajectories;
@@ -402,8 +393,14 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     % Get trajectory
                     [~, x, ctime] = remote.computeTrajectory(mu, inputidx);
                     
-                    % Assign snapshot values
-                    remote.Data.TrajectoryData.addTrajectory(x, mu, inputidx, ctime);
+                    if size(x,2) ~= tlen
+                        ok = 0;
+                    else
+                        ok = 1;
+                        % Assign snapshot values
+                        remote.Data.TrajectoryData.addTrajectory(x, mu, inputidx, ctime);
+                    end 
+                    completed(:,idx) = [inidx(idx); pardx(idx); ok];
                 end
                 % Build the hash map for the local FileTrajectoryData (parfor
                 % add them to remotely instantiated FileTrajectoryDatas and does
@@ -421,6 +418,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 if KerMor.App.Verbose > 0
                     pi = ProcessIndicator(sprintf('Generating projection training data (%d trajectories)...',num_in*num_s),num_in*num_s);
                 end
+                oldv = this.EnableTrajectoryCaching;
+                this.EnableTrajectoryCaching = false;
+                completed = double.empty(3,0);
                 % Iterate through all input functions
                 for inidx = 1:num_in
                     % Iterate through all parameter samples
@@ -436,33 +436,48 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         
                         % Get trajectory (disable caching as trajectories go to this.Data.TrajectoryData
                         % anyways)
-                        oldv = this.EnableTrajectoryCaching;
-                        this.EnableTrajectoryCaching = false;
-                        [t, x, ctime, cache] = this.computeTrajectory(mu, inputidx);
-                        this.EnableTrajectoryCaching = oldv;
-                        
-                        % Store snapshot values, only if not already from trajectory data
-                        if cache ~= 1
-                            this.Data.TrajectoryData.addTrajectory(x, mu, inputidx, ctime);
+                        ok = 1;
+                        try
+                            [t, x, ctime, cache] = this.computeTrajectory(mu, inputidx);
+                        catch ME
+                            ok = 0;
+                            warning(ME.identifier,'Failed to compute trajectory:\n%s',ME.message);
                         end
                         
-                        % Evaluate fxi on current values if required
-                        if this.ComputeTrajectoryFxiData
-                            hlp = tic;
-                            fx = this.System.f.evaluateMulti(x, t, mu);
-                            ctime = toc(hlp);
-                            this.Data.TrajectoryFxiData.addTrajectory(fx, mu, inputidx, ctime);
+                        % Proceed in this step only if no exception
+                        % occurred
+                        if ok ~= 0
+                            if size(x,2) ~= tlen
+                                ok = 0;
+                            else
+                                % Store snapshot values, only if not already from trajectory data
+                                if cache ~= 1
+                                    this.Data.TrajectoryData.addTrajectory(x, mu, inputidx, ctime);
+                                end
+
+                                % Evaluate fxi on current values if required
+                                if this.ComputeTrajectoryFxiData
+                                    hlp = tic;
+                                    fx = this.System.f.evaluateMulti(x, t, mu);
+                                    ctime = toc(hlp);
+                                    this.Data.TrajectoryFxiData.addTrajectory(fx, mu, inputidx, ctime);
+                                end
+                            end
                         end
+                        completed(:,end+1) = [inidx; pidx; ok]; %#ok
                         
                         if KerMor.App.Verbose > 0
                             pi.step;
                         end
                     end
                 end
+                this.EnableTrajectoryCaching = oldv;
                 if KerMor.App.Verbose > 0
                     pi.stop;
                 end
             end
+            
+            this.TrajectoriesCompleted = completed;
             
             % Input space span computation (if spacereduction is used)
             if ~isempty(this.SpaceReducer) && this.SpaceReducer.IncludeBSpan
@@ -660,7 +675,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % Try local model data first
             cache = 1;
             [x, time] = this.Data.TrajectoryData.getTrajectory(mu, inputidx);
-            if this.EnableTrajectoryCaching && isempty(x)
+            if isempty(x) && this.EnableTrajectoryCaching
                 cache = 2;
                 [x, time] = this.Data.SimCache.getTrajectory([this.T; this.dt; mu], inputidx);
             end
@@ -857,6 +872,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 this.ftcold = sobj.ftcold;
                 if isfield(sobj,'AutoSave')
                     this.AutoSave = logical(sobj.AutoSave);
+                end
+                if isfield(sobj,'TrajectoriesCompleted')
+                    this.TrajectoriesCompleted = sobj.TrajectoriesCompleted;
                 end
                 % Load data class at last; any other components that might
                 % make use of stuff inside the model folder should be able
