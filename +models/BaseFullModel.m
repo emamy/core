@@ -363,9 +363,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             
             %% Parallel - computation
             if this.ComputeParallel
-                if this.ComputeTrajectoryFxiData
-                    error('ComputeTrajectoryFxiData not yet implemented for parallel execution');
-                end
                 idxmat = Utils.createCombinations(1:num_s,1:num_in);
                 
                 fprintf('Starting parallel projection training data computation of %d trajectories on %d workers...\n',size(idxmat,2),matlabpool('size'));
@@ -391,7 +388,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     end
                     
                     % Get trajectory
-                    [~, x, ctime] = remote.computeTrajectory(mu, inputidx);
+                    [t, x, ctime] = remote.computeTrajectory(mu, inputidx);
                     
                     if size(x,2) ~= tlen
                         ok = 0;
@@ -399,6 +396,14 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         ok = 1;
                         % Assign snapshot values
                         remote.Data.TrajectoryData.addTrajectory(x, mu, inputidx, ctime);
+                        
+                        % Evaluate fxi on current values if required
+                        if this.ComputeTrajectoryFxiData
+                            hlp = tic;
+                            fx = this.System.f.evaluateMulti(x, t, mu);
+                            ctime = toc(hlp);
+                            this.Data.TrajectoryFxiData.addTrajectory(fx, mu, inputidx, ctime);
+                        end
                     end 
                     completed(:,idx) = [inidx(idx); pardx(idx); ok];
                 end
@@ -407,6 +412,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 % not sync them (not generically possible)
                 if isa(this.Data.TrajectoryData,'data.FileTrajectoryData')
                     this.Data.TrajectoryData.consolidate(this);
+                end
+                if ~isempty(this.Data.TrajectoryFxiData) && isa(this.Data.TrajectoryFxiData,'data.FileTrajectoryData')
+                    this.Data.TrajectoryFxiData.consolidate(this);
                 end
                 
                 %% Non-parallel computation
