@@ -36,15 +36,19 @@ classdef BaseSampler < KerMorObject
     
     methods(Static, Access=protected)
         function obj = loadobj(obj, from)
-            if nargin < 2
-                error('Invalid call to loadobject method. Must pass the struct to instantiate the class from.');
-            end
-            if isfield(from,'Domain')
-                obj.Domain = from.Domain;
+            if ~isa(obj,'sampling.BaseSampler')
+                if nargin < 2
+                    error('Invalid call to loadobject method. Must pass the struct to instantiate the class from.');
+                end
+                if isfield(from,'Domain')
+                    obj.Domain = from.Domain;
+                else
+                    obj.Domain = [];
+                end
+                obj = loadobj@KerMorObject(obj, from);
             else
-                obj.Domain = [];
+                obj = loadobj@KerMorObject(obj);
             end
-            obj = loadobj@KerMorObject(obj, from);
         end
     end
 end
