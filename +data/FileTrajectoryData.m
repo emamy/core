@@ -263,6 +263,8 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
                 this.bbmin = initfrom.bbmin;
                 this.bbmax = initfrom.bbmax;
                 this.trajlen = initfrom.trajlen;
+                this.UniformTrajectories = initfrom.UniformTrajectories;
+                this.ReplaceExisting = initfrom.ReplaceExisting;
                 % property from ABlockedData
                 this.MinRelSingularValueSize = initfrom.MinRelSingularValueSize;
                 this = loadobj@data.FileDataCollection(this, initfrom);
