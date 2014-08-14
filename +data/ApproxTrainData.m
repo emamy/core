@@ -176,7 +176,7 @@ classdef ApproxTrainData < handle
             satd.fxi = this.fxi(:,sel);
         end
         
-        function [train, validation] = splitToTrainValidationSets(this, perc, seed)
+        function [train, validation, randidx] = splitToTrainValidationSets(this, perc, seed)
             % Creates a training and validation data set from this approx
             % train data instance.
             s = RandStream('mt19937ar','Seed',seed);

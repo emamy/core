@@ -74,8 +74,6 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
     
     methods
         function [ai, sf] = regress(this, fxi, initialai)
-            % Make sure it's a row vector.
-            %fxi = reshape(fxi,1,[]);
             if any(abs(fxi) > 1)
                 error('This SVR implementation requires fxi values in [-1,1]');
             end
@@ -178,7 +176,7 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
                 cnt = cnt+1;
             end
             if this.Vis > 0
-                fprintf('Finished after %d/%d iterations.\n',cnt,this.MaxCount);
+                disp(sprintf('Finished after %d/%d iterations.\n',cnt,this.MaxCount));%#ok
             end
             
             % \alpha = \alpha^+ - \alpha^-
@@ -192,7 +190,6 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
         end
         
         function [ai, sf] = regress2D(this, fxi, initialai)
-            
             if ~isempty(initialai)
                 % Init - warm start
                 [a, dW, T] = I2_WarmStart(this, fxi, initialai);
@@ -221,7 +218,6 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
             cnt = 1;
             stop = this.StopEps/(2*this.Lambda);
             while abs(S) > stop && cnt < this.MaxCount+1
-                
                 %% Max gain computation - O(n^2) strategy
                 ij = [];%#ok<*AGROW>
                 
@@ -440,11 +436,7 @@ classdef ScalarEpsSVR_SMO < general.regression.BaseScalarSVR
         
         function ij = WSS7_Combi(this, a, dW, i)
             ij = this.WSS2_TwoSetMax1DGain(a, dW);
-                try
             ij = [ij; this.WSS4_1DMaxGainPluskNN(a, dW)];
-                catch ME
-                    keyboard;
-                end
             
             % Implement Max1DGainPlusLast directly to save a call to the 1D method.
             in = ij(end,1);
