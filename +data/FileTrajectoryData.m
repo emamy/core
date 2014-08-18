@@ -43,8 +43,11 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
         % will not check for this inconsistency when turning it back on again. (This setting
         % has effect only as long as it is turned on)
         %
-        % @type logical @default true
-        UniformTrajectories = true;
+        % For convenience with early-aborting implicit solvers, the
+        % default setting is now false.
+        %
+        % @type logical @default false
+        UniformTrajectories = false;
     end
     
     properties(Access=private)

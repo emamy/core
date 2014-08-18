@@ -271,7 +271,11 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         OfflinePhaseTimes = [];
         
         % Contains a flag for each input/parameter combination which has
-        % been successfully computed during the offline phase.
+        % been successfully computed completely during the offline phase.
+        %
+        % This output will depend on the UniformTrajectories setting of the
+        % ModelData.TrajectoryData instances; if set to true, offline phase
+        % 2 will not run through anyways.
         TrajectoriesCompleted = [];
     end
     
@@ -361,6 +365,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.Data.TrajectoryData.clearTrajectories;
             this.RealTimePlotting = false;
             
+            oldv = this.EnableTrajectoryCaching;
+            this.EnableTrajectoryCaching = false;
+            
             %% Parallel - computation
             if this.ComputeParallel
                 idxmat = Utils.createCombinations(1:num_s,1:num_in);
@@ -390,22 +397,17 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     % Get trajectory
                     [t, x, ctime] = remote.computeTrajectory(mu, inputidx);
                     
-                    if size(x,2) ~= tlen
-                        ok = 0;
-                    else
-                        ok = 1;
-                        % Assign snapshot values
-                        remote.Data.TrajectoryData.addTrajectory(x, mu, inputidx, ctime);
-                        
-                        % Evaluate fxi on current values if required
-                        if this.ComputeTrajectoryFxiData
-                            hlp = tic;
-                            fx = this.System.f.evaluateMulti(x, t, mu);
-                            ctime = toc(hlp);
-                            this.Data.TrajectoryFxiData.addTrajectory(fx, mu, inputidx, ctime);
-                        end
-                    end 
-                    completed(:,idx) = [inidx(idx); pardx(idx); ok];
+                    % Assign snapshot values
+                    remote.Data.TrajectoryData.addTrajectory(x, mu, inputidx, ctime);
+
+                    % Evaluate fxi on current values if required
+                    if this.ComputeTrajectoryFxiData
+                        hlp = tic;
+                        fx = this.System.f.evaluateMulti(x, t, mu);
+                        ctime = toc(hlp);
+                        this.Data.TrajectoryFxiData.addTrajectory(fx, mu, inputidx, ctime);
+                    end
+                    completed(:,idx) = [inidx(idx); paridx(idx); size(x,2) == tlen];
                 end
                 % Build the hash map for the local FileTrajectoryData (parfor
                 % add them to remotely instantiated FileTrajectoryDatas and does
@@ -426,8 +428,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 if KerMor.App.Verbose > 0
                     pi = ProcessIndicator(sprintf('Generating projection training data (%d trajectories)...',num_in*num_s),num_in*num_s);
                 end
-                oldv = this.EnableTrajectoryCaching;
-                this.EnableTrajectoryCaching = false;
+                
                 completed = double.empty(3,0);
                 % Iterate through all input functions
                 for inidx = 1:num_in
@@ -442,35 +443,25 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                             inputidx = this.TrainingInputs(inidx);
                         end
                         
-                        % Get trajectory (disable caching as trajectories go to this.Data.TrajectoryData
-                        % anyways)
-                        ok = 1;
+                        % Get trajectory
                         try
                             [t, x, ctime, cache] = this.computeTrajectory(mu, inputidx);
+                            % Store snapshot values, only if not already from trajectory data
+                            if cache ~= 1
+                                this.Data.TrajectoryData.addTrajectory(x, mu, inputidx, ctime);
+                            end
+
+                            % Evaluate fxi on current values if required
+                            if this.ComputeTrajectoryFxiData
+                                hlp = tic;
+                                fx = this.System.f.evaluateMulti(x, t, mu);
+                                ctime = toc(hlp);
+                                this.Data.TrajectoryFxiData.addTrajectory(fx, mu, inputidx, ctime);
+                            end
+                            ok = size(x,2) == tlen;    
                         catch ME
                             ok = 0;
                             warning(ME.identifier,'Failed to compute trajectory:\n%s',ME.message);
-                        end
-                        
-                        % Proceed in this step only if no exception
-                        % occurred
-                        if ok ~= 0
-                            if size(x,2) ~= tlen
-                                ok = 0;
-                            else
-                                % Store snapshot values, only if not already from trajectory data
-                                if cache ~= 1
-                                    this.Data.TrajectoryData.addTrajectory(x, mu, inputidx, ctime);
-                                end
-
-                                % Evaluate fxi on current values if required
-                                if this.ComputeTrajectoryFxiData
-                                    hlp = tic;
-                                    fx = this.System.f.evaluateMulti(x, t, mu);
-                                    ctime = toc(hlp);
-                                    this.Data.TrajectoryFxiData.addTrajectory(fx, mu, inputidx, ctime);
-                                end
-                            end
                         end
                         completed(:,end+1) = [inidx; pidx; ok]; %#ok
                         
@@ -479,12 +470,12 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                         end
                     end
                 end
-                this.EnableTrajectoryCaching = oldv;
                 if KerMor.App.Verbose > 0
                     pi.stop;
                 end
             end
             
+            this.EnableTrajectoryCaching = oldv;
             this.TrajectoriesCompleted = completed;
             
             % Input space span computation (if spacereduction is used)
@@ -689,9 +680,11 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             end
             if ~isempty(x)
                 t = this.scaledTimes;
-                if size(x,2) ~= length(t)
-                    error(['Inconsistent trajectory data! Size of (mu,inputidx)-matching trajectory differs from the model''s Times property.\n'...
-                           'Did you change model.dt or model.T and leave model.Data filled with old trajectories?']);
+                if size(x,2) < length(t)
+                    warning('Inconsistent trajectory data: Cached trajectory shorter than current time-steps. Using matching subarray of model.scaledTimes');
+                   t = t(1:size(x,2));   
+                elseif size(x,2) > length(t)
+                    error('Inconsistent trajectory data: More trajectory samples than time-steps in current model. Please fix.');
                 end
                 % Also set the current mu config for output mapping &
                 % plotting to work correctly.
