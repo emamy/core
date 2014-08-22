@@ -360,6 +360,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             if strcmp(key(1).type,'()')
                 if this.nBlocks == 1
                     this.cachedBlock = builtin('subsasgn', this.cachedBlock, key, value);
+                    this.cacheDirty = true;
                     return;
                 end
                 s = key.subs;
@@ -800,6 +801,9 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 this = loadobj@data.FileData(this, initfrom);
             else
                 this = loadobj@data.FileData(this);
+            end
+            if this.nBlocks == 1
+                this.loadBlock(1);
             end
         end
     end
