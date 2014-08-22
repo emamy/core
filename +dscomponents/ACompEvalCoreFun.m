@@ -38,6 +38,16 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
     properties(Access=private)
         pts = {};
         
+        % Notational vectors for EI-point function argument dependencies
+        jrow = {};
+        jend = {};
+        jself = {};
+        deriv = {};
+        dfxsel = {};
+        T = {};
+    end
+    
+    properties(SetAccess=private, GetAccess=protected)
         % The x-component selection matrices (precomputed on setting
         % PointSet/AltPointSet). �S\vx� is passed to the function
         % evaluating the components of �\vf� or its derivatives.
@@ -46,14 +56,6 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
         %
         % cellarray of @type matrix<double>
         S = {};
-        
-        % Notational vectors for EI-point function argument dependencies
-        jrow = {};
-        jend = {};
-        jself = {};
-        deriv = {};
-        dfxsel = {};
-        T = {};
     end
 
     methods

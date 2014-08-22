@@ -56,7 +56,7 @@ classdef LinspaceSelector < data.selection.ASelector
     end
     
     methods(Access=protected,Sealed)
-        function [xi, ti, mui] = select(this, model)
+        function [xi, ti, mui, fxi] = select(this, model)
             % Selects Size equally (index-)spaced samples from the training data.
             % 
             % Equally spaced in this context means with respect to the indices over the WHOLE
@@ -71,9 +71,15 @@ classdef LinspaceSelector < data.selection.ASelector
             % ti: The selected training times `t_i` @type rowvec
             % mui: The selected parameter samples `\mu_i` with which the states
             % `x_i` have been reached @type matrix
+            % fxi: The `f(x_i,t_i,\mu_i)` evaluations. Empty if not
+            % computed yet. @type matrix
             
             md = model.Data;
             td = md.TrajectoryData;
+            hasfxi = false;
+            if ~isempty(md.TrajectoryFxiData) && td.getNumTrajectories == md.TrajectoryFxiData.getNumTrajectories
+                hasfxi = true;
+            end
             nt = td.getNumTrajectories;
             
             % The trajectory length
@@ -90,19 +96,33 @@ classdef LinspaceSelector < data.selection.ASelector
             
             [xd, mud] = td.getTrajectoryDoFs;
             % Use 512 MB chunks for approx train data
-            xi = data.FileMatrix(xd,s,'Dir',md.DataDirectory,'BlockSize',512); 
+            xi = data.FileMatrix(xd,s,'Dir',md.DataDirectory);
             ti = zeros(1,s);
             mui = zeros(mud,s);
+            if hasfxi
+                fxi = data.FileMatrix(xd,s,'Dir',md.DataDirectory);
+            end
             
-            pi = ProcessIndicator('Selecting approximation training data from %d trajectories',nt,false,nt);
+            pi = ProcessIndicator('Selecting %d approximation training data samples from %d trajectories',nt,false,this.Size,nt);
             atdpos = 0;
             for k=1:length(traj)
-                [x, mu] = md.TrajectoryData.getTrajectoryNr(traj(k));
+                [x, mu] = td.getTrajectoryNr(traj(k));
                 sel = idx(tidx == traj(k));
                 atdpos = atdpos(end) + (1:length(sel));
                 xi(:,atdpos) = x(:,sel);
                 ti(atdpos) = model.Times(sel);
                 mui(:,atdpos) = repmat(mu,1,length(atdpos));
+                
+                if hasfxi
+                    [fx, fxmu] = md.TrajectoryFxiData.getTrajectoryNr(traj(k));
+                    if ~isequal(mu,fxmu)
+                        hasfxi = false;
+                        fxi = [];
+                    else
+                        fxi(:,atdpos) = fx(:,sel);
+                    end
+                end
+                
                 pi.step;
             end
             pi.stop;

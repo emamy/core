@@ -303,6 +303,10 @@ classdef ApproxTrainData < handle
         function atd = computeFrom(model, f, selector, parallel)
             % Computes approximation training data for a model, function and selector
             %
+            % This method is implemented here as both the original offline
+            % phase 4 uses this method but also the DEIM error estimator
+            % needs the same routine for the MatrixDEIM approximation.
+            %
             % Parameters:
             % model: The full model instance @type models.BaseFullModel
             % f: The model's core function @type dscomponents.ACoreFun
@@ -320,8 +324,10 @@ classdef ApproxTrainData < handle
             
             % If projection is used, train approximating function in
             % centers projected into the subspace.
+            projected = false;
             if ~isempty(model.Data.V) && ~isempty(model.Data.W)
                 hlp = model.Data.V*(model.Data.W'*atd.xi);
+                projected = true;
                 % Precautionary case: If the atd.xi data is so small that it fits into one
                 % block, the arithmetic operations will return a simple double matrix, loosing
                 % and directory information of the original instance. Hence, in this case we
@@ -336,48 +342,53 @@ classdef ApproxTrainData < handle
             end
             
             % Compute f-Values at training data
-            if parallel
-                error('Not yet implemented for FileMatrix atd.xi');
-                atdxi = atd.xi;
-                atdti = atd.ti;
-                fval = zeros(size(atdxi));
-                if KerMor.App.Verbose > 0
-                    fprintf('Starting parallel f-values computation at %d points on %d workers...\n',size(atd,2),matlabpool('size'));
-                end
-                parfor sidx=1:size(atdxi,2)
-                    fval(:,sidx) = ...
-                        f.evaluateCoreFun(atdxi(:,sidx),... % x
-                        atdti(sidx),... % t
-                        atdmui(:,sidx)); % mu
-                end
-                atd.fxi = fval;
-            else
-                xi = atd.xi; %#ok<*PROP>
-                if KerMor.App.Verbose > 0
-                    fprintf('Serial computation of f-values at %d points (%d xi-blocks) ...\n',size(xi,2),xi.nBlocks);
-                end
-                % Use the same storage location as of the xi FileMatrix
-                fxi = data.FileMatrix(f.fDim,size(xi,2),'Dir',fileparts(xi.DataDirectory));
-                if KerMor.App.Verbose > 1
-                    pi = ProcessIndicator('Computing %d %dx%d-block f evaluations on %d %dx%d-blocks of xi snapshots',...
-                        fxi.nBlocks,false,fxi.nBlocks,fxi.n,fxi.bCols,xi.nBlocks,xi.n,xi.bCols);
-                end
-                for i=1:fxi.nBlocks
-                    pos = fxi.getBlockPos(i);
-                    mui = [];
-                    if ~isempty(atd.mui)
-                        mui = atd.mui(:,pos);
+            % This only needs to be done if projection is used within the
+            % model or the fxi data has not been provided yet by the
+            % selector.
+            if projected || isempty(atd.fxi)
+                if parallel
+                    error('Not yet implemented for FileMatrix atd.xi');
+                    atdxi = atd.xi;
+                    atdti = atd.ti;
+                    fval = zeros(size(atdxi));
+                    if KerMor.App.Verbose > 0
+                        fprintf('Starting parallel f-values computation at %d points on %d workers...\n',size(atd,2),matlabpool('size'));
                     end
-                    hlp = f.evaluateMulti(xi(:,pos), atd.ti(pos), mui);
-                    fxi(:,pos) = hlp;
+                    parfor sidx=1:size(atdxi,2)
+                        fval(:,sidx) = ...
+                            f.evaluateCoreFun(atdxi(:,sidx),... % x
+                            atdti(sidx),... % t
+                            atdmui(:,sidx)); % mu
+                    end
+                    atd.fxi = fval;
+                else
+                    xi = atd.xi; %#ok<*PROP>
+                    if KerMor.App.Verbose > 0
+                        fprintf('Serial computation of f-values at %d points (%d xi-blocks) ...\n',size(xi,2),xi.nBlocks);
+                    end
+                    % Use the same storage location as of the xi FileMatrix
+                    fxi = data.FileMatrix(f.fDim,size(xi,2),'Dir',fileparts(xi.DataDirectory));
                     if KerMor.App.Verbose > 1
-                        pi.step;
+                        pi = ProcessIndicator('Computing %d %dx%d-block f evaluations on %d %dx%d-blocks of xi snapshots',...
+                            fxi.nBlocks,false,fxi.nBlocks,fxi.n,fxi.bCols,xi.nBlocks,xi.n,xi.bCols);
                     end
+                    for i=1:fxi.nBlocks
+                        pos = fxi.getBlockPos(i);
+                        mui = [];
+                        if ~isempty(atd.mui)
+                            mui = atd.mui(:,pos);
+                        end
+                        hlp = f.evaluateMulti(xi(:,pos), atd.ti(pos), mui);
+                        fxi(:,pos) = hlp;
+                        if KerMor.App.Verbose > 1
+                            pi.step;
+                        end
+                    end
+                    if KerMor.App.Verbose > 1
+                        pi.stop;
+                    end
+                    atd.fxi = fxi;
                 end
-                if KerMor.App.Verbose > 1
-                    pi.stop;
-                end
-                atd.fxi = fxi;
             end
         end
         

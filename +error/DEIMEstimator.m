@@ -591,7 +591,7 @@ classdef DEIMEstimator < error.BaseEstimator & IReductionSummaryPlotProvider
 
                 d = fm.System.f.xDim;
                 n = size(jtd.fxi,2);
-                v = data.FileMatrix(d,n,'Dir',fm.Data.DataDirectory,'BlockSize',512);
+                v = data.FileMatrix(d,n,'Dir',fm.Data.DataDirectory);
                 ln = zeros(1,n);
                 times = ln;
                 pi = ProcessIndicator('Computing Jacobian similarity transform data for %d jacobians',n,false,n);

@@ -24,10 +24,13 @@ classdef FileMatrix < data.FileData & data.ABlockedData
     properties(Constant)
         % The default block size to use for new FileMatrix instances.
         %
+        % This is used as default value in KerMor.App.BlockSize, if not set
+        % differently (machine dependent)
+        %
         % The block size unit is Megabyte.
         %
-        % @type integer @default 256MB
-        BLOCK_SIZE = 256; %[MB]
+        % @type integer @default 512MB
+        BLOCK_SIZE = 512; %[MB]
     end
     
     properties
@@ -128,7 +131,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             
             ip.addParamValue('Dir',KerMor.App.TempDirectory,...
                 @(v)isempty(v) || (ischar(v) && exist(v,'dir') == 7));
-            ip.addParamValue('BlockSize',data.FileMatrix.BLOCK_SIZE,@(v)isposrealscalar(v));
+            ip.addParamValue('BlockSize',KerMor.App.BlockSize,@(v)isposrealscalar(v));
             ip.parse(varargin{:});
             % Latest at here we have an m value
             if isfield(ip.Results,'m')

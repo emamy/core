@@ -71,18 +71,21 @@ classdef ABlockedData < handle
                 U = U(:,1:k);
                 S = S(1:k,1:k);
             else            
+                % Fully-flavoured singular value decomp using block
+                % separation
                 opts.issym = 1;
                 if KerMor.App.Verbose > 0
                     fprintf('ABlockedData: Computing %d-partial SVD on %dx%d matrix (%d blocks)...\n',...
                         k,n,m,this.getNumBlocks);
                 end
-                vb = KerMor.App.Verbose > 0 && n*m > 100000 && this.getNumBlocks > 2;
+                vb = KerMor.App.Verbose > 0 && n*m > 50000 && this.getNumBlocks > 2;
                 cnt = 0;
                 % If an exclude space is given, choose initial value outside of Vexclude
                 if ~isempty(Vexclude)
                     v0 = rand(n,1);
                     opts.v0 = v0 - Vexclude*(Vexclude'*v0);
                 end
+                doparallel = exist('matlabpool','file') == 2 && matlabpool('size') > 1;
                 [U,S] = eigs(@mult,n,k,'la',opts);
                 if KerMor.App.Verbose > 2, fprintf('BlockSVD: Finished after %d multiplications.\n',cnt); end
             end
@@ -100,18 +103,32 @@ classdef ABlockedData < handle
             function w = mult(v)
                 w = 0;
                 nb = this.getNumBlocks;
-                if vb
+                if vb && ~doparallel
                     pi = ProcessIndicator('ABlockedData: Blockwise multiplication for %d-SVD on %d blocks',...
                         nb,false,k,nb);
                 end
-                for j = 1:nb
-                    B = this.getBlock(j);
-                    % Subtract exclude space if wanted
-                    if ~isempty(Vexclude)
-                        B = B - Vexclude*(Vexclude'*B);
+                if doparallel
+                    if vb
+                        fprintf('ABlockedData: Parallel blockwise multiplication for %d-SVD on %d blocks...\n',k,nb);
                     end
-                    w = w + B*(B'*v);
-                    if vb, pi.step; end
+                    parfor j = 1:nb
+                        B = this.getBlock(j);%#ok
+                        % Subtract exclude space if wanted
+                        if ~isempty(Vexclude)
+                            B = B - Vexclude*(Vexclude'*B);
+                        end
+                        w = w + B*(B'*v);
+                    end
+                else               
+                    for j = 1:nb
+                        B = this.getBlock(j);
+                        % Subtract exclude space if wanted
+                        if ~isempty(Vexclude)
+                            B = B - Vexclude*(Vexclude'*B);
+                        end
+                        w = w + B*(B'*v);
+                        if vb, pi.step; end
+                    end
                 end
                 if vb, pi.stop; end
                 cnt=cnt+1;

@@ -74,7 +74,7 @@ classdef ASelector < KerMorObject & ICloneable
                 error('No training data available to select approximation training data from.');
             end
             
-            [xi, ti, mui] = this.select(model);
+            [xi, ti, mui, fxi] = this.select(model);
             if ~isa(xi,'data.FileMatrix')
                 fmxi = data.FileMatrix(size(xi,1),size(xi,2),'Dir',model.Data.DataDirectory);
                 fmxi(:,:) = xi;
@@ -82,6 +82,16 @@ classdef ASelector < KerMorObject & ICloneable
                 fmxi = xi;
             end
             atd = data.ApproxTrainData(fmxi, ti, mui);
+            % Also already assign fxi data if provided by the selector
+            if ~isempty(fxi)
+                if ~isa(fxi,'data.FileMatrix')
+                    fmfxi = data.FileMatrix(size(fxi,1),size(fxi,2),'Dir',model.Data.DataDirectory);
+                    fmfxi(:,:) = fxi;
+                    atd.fxi = fmfxi;
+                else
+                    atd.fxi = fxi;
+                end
+            end
             if this.EnsureUniqueData
                 atd.makeUniqueXi;
             end
