@@ -85,66 +85,73 @@ classdef LinspaceSelector < data.selection.ASelector
             % The trajectory length
             tl = length(model.Times);
             % The total size of all trajectories
-            ts = nt*tl;
-            % Get valid size
-            s = min(this.Size,ts);
+            % If nonuniform data is allowed, we need to iterate over all
+            % data in order to determine the different lengths
+            if isa(td,'data.FileTrajectoryData') && ~td.UniformTrajectories
+                sizes = zeros(1,nt);
+                pi = ProcessIndicator('Selecting %d approximation training data samples from %d trajectories',nt,false,this.Size,nt);
+                for n = 1:nt
+                    x = td.getTrajectoryNr(n);
+                    sizes(n) = size(x,2);
+                end
+            else
+                sizes = ones(1,nt) * tl;
+            end
             
-            % Obtain indices for each trajectory
-            idx = mod(round(linspace(0,ts-1,s)),tl)+1;
-            tidx = ceil(linspace(1,ts-1,s)/tl);
-            traj = unique(tidx);
+            linpos = [1 cumsum(sizes)];
+            ts = linpos(end);
+            
+            % Select maximal as many as are there!
+            s = min(this.Size,ts);
+            idx = round(linspace(1,ts,s));
             
             [xd, mud] = td.getTrajectoryDoFs;
             % Use 512 MB chunks for approx train data
             xi = data.FileMatrix(xd,s,'Dir',md.DataDirectory);
             ti = zeros(1,s);
             mui = zeros(mud,s);
+            fxi = [];
             if hasfxi
                 fxi = data.FileMatrix(xd,s,'Dir',md.DataDirectory);
             end
             
             pi = ProcessIndicator('Selecting %d approximation training data samples from %d trajectories',nt,false,this.Size,nt);
             atdpos = 0;
-            for k=1:length(traj)
-                [x, mu] = td.getTrajectoryNr(traj(k));
-                sel = idx(tidx == traj(k));
-                % Begin fix
-                % Fix for trajectories that are shorter than full length
-                % (e.g. the solver stopped integrating and
-                % UniformTrajectories is disabled)
-                
-                % Cannot select at all - case
-                if length(sel) > size(x,2)
-                    error('Failed to select %d samples from %d long trajectory.',length(sel),size(x,2));
-                    % Selection exceeds end but there is enough data to
-                    % select. so just choose random additional locations.
-                elseif any(sel) > size(x,2)
-                    exceeding = find(sel > size(x,2));
-                    candidates = 1:size(x,2);
-                    candidates(sel(1:length(exceeding))) = [];
-                    candidates = candidates(randperm(length(candidates)));
-                    sel(exceeding) = candidates(1:length(exceeding));
-                end
-                % End fix
-                
-                atdpos = atdpos(end) + (1:length(sel));
-                xi(:,atdpos) = x(:,sel);
-                ti(atdpos) = model.Times(sel);
-                mui(:,atdpos) = repmat(mu,1,length(atdpos));
-                
-                if hasfxi
-                    [fx, fxmu] = md.TrajectoryFxiData.getTrajectoryNr(traj(k));
-                    if ~isequal(mu,fxmu)
-                        hasfxi = false;
-                        fxi = [];
-                    else
-                        fxi(:,atdpos) = fx(:,sel);
+            for k=1:nt
+                sel = idx(idx >= linpos(k) & idx < linpos(k+1));
+                if ~isempty(sel)
+                    sel = sel - min(sel) + 1;
+                    [x, mu] = td.getTrajectoryNr(k);
+                    atdpos = atdpos(end) + (1:length(sel));
+                    xi(:,atdpos) = x(:,sel);
+                    ti(atdpos) = model.Times(sel);
+                    mui(:,atdpos) = repmat(mu,1,length(atdpos));
+
+                    if hasfxi
+                        [fx, fxmu] = md.TrajectoryFxiData.getTrajectoryNr(k);
+                        if ~isequal(mu,fxmu)
+                            hasfxi = false;
+                        else
+                            fxi(:,atdpos) = fx(:,sel);%#ok
+                        end
                     end
                 end
-                
                 pi.step;
             end
             pi.stop;
+        end
+    end
+    
+    methods(Static)
+        function res = test_LinSpaceSelector
+            [res, m] = models.burgers.Tests.test_Burgers_DEIM_versions(50,2);
+            m.Approx.TrainDataSelector = data.selection.LinspaceSelector;
+            m.Approx.TrainDataSelector.Size = 300;
+            m.off4_genApproximationTrainData;
+            m.ComputeTrajectoryFxiData = true;
+            m.off2_genTrainingData;
+            m.off4_genApproximationTrainData;
+            res = res & true;
         end
     end
 end

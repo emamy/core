@@ -349,11 +349,11 @@ classdef ApproxTrainData < handle
                 if parallel
                     fval = zeros(size(atd.xi));
                     if KerMor.App.Verbose > 0
-                        fprintf('Starting parallel f-values computation at %d points on %d workers...\n',size(atd,2),matlabpool('size'));
+                        fprintf('Starting parallel f-values computation at %d points on %d workers...\n',size(atd.xi,2),matlabpool('size'));
                     end
                     parfor sidx=1:size(atd.xi,2)
                         fval(:,sidx) = ...
-                            f.evaluateCoreFun(atd.xi(:,sidx),... % x 
+                            f.evaluateMulti(atd.xi(:,sidx),... % x 
                             atd.ti(sidx),... % t
                             atd.mui(:,sidx)); %#ok<PFBNS> % mu
                     end

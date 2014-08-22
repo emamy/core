@@ -22,7 +22,7 @@ classdef DefaultSelector < data.selection.ASelector
     end
 
     methods(Access=protected,Sealed)
-        function [xi, ti, mui] = select(this, model)%#ok
+        function [xi, ti, mui, fxi] = select(this, model)%#ok
             % Selects ALL the trajectory data as training.
             %
             % Parameters:
@@ -43,7 +43,6 @@ classdef DefaultSelector < data.selection.ASelector
             len = length(model.Times);
             if nt > 0
                 [xdim, mudim] = td.getTrajectoryDoFs;
-                % Use 512 MB chunks for approx train data
                 xi = data.FileMatrix(xdim,nt*len,'Dir',md.DataDirectory);
                 ti = zeros(1,nt*len);
                 if mudim > 0
@@ -59,6 +58,7 @@ classdef DefaultSelector < data.selection.ASelector
                     end
                 end
             end
+            fxi = [];
         end
     end
     

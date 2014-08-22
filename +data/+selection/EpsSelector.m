@@ -61,7 +61,7 @@ classdef EpsSelector < data.selection.ASelector
     end
     
     methods(Access=protected)
-        function [xi, ti, mui] = select(this, model)
+        function [xi, ti, mui, fxi] = select(this, model)
             % Selects training points with distance EpsSelector.EpsRad,
             % starting from the initial values for each trajectory.
             %
@@ -102,6 +102,7 @@ classdef EpsSelector < data.selection.ASelector
             xi = x(:,selidx);
             ti = model.Times(selidx);
             mui = repmat(mu,1,length(selidx));
+            fxi = [];
         end
     end
     
