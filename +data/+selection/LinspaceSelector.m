@@ -89,11 +89,13 @@ classdef LinspaceSelector < data.selection.ASelector
             % data in order to determine the different lengths
             if isa(td,'data.FileTrajectoryData') && ~td.UniformTrajectories
                 sizes = zeros(1,nt);
-                pi = ProcessIndicator('Selecting %d approximation training data samples from %d trajectories',nt,false,this.Size,nt);
+                pi = ProcessIndicator('Possibly non-uniform trajectories. Gathering %d trajectory sizes',nt,false,this.Size,nt);
                 for n = 1:nt
                     x = td.getTrajectoryNr(n);
                     sizes(n) = size(x,2);
+                    pi.step;
                 end
+                pi.stop;
             else
                 sizes = ones(1,nt) * tl;
             end
