@@ -347,18 +347,15 @@ classdef ApproxTrainData < handle
             % selector.
             if projected || isempty(atd.fxi)
                 if parallel
-                    error('Not yet implemented for FileMatrix atd.xi');
-                    atdxi = atd.xi;
-                    atdti = atd.ti;
-                    fval = zeros(size(atdxi));
+                    fval = zeros(size(atd.xi));
                     if KerMor.App.Verbose > 0
                         fprintf('Starting parallel f-values computation at %d points on %d workers...\n',size(atd,2),matlabpool('size'));
                     end
-                    parfor sidx=1:size(atdxi,2)
+                    parfor sidx=1:size(atd.xi,2)
                         fval(:,sidx) = ...
-                            f.evaluateCoreFun(atdxi(:,sidx),... % x
-                            atdti(sidx),... % t
-                            atdmui(:,sidx)); % mu
+                            f.evaluateCoreFun(atd.xi(:,sidx),... % x 
+                            atd.ti(sidx),... % t
+                            atd.mui(:,sidx)); %#ok<PFBNS> % mu
                     end
                     atd.fxi = fval;
                 else
