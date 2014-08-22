@@ -168,10 +168,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             this.idx = [hlp(1:m) hlp2(1:m)];
             
             if nb == 1
-                % Trigger creation & caching of the first and only block
                 this.loadBlock(1);
-                rmdir(this.DataDirectory);
-                this.DataDirectory = '';
             end
             % Matrix case: Assign value directly
             if matrixin
@@ -241,7 +238,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             % Extract matrix_xxx folder name
             [~, mfolder] = fileparts(this.DataDirectory);
             % Concatenate with new path and call superclass relocate
-            relocate@data.FileData(this, fullfile(new_root,mfolder));
+            relocate@data.FileData(this, fullfile(new_root, mfolder));
         end
         
         function res = transposedTimes(this, B)
@@ -684,16 +681,12 @@ classdef FileMatrix < data.FileData & data.ABlockedData
         
         function delete(this)
             if ~isempty(this.created) && ~this.isSaved
-                % Due to caching, no files are written if the entire matrix fits into one
-                % block.
-                if this.nBlocks > 1 || this.created(1)
-                    % Remove exactly the files for the matrix
-                    for k=1:this.nBlocks
-                        if this.created(k)
-                            f = fullfile(this.DataDirectory, sprintf('block_%d.mat',k));
-                            if exist(f,'file')
-                                delete(f);
-                            end
+                % Remove exactly the files for the matrix
+                for k=1:this.nBlocks
+                    if this.created(k)
+                        f = fullfile(this.DataDirectory, sprintf('block_%d.mat',k));
+                        if exist(f,'file')
+                            delete(f);
                         end
                     end
                 end
@@ -718,16 +711,13 @@ classdef FileMatrix < data.FileData & data.ABlockedData
         
         function this = saveobj(this)
             this = saveobj@data.FileData(this);
-            % Only store stuff on disk if it's more than one block
-            if this.nBlocks > 1
-                if this.cacheDirty
-                    A = this.cachedBlock;%#ok
-                    save([this.DataDirectory filesep sprintf('block_%d.mat',this.cachedNr)], 'A');
-                    this.created(this.cachedNr) = true;
-                end
-                this.cachedBlock = [];
-                this.cachedNr = [];
+            if this.cacheDirty
+                A = this.cachedBlock;%#ok
+                save([this.DataDirectory filesep sprintf('block_%d.mat',this.cachedNr)], 'A');
+                this.created(this.cachedNr) = true;
             end
+            this.cachedBlock = [];
+            this.cachedNr = [];
             this.cacheDirty = false;
         end
     end
