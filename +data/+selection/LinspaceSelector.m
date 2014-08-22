@@ -108,6 +108,25 @@ classdef LinspaceSelector < data.selection.ASelector
             for k=1:length(traj)
                 [x, mu] = td.getTrajectoryNr(traj(k));
                 sel = idx(tidx == traj(k));
+                % Begin fix
+                % Fix for trajectories that are shorter than full length
+                % (e.g. the solver stopped integrating and
+                % UniformTrajectories is disabled)
+                
+                % Cannot select at all - case
+                if length(sel) > size(x,2)
+                    error('Failed to select %d samples from %d long trajectory.',length(sel),size(x,2));
+                    % Selection exceeds end but there is enough data to
+                    % select. so just choose random additional locations.
+                elseif any(sel) > size(x,2)
+                    exceeding = find(sel > size(x,2));
+                    candidates = 1:size(x,2);
+                    candidates(sel(1:length(exceeding))) = [];
+                    candidates = candidates(randperm(length(candidates)));
+                    sel(exceeding) = candidates(1:length(exceeding));
+                end
+                % End fix
+                
                 atdpos = atdpos(end) + (1:length(sel));
                 xi(:,atdpos) = x(:,sel);
                 ti(atdpos) = model.Times(sel);
