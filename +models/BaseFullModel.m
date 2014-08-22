@@ -218,6 +218,24 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % @type logical @default false
         ComputeTrajectoryFxiData = false;
         
+        % Flag to determine if the data collected by the
+        % approx.Approx.TrainDataSelector should be projected into the
+        % previously computed projection space V (see offline phase 3).
+        % If so, the `f(x_i)` values are also re-computed for the updated
+        % `x_i` samples.
+        %
+        % This feature might be of importance when kernel methods are used
+        % for nonlinearity approximation, and the projection requires the
+        % centers to reside in the projection space V.
+        %
+        % As the more common choice in KerMor so far is DEIM, the default
+        % is false as `x_i` data is not needed for DEIM.
+        %
+        % See also: data.ApproxTrainData approx.DEIM
+        %
+        % @type logical @default false
+        ProjectApproxTrainingData = false;
+        
         % Flag to enable automatic saving of the model after each individual offline phase
         % step and at other locations prone to data loss due to lengthy computations.
         %
@@ -534,9 +552,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % Generates the training data `x_i` for the
             % `\hat{f}`-approximation and precomputes `f(x_i)` values.
             %
-            % @todo
-            % - include/check MultiArgumentEvaluations-possibility in parallel execution code
-            % - Deactivated due to immense overhead and matlab crashes. investigate further
+            % The main functionality of this phase is located at the
+            % ApproxTrainData class as it is used more than once and not
+            % exclusively at this location
             t = tic;
             if ~isempty(this.Approx)
                 this.Data.ApproxTrainData = data.ApproxTrainData.computeFrom(this, ...
@@ -787,7 +805,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 this.Data = value;
             end
         end
-
+        
         function set.SpaceReducer(this, value)
             this.checkType(value, 'spacereduction.BaseSpaceReducer');
             this.SpaceReducer = value;
@@ -823,6 +841,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 end
             end
             this.fTrainingInputs = value;
+        end
+        
+        function set.ProjectApproxTrainingData(this, value)
+            if ~islogical(value) || ~isscalar(value)
+                error('ProjectApproxTrainingData must be a flag (scalar logical)');
+            end
+            this.ProjectApproxTrainingData = value;
         end
         
         function set.EnableTrajectoryCaching(this, value)

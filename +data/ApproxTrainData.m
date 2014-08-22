@@ -325,7 +325,8 @@ classdef ApproxTrainData < handle
             % If projection is used, train approximating function in
             % centers projected into the subspace.
             projected = false;
-            if ~isempty(model.Data.V) && ~isempty(model.Data.W)
+            if model.ProjectApproxTrainingData && ...
+                    ~isempty(model.Data.V) && ~isempty(model.Data.W)
                 hlp = model.Data.V*(model.Data.W'*atd.xi);
                 projected = true;
                 % Precautionary case: If the atd.xi data is so small that it fits into one
