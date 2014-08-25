@@ -284,6 +284,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             end
             % Special case for one block
             if this.nBlocks == 1
+                this.ensureCacheLoaded;
                 value = this.cachedBlock.^expo;
                 return;
             end
@@ -319,6 +320,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             % See also: subsref
             if strcmp(key(1).type,'()')
                 if this.nBlocks == 1
+                    this.ensureCacheLoaded;
                     [varargout{1:nargout}] = builtin('subsref', this.cachedBlock, key);
                     return;
                 end
@@ -359,6 +361,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             % See also: subsasgn
             if strcmp(key(1).type,'()')
                 if this.nBlocks == 1
+                    this.ensureCacheLoaded;
                     this.cachedBlock = builtin('subsasgn', this.cachedBlock, key, value);
                     this.cacheDirty = true;
                     return;
@@ -404,6 +407,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                     else
                         % Special case for one block
                         if A.nBlocks == 1
+                            A.ensureCacheLoaded;
                             diff = A.cachedBlock - B;
                             return;
                         end
@@ -425,12 +429,14 @@ classdef FileMatrix < data.FileData & data.ABlockedData
         function a = mldivide(L, R)
             if isa(L,'data.FileMatrix')
                 if L.nBlocks == 1
+                    L.ensureCacheLoaded;
                     a = L.cachedBlock\R;
                 else
                     error('Not yet implemented');
                 end
             else
                 if R.nBlocks == 1
+                    R.ensureCacheLoaded;
                     a = L\R.cachedBlock;
                 else
                     error('Not yet implemented');
@@ -444,6 +450,8 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 % FileMatrix * FileMatrix case
                 if isa(B,'data.FileMatrix')
                     if A.nBlocks == 1 && B.nBlocks == 1
+                        A.ensureCacheLoaded;
+                        B.ensureCacheLoaded;
                         AB = data.FileMatrix(A.cachedBlock * B.cachedBlock);
                         return;
                     else
@@ -465,6 +473,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 else
                     % Special case for one block
                     if A.nBlocks == 1
+                        A.ensureCacheLoaded;
                         AB = A.cachedBlock * B;
                         return;
                     end
@@ -510,6 +519,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             elseif isa(B,'data.FileMatrix')
                 % Special case for one block
                 if B.nBlocks == 1
+                    B.ensureCacheLoaded;
                     AB = A*B.cachedBlock;
                     return;
                 end
@@ -562,6 +572,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 else
                     % Special case for one block
                     if A.nBlocks == 1
+                        A.ensureCacheLoaded;
                         AB = A.cachedBlock .* B;
                         return;
                     elseif isscalar(B)
@@ -590,6 +601,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 'Dir', fileparts(this.DataDirectory));
             % Special case for only one block
             if this.nBlocks == 1
+                this.ensureCacheLoaded;
                 trans = this.cachedBlock';
                 return;
             end
@@ -724,6 +736,13 @@ classdef FileMatrix < data.FileData & data.ABlockedData
     end
     
     methods(Access=private)
+        
+        function ensureCacheLoaded(this)
+            if this.nBlocks == 1 && isempty(this.cachedBlock)
+                this.loadBlock(1);
+            end
+        end
+        
         function saveBlock(this, nr, A)
             % Also save changes to cachedBlock if number matches
             if nr == this.cachedNr
@@ -801,9 +820,6 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 this = loadobj@data.FileData(this, initfrom);
             else
                 this = loadobj@data.FileData(this);
-            end
-            if this.nBlocks == 1
-                this.loadBlock(1);
             end
         end
     end
