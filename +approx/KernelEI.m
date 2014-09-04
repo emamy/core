@@ -104,6 +104,12 @@ classdef KernelEI < approx.BaseApprox
             p.UseSVDS = size(atd.fxi,1) > 10000;
             this.u = p.computePOD(atd.fxi);
             
+            if size(this.u,2) < this.MaxOrder
+                warning('Less singular values (%d) than MaxOrder (%d). Setting MaxOrder=%d',...
+                    size(this.u,2),this.MaxOrder,size(this.u,2));
+                this.MaxOrder = min(this.MaxOrder,size(this.u,2));
+            end
+            
             % Get interpolation points
             this.pts = this.getInterpolationPoints(this.u);
             
@@ -222,8 +228,8 @@ classdef KernelEI < approx.BaseApprox
                 [Xi, ~, ~, ~] = m.Data.TrajectoryData.getTrajectoryNr(s.randperm(nTraj,min(nJac,nTraj)));
                 
                 for j = s.randperm(size(Xi,2),nJac) % choose random time
-                        tt = []; %TODO: Falls f = f(..,t) dann wissen wir nicht, was für ein t zu Xi(:,col) gehört.. ?
-                        % Ist das t (immer?) äquidist und dann 
+                        tt = []; %TODO: Falls f = f(..,t) dann wissen wir nicht, was fï¿½r ein t zu Xi(:,col) gehï¿½rt.. ?
+                        % Ist das t (immer?) ï¿½quidist und dann 
                         % X(:,col) ~=> t =  m.T / nCols * col ?
                         
                         k = s.randperm(size(Xi,3),1); %choose random traj. number
@@ -254,8 +260,8 @@ classdef KernelEI < approx.BaseApprox
                     [Xi, ~] = m.Data.TrajectoryData.getTrajectory(muu,inputindex);
                     
                     for j = randperm(size(Xi,2),nJacPerMu)
-                        tt = []; %TODO: Falls f = f(..,t) dann wissen wir nicht, was für ein t zu Xi(:,col) gehört.. ?
-                        % Ist das t (immer?) äquidist. und dann 
+                        tt = []; %TODO: Falls f = f(..,t) dann wissen wir nicht, was fï¿½r ein t zu Xi(:,col) gehï¿½rt.. ?
+                        % Ist das t (immer?) ï¿½quidist. und dann 
                         % X(:,col) ~=> t =  m.T / nCols * col ?
 
                         %mu is used inside jacobianFD

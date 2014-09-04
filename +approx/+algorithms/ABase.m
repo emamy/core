@@ -189,6 +189,11 @@ classdef ABase < KerMorObject & ICloneable & IReductionSummaryPlotProvider
             n = size(kexp.Centers.xi,2);
             hlp = sum(abs(kexp.Ma) ~= 0,1);
             usedidx = find(hlp > 0);
+            % If all is zero, create a zero approx with one center and zero
+            % coefficient
+            if ~isempty(usedidx)
+                usedidx = 1;
+            end
             if length(usedidx) < n
                 kexp.Ma = kexp.Ma(:,usedidx);
                 kexp.Centers.xi = kexp.Centers.xi(:,usedidx);

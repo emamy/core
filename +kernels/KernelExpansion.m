@@ -465,7 +465,7 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             % Any subclasser MUST call this superclasses loadobj function explicitly!
             if nargin > 1
                 this.Kernel = from.Kernel;
-                this.Ma = this.Ma;
+                this.Ma = from.Ma;
                 this.Centers = from.Centers;
                 if isfield(from,'Base')
                     this.Base = from.Base;
