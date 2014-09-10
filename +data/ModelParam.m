@@ -6,6 +6,8 @@ classdef ModelParam < handle
 %
 % @author Daniel Wirtz @date 2010-05-01
 %
+% @new{1,0,dw,2014-09-10} Added spacing to constructor arguments
+%
 % @change{0,5,dw,2011-09-15} Added some documentation
 %
 % @change{0,3,sa,2011-05-10} Implemented setters for the properties
@@ -64,7 +66,7 @@ classdef ModelParam < handle
     end
     
     methods
-        function this = ModelParam(name, range, desired)
+        function this = ModelParam(name, range, desired, spacing)
             % Creates a new model parameter.
             %
             % Paramters:
@@ -72,17 +74,18 @@ classdef ModelParam < handle
             % range: Can be either a scalar or a 1x2 double vector. @type
             % double
             % desired: The desired number for GridSampling @type integer
+            % spacing: The intended sample spacing over the range @type
+            % char @default 'lin'
             %
             % If an argument is specified, all have to be specified. This
             % is only done to enable creation of empty ModelParam-instances
             % for cell arrays, for example.
-            %
-            % @todo: Validity checks
             
             if nargin > 0
                 this.Name = name;
                 this.Range = range;
                 this.Desired = desired;
+                this.Spacing = spacing;
             end
         end
         

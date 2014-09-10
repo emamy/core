@@ -176,7 +176,7 @@ classdef ReducedModel < models.BaseModel
             this.ParamSamples = fullmodel.Data.ParamSamples;
             
             % Create a new reducedSystem passing this reduced model
-            this.System = models.ReducedSystem(this);
+            this.System = fullmodel.System.buildReducedSystem(this);
             
             % Use the error estimator that has been precomputed in 
             % the full model

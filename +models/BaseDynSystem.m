@@ -220,6 +220,16 @@ classdef BaseDynSystem < KerMorObject
             % Register default properties
             this.registerProps('A','f','B','C','x0','Inputs','Params','MaxTimestep','StateScaling');
         end
+        
+        function rsys = buildReducedSystem(this, rmodel)%#ok
+            % Creates a reduced system given the current system and the
+            % reduced model.
+            %
+            % Override this method in subclasses (with call to parent) if
+            % custom behaviour of your system is required prior/posterior
+            % to reduced model computation.
+            rsys = models.ReducedSystem(rmodel);
+        end
        
         function setConfig(this, mu, inputidx)
             % Sets the dynamical system's configuration
@@ -285,7 +295,7 @@ classdef BaseDynSystem < KerMorObject
             odefun = eval(['@(t,x)' Utils.implode(str,' + ')]);
         end
         
-        function p = addParam(this, name, range, desired)
+        function p = addParam(this, name, range, desired, spacing)
             % Adds a parameter with the given values to the parameter
             % collection of the current dynamical system.
             %
@@ -298,19 +308,24 @@ classdef BaseDynSystem < KerMorObject
             % a 1x2 double vector.
             % desired: The desired number of samples for that parameter.
             % @type integer @default 1
+            % spacing: The intended sample spacing over the range @type
+            % char @default 'lin'
             %
             % Return values:
             % p: The new ModelParam instance. @type ModelParam
             % 
             % See also: ModelParam setParam
             
-            if nargin < 4
-                desired = 1;
+            if nargin < 5
+                spacing = 'lin';
+                if nargin < 4
+                    desired = 1;
+                end
             end
             if ~isempty(this.Params) && ~isempty(find(strcmpi(name,{this.Params(:).Name}),1))
                 error('Parameter with name %s already exists. Use setParam instead.',name);
             end
-            p = data.ModelParam(name, range, desired);
+            p = data.ModelParam(name, range, desired, spacing);
             this.Params(end+1) = p;
         end
         

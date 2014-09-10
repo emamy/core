@@ -438,7 +438,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             d = size(x,1);
             X = repmat(x,1,d); T = repmat(t,1,d); MU = repmat(this.mu,1,d);
             I = speye(d,d)*dt;
-            hlp = this.evaluateComponents(pts, ends, idx, self, x, t, this.mu);
+            hlp = this.evaluateComponents(pts, ends, idx, self, x, t);
             dfx = (this.evaluateComponentsMulti(pts, ends, idx, self, X+I, T, MU) ...
                 - repmat(hlp,1,d))/dt;
         end

@@ -267,9 +267,20 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         % @propclass{optional} Set subindices to restrict offline generation phase to a subset of
         % inputs.
         %
-        % @default 1:InputCount
-        % @type integer
+        % @default 1:InputCount @type integer
         TrainingInputs;
+        
+        % The indices of the model parameters to use for training data
+        % generation.
+        %
+        % The model's DefaultMu will be used as "base" parameter, within
+        % which the TrainingParams will be changed accordingly.
+        %
+        % @propclass{optional} Set subindices to restrict offline generation phase to a subset of
+        % parameters.
+        %
+        % @default 1:ParamCount @type rowvec<integer>
+        TrainingParams;
     end
     
     properties(SetAccess=private, Dependent)
@@ -299,6 +310,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
     
     properties(Access=private)
         fTrainingInputs = [];
+        fTrainingParams = [];
         ftcold = struct;
     end
            
@@ -843,6 +855,17 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.fTrainingInputs = value;
         end
         
+        function set.TrainingParams(this, value)
+            if ~isempty(value)
+                if any(value < 1)
+                    error('Value may only contain valid indices for the parameter array.');
+                elseif any(value > this.System.ParamCount) || any(value < 1)
+                    error('Invalid indices for Inputs.');
+                end
+            end
+            this.fTrainingParams = value;
+        end
+        
         function set.ProjectApproxTrainingData(this, value)
             if ~islogical(value) || ~isscalar(value)
                 error('ProjectApproxTrainingData must be a flag (scalar logical)');
@@ -866,9 +889,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 
         function ti = get.TrainingInputs(this)
             ti = this.fTrainingInputs;
-            %             if isempty(ti) && ~isempty(this.System)
-            %                 ti = 1:this.System.InputCount;
-            %             end
+        end
+        
+        function ti = get.TrainingParams(this)
+            ti = this.fTrainingParams;
         end
 
         function c = get.TrainingInputCount(this)

@@ -14,10 +14,20 @@ classdef BaseSampler < KerMorObject
     
     methods
         function samples = generateSamples(this, model)
-            if model.System.ParamCount == 0
+            sys = model.System;
+            if sys.ParamCount == 0
                 samples = [];
             else
-                samples = this.performSampling(model);
+                params = 1:sys.ParamCount;
+                if ~isempty(model.TrainingParams)
+                    params = params(model.TrainingParams);
+                end
+                samples = this.performSampling(sys.Params(params));
+                if ~isempty(model.TrainingParams)
+                    full = repmat(model.DefaultMu,1,size(samples,2));
+                    full(model.TrainingParams,:) = samples;
+                    samples = full;
+                end
             end
         end
         
@@ -31,7 +41,7 @@ classdef BaseSampler < KerMorObject
     
     methods(Abstract)
         % Template method for actual sampling.
-        samples = performSampling(model)
+        samples = performSampling(params)
     end
     
     methods(Static, Access=protected)
@@ -49,6 +59,37 @@ classdef BaseSampler < KerMorObject
             else
                 obj = loadobj@KerMorObject(obj);
             end
+        end
+    end
+    
+    methods(Static)
+        function res = test_SubsetSampling
+            % setup parameter domain etc
+            % domain are all points in unit square with norm > 0.7
+            m = models.BaseFullModel;
+            s = models.BaseDynSystem(m);
+            m.System=s;
+            s.addParam('param_a',[0,1],10);
+            s.addParam('param_b',[0,1],10);
+            s.addParam('param_c',[0,1],10);
+            s.addParam('param_d',[0,1],10);
+            
+            m.TrainingParams = [1 3];
+            m.DefaultMu = rand(4,1);
+            
+            m.Sampler = sampling.RandomSampler;
+            m.Sampler.Samples = 500;
+            samples = m.Sampler.generateSamples(m);
+            
+            res = size(samples,1) == 4;
+            res = res & all(samples(2,:) == m.DefaultMu(2));
+            res = res & all(samples(4,:) == m.DefaultMu(4));
+            
+            m.Sampler = sampling.GridSampler;
+            samples = m.Sampler.generateSamples(m);
+            res = res & size(samples,1) == 4;
+            res = res & all(samples(2,:) == m.DefaultMu(2));
+            res = res & all(samples(4,:) == m.DefaultMu(4));
         end
     end
 end

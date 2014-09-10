@@ -201,6 +201,33 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
             end
         end
         
+        function pts = getInterpolationPoints(this, u)
+            % Computes the interpolation indices according to the DEIM
+            % algorithm
+            %
+            % Parameters:
+            % u: matrix, columns are the orthonormal basis vectors computed via POD from the snapshot data
+            % @type matrix<double>
+            
+            n = size(u,1);
+            m = size(u,2);
+            pts = zeros(1, m);
+            v = pts;
+            [v(1), pts(1)] = max(abs(u(:,1)));
+            P = zeros(n,1);
+            P(pts(1)) = 1;
+            for i=2:m
+                c = (P'*u(:,1:(i-1))) \ (P'*u(:,i));
+                [v(i), pts(i)] = max(abs(u(:,i) - u(:,1:(i-1))*c));
+                P = sparse(pts(1:i),1:i,ones(i,1),n,i);
+            end
+            this.Residuals = v;
+            if KerMor.App.Verbose > 2
+                fprintf('DEIM interpolation points [%s] with values [%s]\n',...
+                    Utils.implode(pts,' ','%d'),Utils.implode(v,' ','%2.2e'));
+            end
+        end
+        
         function err = getEstimatedError(this, x, t, mu)
             if this.fOrder(2) == 0
                 error('No error estimation possible with zero ErrorOrder property');
@@ -266,35 +293,6 @@ classdef DEIM < KerMorObject & general.AProjectable & IReductionSummaryPlotProvi
                 h = pm.nextPlot('max_residuals',...
                     str,'Point number','residual');
                 semilogy(h,this.Residuals,'LineWidth',2);
-            end
-        end
-    end
-    
-    methods(Access=private)
-        function pts = getInterpolationPoints(this, u)
-            % Computes the interpolation indices according to the DEIM
-            % algorithm
-            %
-            % Parameters:
-            % u: matrix, columns are the orthonormal basis vectors computed via POD from the snapshot data
-            % @type matrix<double>
-            
-            n = size(u,1);
-            m = size(u,2);
-            pts = zeros(1, m);
-            v = pts;
-            [v(1), pts(1)] = max(abs(u(:,1)));
-            P = zeros(n,1);
-            P(pts(1)) = 1;
-            for i=2:m
-                c = (P'*u(:,1:(i-1))) \ (P'*u(:,i));
-                [v(i), pts(i)] = max(abs(u(:,i) - u(:,1:(i-1))*c));
-                P = sparse(pts(1:i),1:i,ones(i,1),n,i);
-            end
-            this.Residuals = v;
-            if KerMor.App.Verbose > 2
-                fprintf('DEIM interpolation points [%s] with values [%s]\n',...
-                    Utils.implode(pts,' ','%d'),Utils.implode(v,' ','%2.2e'));
             end
         end
     end

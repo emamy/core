@@ -18,35 +18,35 @@ classdef WeightedRandomSampler < sampling.RandomSampler
     
     methods
         
-        function samples = performSampling(this, model)
+        function samples = performSampling(this, params)
             % Randomly generates input samples by choosing params and
             % time parameter by chance.
             % @ingroup s_rand
             %
             % Note: Read test_model.m notices on sampling settings.
             
-            sys = model.System;
+            nparams = length(params);
             
             % Compute rescaling factor for each Desired entry to end up with
             % prod(<ranges>) = model.sampling.samples
-            rescaler = (this.Samples/prod([sys.Params(:).Desired]))^(1/sys.ParamCount);
+            rescaler = (this.Samples/prod([params(:).Desired]))^(1/nparams);
             
-            ranges = cell(sys.ParamCount,1);
+            ranges = cell(nparams,1);
             
             %% Compute param ranges
-            for pidx=1:sys.ParamCount
-                p = sys.Params(pidx);
+            for pidx=1:nparams
+                p = params(pidx);
                 num = round(p.Desired * rescaler);
                 ranges{pidx} = sort(rand(1,num) * (p.MaxVal-p.MinVal) + p.MinVal);
             end
-            
             % No combinations necessary if only one parameter
-            if sys.ParamCount == 1
+            if nparams == 1
                 samples = ranges{pidx};
             else
                 samples = Utils.createCombinations(ranges);
             end
         end
+        
     end
     
 end

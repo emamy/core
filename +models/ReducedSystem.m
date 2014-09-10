@@ -39,6 +39,10 @@ classdef ReducedSystem < models.BaseDynSystem
         function this = ReducedSystem(rmodel)
             % Creates a new ReducedSystem instance.
             %
+            % The actual code for reduced system computation is in the
+            % method setReducedModel in order to comply with matlab's
+            % no-argument-object-constructor.
+            %
             % Parameters:
             % rmodel: [Optional] The reduced model to create the reduced
             % system from.

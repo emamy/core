@@ -41,7 +41,7 @@ classdef RandomSampler < sampling.BaseSampler
             this.Samples = value;
         end
         
-        function samples = performSampling(this, model)
+        function samples = performSampling(this, params)
             % Randomly generates input samples by choosing params and
             % time parameter by chance.
             %
@@ -54,18 +54,20 @@ classdef RandomSampler < sampling.BaseSampler
             % @type matrix<double>
             %
             % @ingroup s_rand
-            sys = model.System;
             if isempty(this.Seed)
                 seed = round(cputime*100);
             else
                 seed = this.Seed;
             end
             r = RandStream('mt19937ar','Seed',seed);
+            
+            nparams = length(params);
+            
             if isempty(this.Domain)
-                factor = r.rand(sys.ParamCount,this.Samples);
-                miv = repmat([sys.Params(:).MinVal]',1,this.Samples);
-                mav = repmat([sys.Params(:).MaxVal]',1,this.Samples);
-                islog = strcmp({sys.Params(:).Spacing},'log')';
+                factor = r.rand(nparams,this.Samples);
+                miv = repmat([params(:).MinVal]',1,this.Samples);
+                mav = repmat([params(:).MaxVal]',1,this.Samples);
+                islog = strcmp({params(:).Spacing},'log')';
                 if any(islog)
                     miv(islog,:) = log10(miv(islog,:));
                     mav(islog,:) = log10(mav(islog,:));
@@ -76,17 +78,17 @@ classdef RandomSampler < sampling.BaseSampler
                 end
                 % Create samples according to the given Domain
             else
-                if size(this.Domain.Points,1) ~= sys.ParamCount
+                if size(this.Domain.Points,1) ~= nparams
                     erros('Dimension of Domain does not match the parameter count.');
                 end
-                samples = zeros(sys.ParamCount,this.Samples);
+                samples = zeros(nparams,this.Samples);
                 pos = 1;
                 while pos < this.Samples
                     % create new samples
-                    factor = r.rand(sys.ParamCount,this.Samples);
-                    miv = repmat([sys.Params(:).MinVal]',1,this.Samples);
-                    mav = repmat([sys.Params(:).MaxVal]',1,this.Samples);
-                    islog = strcmp({sys.Params(:).Spacing},'log')';
+                    factor = r.rand(nparams,this.Samples);
+                    miv = repmat([params(:).MinVal]',1,this.Samples);
+                    mav = repmat([params(:).MaxVal]',1,this.Samples);
+                    islog = strcmp({params(:).Spacing},'log')';
                     if any(islog)
                         miv(islog,:) = log10(miv(islog,:));
                         mav(islog,:) = log10(mav(islog,:));
@@ -130,7 +132,7 @@ classdef RandomSampler < sampling.BaseSampler
             d = sampling.Domain(points, valid);
             m.Sampler.Domain = d;
             m.Sampler.Samples = 500;
-            samples = m.Sampler.performSampling(m);
+            samples = m.Sampler.generateSamples(m);
             res = all(Norm.L2(samples) > .66);
             plot(samples(1,:),samples(2,:),'o',...
                 d.Points(1,:),d.Points(2,:),'*',...
