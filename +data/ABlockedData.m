@@ -141,7 +141,7 @@ classdef ABlockedData < handle
                 error('Must override in subclasses for case ABlockedData*matrix.');
             else
                 warning('KerMor:ABlockedData',...
-                    'If you want the right singular values, you need to override the mtimes method of data.ABlockedData(matrix, this).\nReturning the same instance.');
+                    'If you want the right singular values, you need to override the mtimes method of data.ABlockedData(matrix, this).\nReturning the same instance for V.');
             end
             prod = this;
         end
