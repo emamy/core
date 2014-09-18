@@ -80,10 +80,7 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
         function prepareSimulation(this, mu) 
             prepareSimulation@dscomponents.ACoreFun(this, mu);
             this.cachedA = [];
-            if ~isempty(mu)
-                if this.TimeDependent
-                    error('Cannot cache a time-dependent AffLinCoreFun');
-                end
+            if ~isempty(mu) && ~this.TimeDependent
                 this.cachedA = this.compose(0, mu);
             end
         end

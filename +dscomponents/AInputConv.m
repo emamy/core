@@ -27,6 +27,12 @@ classdef AInputConv < KerMorObject & general.AProjectable
         TimeDependent = true;
     end
     
+    methods
+        function prepareSimulation(this, mu)
+            % do nothing by default
+        end
+    end
+    
     methods(Abstract)
         % Template method that evaluates the input conversion matrix `B` at the current time `t`
         % and [optional] parameter `\mu`.

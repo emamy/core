@@ -277,7 +277,12 @@ classdef BaseDynSystem < KerMorObject
             % Forward preparation call to nonlinearity, if present
             if ~isempty(this.f)
                 this.f.prepareSimulation(mu);
-            end            
+            end
+            
+            % Forward preparation call to nonlinearity, if present
+            if ~isempty(this.B)
+                this.B.prepareSimulation(mu);
+            end
         end
     
         function odefun = getODEFun(this)

@@ -314,6 +314,21 @@ classdef AffParamMatrix < general.AProjectable
             end
         end
         
+        function [n, m] = size(this, dim)
+            % Implementation of ABlockedData.size
+            n = this.dims;
+            if nargin == 2
+                if dim > 0 && dim < 3
+                    n = n(dim);
+                else
+                    n = 0;
+                end
+            elseif nargout == 2
+                n = this.dims(1);
+                m = this.dims(2);
+            end
+        end
+        
         function clear(this)
             this.N = 0;
             this.Matrices = [];

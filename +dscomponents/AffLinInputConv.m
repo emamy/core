@@ -34,6 +34,10 @@ classdef AffLinInputConv < general.AffParamMatrix & dscomponents.AInputConv
         CoeffClass = '';
     end
     
+    properties(Access=private)
+        cachedB;
+    end
+    
     methods
         function B = evaluate(this, t, mu)
             % Evaluates the input conversion matrix.
@@ -46,7 +50,18 @@ classdef AffLinInputConv < general.AffParamMatrix & dscomponents.AInputConv
             %
             % Return values:
             % B: The affine parametric matrix `B(t,\mu)`.
-            B = this.compose(t, mu);
+            if this.TimeDependent
+                B = this.compose(t, mu);
+            else
+                B = this.cachedB;
+            end
+        end
+        
+        function prepareSimulation(this, mu) 
+            this.cachedB = [];
+            if ~isempty(mu) && ~this.TimeDependent
+                this.cachedB = this.compose(0, mu);
+            end
         end
         
         function projected = project(this, V, W)%#ok
