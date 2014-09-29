@@ -11,11 +11,9 @@ classdef SolverTypes
 % - \c Documentation http://www.morepas.org/software/kermor/index.html
 % - \c License @ref licensing
 
-    % agageg
     enumeration
         Explicit,
-        
         Implicit,
-        MLSolver
+        Unknown
     end
 end

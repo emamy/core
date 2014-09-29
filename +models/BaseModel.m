@@ -492,8 +492,8 @@ classdef BaseModel < KerMorObject
             sys.prepareSimulation(mu, inputidx);
             
             % Check explicit solvers
-            if isempty(this.System.MaxTimestep) && ~isa(this.fODEs,'solvers.IImplSolver')
-                warning('Attention: Using an explicit solver without System.MaxTimestep set. Please check.');
+            if isempty(this.System.MaxTimestep) && this.fODEs.SolverType ~= solvers.SolverTypes.Implicit
+                warning('Attention: Using an non-implicit solver without System.MaxTimestep set. Please check.');
             end
             
             %% Solve ODE

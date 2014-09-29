@@ -69,10 +69,10 @@ classdef BaseSolver < KerMorObject
         %
         % @propclass{data} ToDo!
         %
-        % @type solvers.SolverTypes @ default solvers.SolverTypes.Explicit 
+        % @type solvers.SolverTypes @default solvers.SolverTypes.Unknown 
         %
         % See also: solvers.SolverTypes
-        SolverType = solvers.SolverTypes.Explicit;
+        SolverType = solvers.SolverTypes.Unknown;
     end
     
     methods

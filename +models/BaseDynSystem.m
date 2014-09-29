@@ -183,7 +183,7 @@ classdef BaseDynSystem < KerMorObject
         StateScaling = 1;
     end
     
-    properties(SetAccess=private, Transient)
+    properties(SetAccess=protected, Transient)
         % The current parameter `\mu` for simulations, [] is none used.
         mu = [];
         
@@ -286,6 +286,8 @@ classdef BaseDynSystem < KerMorObject
         end
     
         function odefun = getODEFun(this)
+            odefun = @this.ODEFun;
+            return;
             % Determine correct ODE function (A,f,B combination)
             str = {};
             if ~isempty(this.A)
@@ -298,6 +300,20 @@ classdef BaseDynSystem < KerMorObject
                 str{end+1} = 'this.B.evaluate(t, this.mu)*this.u(t)';
             end
             odefun = eval(['@(t,x)' Utils.implode(str,' + ')]);
+        end
+        
+        function dx = ODEFun(this,t,x)
+            % Determine correct ODE function (A,f,B combination)
+            dx = this.A.evaluate(x, t);
+            dx = dx + this.f.evaluate(x, t);
+%             dx = this.f.evaluate(x, t);
+            if ~isempty(this.B) && ~isempty(this.inputidx)
+                B = this.B.evaluate(t, this.mu)*this.u(t);
+                dx = dx + B;
+            end
+%             pos = find(B);
+%             fprintf('Ext->Neuron: adding %g at dy(%d)\n',...
+%                 B(pos(end)),pos(end));
         end
         
         function p = addParam(this, name, range, desired, spacing)
@@ -515,11 +531,13 @@ classdef BaseDynSystem < KerMorObject
             if ~iscell(value)
                 error('Property "Inputs" must be a cell array.');
             end
-            for n=1:length(value)
-                if ~isa(value{n},'function_handle')
-                    error('Each "Inputs" cell must contain a function handle.');
-                %elseif nargin(value{n}) ~= 1
-                %    error('Each "Inputs" function must take exactly one (=time) parameter.');
+            for n=1:numel(value)
+                if ~isempty(value{n})
+                    if ~isa(value{n},'function_handle')
+                        error('Each "Inputs" cell must contain a function handle.');
+%                     elseif nargin(value{n}) ~= 1
+%                        error('Each "Inputs" function must take exactly one (=time) parameter.');
+                    end
                 end
             end
             this.Inputs = value;

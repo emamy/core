@@ -191,7 +191,7 @@ classdef ABase < KerMorObject & ICloneable & IReductionSummaryPlotProvider
             usedidx = find(hlp > 0);
             % If all is zero, create a zero approx with one center and zero
             % coefficient
-            if ~isempty(usedidx)
+            if isempty(usedidx)
                 usedidx = 1;
             end
             if length(usedidx) < n

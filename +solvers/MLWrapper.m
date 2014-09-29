@@ -66,9 +66,14 @@ classdef MLWrapper < solvers.BaseSolver & solvers.AJacobianSolver
         function this = MLWrapper(solver)
             this = this@solvers.BaseSolver;
             this.registerProps('MLSolver');
-            this.SolverType = solvers.SolverTypes.MLSolver;
+            
+            this.SolverType = solvers.SolverTypes.Explicit;
             if nargin > 0
                 this.MLSolver = solver;
+                slvname = char(solver);
+                if ~isempty(strfind('ode15s',slvname))
+                    this.SolverType = solvers.SolverTypes.Implicit;
+                end
             end
             this.odeopts = odeset;
         end

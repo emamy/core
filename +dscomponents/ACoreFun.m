@@ -307,7 +307,7 @@ classdef ACoreFun < KerMorObject & general.AProjectable
     end
     
     methods(Sealed)
-        function J = getStateJacobianFD(this, x, t, partidx)
+        function [J, dx] = getStateJacobianFD(this, x, t, partidx)
             % Implementation of jacobian matrix evaluation via
             % finite differences.
             %
@@ -345,7 +345,7 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             if ~isempty(this.JSparsityPattern) && nargin < 4
                 [i, j] = find(this.JSparsityPattern);
                 J = sparse(i,j,J(logical(this.JSparsityPattern)),this.fDim,this.xDim);
-            end            
+            end
         end
     end
         
@@ -478,12 +478,19 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                     iszero = J == 0;
                     diff = abs(J-Jc(:,pos));
                     Jc = full(Jc);
-%                     diff(55:108,1:12)./J(55:108,1:12)
-%                     [J(55:108,1:3) zeros(54,1) Jc(55:108,1:3) zeros(54,1) diff(55:108,1:3)]
                     abserr = max(diff(:));
                     absmeanmagnitude = mean(log10(abs(J(~iszero))));
                     meanreldiff = diff / (10^absmeanmagnitude);
                     maxmeanrelerr = max(max(meanreldiff));
+                    
+                    pm = PlotManager(false,1,2);
+                    pm.LeaveOpen = true;
+                    ax = pm.nextPlot('','FD-Jacobian');
+                    spy(J);
+                    ax = pm.nextPlot('','Analytic Jacobian');
+                    spy(Jc);
+                    ax = pm.nextPlot('','Difference > 1');
+                    spy(diff>abserr/100);
                     
                     % Check if mean relative error is greater than
                     % tolerance

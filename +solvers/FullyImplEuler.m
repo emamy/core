@@ -1,4 +1,4 @@
-classdef FullyImplEuler < solvers.BaseCustomSolver & solvers.IImplSolver
+classdef FullyImplEuler < solvers.BaseCustomSolver
 % FullyImplSolver: Solver for fully nonlinear ODE's (using Newton iterations)
 %
 %

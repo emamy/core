@@ -1,7 +1,7 @@
 classdef Wendland < kernels.ARBFKernel
     % Wendland: Implementation of various Wendland kernels
     %
-    % Further background e.g. in §9.4 of @cite W05, especially Corollary 9.14.
+    % Further background e.g. in ï¿½9.4 of @cite W05, especially Corollary 9.14.
     %
     % @author Daniel Wirtz @date 2013-01-16
     %
@@ -62,6 +62,16 @@ classdef Wendland < kernels.ARBFKernel
         end 
         
         function Nabla = getNabla(this, x, y)
+            error('not implemented');
+        end
+        
+         function dx = evaluateD1(this, r)
+            % Method for first derivative evaluation
+            error('not implemented');
+        end
+        
+        function ddx = evaluateD2(this, r)
+            % Method for second derivative evaluation
             error('not implemented');
         end
         

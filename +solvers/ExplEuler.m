@@ -49,6 +49,7 @@ classdef ExplEuler < solvers.BaseCustomSolver
             this = this@solvers.BaseCustomSolver;
             
             this.Name = 'Explicit forward euler';
+            this.SolverType = solvers.SolverTypes.Explicit;
             if nargin == 1
                 this.MaxStep = MaxStep;
             end

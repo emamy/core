@@ -400,7 +400,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             
             %% Parallel - computation
             if this.ComputeParallel
-                idxmat = Utils.createCombinations(1:num_s,1:num_in);
+                idxmat = Utils.createCombinations(1:num_s,this.TrainingInputs);
                 
                 fprintf('Starting parallel projection training data computation of %d trajectories on %d workers...\n',size(idxmat,2),matlabpool('size'));
                 % Iterate through all param/input combinations
