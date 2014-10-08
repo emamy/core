@@ -203,11 +203,8 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             % kernels.ParamTimeKernelExpansion classes, which also give a
             % `t` and `\mu` parameter.
             %
-            % See also: dscomponents.IJacobian kernels.BaseKernel
-            if size(x, 2) > 1
-                error('Derivaties only possible for single vector/point, as already returning a matrix with derivatives at all centers.');
-            end
-            J = this.Ma * this.fSK.getNabla(x, this.Centers.xi)';
+            % See also: kernels.BaseKernel
+            J = this.Ma * (this.Base \ this.fSK.getNabla(x, this.Centers.xi)');
         end
         
         function K = getKernelMatrix(this)
@@ -372,6 +369,28 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
                 fclose(fh);
             end
         end
+        
+        function res = test_getStateJacobianInstance(this)
+            n = 5;
+            xdim = size(this.Centers.xi,1);
+            meanx = mean(this.Centers.xi,2);
+            rs = RandStream('mt19937ar','Seed',round(rand*1000));
+            allX = bsxfun(@plus,meanx,rs.rand(xdim,n));
+            allX = [this.Centers.xi(:,1) allX];
+            res = true;
+            for k = 1:n
+                x = allX(:,k);
+                dx = ones(xdim,1)*sqrt(eps(class(x))).*max(abs(x),1);
+                X = repmat(x,1,xdim);
+                Jc = (this.evaluate(X+diag(dx))-this.evaluate(X))*diag(1./dx);
+                J = this.getStateJacobian(x);
+                maxrel = max(max(abs((J-Jc)./Jc)));
+                if maxrel > 1e-2
+                    fprintf('%s: Max relative error: %g\n',class(this.Kernel),maxrel);
+                    res = false;
+                end
+            end
+        end
     end
     
     %% Getter & Setter
@@ -455,6 +474,37 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
             c = A.clone;
             c.Centers.xi = [A.Centers.xi B.Centers.xi];
             c.Ma = [A.Ma sgn*B.Ma];
+        end
+    end
+    
+    methods(Static)
+        function res = test_getStateJacobian
+            rs = RandStream('mt19937ar','Seed',0);
+            ke = kernels.KernelExpansion;
+            k1 = kernels.GaussKernel(1);
+            k2 = kernels.Wendland;
+            
+            s = [1 1 2 2 3 3];
+            d = [1 20 1 20 1 20];
+            gam = 4 + (1:6);
+            n = 6;
+            nc = round(rs.rand(1,6)*100);
+            
+            res = true;
+            for k = 1:n
+                ke.Centers.xi = rs.rand(d(k),nc(k));
+                ke.Ma = rs.rand(d(k)+1,nc(k));
+                
+                k1.Gamma = gam(k);
+                ke.Kernel = k1;
+                res = res & ke.test_getStateJacobianInstance;
+                
+                k2.Gamma = gam(k);
+                k2.d = d(k);
+                k2.k = s(k);
+                ke.Kernel = k2;
+                res = res & ke.test_getStateJacobianInstance;
+            end
         end
     end
     

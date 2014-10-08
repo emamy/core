@@ -28,6 +28,11 @@ classdef Wendland < kernels.ARBFKernel
         co;
         polystr;
         polyfun;
+        polystrD1 = {...
+                '@(r)(l+1)' ...
+                '@(r)2*(l^2+4*l+3)*r/3+(l+2)' ...
+                '@(r)(3*(l^3+9*l^2+23*l+15)*r.^2 + 2*(6*l^2+36*l+45)*r)/15+(l+3)'};
+        polyfunD1;
     end
     
     methods
@@ -51,18 +56,33 @@ classdef Wendland < kernels.ARBFKernel
         
         function Kxy = evaluateScalar(this, r)
             error('not implemented');
-            rp = max(1-r,0);
-            %rp = (1-r).*(r <= 1);
-            
-            p = 1;
-            if (this.fk > 0)
-                p = this.polyfun(r);
-            end
-            Kxy=(rp.^this.expo).*p;
+%             rp = max(1-r,0);
+%             %rp = (1-r).*(r <= 1);
+%             
+%             p = 1;
+%             if (this.fk > 0)
+%                 p = this.polyfun(r);
+%             end
+%             Kxy=(rp.^this.expo).*p;
         end 
         
         function Nabla = getNabla(this, x, y)
-            error('not implemented');
+            % Method for first derivative evaluation
+            if ~isempty(this.fP)
+                error('Not yet implemented correctly.');
+            end
+            r = sqrt(this.getSqDiffNorm(x, y))/this.Gamma;
+            rp = max(1-r, 0);
+            p = 1;
+            dp = 0;
+            if (this.fk > 0)
+                p = this.polyfun(r);
+                dp = this.polyfunD1(r);
+            end
+            hlp = (-this.expo*(rp.^(this.expo-1)).*p + (rp.^this.expo).*dp)./(r*this.Gamma^2);
+            % For exact center matches r=0, so we would have inf/-infs
+            hlp(~isfinite(hlp)) = 0;
+            Nabla = bsxfun(@times,hlp,bsxfun(@minus,x,y));
         end
         
          function dx = evaluateD1(this, r)
@@ -99,6 +119,7 @@ classdef Wendland < kernels.ARBFKernel
             this.polyfun = [];
             if (this.fk > 0)
                 this.polyfun = eval(this.polystr{this.fk});
+                this.polyfunD1 = eval(this.polystrD1{this.fk});
             end
         end
     end
@@ -167,6 +188,13 @@ classdef Wendland < kernels.ARBFKernel
                 pm.done;
             end
             res = true;
+        end
+    end
+    
+    methods(Static,Access=protected)
+        function this = loadobj(this)
+            this = loadobj@kernels.ARBFKernel(this);
+            this.updateCoeffs;
         end
     end
 end

@@ -755,6 +755,15 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             W = V;
         end
         
+        function [t,y,mu,in,ct] = getSimCacheTrajectory(this, nr)
+            [y,mu,in,ct] = this.Data.SimCache.getTrajectoryNr(nr);
+            this.T = mu(1);
+            this.dt = mu(2);
+            mu = mu(3:end);
+            t = this.Times;
+            this.System.setConfig(mu,in);
+        end
+        
         function file = save(this)
             % Saves this instance inside the data.ModelData.DataDirectory folder using the
             % model's SaveTag if set or "model.mat".

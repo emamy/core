@@ -121,7 +121,8 @@ classdef BaseSolver < KerMorObject
         
         function set.SolverType(this,value)
             if ~isa(value,'solvers.SolverTypes')
-                error('Solver type must be a solvers.SolverTypes')
+%                 error('Solver type must be a solvers.SolverTypes')
+                  value = solvers.SolverTypes.Unknown;
             end
             this.SolverType = value;
         end
