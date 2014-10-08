@@ -458,6 +458,9 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                 mua = repmat(mua,1,size(xa,2));
             end
             res = true;
+            JSP = this.JSparsityPattern;
+            haspattern = ~isempty(JSP);
+            zero = ~JSP;
             for i = 1:size(xa,2)
                 x = xa(:,i); t = ta(:,i);
                 this.prepareSimulation(mua(:,i))
@@ -475,71 +478,85 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                         pi.step;
                     end
                     
+                    pm = PlotManager;
+                    pm.LeaveOpen = true;
+                    if haspattern && any(J(zero(:,pos)))
+                        warning('Jacobian Pattern mismatch between given and finite-difference version!');
+                        ax = pm.nextPlot('','Nonzero positions');%#ok
+                        errpos = zero(:,pos) & logical(J);
+                        spy(errpos);
+                        [rows,columns] = find(errpos)%#ok
+                    end
+                    
                     iszero = J == 0;
                     diff = abs(J-Jc(:,pos));
-                    Jc = full(Jc);
-                    abserr = max(diff(:));
-                    absmeanmagnitude = mean(log10(abs(J(~iszero))));
-                    meanreldiff = diff / (10^absmeanmagnitude);
-                    maxmeanrelerr = max(max(meanreldiff));
+                    reldiff = abs((J-Jc(:,pos))./J);
                     
-                    pm = PlotManager(false,1,2);
-                    pm.LeaveOpen = true;
-                    ax = pm.nextPlot('','FD-Jacobian');
-                    spy(J);
-                    ax = pm.nextPlot('','Analytic Jacobian');
-                    spy(Jc);
-                    ax = pm.nextPlot('','Difference > 1');
-                    spy(diff>abserr/100);
-                    
-                    % Check if mean relative error is greater than
-                    % tolerance
-                    if maxmeanrelerr >= 1e-3
-                        res = false;
-                        fprintf('Failed at test vector %d. Max absolute error %g, mean magnitude relative error %g (mean magnitude: %g i.e. log10-avg value: %g)\n',i,abserr,maxmeanrelerr,absmeanmagnitude,10^absmeanmagnitude);
-                    else
-                        reltol = 1e-5;
-                        
-                        % Continue with pointwise relative error
-                        pointwisereldiff = abs(diff./J);
-                        % Remove those where the computed finite difference
-                        % jacobian is exactly zero
-                        pointwisereldiff(iszero) = 0;
-                        % Remove difference values, for which the finite
-                        % difference jacobian has values smaller than
-                        % 5e-7 and the corresponding values of the
-                        % given jacobian are even 4 orders of magnitude
-                        % smaller
-                        hlp = (abs(Jc) < 1e-4*abs(J)) & (abs(J) < 1e-6);
-                        pointwisereldiff(hlp) = 0;
-                        
-                        [pointwisereldiff, idx] = sort(pointwisereldiff(:),'descend');
-                        num = length(find(pointwisereldiff > reltol));
-                        maxpwrelerr = pointwisereldiff(1); 
-                        
-                        dispnum = min(20,num);
-%                         dispnum = num;
-                        [posi,posj] = ind2sub(size(J), idx(1:dispnum));
-                        indic = sprintf('%d, ',posi);
-                        indjc = sprintf('%d, ',posj);
-                        vals = sprintf('%g, ',pointwisereldiff(1:dispnum));
-                        Jvals = sprintf('%g, ',J(idx(1:dispnum)));
-                        Jcvals = sprintf('%g, ',full(Jc(idx(1:dispnum))));
-                        maxJval = max(abs(J(idx(1:num))));
-                        % Check if/where the pointwise relative error is greater
-                        % than the tolerance
-                        if maxpwrelerr >= reltol;
-                            if abserr > 1e-6
-                                res = false;
-                                fprintf('Failed. Max absolute error %g >= %g\n',abserr,1e-6);
-                            elseif maxJval > reltol
-                                res = false;
-                                fprintf('Failed. Some points with relative error >= %g have jacobian absolute values >= %g \n',reltol,maxJval);
-                            end
-                            fprintf(2,'Max absolute error %g, max relative %g, %d are >= %g pointwise tolerance (all <= %g <= %g).\n',abserr,maxpwrelerr,num,reltol,maxJval, reltol);
-                            fprintf('Max errors: %s\nJFD: %s\nJ: %s\nRows: %s\nCols: %s\n',vals,Jvals,Jcvals,indic,indjc);
-                        end
+                    d = diff(~iszero);
+                    r = reldiff(~iszero);
+                    [r, idx] = sort(r,'descend');
+                    d = d(idx);
+                    pos = find(r < 1e-2,1);
+                    if ~isempty(pos)
+                        ax = pm.nextPlot('','Relative errors larger than 1e-2\nCorresponding absolute difference');%#ok
+                        ax = plotyy(1:pos,r(1:pos),1:pos,d(1:pos),'plot');
+                        axis(ax,'tight');
                     end
+                    
+                    abserr = max(diff(:));
+                    
+                    pm2 = PlotManager(false,1,2);
+                    pm2.LeaveOpen = true;
+                    ax = pm2.nextPlot('','FD-Jacobian');%#ok
+                    spy(J);
+                    ax = pm2.nextPlot('','Analytic Jacobian');%#ok
+                    spy(Jc);
+                    ax = pm.nextPlot('',sprintf('Points greater than ten percent\nof the max abs error %g',abserr));%#ok
+                    spy(diff>abserr/10);
+                    pm.done;
+                    pm2.done;
+                   
+%                     reltol = 1e-5;
+%                     
+%                     % Continue with pointwise relative error
+%                     pointwisereldiff = abs(diff./J);
+%                     % Remove those where the computed finite difference
+%                     % jacobian is exactly zero
+%                     pointwisereldiff(iszero) = 0;
+%                     % Remove difference values, for which the finite
+%                     % difference jacobian has values smaller than
+%                     % 5e-7 and the corresponding values of the
+%                     % given jacobian are even 4 orders of magnitude
+%                     % smaller
+%                     hlp = (abs(Jc) < 1e-4*abs(J)) & (abs(J) < 1e-6);
+%                     pointwisereldiff(hlp) = 0;
+%                     
+%                     [pointwisereldiff, idx] = sort(pointwisereldiff(:),'descend');
+%                     num = length(find(pointwisereldiff > reltol));
+%                     maxpwrelerr = pointwisereldiff(1);
+%                     
+%                     dispnum = min(20,num);
+%                     %                         dispnum = num;
+%                     [posi,posj] = ind2sub(size(J), idx(1:dispnum));
+%                     indic = sprintf('%d, ',posi);
+%                     indjc = sprintf('%d, ',posj);
+%                     vals = sprintf('%g, ',pointwisereldiff(1:dispnum));
+%                     Jvals = sprintf('%g, ',J(idx(1:dispnum)));
+%                     Jcvals = sprintf('%g, ',full(Jc(idx(1:dispnum))));
+%                     maxJval = max(abs(J(idx(1:num))));
+%                     % Check if/where the pointwise relative error is greater
+%                     % than the tolerance
+%                     if maxpwrelerr >= reltol;
+%                         if abserr > 1e-6
+%                             res = false;
+%                             fprintf('Failed. Max absolute error %g >= %g\n',abserr,1e-6);
+%                         elseif maxJval > reltol
+%                             res = false;
+%                             fprintf('Failed. Some points with relative error >= %g have jacobian absolute values >= %g \n',reltol,maxJval);
+%                         end
+%                         fprintf(2,'Max absolute error %g, max relative %g, %d are >= %g pointwise tolerance (all <= %g <= %g).\n',abserr,maxpwrelerr,num,reltol,maxJval, reltol);
+%                         fprintf('Max errors: %s\nJFD: %s\nJ: %s\nRows: %s\nCols: %s\n',vals,Jvals,Jcvals,indic,indjc);
+%                     end
                 end
                 if ~gpi && steps > 1
                     pi.stop;
