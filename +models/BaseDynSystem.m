@@ -286,8 +286,8 @@ classdef BaseDynSystem < KerMorObject
         end
     
         function odefun = getODEFun(this)
-            odefun = @this.ODEFun;
-            return;
+%             odefun = @this.ODEFun;
+%             return;
             % Determine correct ODE function (A,f,B combination)
             str = {};
             if ~isempty(this.A)
@@ -303,7 +303,8 @@ classdef BaseDynSystem < KerMorObject
         end
         
         function dx = ODEFun(this,t,x)
-            % Determine correct ODE function (A,f,B combination)
+            % Debug variant for single evaluation. Commented in function
+            % above.
             dx = this.A.evaluate(x, t);
             dx = dx + this.f.evaluate(x, t);
 %             dx = this.f.evaluate(x, t);

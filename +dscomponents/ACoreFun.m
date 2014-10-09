@@ -492,14 +492,15 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                     diff = abs(J-Jc(:,pos));
                     reldiff = abs((J-Jc(:,pos))./J);
                     
-                    d = diff(~iszero);
+                    di = diff(~iszero);
                     r = reldiff(~iszero);
                     [r, idx] = sort(r,'descend');
-                    d = d(idx);
+                    di = di(idx);
                     pos = find(r < 1e-2,1);
                     if ~isempty(pos)
-                        ax = pm.nextPlot('','Relative errors larger than 1e-2\nCorresponding absolute difference');%#ok
-                        ax = plotyy(1:pos,r(1:pos),1:pos,d(1:pos),'plot');
+                        ax = pm.nextPlot('',...
+                            sprintf('Relative errors larger than 1e-2\nCorresponding absolute difference'));%#ok
+                        ax = plotyy(1:pos,r(1:pos),1:pos,di(1:pos),'plot');
                         axis(ax,'tight');
                     end
                     
@@ -511,7 +512,8 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                     spy(J);
                     ax = pm2.nextPlot('','Analytic Jacobian');%#ok
                     spy(Jc);
-                    ax = pm.nextPlot('',sprintf('Points greater than ten percent\nof the max abs error %g',abserr));%#ok
+                    ax = pm.nextPlot('',...
+                        sprintf('Points greater than ten percent\nof the max abs error %g',abserr));%#ok
                     spy(diff>abserr/10);
                     pm.done;
                     pm2.done;
