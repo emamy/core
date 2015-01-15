@@ -93,7 +93,8 @@ classdef ModelAnalyzer < handle;
             details.Linferrs = details.L2Errs;
             details.Linftruesolnorm = details.L2Errs;
             details.Times = zeros(num,2); % computation times full/reduced
-            if this.rm.ErrorEstimator.Enabled
+            haveerrest = ~isempty(this.rm.ErrorEstimator) && this.rm.ErrorEstimator.Enabled;
+            if haveerrest
                 details.Estimates = details.L2Errs;
                 details.OutEstimates = details.L2Errs;
                 errs = zeros(8,num);
@@ -119,7 +120,7 @@ classdef ModelAnalyzer < handle;
                 errs(4,pidx) = errs(3,pidx) ./ max(details.L2OutFullsol(pidx,:)); % rel - output
                 errs(5,pidx) = max(details.Linferrs(pidx,:)); %linf linf err
                 errs(6,pidx) = errs(5,pidx) ./ max(details.Linftruesolnorm(pidx,:)); % rel
-                if this.rm.ErrorEstimator.Enabled
+                if haveerrest
                     % Effectivity (w.r.t. L2 error)
                     % State space
                     details.Estimates(pidx,:) = this.rm.ErrorEstimator.StateError;
@@ -237,8 +238,8 @@ classdef ModelAnalyzer < handle;
                     x = this.rm.V*(this.rm.W'*x);
                 end
                 mu = repmat(mu,1,numel(t));
-                fx = fm.Approx.evaluate(x,t,mu);
-                afx = fm.System.f.evaluate(x,t,mu);
+                fx = fm.Approx.evaluateMulti(x,t,mu);
+                afx = fm.System.f.evaluateMulti(x,t,mu);
                 el2 = Norm.L2(fx-afx);
                 elinf = Norm.Linf(fx-afx);
             else
@@ -258,7 +259,7 @@ classdef ModelAnalyzer < handle;
                 end
                 % Full approx
                 atd = fm.Data.ApproxTrainData;
-                afx =  fm.Approx.evaluate(atd.xi.toMemoryMatrix,atd.ti,atd.mui);
+                afx =  fm.Approx.evaluateMulti(atd.xi.toMemoryMatrix,atd.ti,atd.mui);
                 s = 1:size(atd.xi,2);
                 fx = atd.fxi.toMemoryMatrix;
                 nofx = Norm.L2(fx);
@@ -272,7 +273,7 @@ classdef ModelAnalyzer < handle;
                 if ~isempty(fm.Data.V)
                     rd = size(fm.Data.V);
                     % Projected variant
-                    apfx =  this.rm.System.f.evaluate(fm.Data.W'*atd.xi,atd.ti,atd.mui);
+                    apfx =  this.rm.System.f.evaluateMulti(fm.Data.W'*atd.xi,atd.ti,atd.mui);
                     nofx = Norm.L2(afx);
                     pel2 = Norm.L2(afx-fm.Data.V*apfx);
                     h = pm.nextPlot('abs_proj_l2',...
