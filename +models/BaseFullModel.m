@@ -764,18 +764,31 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.System.setConfig(mu,in);
         end
         
-        function file = save(this)
+        function file = save(this, directory, filename)
             % Saves this instance inside the data.ModelData.DataDirectory folder using the
             % model's SaveTag if set or "model.mat".
             %
+            % Parameters:
+            % directory: The directory to save to. @type char @default
+            % data.ModelData.DataDirectory
+            % filename: The filename to use. Will derive from
+            % models.BaseFullModel.SaveTag if not specified, and if the
+            % SaveTag is not set, 'model.mat' will be used. @type char
+            % @default models.BaseFullModel.SaveTag
+            %
             % @new{0,7,dw,2013-05-28} Added this method
-            if ~isempty(this.SaveTag)
-                filename = this.SaveTag;
-            else
-                warning('KerMor:NoSaveTag','No SaveTag set. Using default "model.mat"');
-                filename = 'model.mat';
+            if nargin < 3
+                if ~isempty(this.SaveTag)
+                    filename = this.SaveTag;
+                else
+                    warning('KerMor:NoSaveTag','No SaveTag set. Using default "model.mat"');
+                    filename = 'model.mat';
+                end
             end
-            file = fullfile(this.Data.DataDirectory,filename);
+            if nargin < 2
+                directory = this.Data.DataDirectory;
+            end
+            file = fullfile(directory,filename);
             m = this; %#ok (renaming 
             save(file,'m');
         end

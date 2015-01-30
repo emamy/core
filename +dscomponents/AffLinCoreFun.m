@@ -157,7 +157,9 @@ classdef AffLinCoreFun < dscomponents.ACoreFun & general.AffParamMatrix ...
             mu = ones(1,100);
             if ~this.TimeDependent
                 this.TimeDependent = ~all(this.cfun(0,mu) == this.cfun(Inf,mu));
-                fprintf('AffLinCoreFun: Guessed time-dependency to %d.\n',this.TimeDependent);
+                if KerMor.App.Verbose > 1
+                    fprintf('AffLinCoreFun: Guessed time-dependency to %d.\n',this.TimeDependent);
+                end
             end
         end
         
