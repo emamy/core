@@ -26,7 +26,7 @@ classdef FileDataCollection < data.FileData
             % string containing a valid folder. @default A temporary folder within the
             % KerMor.TempDirectory
             if ~usejava('jvm')
-                error('FileTrajectoryData cannot be used as java is not enabled.');
+                error('FileDataCollection cannot be used as java is not enabled.');
             end
             if nargin < 1
                 data_dir = fullfile(KerMor.App.TempDirectory,...
@@ -49,9 +49,9 @@ classdef FileDataCollection < data.FileData
             % Superclass delete removes the folder if empty.
             delete@data.FileData(this);
         end
-    end
+    %end
     
-    methods(Access=protected)
+    %methods(Access=protected)
         function data = getData(this, keydata, varargin)
             % Retrieves data from the collection element of a given key.
             %

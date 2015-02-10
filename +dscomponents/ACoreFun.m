@@ -491,33 +491,33 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                     iszero = J == 0;
                     diff = abs(J-Jc(:,pos));
                     reldiff = abs((J-Jc(:,pos))./J);
-                    
-                    di = diff(~iszero);
-                    r = reldiff(~iszero);
-                    [r, idx] = sort(r,'descend');
-                    di = di(idx);
-                    pos = find(r < 1e-2,1);
-                    if ~isempty(pos)
+                    abserr = max(diff(:));
+                    if KerMor.App.Verbose > 1
+                        di = diff(~iszero);
+                        r = reldiff(~iszero);
+                        [r, idx] = sort(r,'descend');
+                        di = di(idx);
+                        pos = find(r < 1e-2,1);
+                        if ~isempty(pos)
+                            ax = pm.nextPlot('',...
+                                sprintf('Relative errors larger than 1e-2\nCorresponding absolute difference'));%#ok
+                            ax = plotyy(1:pos,r(1:pos),1:pos,di(1:pos),'plot');
+                            axis(ax,'tight');
+                        end
+                        
+                        pm2 = PlotManager(false,1,2);
+                        pm2.LeaveOpen = true;
+                        ax = pm2.nextPlot('','FD-Jacobian');%#ok
+                        spy(J);
+                        ax = pm2.nextPlot('','Analytic Jacobian');%#ok
+                        spy(Jc);
                         ax = pm.nextPlot('',...
-                            sprintf('Relative errors larger than 1e-2\nCorresponding absolute difference'));%#ok
-                        ax = plotyy(1:pos,r(1:pos),1:pos,di(1:pos),'plot');
-                        axis(ax,'tight');
+                            sprintf('Points greater than ten percent\nof the max abs error %g',abserr));%#ok
+                        spy(diff>abserr/10);
+                        pm.done;
+                        pm2.done;
                     end
                     
-                    abserr = max(diff(:));
-                    
-                    pm2 = PlotManager(false,1,2);
-                    pm2.LeaveOpen = true;
-                    ax = pm2.nextPlot('','FD-Jacobian');%#ok
-                    spy(J);
-                    ax = pm2.nextPlot('','Analytic Jacobian');%#ok
-                    spy(Jc);
-                    ax = pm.nextPlot('',...
-                        sprintf('Points greater than ten percent\nof the max abs error %g',abserr));%#ok
-                    spy(diff>abserr/10);
-                    pm.done;
-                    pm2.done;
-                   
 %                     reltol = 1e-5;
 %                     
 %                     % Continue with pointwise relative error

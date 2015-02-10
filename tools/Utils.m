@@ -656,7 +656,7 @@ classdef Utils
             % success: True if the directory exists or has been created, false otherwise @type
             % logical
             success = true;
-            if exist(dir,'dir') ~= 7
+            if ~isempty(dir) && exist(dir,'dir') ~= 7
                 try
                     mkdir(dir);
                 catch ME
