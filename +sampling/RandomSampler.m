@@ -122,8 +122,8 @@ classdef RandomSampler < sampling.BaseSampler
             m = models.BaseFullModel;
             s = models.BaseDynSystem(m);
             m.System=s;
-            s.addParam('param_a',[0,1],10);
-            s.addParam('param_b',[0,1],10);
+            s.addParam('param_a', 1);
+            s.addParam('param_b', 34);
             %points = rand(2,200);
             points = [0.69*sin(0:0.05:pi/2); 0.69*cos(0:0.05:pi/2)];
             points = [points [0.7*sin(0:0.05:pi/2); 0.7*cos(0:0.05:pi/2)]];

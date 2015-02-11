@@ -37,9 +37,9 @@ m.ODESolver = solvers.ExplEuler;
 
 %% Add some parameters to the system
 % This is pretty random! This is for demonstration purposes only.
-m.System.addParam('P1 (Diffswitch)',[0 1],10);
-m.System.addParam('P2 (Exp)',[0 2],10);
-m.System.addParam('P3 (SomeOtherName)',[-1 1],10);
+m.System.addParam('P1 (Diffswitch)',0,'Range',[0 1]);
+m.System.addParam('P2 (Exp)',1,'Range',[0 2]);
+m.System.addParam('P3 (SomeOtherName)',0,'Range',[-1 1]);
 
 %% Set the basic components
 % Define the affine coefficient functions. They can be time- and parameter

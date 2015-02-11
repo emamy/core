@@ -233,6 +233,12 @@ classdef BaseModel < KerMorObject
         %
         % @type char @default ''
         gitRefOnSave = '';
+        
+        % A struct with fields according to the parameter names and the
+        % parameter indices as their values.
+        %
+        % @type struct
+        ParamIdx;
     end
     
     properties(Access=private)
@@ -264,6 +270,20 @@ classdef BaseModel < KerMorObject
         function delete(this)
            this.ODESolver = [];
            this.System = [];
+        end
+        
+        function initDefaultParameter(this)
+            % Reads the default values of the System's ModelParam list and
+            % initializes the BaseModel.DefaultMu with it.
+            mu = zeros(this.System.ParamCount,1);
+            p = struct;
+            for k = 1:this.System.ParamCount
+                mu(k) = this.System.Params(k).Default;
+                name = regexprep(this.System.Params(k).Name,'[^A-Za-z0-9_]', '_');
+                p.(name) = k;
+            end
+            this.DefaultMu = mu;
+            this.ParamIdx = p;
         end
         
         function [t, y, sec, x] = simulate(this, mu, inputidx)

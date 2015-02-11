@@ -289,8 +289,8 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             
             s = models.BaseDynSystem(m);
             s.B = [];
-            s.addParam('mu1',[0 1],4);
-            s.addParam('mu2',[0 1],5);
+            s.addParam('mu1',.5,'Range',[0 1],'Desired',4);
+            s.addParam('mu2',.6,'Range',[0 1],'Desired',5);
             s.x0 = dscomponents.ConstInitialValue(rand(dim,1)*5);
             s.MaxTimestep = dt;
             m.System = s;

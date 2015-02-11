@@ -45,6 +45,13 @@ classdef ModelParam < handle
         %
         % @type char @default 'lin'
         Spacing = 'lin';
+        
+        % The default value of this parameter.
+        %
+        % Must be passed to constructor.
+        %
+        % @type double
+        Default;
     end
     
     properties(Dependent)
@@ -66,27 +73,35 @@ classdef ModelParam < handle
     end
     
     methods
-        function this = ModelParam(name, range, desired, spacing)
+        function this = ModelParam(name, default, varargin)
             % Creates a new model parameter.
             %
-            % Paramters:
+            % Parameters:
             % name: Parameter name. @type char
-            % range: Can be either a scalar or a 1x2 double vector. @type
+            % default: The default value @type double
+            % varargin: Extra specifications
+            % Range: Can be either a scalar or a 1x2 double vector. @type
             % double
-            % desired: The desired number for GridSampling @type integer
-            % spacing: The intended sample spacing over the range @type
+            % Desired: The desired number for GridSampling @type integer
+            % Spacing: The intended sample spacing over the range @type
             % char @default 'lin'
             %
             % If an argument is specified, all have to be specified. This
             % is only done to enable creation of empty ModelParam-instances
             % for cell arrays, for example.
             
-            if nargin > 0
-                this.Name = name;
-                this.Range = range;
-                this.Desired = desired;
-                this.Spacing = spacing;
-            end
+            this.Name = name;
+            this.Default = default;
+            
+            i = inputParser;
+            i.addParamValue('Desired',1);
+            i.addParamValue('Range',[default * .9 default*1.1]);
+            i.addParamValue('Spacing','lin');
+            i.parse(varargin{:})
+            r = i.Results;            
+            this.Desired = r.Desired;
+            this.Range = r.Range;
+            this.Spacing = r.Spacing;
         end
         
         function set.Name(this, value)
@@ -112,6 +127,13 @@ classdef ModelParam < handle
                 error('Desired must be a positive integer greater than zero.');
             end
             this.Desired = value;
+        end
+        
+        function set.Default(this, value)
+            if isempty(value) || ~isscalar(value)
+                error('Default must be a scalar double');
+            end
+            this.Default = value;
         end
         
         function set.Spacing(this, value)

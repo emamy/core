@@ -69,10 +69,10 @@ classdef BaseSampler < KerMorObject
             m = models.BaseFullModel;
             s = models.BaseDynSystem(m);
             m.System=s;
-            s.addParam('param_a',[0,1],10);
-            s.addParam('param_b',[0,1],10);
-            s.addParam('param_c',[0,1],10);
-            s.addParam('param_d',[0,1],10);
+            s.addParam('param_a',.5);
+            s.addParam('param_b',1);
+            s.addParam('param_c',0,'Range',[0,1]);
+            s.addParam('param_d',2);
             
             m.TrainingParams = [1 3];
             m.DefaultMu = rand(4,1);

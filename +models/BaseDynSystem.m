@@ -230,7 +230,7 @@ classdef BaseDynSystem < KerMorObject
             % to reduced model computation.
             rsys = models.ReducedSystem(rmodel);
         end
-       
+        
         function setConfig(this, mu, inputidx)
             % Sets the dynamical system's configuration
             %
@@ -317,7 +317,7 @@ classdef BaseDynSystem < KerMorObject
 %                 B(pos(end)),pos(end));
         end
         
-        function p = addParam(this, name, range, desired, spacing)
+        function p = addParam(this, name, default, varargin)
             % Adds a parameter with the given values to the parameter
             % collection of the current dynamical system.
             %
@@ -337,52 +337,11 @@ classdef BaseDynSystem < KerMorObject
             % p: The new ModelParam instance. @type ModelParam
             % 
             % See also: ModelParam setParam
-            
-            if nargin < 5
-                spacing = 'lin';
-                if nargin < 4
-                    desired = 1;
-                end
-            end
             if ~isempty(this.Params) && ~isempty(find(strcmpi(name,{this.Params(:).Name}),1))
                 error('Parameter with name %s already exists. Use setParam instead.',name);
             end
-            p = data.ModelParam(name, range, desired, spacing);
+            p = data.ModelParam(name, default, varargin{:});
             this.Params(end+1) = p;
-        end
-        
-        function p = setParam(this, name, range, desired)
-            % Sets values for a parameter with the name "name".
-            % If no such parameter exists a new one is created using the
-            % specified name and values.
-            %
-            % Parameters:
-            % name: The name of the Parameter
-            % range: The range of the Parameter. Can be either a scalar or
-            % a 1x2 double vector.
-            % desired: The desired number of samples for that parameter.
-            % @type integer @default 1
-            %
-            % Return values:
-            % p: The new ModelParam instance. @type ModelParam
-            %
-            % See also: addParam
-            
-            if nargin < 4
-                desired = 1;
-            end
-            if ~isempty(this.Params)
-                pidx = this.getParamIndexFromName(name);
-                if ~isempty(pidx)
-                    this.Params(pidx).Range = range;
-                    if ~isempty(desired)
-                        this.Params(pidx).Desired = desired;
-                    end
-                    p = this.Params(pidx);
-                    return;
-                end
-            end
-            p = this.addParam(name, range, desired);
         end
         
         function pidx = getParamIndexFromName(this, paramname)
@@ -394,9 +353,6 @@ classdef BaseDynSystem < KerMorObject
                 error('Parameter paramname must be a char array');
             end
             pidx = find(strcmpi(paramname,{this.Params(:).Name}),1);
-%             if isempty(pidx)
-%                 error('No parameter for name "%s" found.',paramname);
-%             end
         end
         
         function str = getParamInfo(this, mu)

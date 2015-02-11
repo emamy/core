@@ -47,9 +47,9 @@ s.Inputs{2} = @(t)sin(4*t); % Function 2: some sin(t)
 s.Inputs = s.Inputs(1:s.testinputs);
 
 % Used Parameter Space
-s.params(1) = struct('Name', 'P1', 'MinVal', -1, 'MaxVal', 1, 'Desired', 10);
-s.params(2) = struct('Name', 'P2', 'MinVal', 2, 'MaxVal', 3, 'Desired', 5);
-s.params(3) = struct('Name', 'P3', 'MinVal', 0, 'MaxVal', 10, 'Desired', 6);
+s.params(1) = struct('Name', 'P1', 'MinVal', -1, 'MaxVal', 1, 'Desired', 10, 'Default', 0);
+s.params(2) = struct('Name', 'P2', 'MinVal', 2, 'MaxVal', 3, 'Desired', 5, 'Default', 2.5);
+s.params(3) = struct('Name', 'P3', 'MinVal', 0, 'MaxVal', 10, 'Desired', 6, 'Default', 5);
 s.params = s.params(1:s.testparams);
 
 % Input conversion

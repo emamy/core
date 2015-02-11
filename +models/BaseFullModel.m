@@ -973,7 +973,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             
             m.System.f = af;
             m.System.x0 = dscomponents.ConstInitialValue(sin(1:4)');
-            m.System.addParam('test',[0 1],10);
+            m.System.addParam('test',.5,'Range',[0 1],'Desired',10);
             m.System.MaxTimestep = m.dt/2;
             
             m.offlineGenerations;
@@ -1062,7 +1062,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             s.x0 = ts.x0_p;
             for idx = 1:length(ts.params)
                 p = ts.params(idx);
-                s.addParam(p.Name, [p.MinVal p.MaxVal], p.Desired);
+                s.addParam(p.Name, p.Default, 'Range', [p.MinVal p.MaxVal], 'Desired', p.Desired);
             end
             m.simulate(m.getRandomParam);
             m.offlineGenerations;
@@ -1097,7 +1097,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             s.x0 = ts.x0_p;
             for idx = 1:length(ts.params)
                 p = ts.params(idx);
-                s.addParam(p.Name, [p.MinVal p.MaxVal], p.Desired);
+                s.addParam(p.Name, p.Default, 'Range', [p.MinVal p.MaxVal], 'Desired', p.Desired);
             end
             s.Inputs = ts.Inputs;
             m.simulate(m.getRandomParam, 1);
@@ -1130,7 +1130,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             s.x0 = ts.x0_p;
             for idx = 1:length(ts.params)
                 p = ts.params(idx);
-                s.addParam(p.Name, [p.MinVal p.MaxVal], p.Desired);
+                s.addParam(p.Name, p.Default, 'Range', [p.MinVal p.MaxVal], 'Desired', p.Desired);
             end
             m.simulate(m.getRandomParam);
             m.offlineGenerations;
@@ -1165,7 +1165,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             s.x0 = ts.x0_p;
             for idx = 1:length(ts.params)
                 p = ts.params(idx);
-                s.addParam(p.Name, [p.MinVal p.MaxVal], p.Desired);
+                s.addParam(p.Name, p.Default, 'Range', [p.MinVal p.MaxVal], 'Desired', p.Desired);
             end
             s.Inputs = ts.Inputs;
             m.simulate(m.getRandomParam,1);
