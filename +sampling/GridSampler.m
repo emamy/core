@@ -27,7 +27,7 @@ classdef GridSampler < sampling.BaseSampler
             
             nparams = length(params);
             ranges = cell(nparams,1);
-            
+
             % Create linearly spaced parameter value ranges
             for pidx=1:nparams
                 % Cater for single parameters 
@@ -38,19 +38,48 @@ classdef GridSampler < sampling.BaseSampler
                         ranges{pidx} = linspace(params(pidx).MinVal,...
                         params(pidx).MaxVal,...
                         params(pidx).Desired);
-                    else
-                        % Avoid NaNs due to log10(0)
+                    elseif strcmp(params(pidx).Spacing,'log')
+                        % TODO? modify if statements 
+                        % TODO? uneven params(pidx).Desired)
                         if params(pidx).MinVal == 0
-                            m = -16; % take double precision zero
+                            % then, NaNs due to log10(0) have to be avoided, further MaxVal \neq 0
+                            m = -16;    % take double precision zero
+                            M = log10(params(pidx).MaxVal);
+                            ranges{pidx} = logspace(m, M, params(pidx).Desired);
+                        elseif params(pidx).MaxVal == 0
+                            % then, NaNs due to log10(0) have to be avoided, further MinVal \neq 0
+                            m = log10(params(pidx).MinVal);
+                            M = -16;    % take double precision zero
+                            ranges{pidx} = logspace(m, M, params(pidx).Desired);
+                        elseif params(pidx).MinVal < 0
+                            % need to split the interval into -[10^ml,10^Ml] [10^mr,10^Mr], 
+                            % as no logarithm of negative number exists
+                            ml = log10(abs(params(pidx).MinVal));
+                            Mr = log10(params(pidx).MaxVal);
+                            if ml == Mr
+                                divl = params(pidx).Desired/2;
+                                divr = params(pidx).Desired/2;
+                                Ml = ml - divl + 1;
+                                mr = Mr - divr + 1;
+                            elseif ml < Mr
+                                diff = Mr - ml;
+                                divl = (params(pidx).Desired - diff)/2;
+                                divr = divl + diff;
+                                Ml = ml - divl + 1;
+                                mr = Mr - divr +1;
+                            elseif ml > Mr
+                                diff = ml - Mr;
+                                divr = (params(pidx).Desired - diff)/2;
+                                divl = divr + diff;
+                                Ml = ml - divl + 1;
+                                mr = Mr - divr +1;
+                            end
+                            ranges{pidx} = [-logspace(ml, Ml, divl) logspace(mr, Mr, divr)];
                         else
                             m = log10(params(pidx).MinVal);
-                        end
-                        if params(pidx).MaxVal == 0
-                            M = -16;
-                        else
                             M = log10(params(pidx).MaxVal);
+                            ranges{pidx} = logspace(m, M, params(pidx).Desired);
                         end
-                        ranges{pidx} = logspace(m, M, params(pidx).Desired);
                     end
                 end
             end
