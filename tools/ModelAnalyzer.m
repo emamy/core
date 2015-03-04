@@ -251,7 +251,8 @@ classdef ModelAnalyzer < handle;
             % Computes the approximation training error on the full
             % system's trajectory for given mu and inputidx.
             
-            fm = this.rm.FullModel;
+            rm = this.rm;
+            fm = rm.FullModel;
             
             if ~isempty(fm.Approx)
                 if nargin < 2
@@ -270,12 +271,12 @@ classdef ModelAnalyzer < handle;
                 h = pm.nextPlot('rel_l2','Relative L2 error','x_i','L2');
                 LogPlot.cleverPlot(h,s,el2./nofx);
                 
-                if ~isempty(fm.Data.V)
-                    rd = size(fm.Data.V);
+                if ~isempty(rm.V)
+                    rd = size(rm.V);
                     % Projected variant
-                    apfx =  this.rm.System.f.evaluateMulti(fm.Data.W'*atd.xi,atd.ti,atd.mui);
+                    apfx =  this.rm.System.f.evaluateMulti(rm.W'*atd.xi,atd.ti,atd.mui);
                     nofx = Norm.L2(afx);
-                    pel2 = Norm.L2(afx-fm.Data.V*apfx);
+                    pel2 = Norm.L2(afx-rm.V*apfx);
                     h = pm.nextPlot('abs_proj_l2',...
                         sprintf('Absolute L2 error projected vs full approx, %d/%d dims',rd(2),rd(1)),...
                         'x_i','L2');

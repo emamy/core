@@ -109,7 +109,11 @@ classdef FileDataCollection < data.FileData
         end
         
         function res = hasData(this, keydata)
-            res = this.hm.containsKey(Utils.getHash(keydata));
+            key = Utils.getHash(keydata);
+            % Check in hash first
+            res = this.hm.containsKey(key);
+            % Lazy check for file existence if not in hashmap but on disk
+            res = res || exist(fullfile(this.DataDirectory,[key '.mat']),'file') == 2;
         end
         
         function addData(this, keydata, data)
