@@ -45,11 +45,14 @@ classdef RotationDecorator < spacereduction.BaseSpaceReducer
             if isempty(s)
                 error('Rotation decorator must be given an underlying space reduction class.');
             end
+            if ~strcmp(s.ReducableDims,':')
+                error('Rotation decorator not implemented for partial reduction (ReducableDims != :)');
+            end
             this.sp = s;
             this.registerProps('Degree','Dims');
         end
         
-        function [V,W] = generateReducedSpace(this, model)
+        function [V,W] = generateReducedSpaceImpl(this, model)
             % Computes the subspace given by the underlying subspace reduction class but then
             % rotates for Dims times between two randomly chosen axis
             %

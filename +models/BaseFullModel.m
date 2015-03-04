@@ -546,7 +546,14 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             time = tic;
             if ~isempty(this.SpaceReducer)
                 fprintf('Computing reduced space...\n');
-                [V, W] = this.SpaceReducer.generateReducedSpace(this);
+                s = this.SpaceReducer;
+                sys = this.System;
+                if ~isempty(sys.AlgebraicConditionDoF)
+                    reducable = 1:sys.StateSpaceDimension;
+                    reducable(sys.AlgebraicConditionDoF) = [];
+                    s.ReducableDims = reducable;
+                end
+                [V, W] = s.generateReducedSpace(this);
                 this.Data.V = data.FileMatrix(V,'Dir',this.Data.DataDirectory);
                 if isempty(W) 
                     W = computeWfromV(this, V);
@@ -659,7 +666,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             % target_dim: The target dimension `d` of the reduced model.
             % Uses the first `d` columns of the projection matrices `V`
             % (and `W` if set, respectively) to create a subspace-projected
-            % reduced model.
+            % reduced model. As the system might be a DAE, the effectively
+            % returned reduced model size will have all algebraic
+            % dimensions added to the targeted size.
             %
             % Return values:
             % reduced: The reduced model created from this full model.
@@ -671,6 +680,9 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             tic;
             if nargin < 2
                 target_dim = size(this.Data.V,2);
+                if ~isempty(this.System.AlgebraicConditionDoF)
+                    target_dim = target_dim - length(this.System.AlgebraicConditionDoF);
+                end
             end
             reduced = models.ReducedModel(this, target_dim);
             time = toc;

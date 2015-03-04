@@ -181,6 +181,18 @@ classdef BaseDynSystem < KerMorObject
         %
         % @type colvec
         StateScaling = 1;
+        
+        % Determines any DoFs that belong to algebraic conditions
+        %
+        % This can be used to tell KerMor that we have a
+        % differential-algebraic equation (DAE). This will cause the
+        % reduction process to exclude those indicated DoFs from
+        % reduction/projection.
+        %
+        % Set as an index vector to denote the respective algebraic dofs.
+        %
+        % @type colvec<integer>
+        AlgebraicConditionDoF;
     end
     
     properties(SetAccess=protected, Transient)
@@ -200,11 +212,22 @@ classdef BaseDynSystem < KerMorObject
         
         % The number of the system's parameters.
         ParamCount;
+        
+        % The model's state space dimension
+        %
+        % Determined using the x0 initial conditions.
+        %
+        % @type integer
+        StateSpaceDimension;
     end
     
     properties(SetAccess=private)
         % The Model this System is attached to.
         Model;
+    end
+    
+    properties(Access=private)
+        statedim;
     end
         
     methods      
@@ -514,7 +537,16 @@ classdef BaseDynSystem < KerMorObject
 %             elseif nargin(value) ~= 1
 %                 error('x0 must take exactly one argument.');
 %             end
+            
             this.x0 = value;
+        end
+        
+        function sdim = get.StateSpaceDimension(this)
+            if isempty(this.statedim)
+                xinit = this.x0.evaluate(this.Model.DefaultMu);
+                this.statedim = size(xinit,1);
+            end
+            sdim = this.statedim;
         end
         
         function value = get.ParamCount(this)

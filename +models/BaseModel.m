@@ -123,11 +123,6 @@ classdef BaseModel < KerMorObject
         % @default false @type logical
         isStatic = false;
         
-        % The default parameter value if none is given
-        %
-        % @type colvec<double> @default []
-        DefaultMu = [];
-        
         % The default input to use if none is given
         %
         % The default is [], so use NO input (even if there are some)
@@ -213,6 +208,11 @@ classdef BaseModel < KerMorObject
         %
         % @default false @type logical
         RealTimePlotting;
+        
+        % The default parameter value if none is given
+        %
+        % @type colvec<double> @default []
+        DefaultMu = [];
     end
     
     properties(SetAccess=private)
@@ -238,7 +238,7 @@ classdef BaseModel < KerMorObject
         % parameter indices as their values.
         %
         % @type struct
-        ParamIdx;
+        %ParamIdx;
     end
     
     properties(Access=private)
@@ -249,6 +249,7 @@ classdef BaseModel < KerMorObject
         fODEs;
         steplistener;
         ctime;
+        fDefMu = [];
     end
     
     methods
@@ -276,14 +277,14 @@ classdef BaseModel < KerMorObject
             % Reads the default values of the System's ModelParam list and
             % initializes the BaseModel.DefaultMu with it.
             mu = zeros(this.System.ParamCount,1);
-            p = struct;
+            %p = struct;
             for k = 1:this.System.ParamCount
                 mu(k) = this.System.Params(k).Default;
-                name = regexprep(this.System.Params(k).Name,'[^A-Za-z0-9_]', '_');
-                p.(name) = k;
+                %name = regexprep(this.System.Params(k).Name,'[^A-Za-z0-9_]', '_');
+                %p.(name) = k;
             end
-            this.DefaultMu = mu;
-            this.ParamIdx = p;
+            this.fDefMu = mu;
+            %this.ParamIdx = p;
         end
         
         function [t, y, sec, x] = simulate(this, mu, inputidx)
@@ -629,14 +630,6 @@ classdef BaseModel < KerMorObject
             % Store the current GIT branch in the object.
             this.gitRefOnSave = KerMor.getGitBranch;
         end
-        
-%         function value = getSimCacheExtra(this)
-%             % Return values:
-%             % value: A column vector with additional values to distinguish
-%             % the simulation from others (internal configurations) @type
-%             % colvec<double>
-%             value = [];
-%         end
     end
     
     methods(Static, Access=protected)
@@ -810,6 +803,20 @@ classdef BaseModel < KerMorObject
                 end
             end
             this.frtp = value;
+        end
+        
+        function set.DefaultMu(this, mu)
+            if size(mu,2) > 1
+                error('Default param must be a column vector');
+            end
+            this.fDefMu = mu;
+        end
+        
+        function mu = get.DefaultMu(this)
+            if isempty(this.fDefMu)
+                this.initDefaultParameter;
+            end
+            mu = this.fDefMu;
         end
     end
 end

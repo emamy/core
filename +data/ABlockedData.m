@@ -24,14 +24,18 @@ classdef ABlockedData < handle
     end
     
     methods
-        function [U, S, V] = getSVD(this, k, Vexclude)
+        function [U, S, V] = getSVD(this, k, Vexclude, targetdims)
             % Computes an SVD on this blockwise matrix `A = USV^T`.
             %
             % Parameters:
             % k: The number of largest singular values and vectors to compute. @type integer
             % @default all
-            % Vexclude: A matrix containing orthonormal columns, whose spanned space is to be
-            % excluded from the SVD. @type matrix<double> @default []
+            % Vexclude: A matrix containing orthonormal columns, whose
+            % spanned space is to be excluded from the SVD. If targetdims
+            % are given, the first dimension must match the targeted
+            % dimension's size. @type matrix<double> @default []
+            % targetdims: The dimensions on which to perform the SVD.
+            % Selects all by default. @type colvec<integer> @default ':'
             %
             % Return values:
             % U: The left-hand side singular vectors `U` of the decomposition `U\Sigma V^T =
@@ -40,21 +44,27 @@ classdef ABlockedData < handle
             % matrix<double>
             % V: The transposed right-hand side singular vectors `V` of the
             % decomposition `U\Sigma V = A`. @type matrix<double>
-            [n, m] = size(this);
-            if nargin < 3
-                Vexclude = [];
-                if nargin < 2
-                    k = min(n,m);
+            if nargin < 4
+                targetdims = ':';
+                if nargin < 3
+                    Vexclude = [];
                 end
             end
-            % Assume full size if k is empty
-            if isempty(k)
+            % Get the correct dimensions if some are to be excluded
+            [n, m] = size(this);
+            if ~ischar(targetdims)
+                % Use the number of target dims for n if not all are used
+                n = length(targetdims);
+            end
+            % Assume full size if k is not set or empty
+            if nargin < 2 || isempty(k)
                 k = min(n,m);
             end
-            % Reduce target dimension if remaining dimension is smaller more dimensions are to be excluded
-            % than 
+            % Reduce target dimension if remaining dimension is smaller
             if ~isempty(Vexclude)
                 k = min(k, min(n,m)-size(Vexclude,2));
+            else
+                k = min(k, min(n,m));
             end
             
             % Fetch case for one block only
@@ -63,6 +73,7 @@ classdef ABlockedData < handle
                 S = [];
             elseif this.getNumBlocks == 1
                 Bl = this.getBlock(1);
+                Bl = Bl(targetdims,:);
                 % Subtract exclude space if wanted
                 if ~isempty(Vexclude)
                     Bl = Bl - Vexclude*(Vexclude'*Bl);
@@ -78,7 +89,7 @@ classdef ABlockedData < handle
                     fprintf('ABlockedData: Computing %d-partial SVD on %dx%d matrix (%d blocks)...\n',...
                         k,n,m,this.getNumBlocks);
                 end
-                vb = KerMor.App.Verbose > 0 && n*m > 50000 && this.getNumBlocks > 2;
+                vb = KerMor.App.Verbose > 1 && n*m > 50000 && this.getNumBlocks > 2;
                 cnt = 0;
                 % If an exclude space is given, choose initial value outside of Vexclude
                 if ~isempty(Vexclude)
@@ -97,7 +108,17 @@ classdef ABlockedData < handle
             end
             S = sqrt(S(sel,sel));
             if nargout > 2
-                V = (U/S)'*this;
+                % Treat this special case here instead of cloning everything
+                if ~ischar(targetdims)
+                    error('Fixme: Not correctly implemented yet.');
+                    [nfull,~] = size(this);
+                    mat = eye(nfull);
+                    mat(targetdims,targetdims) = (U/S)';
+                    V = mat*this;
+                    V = V(targetdims,:);
+                else
+                    V = (U/S)'*this;
+                end
             end
             
             function w = mult(v)
@@ -113,6 +134,7 @@ classdef ABlockedData < handle
                     end
                     parfor j = 1:nb
                         B = this.getBlock(j);%#ok
+                        B = B(targetdims,:);
                         % Subtract exclude space if wanted
                         if ~isempty(Vexclude)
                             B = B - Vexclude*(Vexclude'*B);
@@ -122,6 +144,7 @@ classdef ABlockedData < handle
                 else               
                     for j = 1:nb
                         B = this.getBlock(j);
+                        B = B(targetdims,:);
                         % Subtract exclude space if wanted
                         if ~isempty(Vexclude)
                             B = B - Vexclude*(Vexclude'*B);

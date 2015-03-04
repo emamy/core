@@ -131,6 +131,26 @@ classdef ReducedModel < models.BaseModel
             elseif isempty(fullmodel.Approx) && isempty(fullmodel.SpaceReducer)
                 error('No reduction methods found on full model. No use in building a reduced model from it.');
             end
+            fd = fullmodel.Data;
+            totalvcols = size(fd.V,2);
+            
+            % Check target_dimension validity
+            algdofs = fullmodel.System.AlgebraicConditionDoF;
+            numalgdofs = length(algdofs);
+            maxdim = totalvcols;
+            extra = '';
+            if ~isempty(algdofs)
+                extra = sprintf('(Have %d AlgebraicConditionDoF)',numalgdofs);
+                maxdim = maxdim - numalgdofs;
+            end
+            
+            % Check for valid subspace size
+            if target_dim > maxdim
+                warning('ReducedModel:build',...
+                    'Target dimension %d larger than effectively available subspace size %d. Using %d. %s',...
+                    target_dim,maxdim,maxdim,extra);
+                target_dim = maxdim;
+            end
             
             disp('Start building reduced model...');
             % IMPORTANT: Assign any model properties that are used during
@@ -157,20 +177,19 @@ classdef ReducedModel < models.BaseModel
             end
             this.G = fullmodel.G;
             
-            % Select the desired first target_dim vectors of the projection matrices
-            fd = fullmodel.Data;
-            if target_dim > size(fd.V,2)
-                warning('ReducedModel:build','Target dimension %d larger than available subspace size %d. Using %d.',...
-                    target_dim,size(fd.V,2),size(fd.V,2));
-                target_dim = size(fd.V,2);
+            Vrows = 1:target_dim;
+            % Add algebraic dofs to projection if present
+            if ~isempty(algdofs)
+                Vrows = [Vrows totalvcols-numalgdofs+1:totalvcols];
             end
+            
             % Only create reduced projection matrices if present at all
             if ~isempty(fd.V)
-                this.V = data.FileMatrix(fd.V(:,1:target_dim),'Dir',fd.DataDirectory);
+                this.V = data.FileMatrix(fd.V(:,Vrows),'Dir',fd.DataDirectory);
             end
             % If petrov-galerkin projection, use W
             if ~isempty(fd.W)
-                this.W = data.FileMatrix(fd.W(:,1:target_dim),'Dir',fd.DataDirectory);
+                this.W = data.FileMatrix(fd.W(:,Vrows),'Dir',fd.DataDirectory);
             end
             
             this.ParamSamples = fullmodel.Data.ParamSamples;

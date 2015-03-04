@@ -50,7 +50,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
         % @default 0.005 @type double
         MinRelImprovement = .005;
         
-        % The maximum subspace size
+        % The maximum subspace size, EXCLUDING any non-reducable dimensions
         %
         % @propclass{alglimit}
         %
@@ -80,28 +80,53 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             this.registerProps('Eps','MinRelImprovement','MaxSubspaceSize','InitialSpace');
         end
         
-        function [V, W] = generateReducedSpace(this, model)
-            md = model.Data.TrajectoryData;
+        function plotSummary(this, pm, context)
+            if nargin < 2
+                pm = PlotManager;
+                pm.LeaveOpen = true;
+                context = 'POD-Greedy';
+            end
+            plotSummary@spacereduction.BaseSpaceReducer(this, pm, context);
+            if ~isempty(this.ErrorImprovements)
+                str = sprintf('%s: Error decay over training data\nEps:%g, MaxSize:%d, FXI: %d, FD: %d, BSpan: %d',...
+                    context,this.Eps,this.MaxSubspaceSize,this.IncludeTrajectoryFxiData,...
+                    this.IncludeFiniteDifferences,this.IncludeBSpan);
+                h = pm.nextPlot('podgreedy_gains',str,'subspace size','Gain');
+                semilogy(h,this.ErrorImprovements,'LineWidth',2);
+            else
+                warning('spacereduction:PODGreedy',...
+                    'Error data empty. Not providing summary.');
+            end
+        end
+        
+    end
+    
+    methods(Access=protected)
+        
+        function [V,W] = generateReducedSpaceImpl(this, model)
+            bdata = model.Data.TrajectoryData;
             
             % Wrap in finite difference adder
             if this.IncludeFiniteDifferences
-                md = data.JoinedBlockData(md, data.FinDiffBlockData(md));
+                bdata = data.JoinedBlockData(bdata, data.FinDiffBlockData(bdata));
             end
             if this.IncludeAxData
-                md = data.JoinedBlockData(md, data.AxBlockData(md, model.System.A, model.scaledTimes));
+                bdata = data.JoinedBlockData(bdata, ...
+                    data.AxBlockData(bdata, model.System.A, model.scaledTimes));
             end
             % Augment block data with fxi values
             if this.IncludeTrajectoryFxiData
                 if isempty(model.Data.TrajectoryFxiData)
                     error('No training fxi data found in ModelData.');
                 end
-                md = data.JoinedBlockData(md, model.Data.TrajectoryFxiData);
+                bdata = data.JoinedBlockData(bdata, model.Data.TrajectoryFxiData);
             end
-            
             
             if KerMor.App.Verbose > 2
                 fprintf('POD-Greedy: Starting subspace computation using %d trajectories...\n',model.Data.TrajectoryData.getNumTrajectories);
             end
+            
+            reducable = this.ReducableDims;
             
             pod = general.POD;
             pod.Value = 1; % MUST stay at 1 or getInitialSpace will fail.
@@ -115,19 +140,19 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
                 fprintf('POD-Greedy: Computing initial space...\n');
             end
             if ~isempty(this.InitialSpace)
-                V = this.InitialSpace;
+                V = this.InitialSpace(reducable,:);
                 if this.IncludeBSpan
-                    V = o.orthonormalize([V md.InputSpaceSpan]);
+                    V = o.orthonormalize([V bdata.InputSpaceSpan(reducable,:)]);
                 end
             elseif this.IncludeBSpan
-                V = model.Data.InputSpaceSpan;
+                V = model.Data.InputSpaceSpan(reducable,:);
             else
-                V = this.getInitialSpace(md, pod);
+                V = this.getInitialSpace(bdata, pod, reducable);
             end
             % Compute initial space errors
             err = [];
             for k=1:size(V,2)
-               [err(end+1), idx] = this.getMaxErr(V(:,1:k), md);%#ok
+               [err(end+1), idx] = this.getMaxErr(V(:,1:k), bdata, reducable);%#ok
             end
             
             cnt = 1; 
@@ -136,11 +161,12 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             olderr = err;
             impr = 1;
             while (err(end) > this.Eps) && cnt < this.MaxSubspaceSize && size(V,2) < ss && impr(end) > this.MinRelImprovement
-                x = md.getBlock(idx); % get trajectory
+                x = bdata.getBlock(idx); % get trajectory
+                x = x(reducable,:);
                 e = x - V*(V'*x);
                 Vn = pod.computePOD(e);
                 V = o.orthonormalize([V Vn]);
-                [err(end+1), idx] = this.getMaxErr(V, md);%#ok
+                [err(end+1), idx] = this.getMaxErr(V, bdata, reducable);%#ok
                 impr(end+1) = (olderr-err(end))/olderr;%#ok
                 olderr = err(end);
                 cnt = cnt+1;
@@ -171,67 +197,13 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             end
             % Galerkin projection!
             W = [];
-        end
+        end        
         
-        function plotSummary(this, pm, context)
-            if nargin < 2
-                pm = PlotManager;
-                pm.LeaveOpen = true;
-                context = 'POD-Greedy';
-            end
-            plotSummary@spacereduction.BaseSpaceReducer(this, pm, context);
-            if ~isempty(this.ErrorImprovements)
-                str = sprintf('%s: Error decay over training data\nEps:%g, MaxSize:%d, FXI: %d, FD: %d, BSpan: %d',...
-                    context,this.Eps,this.MaxSubspaceSize,this.IncludeTrajectoryFxiData,...
-                    this.IncludeFiniteDifferences,this.IncludeBSpan);
-                h = pm.nextPlot('podgreedy_gains',str,'subspace size','Gain');
-                semilogy(h,this.ErrorImprovements,'LineWidth',2);
-            else
-                warning('spacereduction:PODGreedy',...
-                    'Error data empty. Not providing summary.');
-            end
-        end
     end
     
     methods(Access=private)
         
-        function V = getInitialSpace(this, md, pod)
-            % Computes the initial space, which is the first POD mode of
-            % the initial values!
-            
-            n = md.getNumBlocks;
-            x = md.getBlock(1);
-            x0 = x(:,1);
-            if this.ComputeParallel
-                parfor idx=2:n
-                    x = md.getBlock(idx);%#ok
-                    x0 = [x0, x(:,1)];
-                end
-                x0 = unique(x0','rows')';
-            else
-                for idx=2:n
-                    x = md.getBlock(idx);
-                    x = x(:,1);
-                    % Only add nonexisting vectors
-                    if isempty(Utils.findVecInMatrix(x0,x))
-                        x0 = [x0 x];%#ok
-                    end
-                end
-            end
-            if all(x0(:) == 0)
-                if KerMor.App.Verbose > 1
-                    fprintf('Initial values are all zero vectors. Using main POD mode of first block data as initial space.\n');
-                end
-                V = pod.computePOD(md.getBlock(1));
-            elseif size(x0,2) > 1
-                V = pod.computePOD(x0);
-            else
-                V = x0;
-            end
-            V = V / norm(V);
-        end
-        
-        function [maxerr, midx] = getMaxErr(this, V, md)
+        function [maxerr, midx] = getMaxErr(this, V, md, reducable)
             midx = -1;
             maxerr = 0;
             if this.ComputeParallel
@@ -242,6 +214,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
                 err = zeros(1,n);
                 parfor i=1:n
                     x = md.getBlock(i); %#ok<PFBNS>
+                    x = x(reducable,:);
                     hlp = sum(Norm.L2(x - V*(V'*x)));
                     if KerMor.App.Verbose > 4
                        fprintf('POD-Greedy: Error for block %d: %e\n',i,hlp);
@@ -252,6 +225,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             else
                 for k=1:md.getNumBlocks;
                     x = md.getBlock(k);
+                    x = x(reducable,:);
                     e = sum(Norm.L2(x - V*(V'*x)));
                     if maxerr < e
                         maxerr = e;

@@ -25,7 +25,7 @@ classdef ManualReduction < spacereduction.BaseSpaceReducer
             end
         end
         
-        function [V, W] = generateReducedSpace(this, model)%#ok
+        function [V,W] = generateReducedSpaceImpl(this, model)%#ok
             % Simply returns the manually selected values.
             V = this.V;
             W = this.W;

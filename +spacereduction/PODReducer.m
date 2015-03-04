@@ -30,7 +30,25 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & IReduction
     end
         
     methods
-        function [V, W] = generateReducedSpace(this, model)
+         function plotSummary(this, pm, context)
+            plotSummary@spacereduction.BaseSpaceReducer(this, pm, context);
+            if ~isempty(this.SingularValues)
+                str = sprintf('%s: POD singular value decay',context);
+                h = pm.nextPlot('podreducer_singvals',str,...
+                    'subspace size','singular values');
+                semilogy(h,this.SingularValues,'LineWidth',2);
+%                 h = pm.nextPlot('podreducer_projerr',str,...
+%                     'subspace size','projection error');
+%                 semilogy(h,this.SingularValues,'LineWidth',2);
+            else
+                warning('spacereduction:PODReducer',...
+                    'Singular value data empty. Not providing summary.');
+            end
+        end
+    end
+        
+    methods(Access=protected)        
+        function [V,W] = generateReducedSpaceImpl(this, model)
             % Implements the abstract method from BaseSpaceReducer
             
             % Compile all trajectories into a large vector
@@ -52,16 +70,19 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & IReduction
             if this.IncludeFiniteDifferences
                 td = data.FinDiffBlockData(td);
             end
+            
+            reducable = this.ReducableDims;
+            
             Vex = [];
             if this.IncludeBSpan
-                Vex = md.InputSpaceSpan;
+                Vex = md.InputSpaceSpan(reducable,:);
             end
             if this.IncludeInitialSpace
-                is = this.getInitialSpace(md.TrajectoryData);
+                is = this.getInitialSpace(md.TrajectoryData, this, reducable);
                 Vex = [Vex is];
             end
             
-            [V, this.SingularValues] = this.computePOD(td, Vex);
+            [V, this.SingularValues] = this.computePOD(td, Vex, reducable);
             this.ProjectionError = flipud(cumsum(flipud(this.SingularValues)));
 %             if ~isempty(Vex)
 %                 o = general.Orthonormalizer;
@@ -82,56 +103,6 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & IReduction
             end            
             % Galerkin projection
             W = [];
-        end
-        
-        function plotSummary(this, pm, context)
-            plotSummary@spacereduction.BaseSpaceReducer(this, pm, context);
-            if ~isempty(this.SingularValues)
-                str = sprintf('%s: POD singular value decay',context);
-                h = pm.nextPlot('podreducer_singvals',str,...
-                    'subspace size','singular values');
-                semilogy(h,this.SingularValues,'LineWidth',2);
-%                 h = pm.nextPlot('podreducer_projerr',str,...
-%                     'subspace size','projection error');
-%                 semilogy(h,this.SingularValues,'LineWidth',2);
-            else
-                warning('spacereduction:PODReducer',...
-                    'Singular value data empty. Not providing summary.');
-            end
-        end
-    end
-    
-    methods(Access=private)
-        
-        function V = getInitialSpace(this, md)
-            % Computes the initial space, which is the first POD mode of
-            % the initial values!
-            
-            pod = general.POD;
-            pod.Value = 1; % MUST stay at 1 or getInitialSpace will fail.
-            pod.Mode = 'abs';
-            n = md.getNumBlocks;
-            x = md.getBlock(1);
-            x0 = x(:,1);
-            for idx=2:n
-                    x = md.getBlock(idx);
-                    x = x(:,1);
-                    % Only add nonexisting vectors
-                    if isempty(Utils.findVecInMatrix(x0,x))
-                        x0 = [x0 x];%#ok
-                    end
-            end
-            if all(x0(:) == 0)
-                if KerMor.App.Verbose > 1
-                    fprintf('Initial values are all zero vectors. Using main POD mode of first block data as initial space.\n');
-                end
-                V = pod.computePOD(md.getBlock(1));
-            elseif size(x0,2) > 1
-                V = pod.computePOD(x0);
-            else
-                V = x0;
-            end
-            V = V / norm(V);
         end
     end
     

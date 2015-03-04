@@ -1113,6 +1113,19 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             fprintf('Direct SVD time: %g, Transposition time: %g, Transposed SVD time: %g\n',t);
             res = true;
         end
+        
+        function test_RestrictedSVD
+            d = 100;
+            A = data.FileMatrix.getTestPair(d,1000,3);
+            B = data.FileMatrix.getTestPair(d,1000,1);
+            idx = [1 d-1 floor(rand(1,10)*d)]+1;
+            for k = 1:length(idx)
+                [u,s] = B.getSVD(100,[],1:idx(k));
+                fprintf('u_nrows=%d, s_nrows=%d\n',size(u,1),size(s,1));
+                [u,s] = A.getSVD(100,[],1:idx(k));
+                fprintf('u_nrows=%d, s_nrows=%d\n',size(u,1),size(s,1));
+            end
+        end
     end
     
     methods(Static,Access=private)
