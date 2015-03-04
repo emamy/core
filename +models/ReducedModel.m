@@ -129,7 +129,7 @@ classdef ReducedModel < models.BaseModel
             if nargin == 0 || ~isa(fullmodel,'models.BaseFullModel')
                 error('ReducedModel instances require a full model to construct from.');
             elseif isempty(fullmodel.Approx) && isempty(fullmodel.SpaceReducer)
-                errro('No reduction methods found on full model. No use in building a reduced model from it.');
+                error('No reduction methods found on full model. No use in building a reduced model from it.');
             end
             
             disp('Start building reduced model...');
