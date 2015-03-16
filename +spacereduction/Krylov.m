@@ -7,8 +7,8 @@ classdef Krylov < spacereduction.BaseSpaceReducer
     end
     
     methods(Access=protected)
-        function [V,W] = generateReducedSpaceImpl(this, model)
-            
+        function [V,W] = generateReducedSpaceImpl(this, model, subset)
+            error('Implement me!');
             x0 = model.System.x0(this.mu0);
             
             Ax = model.System.f.evaluate(x0,0,this.mu0);

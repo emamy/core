@@ -103,7 +103,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
     
     methods(Access=protected)
         
-        function [V,W] = generateReducedSpaceImpl(this, model)
+        function [V,W] = generateReducedSpaceImpl(this, model, subset)
             bdata = model.Data.TrajectoryData;
             
             % Wrap in finite difference adder
@@ -126,8 +126,6 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
                 fprintf('POD-Greedy: Starting subspace computation using %d trajectories...\n',model.Data.TrajectoryData.getNumTrajectories);
             end
             
-            reducable = this.ReducableDims;
-            
             pod = general.POD;
             pod.Value = 1; % MUST stay at 1 or getInitialSpace will fail.
             pod.Mode = 'abs';
@@ -140,19 +138,19 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
                 fprintf('POD-Greedy: Computing initial space...\n');
             end
             if ~isempty(this.InitialSpace)
-                V = this.InitialSpace(reducable,:);
+                V = this.InitialSpace(subset,:);
                 if this.IncludeBSpan
-                    V = o.orthonormalize([V bdata.InputSpaceSpan(reducable,:)]);
+                    V = o.orthonormalize([V bdata.InputSpaceSpan(subset,:)]);
                 end
             elseif this.IncludeBSpan
-                V = model.Data.InputSpaceSpan(reducable,:);
+                V = model.Data.InputSpaceSpan(subset,:);
             else
-                V = this.getInitialSpace(bdata, pod, reducable);
+                V = this.getInitialSpace(bdata, pod, subset);
             end
             % Compute initial space errors
             err = [];
             for k=1:size(V,2)
-               [err(end+1), idx] = this.getMaxErr(V(:,1:k), bdata, reducable);%#ok
+               [err(end+1), idx] = this.getMaxErr(V(:,1:k), bdata, subset);%#ok
             end
             
             cnt = 1; 
@@ -162,11 +160,11 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             impr = 1;
             while (err(end) > this.Eps) && cnt < this.MaxSubspaceSize && size(V,2) < ss && impr(end) > this.MinRelImprovement
                 x = bdata.getBlock(idx); % get trajectory
-                x = x(reducable,:);
+                x = x(subset,:);
                 e = x - V*(V'*x);
                 Vn = pod.computePOD(e);
                 V = o.orthonormalize([V Vn]);
-                [err(end+1), idx] = this.getMaxErr(V, bdata, reducable);%#ok
+                [err(end+1), idx] = this.getMaxErr(V, bdata, subset);%#ok
                 impr(end+1) = (olderr-err(end))/olderr;%#ok
                 olderr = err(end);
                 cnt = cnt+1;

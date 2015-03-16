@@ -560,10 +560,14 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 fprintf('Computing reduced space...\n');
                 s = this.SpaceReducer;
                 sys = this.System;
-                if ~isempty(sys.AlgebraicConditionDoF)
+                if length(s.TargetDimensions) < 2 && strcmp(s.TargetDimensions,':') && ...
+                        ~isempty(sys.AlgebraicConditionDoF)
+                    if KerMor.App.Verbose > 0
+                        fprintf('SpaceReduction: Automatically setting TargetDimensions to exclude AlgebraicConditionDoFs\n');
+                    end
                     reducable = 1:sys.StateSpaceDimension;
                     reducable(sys.AlgebraicConditionDoF) = [];
-                    s.ReducableDims = reducable;
+                    s.TargetDimensions = reducable;
                 end
                 [V, W] = s.generateReducedSpace(this);
                 this.Data.V = data.FileMatrix(V,'Dir',this.Data.DataDirectory);

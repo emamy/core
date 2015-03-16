@@ -25,10 +25,13 @@ classdef ManualReduction < spacereduction.BaseSpaceReducer
             end
         end
         
-        function [V,W] = generateReducedSpaceImpl(this, model)%#ok
+        function [V,W] = generateReducedSpaceImpl(this, model, subset)%#ok
             % Simply returns the manually selected values.
-            V = this.V;
-            W = this.W;
+            V = this.V(subset,:);
+            W = [];
+            if ~isempty(this.W)
+                W = this.W(subset,:);
+            end
         end
         
     end

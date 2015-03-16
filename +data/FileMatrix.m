@@ -1114,7 +1114,8 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             res = true;
         end
         
-        function test_RestrictedSVD
+        function test_PartialSVD
+            % Tests the selective SVD/POD block-wise algorithm
             d = 100;
             A = data.FileMatrix.getTestPair(d,1000,3);
             B = data.FileMatrix.getTestPair(d,1000,1);

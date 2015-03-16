@@ -48,7 +48,7 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & IReduction
     end
         
     methods(Access=protected)        
-        function [V,W] = generateReducedSpaceImpl(this, model)
+        function [V,W] = generateReducedSpaceImpl(this, model, subset)
             % Implements the abstract method from BaseSpaceReducer
             
             % Compile all trajectories into a large vector
@@ -71,18 +71,16 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & IReduction
                 td = data.FinDiffBlockData(td);
             end
             
-            reducable = this.ReducableDims;
-            
             Vex = [];
             if this.IncludeBSpan
-                Vex = md.InputSpaceSpan(reducable,:);
+                Vex = md.InputSpaceSpan(subset,:);
             end
             if this.IncludeInitialSpace
-                is = this.getInitialSpace(md.TrajectoryData, this, reducable);
+                is = this.getInitialSpace(md.TrajectoryData, this, subset);
                 Vex = [Vex is];
             end
             
-            [V, this.SingularValues] = this.computePOD(td, Vex, reducable);
+            [V, this.SingularValues] = this.computePOD(td, Vex, subset);
             this.ProjectionError = flipud(cumsum(flipud(this.SingularValues)));
 %             if ~isempty(Vex)
 %                 o = general.Orthonormalizer;
