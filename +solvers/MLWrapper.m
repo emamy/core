@@ -102,26 +102,38 @@ classdef MLWrapper < solvers.BaseSolver & solvers.AJacobianSolver
             if ~isempty(this.M)
                 if ~this.M.TimeDependent
                     M = this.M.evaluate(0);
-                    Mmat = M;
+                    Mt0 = M;
                 else
                     M = @(t,notused)this.M.evaluate(t);
-                    Mmat = M(0);
+                    Mt0 = M(0);
                 end
-                % Compute initial slope (considering possibly
-                % rank-deficient M)
-                if issparse(Mmat)
-                    r = sprank(Mmat);
+                
+                % See if we have a "simple" singular mass matrix
+                algdims = this.M.AlgebraicEquationDims;
+                if ~isempty(algdims)
+                    invertible = 1:size(Mt0,1);
+                    invertible(algdims) = [];
+                    yp0(invertible) = Mt0(invertible,invertible)\yp0(invertible);
                 else
-                    r = rank(Mmat);
-                end
-                if r < size(Mmat,1)
-                    odeset(opts,'MassSingular','yes');
-                    warning('off','MATLAB:singularMatrix');
-                end
-                yp0 = Mmat\yp0;
-                if r < size(Mmat,1)
-                    warning('on','MATLAB:singularMatrix');
-                    yp0(isinf(yp0)) = 0;
+                    % Compute initial slope (considering possibly
+                    % rank-deficient M)
+                    if issparse(Mt0)
+                        r = sprank(Mt0);
+                    else
+                        r = rank(Mt0);
+                    end
+                    if r < size(Mt0,1)
+                        odeset(opts,'MassSingular','yes');
+                        warning('off','MATLAB:singularMatrix');
+                    end
+                    yp0 = Mt0\yp0;
+                    if r < size(Mt0,1)
+                        warning('on','MATLAB:singularMatrix');
+                        yp0(isinf(yp0)) = 0;
+                        if any(isnan(yp0(:)))
+                            error('Failed to automatically produce a consistent initial slope.');
+                        end
+                    end
                 end
                 MS = 'none';
             end

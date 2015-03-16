@@ -400,6 +400,11 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             
             %% Parallel - computation
             if this.ComputeParallel
+                told = [];
+                if ~isa(this.Data.TrajectoryData,'data.FileTrajectoryData')
+                    told = this.Data.TrajectoryData;
+                    this.Data.useFileTrajectoryData;
+                end
                 idxmat = Utils.createCombinations(1:num_s,this.TrainingInputs);
                 
                 fprintf('Starting parallel projection training data computation of %d trajectories on %d workers...\n',size(idxmat,2),matlabpool('size'));
@@ -442,9 +447,16 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 % Build the hash map for the local FileTrajectoryData (parfor
                 % add them to remotely instantiated FileTrajectoryDatas and does
                 % not sync them (not generically possible)
-                if isa(this.Data.TrajectoryData,'data.FileTrajectoryData')
-                    this.Data.TrajectoryData.consolidate(this);
+                
+                td = this.Data.TrajectoryData;
+                td.consolidate(this);
+                if ~isempty(told)
+                    told.transferFrom(td);
+                    td.clearTrajectories;
+                    this.Data.TrajectoryData = [];
+                    this.Data.TrajectoryData = told;
                 end
+                
                 if ~isempty(this.Data.TrajectoryFxiData) && isa(this.Data.TrajectoryFxiData,'data.FileTrajectoryData')
                     this.Data.TrajectoryFxiData.consolidate(this);
                 end

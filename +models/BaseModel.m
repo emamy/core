@@ -532,7 +532,7 @@ classdef BaseModel < KerMorObject
                 slv.JacFun = [];
                 % Only set for full models (jacobians for reduced models
                 % are not available [or required] in general)
-                if isa(this, 'models.BaseFullModel')
+                %if isa(this, 'models.BaseFullModel')
                     if ~isempty(sys.A) && ~isempty(sys.f)
                         slv.JacFun = @(t, x)sys.A.getStateJacobian(x, t) + sys.f.getStateJacobian(x, t);
                         if ~isempty(sys.A.JSparsityPattern) && ~isempty(sys.f.JSparsityPattern)
@@ -551,7 +551,7 @@ classdef BaseModel < KerMorObject
                             slv.JPattern = sys.f.JSparsityPattern;
                         end
                     end
-                end
+                %end
             end
             
             % Assign mass matrix to solver if present

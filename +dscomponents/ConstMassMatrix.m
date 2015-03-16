@@ -26,8 +26,9 @@ classdef ConstMassMatrix < dscomponents.AMassMatrix
     
     methods
         
-        function this = ConstMassMatrix(M)
-            if nargin == 1
+        function this = ConstMassMatrix(M, varargin)
+            this = this@dscomponents.AMassMatrix(varargin{:});
+            if nargin > 0
                 this.M = M;
                 this.TimeDependent = false;
                 if issparse(M)
@@ -58,7 +59,12 @@ classdef ConstMassMatrix < dscomponents.AMassMatrix
         end
         
         function projected = project(this, V, W)
-            projected = dscomponents.ConstMassMatrix(W'*(this.M*V));
+            algdims_correctedoffset = [];
+            if ~isempty(this.AlgebraicEquationDims)
+                nalgdims = length(this.AlgebraicEquationDims);
+                algdims_correctedoffset = size(V,2)-nalgdims+1:size(V,2);
+            end
+            projected = dscomponents.ConstMassMatrix(W'*(this.M*V),algdims_correctedoffset);
             % Dont store V,W due to hard drive space saving (not really needed here)
             %projected = project@general.AProjectable(this, V, W, projected);
         end

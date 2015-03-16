@@ -150,9 +150,11 @@ classdef ReducedSystem < models.BaseDynSystem
                 % Project the approximated CoreFun of the full model if exists
                 if ~isempty(fullmodel.Approx)
                     this.f = fullmodel.Approx.project(V,W);
+                    %this.f.setSystem(this);
                 elseif ~isempty(fullsys.f)
                     % Otherwise project the models' full function.
                     this.f = fullsys.f.project(V,W);
+                    %this.f.setSystem(this);
                 end
                 % Project mass matrix
                 if ~isempty(fullsys.M)
@@ -162,6 +164,7 @@ classdef ReducedSystem < models.BaseDynSystem
                 % Only use approximated version if set
                 if ~isempty(fullmodel.Approx)
                     this.f = fullmodel.Approx;
+                    %this.f.setSystem(this);
                 end
             end
             

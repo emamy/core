@@ -12,10 +12,6 @@ classdef AMassMatrix < KerMorObject & general.AProjectable
 % - \c Homepage http://www.morepas.org/software/index.html
 % - \c Documentation http://www.morepas.org/software/kermor/index.html
 % - \c License @ref licensing
-%
-%
-% @todo return P,Q if M is sparse and include a flag for sparsity of M
-% (advantage? is done in matlabs ODE23 solvers)
 
     properties(SetAccess=protected)
         % Flag that indicates time-dependency of the Mass Matrix.
@@ -35,11 +31,23 @@ classdef AMassMatrix < KerMorObject & general.AProjectable
         SparsityPattern = [];
     end
     
+    properties(SetAccess=private)
+        AlgebraicEquationDims = [];
+    end
+    
     methods
+        function this = AMassMatrix(algdims, varargin)
+            this = this@KerMorObject;
+            if nargin == 1
+                this.AlgebraicEquationDims = algdims;
+            end
+        end
+        
         function copy = clone(this, copy)
             copy = clone@general.AProjectable(this, copy);
             copy.TimeDependent = this.TimeDependent;
             copy.SparsityPattern = this.SparsityPattern;
+            copy.AlgebraicEquationDims = this.AlgebraicEquationDims;
         end
     end
     

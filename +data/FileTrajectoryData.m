@@ -206,6 +206,9 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
                     s = this.getData([mu; ui]);
                     if ~isempty(s)
                         this.updateBB(s.x);
+                        if this.UniformTrajectories && isempty(this.trajlen)
+                            this.trajlen = size(s.x,2);
+                        end
                     end
                     pi.step;
                 end

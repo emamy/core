@@ -134,6 +134,9 @@ classdef ACoreFun < KerMorObject & general.AProjectable
         %
         % See also evaluate
         mu = [];
+        
+        Vcache;
+        Wcache;
     end
     
     methods
@@ -143,6 +146,10 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             this.registerProps('CustomProjection',...
                 'MultiArgumentEvaluations','JSparsityPattern',...
                 'TimeDependent','xDim','fDim');
+            this.setSystem(sys);
+        end
+        
+        function setSystem(this, sys)
             this.System = sys;
         end
         
@@ -215,13 +222,12 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             % @change{0,3,dw,2011-04-19} Fixed an error when no MultiArgumentEvaluations were supported and
             % no parameter `\mu` was given (Crashed due to index out of bounds)
             
-            proj = ~this.CustomProjection && ~isempty(this.V) && ~isempty(this.W);
-            if proj
-                x = this.V*x;
+            if ~isempty(this.Vcache)
+                x = this.Vcache*x;
             end
             fx = this.evaluateCoreFun(x, t);
-            if proj
-                fx = this.W'*fx;
+            if ~isempty(this.Wcache)
+                fx = this.Wcache*fx; %Wcache already transposed!
             end
         end
         
@@ -268,6 +274,10 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             % Override in subclasses (with calling this method!) for
             % customized behaviour
             this.mu = mu;
+            if ~this.CustomProjection && ~isempty(this.V) && ~isempty(this.W)
+                this.Vcache = this.V.toMemoryMatrix;
+                this.Wcache = (this.W.toMemoryMatrix)';
+            end
         end
 
         function J = getStateJacobian(this, x, t)
@@ -287,6 +297,18 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             %
             % Return values:
             % J: The jacobian matrix at `x,t,\mu`.
+            if ~isempty(this.Vcache)
+                x = this.Vcache*x;
+            end
+            J = this.getStateJacobianImpl(x, t);
+            if ~isempty(this.Wcache)
+                J = this.Wcache*(J*this.Vcache); %Wcache already transposed!
+            end
+        end
+        
+        function J = getStateJacobianImpl(this, x, t)
+            % Default implementation of state jacobians.
+            % uses finite differences
             J = this.getStateJacobianFD(x, t);
         end
         
