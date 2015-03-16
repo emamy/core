@@ -60,15 +60,15 @@ classdef ModelData < data.FileData
         % @type data.ApproxTrainData @default []
         JacobianTrainData = [];
         
-        % The projection matrix `V` for the reduced subspace.
+        % Array of ProjectionSpace instances that contains all the separate
+        % linear projection spaces computed during the offline phase.
         %
-        % @type matrix<double> @default []
-        V = [];
-        
-        % The V-biorthogonal matrix `W` for the reduced subspace (`W^tV=I_d`)
+        % For "normal" settings, this is just one global space. For
+        % multifield simulations (e.g. Biomechanics / FEM) separate
+        % projection spaces for displacement and velocity could be needed.
         %
-        % @type matrix<double> @default []
-        W = [];
+        % @type colvec<data.ProjectionSpace> @default []
+        ProjectionSpaces;
         
         % A struct containing precomputed values regarding the similarity
         % transform of the jacobians in the context of the
@@ -128,6 +128,20 @@ classdef ModelData < data.FileData
             this.SimCache.UniformTrajectories = false;
         end
         
+        function addProjectionSpace(this, V, W, dims)
+            % Adds a new projection space to the model data instance.
+            V = data.FileMatrix(V,'Dir',this.DataDirectory);
+            if ~isempty(W)
+                W = data.FileMatrix(W,'Dir',this.DataDirectory);
+            end
+            s = data.ProjectionSpace(V,W,dims);
+            if isempty(this.ProjectionSpaces)
+                this.ProjectionSpaces = s;
+            else
+                this.ProjectionSpaces(end+1) = s;
+            end
+        end
+        
         function mu = getParams(this, idx)
             % Returns parameters for given indices.
             %
@@ -161,8 +175,7 @@ classdef ModelData < data.FileData
         end
         
         function delete(this)
-            this.V = [];
-            this.W = [];
+            this.ProjectionSpaces = [];
             this.SimCache = [];
             this.TrajectoryData = [];
             this.TrajectoryFxiData = [];
@@ -204,11 +217,10 @@ classdef ModelData < data.FileData
             if ~isempty(this.JacobianTrainData)
                 this.JacobianTrainData.relocate(new_dir);
             end
-            if ~isempty(this.V)
-                this.V.relocate(new_dir);
-            end
-            if ~isempty(this.W) && ~isequal(this.V,this.W)
-                this.W.relocate(new_dir);
+            if ~isempty(this.ProjectionSpaces)
+                for k=1:length(this.ProjectionSpaces)
+                    this.ProjectionSpaces(k).relocate(new_dir);
+                end
             end
             relocate@data.FileData(this, new_dir);
         end
@@ -315,18 +327,11 @@ classdef ModelData < data.FileData
             end
         end
         
-        function set.V(this, value)
-            if ~isa(value,'data.FileMatrix') && (~isa(value, 'double') || ~ismatrix(value))
-                error('value must be a valid matrix of type double or a data.FileMatrix');
+        function set.ProjectionSpaces(this, value)
+            if ~isempty(value) && ~isa(value,'data.ProjectionSpace')
+                error('Value has to be a data.ProjectionSpace instance/array');
             end
-            this.V = value;
-        end
-        
-        function set.W(this, value)
-            if ~isa(value,'data.FileMatrix') && (~isa(value, 'double') || ~ismatrix(value))
-                error('value must be a valid matrix of type double or a data.FileMatrix');
-            end
-            this.W = value;
+            this.ProjectionSpaces = value;
         end
         
     end

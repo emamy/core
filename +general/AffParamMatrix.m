@@ -299,10 +299,10 @@ classdef AffParamMatrix < general.AProjectable
             if nargin < 4
                 target = this.clone;
             end
-            if V ~= 1
+            if ~isequal(V,1)
                 target.dims(2) = size(V,2);
             end
-            if W ~= 1
+            if ~isequal(W,1)
                 target.dims(1) = size(W,2);
             end
             % Autodetects size & type of projected matrix!

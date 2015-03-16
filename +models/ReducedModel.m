@@ -76,28 +76,6 @@ classdef ReducedModel < models.BaseModel
     methods
         
         function this = ReducedModel(fullmodel, target_dim)
-            % Creates a new reduced model instance from a full model.
-            %
-            % Ensure that offlineGenerations have been called on the full
-            % model to provide any necessary reduction data.
-            %
-            % This constructor can be called without arguments to ensure
-            % maximum compatibility, however, KerMor users should always
-            % pass a models.BaseFullModel instance or use the
-            % models.BaseFullModel.buildReducedModel method to trigger the
-            % reduced model generation.
-            %
-            % Parameters:
-            % fullmodel: A full model where the reduced model shall be
-            % created from. @type models.BaseFullModel
-            % target_dim: The target dimension `d` of the reduced model.
-            % Uses the first `d` columns of the projection matrices `V`
-            % (and `W` if set, respectively) to create a subspace-projected
-            % reduced model.
-            %
-            % See also: models.BaseFullModel
-            % models.BaseFullModel.buildReducedModel
-            % models.BaseFullModel.offlineGenerations            
             this = this@models.BaseModel;
             if nargin > 0
                 this.setFullModel(fullmodel, target_dim);
@@ -118,41 +96,57 @@ classdef ReducedModel < models.BaseModel
     methods(Sealed)
         
         function setFullModel(this, fullmodel, target_dim)
-            % Creates a reduced model from a given full model.
+            % Creates a new reduced model instance from a full model.
+            %
+            % Ensure that offlineGenerations have been called on the full
+            % model to provide any necessary reduction data.
             %
             % Parameters:
-            % fullmodel: the instance of the full model @type
-            % models.BaseFullModel
-            % target_dim: The target reduced model state space dimension.
-            % @type integer
+            % fullmodel: A full model where the reduced model shall be
+            % created from. @type models.BaseFullModel
+            % target_dim: The target dimension `d` of the reduced model.
+            % Uses the first `d` columns of the projection matrices `V`
+            % (and `W` if set, respectively) to create a subspace-projected
+            % reduced model.
             %
+            % See also: models.BaseFullModel
+            % models.BaseFullModel.buildReducedModel
+            % models.BaseFullModel.offlineGenerations            
             if nargin == 0 || ~isa(fullmodel,'models.BaseFullModel')
                 error('ReducedModel instances require a full model to construct from.');
             elseif isempty(fullmodel.Approx) && isempty(fullmodel.SpaceReducer)
                 error('No reduction methods found on full model. No use in building a reduced model from it.');
             end
+            
             fd = fullmodel.Data;
-            totalvcols = size(fd.V,2);
+            ns = length(fd.ProjectionSpaces);
             
-            % Check target_dimension validity
-            algdofs = fullmodel.System.AlgebraicConditionDoF;
-            numalgdofs = length(algdofs);
-            maxdim = totalvcols;
-            extra = '';
-            if ~isempty(algdofs)
-                extra = sprintf('(Have %d AlgebraicConditionDoF)',numalgdofs);
-                maxdim = maxdim - numalgdofs;
+            %
+%             algdofs = fullmodel.System.AlgebraicConditionDoF;
+%             numalgdofs = length(algdofs);
+            
+            disp('Building reduced model...');
+            
+            
+            % If no target dimension(s) are given, assume full size (for
+            % each subspace)
+            if nargin < 3 || isempty(target_dim)
+                for k = 1:ns
+                    target_dim(k) = fd.ProjectionSpaces(k).Size;
+                end
+                % If only a scalar is given, assume a total desired size of
+                % target_dim and equally split sizes for each subspace
+            elseif isscalar(target_dim)
+                target_dim = ones(ns,1)*floor(target_dim/ns);
+            end
+            for k = 1:ns
+                if target_dim(k) > fd.ProjectionSpaces(k).Size
+                    warning('Target size %d for subspace %d too large! Using max value of %d',...
+                        target_dim(k),k,fd.ProjectionSpaces(k).Size);
+                    target_dim(k) = fd.ProjectionSpaces(k).Size;
+                end
             end
             
-            % Check for valid subspace size
-            if target_dim > maxdim
-                warning('ReducedModel:build',...
-                    'Target dimension %d larger than effectively available subspace size %d. Using %d. %s',...
-                    target_dim,maxdim,maxdim,extra);
-                target_dim = maxdim;
-            end
-            
-            disp('Start building reduced model...');
             % IMPORTANT: Assign any model properties that are used during
             % the creation of the reduced system! (i.e. V,W are used in the
             % constructor of the reduced System)
@@ -160,7 +154,7 @@ classdef ReducedModel < models.BaseModel
             % Update name ;-)
             this.Name = ['Reduced: ' fullmodel.Name];
             
-            % Copy common values from the full model
+            %% Copy common values from the full model
             this.T = fullmodel.T;
             this.dt = fullmodel.dt;
             this.tau = fullmodel.tau;
@@ -177,24 +171,44 @@ classdef ReducedModel < models.BaseModel
             end
             this.G = fullmodel.G;
             
-            Vrows = 1:target_dim;
-            % Add algebraic dofs to projection if present
-            if ~isempty(algdofs)
-                Vrows = [Vrows totalvcols-numalgdofs+1:totalvcols];
+            %% Compute the effective projection matrix
+            % As we might have multiple projection subspaces, we need to
+            % assemble a global projection matrix (block-like if separate
+            % subspace dimensions are "sorted" in full model).
+            % Any not-projected DoFs are forwarded as-is by identity. This
+            % automatically deals with DAE constraints as they are not set
+            % to be reduced anyways.
+            V = []; W = []; %#ok<*PROP>
+            if ns > 0
+                dim = fullmodel.System.StateSpaceDimension;
+                V = zeros(dim,sum(target_dim));
+                W = V;
+                offset = 0;
+                done = false(dim,1);
+                for k=1:ns
+                    s = fd.ProjectionSpaces(k);
+                    sel = 1:target_dim(k);
+                    V(s.Dimensions,offset + sel) = s.V(:,sel);
+                    %if ~isempty(s.W)
+                        W(s.Dimensions,offset + sel) = s.W(:,sel);
+                    %end
+                    offset = offset + target_dim(k);
+                    done(s.Dimensions) = true;
+                end
+                % Insert identity for any remaining dimensions
+                unreduced = find(~done);
+                nunred = length(unreduced);
+                V(unreduced,end+(1:nunred)) = eye(nunred);
+                W(unreduced,end+(1:nunred)) = eye(nunred);
             end
-            
-            % Only create reduced projection matrices if present at all
-            if ~isempty(fd.V)
-                this.V = data.FileMatrix(fd.V(:,Vrows),'Dir',fd.DataDirectory);
-            end
-            % If petrov-galerkin projection, use W
-            if ~isempty(fd.W)
-                this.W = data.FileMatrix(fd.W(:,Vrows),'Dir',fd.DataDirectory);
-            end
+            this.V = V;
+            this.W = W;
+            %this.V = data.FileMatrix(V,'Dir',fd.DataDirectory);
+            %this.W = data.FileMatrix(W,'Dir',fd.DataDirectory);
             
             this.ParamSamples = fullmodel.Data.ParamSamples;
             
-            % Create a new reducedSystem passing this reduced model
+            %% Create a new reducedSystem passing this reduced model
             this.System = fullmodel.System.buildReducedSystem(this);
             
             % Use the error estimator that has been precomputed in 

@@ -222,12 +222,12 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             % @change{0,3,dw,2011-04-19} Fixed an error when no MultiArgumentEvaluations were supported and
             % no parameter `\mu` was given (Crashed due to index out of bounds)
             
-            if ~isempty(this.Vcache)
-                x = this.Vcache*x;
+            if ~isempty(this.V)
+                x = this.V*x;
             end
             fx = this.evaluateCoreFun(x, t);
-            if ~isempty(this.Wcache)
-                fx = this.Wcache*fx; %Wcache already transposed!
+            if ~isempty(this.V)
+                fx = this.W'*fx;
             end
         end
         
@@ -274,10 +274,6 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             % Override in subclasses (with calling this method!) for
             % customized behaviour
             this.mu = mu;
-            if ~this.CustomProjection && ~isempty(this.V) && ~isempty(this.W)
-                this.Vcache = this.V.toMemoryMatrix;
-                this.Wcache = (this.W.toMemoryMatrix)';
-            end
         end
 
         function J = getStateJacobian(this, x, t)
@@ -297,12 +293,12 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             %
             % Return values:
             % J: The jacobian matrix at `x,t,\mu`.
-            if ~isempty(this.Vcache)
-                x = this.Vcache*x;
+            if ~isempty(this.V)
+                x = this.V*x;
             end
             J = this.getStateJacobianImpl(x, t);
-            if ~isempty(this.Wcache)
-                J = this.Wcache*(J*this.Vcache); %Wcache already transposed!
+            if ~isempty(this.V)
+                J = this.W'*(J*this.V);
             end
         end
         

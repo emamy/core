@@ -409,8 +409,16 @@ classdef ModelAnalyzer < handle;
             end
             [~,m,~,l] = FindInstance(this.rm.FullModel,'IReductionSummaryPlotProvider');
             for k=1:length(m)
-                context = sprintf('%s (%s)',l{k},class(m{k}));
-                m{k}.plotSummary(pm,context);
+                objs = m{k};
+                nobj = length(objs);
+                extra = '';
+                for i=1:nobj
+                    if nobj > 0
+                        extra = sprintf('-%d',i);
+                    end
+                    context = sprintf('%s%s (%s)',l{k},extra,class(objs(i)));
+                    objs(i).plotSummary(pm,context);
+                end
             end
             pm.done;
         end

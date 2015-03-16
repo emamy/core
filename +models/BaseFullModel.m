@@ -521,7 +521,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.TrajectoriesCompleted = completed;
             
             % Input space span computation (if spacereduction is used)
-            if ~isempty(this.SpaceReducer) && this.SpaceReducer.IncludeBSpan
+            if ~isempty(this.SpaceReducer) && any([this.SpaceReducer(:).IncludeBSpan])
                 if KerMor.App.Verbose > 0
                     fprintf('Computing input space span...');
                 end
@@ -556,28 +556,32 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         function off3_computeReducedSpace(this)
             % Offline phase 3: Generate state space reduction
             time = tic;
+            this.Data.ProjectionSpaces = [];
             if ~isempty(this.SpaceReducer)
-                fprintf('Computing reduced space...\n');
-                s = this.SpaceReducer;
-                sys = this.System;
-                if length(s.TargetDimensions) < 2 && strcmp(s.TargetDimensions,':') && ...
-                        ~isempty(sys.AlgebraicConditionDoF)
-                    if KerMor.App.Verbose > 0
-                        fprintf('SpaceReduction: Automatically setting TargetDimensions to exclude AlgebraicConditionDoFs\n');
+                ns = length(this.SpaceReducer);
+                %% Sanity checks
+                dim = this.System.StateSpaceDimension;
+                algdofs = this.System.AlgebraicConditionDoF;
+                numalgdofs = length(algdofs);
+                for k = 1:ns
+                    td = this.SpaceReducer(k).TargetDimensions;
+                    if (strcmp(td,':') && numalgdofs > 0)
+                        reducabledofs = 1:dim;
+                        reducabledofs(algdofs) = [];
+                        this.SpaceReducer(k).TargetDimensions = reducabledofs;
+                        fprintf('Adjusting TargetDimensions of space reducer#%d: Selection '':'' invalid when having algebraic constraints.\n',k);
+                    elseif ~isempty(intersect(algdofs,td))
+                        disp(intersect(algdofs,td));
+                        error('Cannot select algebraic constraints for reduction (Check System.AlgebraicConditionDoF and SpaceReducer.TargetDimensions) ! Conflicting DoF indices above.');
                     end
-                    reducable = 1:sys.StateSpaceDimension;
-                    reducable(sys.AlgebraicConditionDoF) = [];
-                    s.TargetDimensions = reducable;
                 end
-                [V, W] = s.generateReducedSpace(this);
-                this.Data.V = data.FileMatrix(V,'Dir',this.Data.DataDirectory);
-                if isempty(W) 
-                    W = computeWfromV(this, V);
+                %% Actual computation
+                fprintf('Computing %d projection space(s)...\n',ns);
+                for k = 1:ns
+                    s = this.SpaceReducer(k);
+                    [V, W] = s.generateReducedSpace(this);
+                    this.Data.addProjectionSpace(V,W,s.TargetDimensions);
                 end
-                this.Data.W = data.FileMatrix(W,'Dir',this.Data.DataDirectory);
-            else
-                this.Data.V = [];
-                this.Data.W = [];
             end
             this.OfflinePhaseTimes(3) = toc(time);
             this.autoSave;
@@ -666,25 +670,21 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.off6_prepareErrorEstimator;
         end
         
-        function [reduced,time] = buildReducedModel(this, target_dim)
+        function [reduced,time] = buildReducedModel(this, varargin)
             % Builds a reduced model from a full model.
-            %
-            % This is a convenience method, that only calls the
-            % models.ReducedModel constructor passing this model instance
-            % and any specified target dimension. Also returns the total
-            % time that was needed to create the reduced model.
             %
             % Before calling this method ensure that offlineGenerations was
             % called at least once to provide the model's necessary data
             % for the reduction process.
             %
             % Parameters:
-            % target_dim: The target dimension `d` of the reduced model.
-            % Uses the first `d` columns of the projection matrices `V`
-            % (and `W` if set, respectively) to create a subspace-projected
-            % reduced model. As the system might be a DAE, the effectively
-            % returned reduced model size will have all algebraic
-            % dimensions added to the targeted size.
+            % target_dim: The target dimensions `d` of the reduced model.
+            % If more than one subspace is set to be computed, target_dim
+            % may be a vector determining the desired size of each
+            % subspace. The overall dimension will then be the sum over all
+            % single ones.
+            % If algebraic DoFs are present, the reduced space will always
+            % have all of those added to it's dimensions
             %
             % Return values:
             % reduced: The reduced model created from this full model.
@@ -694,13 +694,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             %
             % See also: offlineGenerations
             tic;
-            if nargin < 2
-                target_dim = size(this.Data.V,2);
-                if ~isempty(this.System.AlgebraicConditionDoF)
-                    target_dim = target_dim - length(this.System.AlgebraicConditionDoF);
-                end
-            end
-            reduced = models.ReducedModel(this, target_dim);
+            reduced = models.ReducedModel;
+            reduced.setFullModel(this, varargin{:});
             time = toc;
         end
         
@@ -771,16 +766,6 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 end
                 cache = 0;
             end
-        end
-        
-        function W = computeWfromV(this, V)%#ok
-            % Override this method to implement a custom behaviour, should
-            % the test space span<W> somehow differ from the ansatz space
-            % span<V>
-            %
-            % The default implementation just uses the same space
-            % (Galerkin-Projection)
-            W = V;
         end
         
         function [t,y,mu,in,ct] = getSimCacheTrajectory(this, nr)
