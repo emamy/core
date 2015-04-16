@@ -249,7 +249,6 @@ classdef AAdaptiveBase < approx.algorithms.ABase
     
     %% Getter & Setter
     methods
-        
         function set.MaxExpansionSize(this, value)
             if ~isposintscalar(value)
                 error('Value must be a positive integer.');

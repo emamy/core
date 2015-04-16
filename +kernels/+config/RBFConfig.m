@@ -24,7 +24,11 @@ classdef RBFConfig < IClassConfig
             i.addParamValue('G',[]);
             i.parse(varargin{:});
             r = i.Results;
-            this.Gammas = r.G;
+            if isempty(r.G)
+                this.Gammas = 1;
+            else
+                this.Gammas = r.G;
+            end
             this.RequiredPrototypeClass = 'kernels.ARBFKernel';
         end
         

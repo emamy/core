@@ -278,8 +278,11 @@ classdef ModelData < data.FileData
             % selection dialog to select the new data directory.
             if ~isa(this,'data.ModelData')
                 initfrom = this;
-                this = data.ModelData(initfrom.DataDirectory);
+                this = data.ModelData(initfrom.fDataDir);
                 this = loadobj@data.FileData(this,initfrom);
+                if isfield(initfrom,'V') && ~isempty(initfrom.V)
+                    this.addProjectionSpace(initfrom.V,initfrom.W,size(initfrom.V,1));
+                end
             else
                 this = loadobj@data.FileData(this);
             end

@@ -99,6 +99,7 @@ classdef ABlockedData < handle
                 doparallel = exist('matlabpool','file') == 2 && matlabpool('size') > 1;
                 [U,S] = eigs(@mult,n,k,'la',opts);
                 if KerMor.App.Verbose > 2, fprintf('BlockSVD: Finished after %d multiplications.\n',cnt); end
+                S = sqrt(S);
             end
             sel = sqrt(diag(S)/S(1)) >= this.MinRelSingularValueSize & diag(S)>0;
             U = U(:,sel);
@@ -106,7 +107,7 @@ classdef ABlockedData < handle
                 warning('KerMor:ABlockedData','Have only %d nonzero singular values instead of %d desired ones.',...
                     size(U,2),k);
             end
-            S = sqrt(S(sel,sel));
+            S = S(sel,sel);
             if nargout > 2
                 % Treat this special case here instead of cloning everything
                 if ~ischar(targetdims)
@@ -188,5 +189,34 @@ classdef ABlockedData < handle
         n = getNumBlocks(this);
         
         B = getBlock(this, nr);
+    end
+    
+    methods(Static)
+        function res = test_BlockSVD_vs_SVD
+            blocks = 5;
+            ns = 6;
+            an = [500 1000 700];
+            am = [500 700 1000];
+            res = true;
+            for v = 1:3
+                n = an(v);
+                m = am(v);
+                for nb=1:blocks
+                    B = rand(n,m);
+                    A = data.FileMatrix(n,m,'BlockSize',data.FileMatrix.blockSizeOf(B)/nb);
+                    A.subsasgn(struct('type',{'()'},'subs',{{':', ':'}}),B);
+                    [ub,us] = A.getSVD(ns);
+                    [u,s] = svd(B,'econ');
+                    chk = norm(diag(us)-diag(s(1:ns,1:ns)));
+                    res = res && chk < 1e-8;
+                    % mess with directions - so correct
+                    ubs = sign(ub(1,:));
+                    us = sign(u(1,1:ns));
+                    chk2 = norm(bsxfun(@times,ub,ubs)-bsxfun(@times,u(:,1:ns),us));
+                    res = res & chk2 < 1e-8;
+                    fprintf('Comparison Block-SVD vs SVD (%d singular values): Singular value vector norm diff: %g, U norm diff: %g\n',ns,chk,chk2);
+                end
+            end
+        end
     end
 end

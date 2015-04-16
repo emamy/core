@@ -974,13 +974,23 @@ classdef FileMatrix < data.FileData & data.ABlockedData
         end
         
         function res = test_SaveLoad
+            [A,B] = data.FileMatrix.getTestPair(100,10000,1);
+            % Load/save
+            save Atmp A;
+            clear A;
+            load Atmp;
+            res = A == B;
+            rmdir(A.DataDirectory,'s');
+            delete Atmp.mat;
+            
+            % Multiblock save/load
             [A,B] = data.FileMatrix.getTestPair(100,10000,10);
             
             % Load/save
             save Atmp A;
             clear A;
             load Atmp;
-            res = A == B;
+            res = res && A == B;
             rmdir(A.DataDirectory,'s');
             delete Atmp.mat;
         end

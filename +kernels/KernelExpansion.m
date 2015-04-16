@@ -79,6 +79,9 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         %
         % @type logical @default false
         HasCustomBase;
+        
+        % The size of the kernel expansion
+        Size;
     end
     
     properties(SetObservable)
@@ -409,6 +412,13 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         
         function k = get.Kernel(this)
             k = this.fSK;
+        end
+        
+        function value = get.Size(this)
+            value = 0;
+            if ~isempty(this.Centers)
+                value = size(this.Centers.xi,2);
+            end
         end
     
         function set.Kernel(this, value)

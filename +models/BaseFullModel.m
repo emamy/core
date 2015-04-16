@@ -777,6 +777,12 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.System.setConfig(mu,in);
         end
         
+        function plotTrajectoryNr(this, nr)
+            [y,mu,in] = this.Data.TrajectoryData.getTrajectoryNr(nr);
+            this.System.setConfig(mu,in);
+            this.plot(this.Times,y);
+        end
+        
         function file = save(this, directory, filename)
             % Saves this instance inside the data.ModelData.DataDirectory folder using the
             % model's SaveTag if set or "model.mat".
