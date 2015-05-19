@@ -378,10 +378,21 @@ classdef BaseDynSystem < KerMorObject
             pidx = find(strcmpi(paramname,{this.Params(:).Name}),1);
         end
         
-        function str = getParamInfo(this, mu)
-            str = '';
+        function pt = getParamInfo(this, mu)
+            if nargin < 2
+                mu = this.Model.DefaultMu;
+            end
+            %str = '';
+            pt = PrintTable;
+            pt.HasRowHeader = true;
+            pt.HasHeader = true;
+            pt.addRow('Parameter name','Value','Index');
             for i=1:this.ParamCount
-                str = sprintf('%s%d - %s: %f\n',str,i,this.Params(i).Name,mu(i));
+               % str = sprintf('%s%d - %s: %f\n',str,i,this.Params(i).Name,mu(i));
+                pt.addRow(this.Params(i).Name,mu(i),i);
+            end
+            if nargout < 1
+                pt.print;
             end
         end
         

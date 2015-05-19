@@ -17,6 +17,12 @@ classdef FileDataCollection < data.FileData
         hm;
     end
     
+    properties
+        % Tells the FileDataCollection to keep any stored files if the
+        % instance is deleted but has not been previously saved.
+        KeepFiles = false;
+    end
+    
     methods
         function this = FileDataCollection(data_dir)
             % Creates a new FileDataCollection in a file folder.
@@ -43,7 +49,7 @@ classdef FileDataCollection < data.FileData
             %
             % Deletes the DataDirectory if no trajectories are stored in it or it has not been
             % saved somewhere.
-            if ~this.isSaved || this.hm.size == 0
+            if (~this.KeepFiles && ~this.isSaved) || this.hm.size == 0
                 this.clear;
             end
             % Superclass delete removes the folder if empty.

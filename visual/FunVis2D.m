@@ -483,9 +483,12 @@ if c.iske
     set(h.lblNumCenters,'String',sprintf('%d/%d',sum(sel),size(C,2)));
     C = C(:,sel);
     c.curCenters = C;
-    c.curCenterSelInATD = Utils.findVecInMatrix(c.td.xi.toMemoryMatrix,C);
-    if any(c.curCenterSelInATD == 0)
-        c.curCenterSelInATD = [];
+    c.curCenterSelInATD = [];
+    if ~isempty(c.td)
+        c.curCenterSelInATD = Utils.findVecInMatrix(c.td.xi.toMemoryMatrix,C);
+        if any(c.curCenterSelInATD == 0)
+            c.curCenterSelInATD = [];
+        end
     end
     xf = repmat(c.basex,1,size(C,2));
     xsel = c.idxmap([c.d1 c.d2]);
