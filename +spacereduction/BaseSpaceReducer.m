@@ -51,61 +51,7 @@ classdef BaseSpaceReducer < KerMorObject & IReductionSummaryPlotProvider
             % treated separately.
             %
             % See also: TargetDimensions
-            
             [V, W] = this.generateReducedSpaceImpl(model, this.TargetDimensions);
-            
-%             % Sanity checks for property are done in setter (below)
-%             td = this.TargetDimensions;
-%             % Simplest case: Reduce all DoFs.
-%             if strcmp(td,':')
-%                 [V,W] = this.generateReducedSpaceImpl(model, ':');
-%             else
-%                 % For single selections, create a single element cell
-%                 if ~iscell(td)
-%                     td = {td};
-%                 end
-%                 dim = model.System.StateSpaceDimension;
-%                 V = zeros(dim,0);
-%                 W = zeros(dim,0);
-%                 offset = 0;
-%                 done = false(dim,1);
-%                 e = cell(length(td),1);
-%                 for k=1:length(td)
-%                     subset = td{k};
-%                     [Vpart, Wpart] = this.generateReducedSpaceImpl(model, subset);
-%                     e{k} = this.ProjectionError;
-%                     extdim = size(Vpart,2);
-%                     V(subset,offset + (1:extdim)) = Vpart;
-%                     if ~isempty(W)
-%                         W(subset,offset + (1:extdim)) = Wpart;
-%                     end
-%                     offset = offset + extdim;
-%                     done(subset) = true;
-%                 end
-%                 this.ProjectionError = e;
-%                 
-%                 % Check if there were dimensions that have not been selected
-%                 % for reduction and augment the projection matrices
-%                 % accordingly (by identity vectors). This is used e.g. if the
-%                 % ODE has algebraic conditions (DAEs)
-%                 V = fill(V);
-%                 W = fill(W);
-%             end
-%             
-%             function Afull = fill(A)
-%                 Afull = A;
-%                 if ~isempty(A) && any(~done)
-%                     unreduced = 1:dim;
-%                     unreduced(done) = [];
-%                     nunred = length(unreduced);
-%                     
-%                     basesize = size(A,2);
-%                     Afull = zeros(dim,basesize+nunred);
-%                     Afull(done,1:basesize) = A(done,:);
-%                     % Insert identity for remaining dimensions
-%                     Afull(~done,basesize+1:basesize+nunred) = eye(nunred);
-%                 end
-%             end
         end
         
         function plotSummary(this, pm, context)

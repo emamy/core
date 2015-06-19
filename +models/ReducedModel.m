@@ -145,6 +145,9 @@ classdef ReducedModel < models.BaseModel
                         target_dim(k),k,fd.ProjectionSpaces(k).Size);
                     target_dim(k) = fd.ProjectionSpaces(k).Size;
                 end
+                % Store the currently used effective size of that subspace
+                % for use by other components upon projection
+                fd.ProjectionSpaces(k).LastEffectiveSize = target_dim(k);
             end
             
             % IMPORTANT: Assign any model properties that are used during
@@ -189,13 +192,14 @@ classdef ReducedModel < models.BaseModel
                     s = fd.ProjectionSpaces(k);
                     sel = 1:target_dim(k);
                     V(s.Dimensions,offset + sel) = s.V(:,sel);
-                    %if ~isempty(s.W)
+                    if ~isempty(s.W)
                         W(s.Dimensions,offset + sel) = s.W(:,sel);
-                    %end
+                    end
                     offset = offset + target_dim(k);
                     done(s.Dimensions) = true;
                 end
-                % Insert identity for any remaining dimensions
+                % Insert identity for any remaining dimensions (corresponds
+                % to algebraic constraint DoFs
                 unreduced = find(~done);
                 nunred = length(unreduced);
                 V(unreduced,end+(1:nunred)) = eye(nunred);

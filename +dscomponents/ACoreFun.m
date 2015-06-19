@@ -516,7 +516,7 @@ classdef ACoreFun < KerMorObject & general.AProjectable
                         [r, idx] = sort(r,'descend');
                         di = di(idx);
                         pos = find(r < 1e-2,1);
-                        if ~isempty(pos)
+                        if ~isempty(pos) && pos > 1
                             ax = pm.nextPlot('',...
                                 sprintf('Relative errors larger than 1e-2\nCorresponding absolute difference'));%#ok
                             ax = plotyy(1:pos,r(1:pos),1:pos,di(1:pos),'plot');

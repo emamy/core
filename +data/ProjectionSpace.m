@@ -13,6 +13,19 @@ classdef ProjectionSpace < KerMorObject
 % - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
 % - \c License @ref licensing
     
+    properties
+        % Stores the effective subspace size used the last time a reduced
+        % model was build using this projection space.
+        %
+        % This is stored here only to provide means of communication to
+        % (later) projected components.
+        %
+        % Thus far, this is only used by the muscle-model upon projection
+        % of the nonlinear dynamics in case of "project first - transform
+        % into second order last"
+        LastEffectiveSize;
+    end
+
     properties(SetAccess=private)
         V = [];
         W = [];
@@ -29,6 +42,8 @@ classdef ProjectionSpace < KerMorObject
             this.V = V;
             if isempty(W)
                 this.W = V;
+            else
+                this.W = W;
             end
             this.Dimensions = dims;
             this.Size = size(V,2);

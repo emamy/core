@@ -130,8 +130,10 @@ classdef ModelData < data.FileData
         
         function addProjectionSpace(this, V, W, dims)
             % Adds a new projection space to the model data instance.
-            V = data.FileMatrix(V,'Dir',this.DataDirectory);
-            if ~isempty(W)
+            if ~isa(V,'data.FileMatrix')
+                V = data.FileMatrix(V,'Dir',this.DataDirectory);
+            end
+            if ~isempty(W) && ~isa(W,'data.FileMatrix')
                 W = data.FileMatrix(W,'Dir',this.DataDirectory);
             end
             s = data.ProjectionSpace(V,W,dims);
