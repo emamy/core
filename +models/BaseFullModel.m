@@ -490,7 +490,11 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                             [t, x, ctime, cache] = this.computeTrajectory(mu, inputidx);
                             % Store snapshot values, only if not already from trajectory data
                             if cache ~= 1
-                                this.Data.TrajectoryData.addTrajectory(x, mu, inputidx, ctime);
+                                if size(x,2) == tlen
+                                    this.Data.TrajectoryData.addTrajectory(x, mu, inputidx, ctime);
+                                elseif size(x,2) ~= tlen
+                                    this.Data.TrajectoryIncompleteData.addTrajectory(x, mu, inputidx, ctime);
+                                end
                             end
 
                             % Evaluate fxi on current values if required
@@ -519,6 +523,10 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             
             this.EnableTrajectoryCaching = oldv;
             this.TrajectoriesCompleted = completed;
+            
+            % delete parameters of incomplete trajectories
+            incomplete = find(completed(3,:)==0);
+            this.Data.ParamSamples(:,incomplete) = [];
             
             % Input space span computation (if spacereduction is used)
             if ~isempty(this.SpaceReducer) && any([this.SpaceReducer(:).IncludeBSpan])

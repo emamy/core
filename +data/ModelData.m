@@ -17,6 +17,7 @@ classdef ModelData < data.FileData
     
     properties(Constant, Access=private)
         FileTrajectoryDataFolder = 'trajectories';
+        FileTrajectoryIncompleteDataFolder = 'trajectories_incomplete';
         FileTrajectoryFxiDataFolder = 'trajectories_fx';
         SimCacheDataFolder = 'simcache';
     end
@@ -27,10 +28,17 @@ classdef ModelData < data.FileData
         % @type matrix @default []
         ParamSamples = [];
         
-        % The trajectory training data for the full model
+        % The trajectory training data for the full model (only complete
+        % trajectories!)
         %
         % @type data.ATrajectoryData @default data.MemoryTrajectoryData
         TrajectoryData = [];
+        
+        % The incomplete trajectory training data for the full model is
+        % saved separately
+        %
+        % @type data.ATrajectoryData @default data.MemoryTrajectoryData
+        TrajectoryIncompleteData = [];
         
         % Evaluations of the system's nonlinearity on the trajectoriy data.
         %
@@ -120,6 +128,7 @@ classdef ModelData < data.FileData
             this = this@data.FileData(data_dir);
             % Init with default memory data storages
             this.TrajectoryData = data.MemoryTrajectoryData;
+            this.TrajectoryIncompleteData = data.MemoryTrajectoryData;
             this.TrajectoryFxiData = data.MemoryTrajectoryData;
             
             %% Sim cache is FileTrajectoryData by default
@@ -180,6 +189,7 @@ classdef ModelData < data.FileData
             this.ProjectionSpaces = [];
             this.SimCache = [];
             this.TrajectoryData = [];
+            this.TrajectoryIncompleteData = [];
             this.TrajectoryFxiData = [];
             this.ApproxTrainData = [];
             this.JacobianTrainData = [];
@@ -207,6 +217,10 @@ classdef ModelData < data.FileData
             if ~isempty(this.TrajectoryData) && isa(this.TrajectoryData,'data.FileData')
                 this.TrajectoryData.relocate(...
                     fullfile(new_dir,this.FileTrajectoryDataFolder));
+            end
+            if ~isempty(this.TrajectoryIncompleteData) && isa(this.TrajectoryIncompleteData,'data.FileData')
+                this.TrajectoryIncompleteData.relocate(...
+                    fullfile(new_dir,this.FileTrajectoryIncompleteDataFolder));
             end
             if ~isempty(this.TrajectoryFxiData) && isa(this.TrajectoryFxiData,'data.FileData')
                 this.TrajectoryFxiData.relocate(...
@@ -243,6 +257,7 @@ classdef ModelData < data.FileData
                 overwrite = false;
             end
             
+            % complete trajectories
             if ~overwrite && isa(this.TrajectoryData,'data.FileTrajectoryData')
                 error('TrajectoryData already is a data.FileTrajectoryData. Use "true" parameter to overwrite.');
             end
@@ -253,6 +268,18 @@ classdef ModelData < data.FileData
             % Copy existing data
             this.TrajectoryData.transferFrom(old);
             
+            % incomplete trajectories
+            if ~overwrite && isa(this.TrajectoryIncompleteData,'data.FileTrajectoryData')
+                error('TrajectoryIncompleteData already is a data.FileTrajectoryData. Use "true" parameter to overwrite.');
+            end
+            old = this.TrajectoryIncompleteData;
+            this.TrajectoryIncompleteData = [];
+            this.TrajectoryIncompleteData = data.FileTrajectoryData(...
+                fullfile(this.DataDirectory,this.FileTrajectoryIncompleteDataFolder));
+            % Copy existing data
+            this.TrajectoryIncompleteData.transferFrom(old);
+            
+            % trajectory fxi data
             if ~overwrite && isa(this.TrajectoryFxiData,'data.FileTrajectoryData')
                 error('TrajectoryFxiData already is a data.FileTrajectoryData. Use "true" parameter to overwrite.');
             end
@@ -261,7 +288,7 @@ classdef ModelData < data.FileData
             this.TrajectoryFxiData = data.FileTrajectoryData(...
                 fullfile(this.DataDirectory,this.FileTrajectoryFxiDataFolder));
             % Copy existing data
-            this.TrajectoryFxiData.transferFrom(old);
+            this.TrajectoryFxiData.transferFrom(old);            
         end
         
         function [t, y, mu, inputidx, ct] = getCachedTrajectory(this, nr)
