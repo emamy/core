@@ -51,24 +51,7 @@ classdef ParamTimeKernelCoreFun < dscomponents.ACoreFun & dscomponents.IGlobalLi
             % Call superclass method
             projected = this.clone;
             projected = project@dscomponents.ACoreFun(this, V, W, projected);
-            % For rotation invariant kernel expansions the snapshots can be
-            % transferred into the subspace without loss.
-            lkexp = this.Expansion;
-            kexp = lkexp.clone;
-            k = kexp.Kernel;
-            if k.IsRBF
-                kexp.Centers.xi = W' * lkexp.Centers.xi;
-                PG = V'*(k.G*V);
-                if all(all(abs(PG - eye(size(PG,1))) < 100*eps))
-                    PG = 1;
-                end
-                kexp.Kernel.G = PG;
-            elseif k.IsScProd
-                kexp.Centers.xi = V' * (k.G * lkexp.Centers.xi);
-                kexp.Kernel.G = 1;
-            end
-            kexp.Ma = W'*lkexp.Ma;
-            projected.Expansion = kexp;
+            projected.Expansion = this.Expansion.project(V,W);
         end
         
         function fx = evaluate(this, x, t)

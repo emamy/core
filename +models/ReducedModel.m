@@ -95,7 +95,7 @@ classdef ReducedModel < models.BaseModel
     
     methods(Sealed)
         
-        function setFullModel(this, fullmodel, target_dim)
+        function setFullModel(this, fullmodel, varargin)
             % Creates a new reduced model instance from a full model.
             %
             % Ensure that offlineGenerations have been called on the full
@@ -118,37 +118,11 @@ classdef ReducedModel < models.BaseModel
                 error('No reduction methods found on full model. No use in building a reduced model from it.');
             end
             
-            fd = fullmodel.Data;
-            ns = length(fd.ProjectionSpaces);
-            
             %
 %             algdofs = fullmodel.System.AlgebraicConditionDoF;
 %             numalgdofs = length(algdofs);
             
             disp('Building reduced model...');
-            
-            
-            % If no target dimension(s) are given, assume full size (for
-            % each subspace)
-            if nargin < 3 || isempty(target_dim)
-                for k = 1:ns
-                    target_dim(k) = fd.ProjectionSpaces(k).Size;
-                end
-                % If only a scalar is given, assume a total desired size of
-                % target_dim and equally split sizes for each subspace
-            elseif isscalar(target_dim)
-                target_dim = ones(ns,1)*floor(target_dim/ns);
-            end
-            for k = 1:ns
-                if target_dim(k) > fd.ProjectionSpaces(k).Size
-                    warning('Target size %d for subspace %d too large! Using max value of %d',...
-                        target_dim(k),k,fd.ProjectionSpaces(k).Size);
-                    target_dim(k) = fd.ProjectionSpaces(k).Size;
-                end
-                % Store the currently used effective size of that subspace
-                % for use by other components upon projection
-                fd.ProjectionSpaces(k).LastEffectiveSize = target_dim(k);
-            end
             
             % IMPORTANT: Assign any model properties that are used during
             % the creation of the reduced system! (i.e. V,W are used in the
@@ -174,39 +148,8 @@ classdef ReducedModel < models.BaseModel
             end
             this.G = fullmodel.G;
             
-            %% Compute the effective projection matrix
-            % As we might have multiple projection subspaces, we need to
-            % assemble a global projection matrix (block-like if separate
-            % subspace dimensions are "sorted" in full model).
-            % Any not-projected DoFs are forwarded as-is by identity. This
-            % automatically deals with DAE constraints as they are not set
-            % to be reduced anyways.
-            V = []; W = []; %#ok<*PROP>
-            if ns > 0
-                dim = fullmodel.System.StateSpaceDimension;
-                V = zeros(dim,sum(target_dim));
-                W = V;
-                offset = 0;
-                done = false(dim,1);
-                for k=1:ns
-                    s = fd.ProjectionSpaces(k);
-                    sel = 1:target_dim(k);
-                    V(s.Dimensions,offset + sel) = s.V(:,sel);
-                    if ~isempty(s.W)
-                        W(s.Dimensions,offset + sel) = s.W(:,sel);
-                    end
-                    offset = offset + target_dim(k);
-                    done(s.Dimensions) = true;
-                end
-                % Insert identity for any remaining dimensions (corresponds
-                % to algebraic constraint DoFs
-                unreduced = find(~done);
-                nunred = length(unreduced);
-                V(unreduced,end+(1:nunred)) = eye(nunred);
-                W(unreduced,end+(1:nunred)) = eye(nunred);
-            end
-            this.V = V;
-            this.W = W;
+            %% Get projection matrix
+            [this.V, this.W] = fullmodel.assembleProjectionMatrices(varargin{:});
             %this.V = data.FileMatrix(V,'Dir',fd.DataDirectory);
             %this.W = data.FileMatrix(W,'Dir',fd.DataDirectory);
             
@@ -295,6 +238,26 @@ classdef ReducedModel < models.BaseModel
             end
         end
         
+        function [JacFun, JPattern] = getJacobianInfo(this)
+            est = this.fErrorEstimator;
+            [JacFun, JPattern] = getJacobianInfo@models.BaseModel(this);
+            % Need extra care if we have an error estimator set
+            if ~isempty(est) && est.Enabled
+                edims = est.ExtraODEDims;
+                sys = this.System;
+                if ~isempty(sys.A) && ~isempty(sys.f)
+                    JacFun_ = @(t, x)sys.A.getStateJacobian(x(1:end-edims), t) + sys.f.getStateJacobian(x(1:end-edims), t);
+                elseif ~isempty(sys.A)
+                    JacFun_ = @(t, x)sys.A.getStateJacobian(x(1:end-edims), t);
+                elseif ~isempty(sys.f)
+                    JacFun_ = @(t, x)sys.f.getStateJacobian(x(1:end-edims), t);
+                end
+                % Simply pad with zero entries for the error estimator -
+                % not ideal, but must do for the moment.
+                pad = zeros(edims,edims);
+                JacFun = @(t, x)blkdiag(JacFun_(t,x),pad);
+            end
+        end
     end
     
     methods(Sealed)

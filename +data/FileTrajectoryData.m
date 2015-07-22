@@ -43,11 +43,8 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
         % will not check for this inconsistency when turning it back on again. (This setting
         % has effect only as long as it is turned on)
         %
-        % For convenience with early-aborting implicit solvers, the
-        % default setting is now false.
-        %
-        % @type logical @default false
-        UniformTrajectories = false;
+        % @type logical @default true
+        UniformTrajectories = true;
     end
     
     properties(Access=private)
@@ -61,6 +58,10 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
         bbmax = [];
         
         trajlen = [];
+        
+        % Used with UniformTrajectories turned off to still return the
+        % correct size
+        width = 0;
     end
     
     methods
@@ -134,19 +135,22 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
                 this.sizes = [newd newmu];
             elseif newd ~= this.sizes(1)
                 error('Invalid trajectory dimension. Existing: %d, new: %d',this.sizes(1),newd);
-%             elseif newmu ~= this.sizes(2)
-%                 error('Invalid parameter dimension. Existing: %d, new: %d',this.sizes(2),newmu);
             end
             
+            exists = this.hasData([mu; inputidx]);
             if this.UniformTrajectories
                 if isempty(this.trajlen)
                     this.trajlen = size(x,2);
                 elseif this.trajlen ~= size(x,2)
                     error('Invalid trajectory length. Existing: %d, new: %d',this.trajlen,size(x,2));
+                end    
+            else
+                if ~exists
+                    this.width = this.width + size(x,2);
                 end
             end
             
-            if ~this.ReplaceExisting && this.hasData([mu; inputidx])
+            if ~this.ReplaceExisting && exists
                 warning('KerMor:FileTrajectoryData','Trajectory already present and replacing is disabled.');
                 return;
             end
@@ -158,8 +162,12 @@ classdef FileTrajectoryData < data.ATrajectoryData & data.FileDataCollection
             this.updateBB(x);
         end
         
-        function l = getTrajectoryLength(this)
-            l = this.trajlen;
+        function l = getTotalLength(this)
+            if this.UniformTrajectories
+                l = this.getNumBlocks * this.trajlen;
+            else
+                l = this.width;
+            end
         end
         
         function clearTrajectories(this)

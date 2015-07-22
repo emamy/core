@@ -52,6 +52,10 @@ classdef RotationDecorator < spacereduction.BaseSpaceReducer
             this.registerProps('Degree','Dims');
         end
         
+    end
+    
+    methods(Access=protected)
+        
         function [V,W] = generateReducedSpaceImpl(this, model, subset)
             % Computes the subspace given by the underlying subspace reduction class but then
             % rotates for Dims times between two randomly chosen axis

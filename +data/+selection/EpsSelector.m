@@ -79,11 +79,8 @@ classdef EpsSelector < data.selection.ASelector
             end
             [x, mu] = td.getTrajectoryNr(1); 
             if this.SubspaceProject && ~isempty(model.SpaceReducer)
-                W = model.Data.W;
-                if isempty(W)
-                    W = model.Data.V;
-                end
-                x = model.Data.V*(W'*x);
+                [V, W] = model.assembleProjectionMatrices;
+                x = V*(W'*x);
             end
             %[m,M] = Utils.getBoundingBox(x);
             %d = norm(M-m) / 10;

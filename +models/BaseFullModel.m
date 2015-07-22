@@ -622,11 +622,11 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     fprintf('Starting approximation process for %d dimensions ...\n',size(this.Data.ApproxTrainData.fxi,1));
                 end
                 
-                warning off MATLAB:nearlySingularMatrix;
+                %warning off MATLAB:nearlySingularMatrix;
                 %% Approximate core function (is parallelizable for its own)
                 % Compile necessary data
                 this.Approx.approximateSystemFunction(this);
-                warning on MATLAB:nearlySingularMatrix;
+                %warning on MATLAB:nearlySingularMatrix;
                 
                 if ~isempty(this.postApproximationTrainingCallback)
                     this.postApproximationTrainingCallback();
@@ -781,6 +781,66 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             [y,mu,in] = this.Data.TrajectoryData.getTrajectoryNr(nr);
             this.System.setConfig(mu,in);
             this.plot(this.Times,y);
+        end
+        
+        function [V,W] = assembleProjectionMatrices(this, target_dim)
+            md = this.Data;
+            ps = md.ProjectionSpaces;
+            ns = length(ps);
+            
+            % If no target dimension(s) are given, assume full size (for
+            % each subspace)
+            if nargin < 2 || isempty(target_dim)
+                for k = 1:ns
+                    target_dim(k) = ps(k).Size;
+                end
+                % If only a scalar is given, assume a total desired size of
+                % target_dim and equally split sizes for each subspace
+            elseif isscalar(target_dim)
+                target_dim = ones(ns,1)*floor(target_dim/ns);
+            end
+            for k = 1:ns
+                if target_dim(k) > ps(k).Size
+                    warning('Target size %d for subspace %d too large! Using max value of %d',...
+                        target_dim(k),k,ps(k).Size);
+                    target_dim(k) = ps(k).Size;
+                end
+                % Store the currently used effective size of that subspace
+                % for use by other components upon projection
+                ps(k).LastEffectiveSize = target_dim(k);
+            end
+            
+            %% Compute the effective projection matrix
+            % As we might have multiple projection subspaces, we need to
+            % assemble a global projection matrix (block-like if separate
+            % subspace dimensions are "sorted" in full model).
+            % Any not-projected DoFs are forwarded as-is by identity. This
+            % automatically deals with DAE constraints as they are not set
+            % to be reduced anyways.
+            V = []; W = []; %#ok<*PROP>
+            if ns > 0
+                dim = this.System.StateSpaceDimension;
+                V = zeros(dim,sum(target_dim));
+                W = V;
+                offset = 0;
+                done = false(dim,1);
+                for k=1:ns
+                    s = ps(k);
+                    sel = 1:target_dim(k);
+                    V(s.Dimensions,offset + sel) = s.V(:,sel);
+                    if ~isempty(s.W)
+                        W(s.Dimensions,offset + sel) = s.W(:,sel);
+                    end
+                    offset = offset + target_dim(k);
+                    done(s.Dimensions) = true;
+                end
+                % Insert identity for any remaining dimensions (corresponds
+                % to algebraic constraint DoFs
+                unreduced = find(~done);
+                nunred = length(unreduced);
+                V(unreduced,end+(1:nunred)) = eye(nunred);
+                W(unreduced,end+(1:nunred)) = eye(nunred);
+            end
         end
         
         function file = save(this, directory, filename)
