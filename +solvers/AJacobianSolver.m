@@ -70,8 +70,8 @@ classdef AJacobianSolver < KerMorObject
             % value: a function handle that takes two arguments, `t` and `x`
             if ~isempty(value) && ~isa(value,'function_handle')
                 error('JacFun must be a function handle');
-            elseif ~isempty(value) && nargin(value) ~= 2
-                error('JacFun must take exactly two arguments: t,x');
+            %elseif ~isempty(value) && nargin(value) ~= 2
+            %    error('JacFun must take exactly two arguments: t,x');
             end
             this.JacFun = value;
         end

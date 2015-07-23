@@ -118,10 +118,6 @@ classdef ReducedModel < models.BaseModel
                 error('No reduction methods found on full model. No use in building a reduced model from it.');
             end
             
-            %
-%             algdofs = fullmodel.System.AlgebraicConditionDoF;
-%             numalgdofs = length(algdofs);
-            
             disp('Building reduced model...');
             
             % IMPORTANT: Assign any model properties that are used during
@@ -224,19 +220,6 @@ classdef ReducedModel < models.BaseModel
     end
     
     methods(Access=protected,Sealed)
-        
-        function x0 = getX0(this, mu)
-            % Gets the initial value of `x_0(\mu)`.
-            %
-            % If the estimator is enabled, x0 is extended by the e0
-            % components of the error estimator.
-            
-            x0 = getX0@models.BaseModel(this, mu);
-            
-            if ~isempty(this.ErrorEstimator) && this.ErrorEstimator.Enabled
-                x0 = [x0; this.ErrorEstimator.getE0(mu)];
-            end
-        end
         
         function [JacFun, JPattern] = getJacobianInfo(this)
             est = this.fErrorEstimator;

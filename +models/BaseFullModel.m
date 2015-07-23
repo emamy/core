@@ -341,7 +341,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.Data = data.ModelData(this);
             
             % Set default dynamical system
-            this.System = models.BaseDynSystem(this);
+            this.System = models.BaseFirstOrderSystem(this);
             
             % Register default properties
             this.registerProps('Sampler','SpaceReducer','Approx',...

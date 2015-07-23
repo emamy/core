@@ -528,7 +528,8 @@ classdef BaseModel < KerMorObject
             
             % Assign jacobian information if available
             if isa(slv,'solvers.AJacobianSolver')
-                [slv.JacFun, slv.JPattern] = this.getJacobianInfo;
+                slv.JPattern = sys.SparsityPattern;
+                slv.JacFun = @sys.getJacobian;
             end
             
             % Assign mass matrix to solver if present
@@ -538,7 +539,7 @@ classdef BaseModel < KerMorObject
             end
             
             % Call solver
-            [t, x] = slv.solve(sys.getODEFun, this.scaledTimes, this.getX0(mu));
+            [t, x] = slv.solve(sys.getODEFun, this.scaledTimes, sys.getX0(mu));
             
             if length(this.scaledTimes) == 2
                 t = [t(1), t(end)];
@@ -583,49 +584,6 @@ classdef BaseModel < KerMorObject
     end
     
     methods(Access=protected)
-        function x0 = getX0(this, mu)
-            % Gets the initial state variable at `t=0`.
-            %
-            % This is exported into an extra function as it gets overridden
-            % in the ReducedModel subclass, where ErrorEstimators possibly
-            % change the x0 dimension.
-            %
-            % Parameters:
-            % mu: The parameter `\mu` to evaluate `x_0(\mu)`. Use [] for
-            % none. @typerowvec<double> @default []
-            %
-            % Return values:
-            % x0: the initial state for the parameter `\mu` @type matrix<double>
-            ss = this.System.StateScaling;
-            if (size(mu,2) > 1) && ~isscalar(ss)
-                ss = repmat(this.System.StateScaling,1,size(mu,2));
-            end
-            x0 = this.System.x0.evaluate(mu) ./ ss;
-        end
-        
-        function [JacFun, JPattern] = getJacobianInfo(this)
-            sys = this.System;
-            JPattern = [];
-            JacFun = [];
-            if ~isempty(sys.A) && ~isempty(sys.f)
-                JacFun = @(t, x)sys.A.getStateJacobian(x, t) + sys.f.getStateJacobian(x, t);
-                if ~isempty(sys.A.JSparsityPattern) && ~isempty(sys.f.JSparsityPattern)
-                    [i,j] = find(sys.A.JSparsityPattern + sys.f.JSparsityPattern);
-                    JPattern = sparse(i,j,ones(length(i),1),...
-                        sys.A.fDim,sys.A.xDim);
-                end
-            elseif ~isempty(sys.A)
-                JacFun = @(t, x)sys.A.getStateJacobian(x, t);
-                if  ~isempty(sys.A.JSparsityPattern)
-                    JPattern = sys.A.JSparsityPattern;
-                end
-            elseif ~isempty(sys.f)
-                JacFun = @(t, x)sys.f.getStateJacobian(x, t);
-                if  ~isempty(sys.f.JSparsityPattern)
-                    JPattern = sys.f.JSparsityPattern;
-                end
-            end
-        end
         
         function this = saveobj(this)
             % Store the current GIT branch in the object.
@@ -738,8 +696,8 @@ classdef BaseModel < KerMorObject
         function set.System(this, value)
             % @note Usually an empty system is not allowed. But as this is a superclass for
             % both full and reduced models, one
-            if ~isempty(value) && ~isa(value,'models.BaseDynSystem')
-                error('The System property must be a subclass of models.BaseDynSystem.');
+            if ~isempty(value) && ~isa(value,'models.BaseFirstOrderSystem')
+                error('The System property must be a subclass of models.BaseFirstOrderSystem.');
             end
             if (isequal(this,value))
                 warning('KerMor:selfReference','Careful with self-referencing classes. See BaseFullModel class documentation for details.');

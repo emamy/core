@@ -1,4 +1,4 @@
-classdef ReducedSystem < models.BaseDynSystem
+classdef ReducedSystem < models.BaseFirstOrderSystem
 %ReducedSystem: A KerMor reduced dynamical system.
 %
 % Any state space scaling is included into the reduced model upon creation, as scaling is
@@ -204,6 +204,20 @@ classdef ReducedSystem < models.BaseDynSystem
     end
     
     methods(Access=protected, Sealed)
+        
+        function x0 = getX0(this, mu)
+            % Gets the initial value of `x_0(\mu)`.
+            %
+            % If the estimator is enabled, x0 is extended by the e0
+            % components of the error estimator.
+            
+            x0 = getX0@models.BaseFirstOrderSystem(this, mu);
+            m = this.Model;
+            if ~isempty(m.ErrorEstimator) && m.ErrorEstimator.Enabled
+                x0 = [x0; m.ErrorEstimator.getE0(mu)];
+            end
+        end
+        
         function validateModel(this, model)%#ok
             % Overrides the validateModel function in BaseDynSystem.
             % 

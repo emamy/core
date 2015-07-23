@@ -1,5 +1,5 @@
-classdef BaseDynSystem < KerMorObject
-    % Base class for all KerMor dynamical systems.
+classdef BaseFirstOrderSystem < KerMorObject
+    % Base class for all KerMor first-order dynamical systems.
     %
     % To setup custom dynamical systems, inherit from this class.
     %
@@ -117,6 +117,11 @@ classdef BaseDynSystem < KerMorObject
         % @default [] @type dscomponents.AMassMatrix
         M = [];
         
+        % The system's algebraic constraints function
+        %
+        % @default [] @type dscomponents.ACoreFun
+        g = [];
+        
         % The system's possible input functions.
         % A cell array of function handles, each taking a time argument t.
         %
@@ -182,17 +187,11 @@ classdef BaseDynSystem < KerMorObject
         % @type colvec
         StateScaling = 1;
         
-        % Determines any DoFs that belong to algebraic conditions
-        %
-        % This can be used to tell KerMor that we have a
-        % differential-algebraic equation (DAE). This will cause the
-        % reduction process to exclude those indicated DoFs from
-        % reduction/projection.
-        %
-        % Set as an index vector to denote the respective algebraic dofs.
-        %
-        % @type colvec<integer>
+        
         AlgebraicConditionDoF;
+        
+        % The global sparsity pattern for the entire RHS
+        SparsityPattern;
     end
     
     properties(SetAccess=protected, Transient)
@@ -204,6 +203,10 @@ classdef BaseDynSystem < KerMorObject
         
         % The current inputindex of the function `u(t)`
         inputidx = [];
+    end
+    
+    properties(SetAccess=protected)
+        NumStateDofs;
     end
     
     properties(SetAccess=private, Dependent)
@@ -224,6 +227,9 @@ classdef BaseDynSystem < KerMorObject
     properties(SetAccess=private)
         % The Model this System is attached to.
         Model;
+        
+        NumTotalDofs;
+        NumAlgebraicDofs;
     end
     
     properties(Access=private)
@@ -231,17 +237,26 @@ classdef BaseDynSystem < KerMorObject
     end
         
     methods      
-        function this = BaseDynSystem(model)
+        function this = BaseFirstOrderSystem(model)
             % Creates a new base dynamical system class instance.
             %
             % Uses default output mapping: state variables are output.
             % Initial conditions are set to zero.
             this.validateModel(model);
             this.Model = model;
-            this.C = dscomponents.LinearOutputConv(1);
             
             % Register default properties
             this.registerProps('A','f','B','C','x0','Inputs','Params','MaxTimestep','StateScaling');
+        end
+        
+        function updateDimensions(this)
+            this.NumAlgebraicDofs = 0;
+            if ~isempty(this.g)
+                this.NumAlgebraicDofs = this.g.fDim;
+            end
+            this.NumTotalDofs = this.NumStateDofs + this.NumAlgebraicDofs;
+            
+            this.updateSparsityPattern;
         end
         
         function rsys = buildReducedSystem(this, rmodel)%#ok
@@ -309,8 +324,8 @@ classdef BaseDynSystem < KerMorObject
         end
     
         function odefun = getODEFun(this)
-%             odefun = @this.ODEFun;
-%             return;
+            odefun = @this.ODEFun;
+            return;
             % Determine correct ODE function (A,f,B combination)
             str = {};
             if ~isempty(this.A)
@@ -322,22 +337,145 @@ classdef BaseDynSystem < KerMorObject
             if ~isempty(this.B) && ~isempty(this.inputidx)
                 str{end+1} = 'this.B.evaluate(t, this.mu)*this.u(t)';
             end
-            odefun = eval(['@(t,x)' Utils.implode(str,' + ')]);
+            odefunstr = Utils.implode(str,' + ');
+            if ~isempty(this.g)
+                odefunstr = ['[' odefunstr '; this.g.evaluate(x,t)]'];
+            end
+            odefun = eval(['@(t,x)' odefunstr]);
         end
         
         function dx = ODEFun(this,t,x)
             % Debug variant for single evaluation. Commented in function
             % above.
-            dx = this.A.evaluate(x, t);
-            dx = dx + this.f.evaluate(x, t);
-%             dx = this.f.evaluate(x, t);
-            if ~isempty(this.B) && ~isempty(this.inputidx)
-                B = this.B.evaluate(t, this.mu)*this.u(t);
-                dx = dx + B;
+            dx = zeros(this.StateSpaceDimension,1);
+            if ~isempty(this.A)
+                dx = dx + this.A.evaluate(x, t);
             end
-%             pos = find(B);
-%             fprintf('Ext->Neuron: adding %g at dy(%d)\n',...
-%                 B(pos(end)),pos(end));
+            if ~isempty(this.f)
+                dx = dx + this.f.evaluate(x, t);
+            end
+            if ~isempty(this.B) && ~isempty(this.inputidx)
+                B_ = this.B.evaluate(t, this.mu)*this.u(t);
+                dx = dx + B_;
+            end
+            if ~isempty(this.g)
+                dx = [dx; this.g.evaluate(x,t)];
+            end
+        end
+        
+        function y = computeOutput(this, x, mu)
+            % Computes the output `y(t) = C(t,\mu)Sx(t)` from a given state
+            % result vector `x(t)`, using the system's time and current mu (if given).
+            %
+            % The matrix `S` represents possibly set state space scaling, and `C(t,\mu)` is an
+            % output conversion. Identity values are assumed if the corresponding components
+            % are not set/given.
+            %
+            % Parameters:
+            % x: The state variable vector at each time step per column @type matrix<double>
+            % mu: The parameter to use. If not specified, the currently set
+            % `\mu` value of this system is used. @type colvec<double>
+            % @default this.mu
+            %
+            % Return values:
+            % y: The output according to `y(t) = C(t,\mu)Sx(t)`
+            %
+            % NOTE: This is also called for reduced simulations within ReducedModel.simulate.
+            % However, reduced models do not employ state scaling anymore as it has been
+            % included in the x0, C components at build-time for the reduced model,
+            % respectively. Consequently, the StateScaling property of ReducedSystems is 1.
+            %
+            % See models.ReducedSystem.setReducedModel
+            
+            if nargin < 3
+                mu = this.mu;
+            end
+            
+            % Re-scale state variable
+            if ~isequal(this.StateScaling,1)
+                if isscalar(this.StateScaling)
+                    x = this.StateScaling*x;
+                else
+                    x = bsxfun(@times,x,this.StateScaling);
+                end
+            end
+            y = x;
+            if ~isempty(this.C)
+                if this.C.TimeDependent
+                    % Evaluate the output conversion at each time t
+                    % Figure out resulting size of C*x evaluation
+                    t = this.Model.scaledTimes;
+                    hlp = this.C.evaluate(t(1),mu)*x(:,1);
+                    y = zeros(size(hlp,1),length(t));
+                    y(:,1) = hlp;
+                    for idx=2:length(t)
+                        y(:,idx) = this.C.evaluate(t(idx),mu)*x(:,idx);
+                    end
+                else
+                    % otherwise it's a constant matrix so multiplication
+                    % can be preformed much faster.
+                    y = this.C.evaluate([],mu)*x;
+                end
+            end
+        end
+        
+        function updateSparsityPattern(this)
+            td = this.NumTotalDofs;
+            sd = this.NumStateDofs;
+            JP = logical(sparse(td,td));
+            if ~isempty(this.A) && ~isempty(this.A.JSparsityPattern)
+                JP(1:sd,1:sd) = JP(1:sd,1:sd) | this.A.JSparsityPattern;
+            end
+            if ~isempty(this.f) && ~isempty(this.f.JSparsityPattern)
+                JP(1:sd,:) = JP(1:sd,:) | this.f.JSparsityPattern;
+            end
+            if ~isempty(this.g)
+                JP(sd+1:end,:) = this.g.JSparsityPattern;
+            end
+            this.SparsityPattern = JP;
+        end
+        
+        function J = getJacobian(this, t, xc)
+            % Computes the global jacobian of the current system.
+            td = this.NumTotalDofs;
+            sd = this.NumStateDofs;
+            x = xc(1:sd);
+            J = sparse(td,td);
+            if isempty(this.g)
+                if ~isempty(this.A)
+                    J = J + this.A.getStateJacobian(x, t);
+                end
+                if ~isempty(this.f)
+                    J = J + this.f.getStateJacobian(xc, t);
+                end
+            else
+                if ~isempty(this.A)
+                    J(1:sd,1:sd) = J(1:sd,1:sd) + this.A.getStateJacobian(x, t);
+                elseif ~isempty(this.f)
+                    J(1:sd,:) = J(1:sd,:) + this.f.getStateJacobian(xc, t);
+                end
+                J(sd+1:end,:) = this.g.getStateJacobian(xc,t);
+            end
+        end
+        
+        function x0 = getX0(this, mu)
+            % Gets the initial state variable at `t=0`.
+            %
+            % This is exported into an extra function as it gets overridden
+            % in the ReducedModel subclass, where ErrorEstimators possibly
+            % change the x0 dimension.
+            %
+            % Parameters:
+            % mu: The parameter `\mu` to evaluate `x_0(\mu)`. Use [] for
+            % none. @typerowvec<double> @default []
+            %
+            % Return values:
+            % x0: the initial state for the parameter `\mu` @type matrix<double>
+            ss = this.StateScaling;
+            if (size(mu,2) > 1) && ~isscalar(ss)
+                ss = repmat(ss,1,size(mu,2));
+            end
+            x0 = this.x0.evaluate(mu) ./ ss;
         end
         
         function p = addParam(this, name, default, varargin)
@@ -411,65 +549,29 @@ classdef BaseDynSystem < KerMorObject
         end
     end
     
-    methods(Sealed)
-        function y = computeOutput(this, x, mu)
-            % Computes the output `y(t) = C(t,\mu)Sx(t)` from a given state
-            % result vector `x(t)`, using the system's time and current mu (if given).
-            %
-            % The matrix `S` represents possibly set state space scaling, and `C(t,\mu)` is an
-            % output conversion. Identity values are assumed if the corresponding components
-            % are not set/given.
-            %
-            % Parameters:
-            % x: The state variable vector at each time step per column @type matrix<double>
-            % mu: The parameter to use. If not specified, the currently set
-            % `\mu` value of this system is used. @type colvec<double>
-            % @default this.mu
-            %
-            % Return values:
-            % y: The output according to `y(t) = C(t,\mu)Sx(t)`
-            %
-            % NOTE: This is also called for reduced simulations within ReducedModel.simulate.
-            % However, reduced models do not employ state scaling anymore as it has been
-            % included in the x0, C components at build-time for the reduced model,
-            % respectively. Consequently, the StateScaling property of ReducedSystems is 1.
-            %
-            % See models.ReducedSystem.setReducedModel
-            
-            if nargin < 3
-                mu = this.mu;
-            end
-            
-            % Re-scale state variable
-            if ~isequal(this.StateScaling,1)
-                if isscalar(this.StateScaling)
-                    x = this.StateScaling*x;
-                else
-                    x = bsxfun(@times,x,this.StateScaling);
-                end
-            end
-            y = x;
-            if ~isempty(this.C)
-                if this.C.TimeDependent
-                    % Evaluate the output conversion at each time t
-                    % Figure out resulting size of C*x evaluation
-                    t = this.Model.scaledTimes;
-                    hlp = this.C.evaluate(t(1),mu)*x(:,1);
-                    y = zeros(size(hlp,1),length(t));
-                    y(:,1) = hlp;
-                    for idx=2:length(t)
-                        y(:,idx) = this.C.evaluate(t(idx),mu)*x(:,idx);
-                    end
-                else
-                    % otherwise it's a constant matrix so multiplication
-                    % can be preformed much faster.
-                    y = this.C.evaluate([],mu)*x;
-                end
-            end
-        end
-    end
-    
     methods(Access=protected)
+        
+%         function A = getA(this)
+%             A = [];
+%         end
+%         
+%         function B = getB(this)
+%             B = [];
+%         end
+%         
+%         function C = getC(this)
+%             C = dscomponents.LinearOutputConv(1);
+%         end
+%         
+%         function f = getf(this)
+%             f = [];
+%         end
+        
+        function gx = computeAlgebraicConditions(this, x, t)
+            % Callback to compute algebraic conditions, if any.
+            gx = [];
+        end
+        
         function validateModel(this, model)%#ok
             % Validates if the model to be set is a valid BaseModel at
             % least.
