@@ -22,7 +22,7 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
     end
     
     properties(SetAccess=protected)
-        NumSecondOrderDoFs;
+        NumDerivativeDofs;
     end
         
     methods      
@@ -33,14 +33,6 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
             % Register default properties
             this.registerProps('D');
         end
-        
-%         function createComponents(this)
-%             createComponents@models.BaseFirstOrderSystem(this);
-%             D_ = this.getD;
-%             if ~isempty(D_)
-%                 this.D = D_;
-%             end
-%         end
         
         function rsys = buildReducedSystem(this, rmodel)%#ok
             % Creates a reduced system given the current system and the
@@ -83,148 +75,127 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
 %             odefun = eval(['@(t,x)' odefunstr]);
         end
         
-        function dxyc = ODEFun(this, t, xyc)
+        function dx_xdot_c = ODEFun(this, t, x_xdot_c)
             % The state space vector is composed of
             % x: Original state space of second order model
-            % y: Substituted variable x'=y for first order transformation
+            % xdot: Substituted variable x'=y for first order transformation
             % c: Algebraic constraint variables
-            dx = zeros(size(xyc));
+            dx_xdot_c = zeros(size(x_xdot_c));
             
-            odof = this.NumSecondOrderDoFs;
-            x = xyc(odof+1:2*odof);
-            y = xyc(1:odof);
+            num_x_dof = this.NumStateDofs;
+            num_xdot_dof = this.NumDerivativeDofs;
+            x = x_xdot_c(1:num_x_dof);
+            xdot = x_xdot_c(num_x_dof+(1:num_xdot_dof));
             
-            % Set x'=y
-            dx(1:odof) = x;
+            % Set x'=xdot
+            dx_xdot_c(1:num_x_dof) = xdot;
+            % HERE WE ALSO NEED DERIVATIVE DIRICHLET CONDS!
             
-            % set y' = A(x)+D(y)+f(x,y)+Bu
-            dy = zeros(odof,1);
+            % Set x''=xdot' = A(x)+D(y)+f(x,y)+Bu
+            dy = zeros(num_xdot_dof,1);
             if ~isempty(this.A)
                 dy = dy + this.A.evaluate(x, t);
             end
             if ~isempty(this.D)
-                dy = dy + this.D.evaluate(y, t);
+                dy = dy + this.D.evaluate(xdot, t);
             end
             if ~isempty(this.f)
-                dy = dy + this.f.evaluate(xyc, t);
+                dy = dy + this.f.evaluate(x_xdot_c, t);
             end
             if ~isempty(this.B) && ~isempty(this.inputidx)
                 B = this.B.evaluate(t, this.mu)*this.u(t);
                 dy = dy + B;
             end
-            dxyc = [dx;dy];
+            dx_xdot_c(num_x_dof+(1:num_xdot_dof)) = dy;
             % Append algebraic constraint evaluation
             if ~isempty(this.g)
-                dxyc = [dxyc; this.g.evaluate(xyc,t)];
+                dx_xdot_c(num_x_dof+num_xdot_dof+1:end) = this.g.evaluate(x_xdot_c,t);
             end
         end
         
-        function [JacFun, JPattern] = getJacobianInfo(this)
-            d = this.NumSecondOrderDoFs;
-            ad = 0;
+        function J = getJacobian(this, t, x_xdot_c)
+            % Computes the global jacobian of the current RHS system.
+            td = this.NumTotalDofs;
+            sd = this.NumStateDofs;
+            dd = this.NumDerivativeDofs;
+            ad = this.NumAlgebraicDofs;
+            xdotpos = sd+(1:dd);
+            xpos = 1:sd;
+            cpos = sd+dd+(1:ad);
+            x = x_xdot_c(xpos);
+            xdot = x_xdot_c(xdotpos);
+            J = sparse(td,td);
+            J(xpos,:) = [sparse(sd,sd) speye(sd) sparse(sd,ad)];
+            if ~isempty(this.A)
+                J(xdotpos,xpos) = J(xdotpos,xpos) + this.A.getStateJacobian(x, t);
+            end
+            if ~isempty(this.D)
+                J(xdotpos,xdotpos) = J(xdotpos,xdotpos) + this.D.getStateJacobian(xdot, t);
+            end
+            if ~isempty(this.f)
+                J(xdotpos,:) = J(xdotpos,:) + this.f.getStateJacobian(x_xdot_c, t);
+            end
             if ~isempty(this.g)
-                ad = this.g.fDim;
-                %length(this.AlgebraicConditionDoF);
-            end 
-            JTrans = [sparse(d,d) speye(d) sparse(d,ad)];
-            JacFunStr = '[JTrans; ';
-            JPattern = JTrans;
-            if ~isempty(this.A) && ~isempty(this.f)
-                JacFunStr = [JacFunStr 'this.A.getStateJacobian(x, t) + this.f.getStateJacobian(x, t);'];
-                if ~isempty(this.A.JSparsityPattern) && ~isempty(this.f.JSparsityPattern)
-                    [i,j] = find(this.A.JSparsityPattern + this.f.JSparsityPattern);
-                    JPattern = [JPattern; sparse(i,j,ones(length(i),1),...
-                        this.A.fDim,this.A.xDim)];
-                end
-            elseif ~isempty(this.A)
-                JacFunStr = [JacFunStr 'this.A.getStateJacobian(x, t);'];
-                if  ~isempty(this.A.JSparsityPattern)
-                    JPattern = [JPattern; this.A.JSparsityPattern];
-                end
-            elseif ~isempty(this.f)
-                JacFunStr = [JacFunStr 'this.f.getStateJacobian(x, t);'];
-                if  ~isempty(this.f.JSparsityPattern)
-                    JPattern = [JPattern; this.f.JSparsityPattern];
-                end
+                J(cpos,:) = this.g.getStateJacobian(x_xdot_c,t);
             end
-            % Algebraic dofs
+        end
+        
+        function updateSparsityPattern(this)
+            % The state space vector (#NumTotalDofs) is composed of
+            % x: Original state space of second order model, #NumStateDofs
+            % xdot: Substituted variable x'=y for first order
+            % transformation #NumDerivativeDoFs
+            % c: Algebraic constraint variables #NumAlgebraicDofs
+            td = this.NumTotalDofs;
+            sd = this.NumStateDofs;
+            dd = this.NumDerivativeDofs;
+            ad = this.NumAlgebraicDofs;
+            xdotpos = sd+(1:dd);
+            JP = logical(sparse(td,td));
+            JP(1:sd,:) = [sparse(sd,sd) speye(sd) sparse(sd,ad)];
+            if ~isempty(this.A) && ~isempty(this.A.JSparsityPattern)
+                JP(xdotpos,1:sd) = JP(xdotpos,1:sd) | this.A.JSparsityPattern;
+            end
+            if ~isempty(this.D) && ~isempty(this.D.JSparsityPattern)
+                JP(xdotpos,xdotpos) = JP(xdotpos,xdotpos) | this.D.JSparsityPattern;
+            end
+            if ~isempty(this.f) && ~isempty(this.f.JSparsityPattern)
+                JP(xdotpos,:) = JP(xdotpos,:) | this.f.JSparsityPattern;
+            end
             if ~isempty(this.g)
-                JPattern = [JPattern; this.g.JSparsityPattern];
-                JacFunStr = [JacFunStr 'this.g.getStateJacobian(x,t)'];
+                JP(sd+dd+1:end,:) = this.g.JSparsityPattern;
             end
-            spy(JPattern)
-            JacFunStr
-            JacFun = eval(['@(t,x)' JacFunStr ']']);
+            this.SparsityPattern = JP;
         end
         
-        function p = addParam(this, name, default, varargin)
-            % Adds a parameter with the given values to the parameter
-            % collection of the current dynamical system.
-            %
-            % Use in subclass constructors to easily define desired default
-            % parameters for a specific dynamical system.
-            %
-            % Parameters:
-            % name: The name of the Parameter @type char
-            % range: The range of the Parameter. Can be either a scalar or
-            % a 1x2 double vector.
-            % desired: The desired number of samples for that parameter.
-            % @type integer @default 1
-            % spacing: The intended sample spacing over the range @type
-            % char @default 'lin'
-            %
-            % Return values:
-            % p: The new ModelParam instance. @type ModelParam
-            % 
-            % See also: ModelParam setParam
-            if ~isempty(this.Params) && ~isempty(find(strcmpi(name,{this.Params(:).Name}),1))
-                error('Parameter with name %s already exists. Use setParam instead.',name);
-            end
-            p = data.ModelParam(name, default, varargin{:});
-            this.Params(end+1) = p;
+        function x_xdot_c0 = getX0(this, mu)
+            % Gets the initial state variable at `t=0`.
+            x_c0 = getX0@models.BaseFirstOrderSystem(this, mu);
+            sd = this.NumStateDofs;
+            dd = this.NumDerivativeDofs;
+            x_xdot_c0 = zeros(this.NumTotalDofs,1);
+            
+            x_xdot_c0(1:sd) = x_c0(1:sd);
+            % Insert xdot0 between
+            x_xdot_c0(sd+(1:dd)) = zeros(dd,1);
+            % TODO:
+            % Remove derivative dirichlet values
+            x_xdot_c0(sd+dd+1:end) = x_c0(sd+1:end);
         end
         
-        function pidx = getParamIndexFromName(this, paramname)
-            % Gets the index within the parameter vector `\mu` for a given parameter name.
-            %
-            % Return values:
-            % pidx: The parameter index for the given name, [] if none found.
-            if ~ischar(paramname)
-                error('Parameter paramname must be a char array');
+        function M = getMassMatrix(this)
+            M = this.M;
+            if ~isa(M,'dscomponents.ConstMassMatrix')
+                error('Non-constant mass matrices not yet implemented for second order systems');
             end
-            pidx = find(strcmpi(paramname,{this.Params(:).Name}),1);
-        end
-        
-        function pt = getParamInfo(this, mu)
-            if nargin < 2
-                mu = this.Model.DefaultMu;
-            end
-            %str = '';
-            pt = PrintTable;
-            pt.HasRowHeader = true;
-            pt.HasHeader = true;
-            pt.addRow('Parameter name','Value','Index');
-            for i=1:this.ParamCount
-               % str = sprintf('%s%d - %s: %f\n',str,i,this.Params(i).Name,mu(i));
-                pt.addRow(this.Params(i).Name,mu(i),i);
-            end
-            if nargout < 1
-                pt.print;
-            end
-        end
-        
-        function plotInputs(this, pm)
-            if nargin < 2
-                pm = PlotManager;
-                pm.LeaveOpen = true;
-            end
-            for i=1:this.InputCount
-                ui = this.Inputs{i};
-                h = pm.nextPlot(sprintf('u%d',i),sprintf('u_%d = %s',i,func2str(ui)),...
-                    't',sprintf('u_%d',i));
-                plot(h,this.Model.Times,ui(this.Model.scaledTimes),'LineWidth',2);
-            end
-            pm.done;
+            sd = this.NumStateDofs;
+            ad = this.NumAlgebraicDofs;
+            M = blkdiag(speye(sd),this.M.M,sparse(ad,ad));
+            % Tell the mass matrix which components are algebraic
+            % constraint dofs - those wont be used determinig a suitable
+            % initial slope in e.g. solvers.MLWrapper
+            algdofs = sd+this.NumDerivativeDofs+(1:ad);
+            M = dscomponents.ConstMassMatrix(M,algdofs);
         end
     end
     
@@ -288,15 +259,9 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
     
     methods(Access=protected)
         
-        function x0 = getX0(this, mu)
-            % Gets the initial state variable at `t=0`.
-            x0 = getX0@models.BaseFirstOrderSystem(this, mu);
-            odof = this.NumSecondOrderDoFs - length(this.AlgebraicConditionDoF);
-            x0 = [zeros(odof,1); x0];
-            
-            % TODO:
-            % Remove dirichlet values
-            %x0(this.idx_uv_bc_glob) = [];
+        function updateDimensions(this)
+            this.NumTotalDofs = this.NumStateDofs ...
+                + this.NumDerivativeDofs + this.NumAlgebraicDofs;
         end
         
         function gx = computeAlgebraicConditions(this, x, t)

@@ -535,7 +535,7 @@ classdef BaseModel < KerMorObject
             % Assign mass matrix to solver if present
             slv.M = [];
             if ~isempty(sys.M)
-                slv.M = sys.M;
+                slv.M = sys.getMassMatrix;
             end
             
             % Call solver

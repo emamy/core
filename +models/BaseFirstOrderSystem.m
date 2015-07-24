@@ -207,6 +207,8 @@ classdef BaseFirstOrderSystem < KerMorObject
     
     properties(SetAccess=protected)
         NumStateDofs;
+        NumAlgebraicDofs;
+        NumTotalDofs;
     end
     
     properties(SetAccess=private, Dependent)
@@ -227,9 +229,6 @@ classdef BaseFirstOrderSystem < KerMorObject
     properties(SetAccess=private)
         % The Model this System is attached to.
         Model;
-        
-        NumTotalDofs;
-        NumAlgebraicDofs;
     end
     
     properties(Access=private)
@@ -247,16 +246,6 @@ classdef BaseFirstOrderSystem < KerMorObject
             
             % Register default properties
             this.registerProps('A','f','B','C','x0','Inputs','Params','MaxTimestep','StateScaling');
-        end
-        
-        function updateDimensions(this)
-            this.NumAlgebraicDofs = 0;
-            if ~isempty(this.g)
-                this.NumAlgebraicDofs = this.g.fDim;
-            end
-            this.NumTotalDofs = this.NumStateDofs + this.NumAlgebraicDofs;
-            
-            this.updateSparsityPattern;
         end
         
         function rsys = buildReducedSystem(this, rmodel)%#ok
@@ -478,6 +467,15 @@ classdef BaseFirstOrderSystem < KerMorObject
             x0 = this.x0.evaluate(mu) ./ ss;
         end
         
+        function M = getMassMatrix(this)
+            % For first order systems, only algebraic constraints need to
+            % be catered for.
+            M = this.M;
+            if this.NumAlgebraicDofs > 0
+                error('First order with AlgebraicDofs not yet implemented.');
+            end
+        end
+        
         function p = addParam(this, name, default, varargin)
             % Adds a parameter with the given values to the parameter
             % collection of the current dynamical system.
@@ -551,25 +549,8 @@ classdef BaseFirstOrderSystem < KerMorObject
     
     methods(Access=protected)
         
-%         function A = getA(this)
-%             A = [];
-%         end
-%         
-%         function B = getB(this)
-%             B = [];
-%         end
-%         
-%         function C = getC(this)
-%             C = dscomponents.LinearOutputConv(1);
-%         end
-%         
-%         function f = getf(this)
-%             f = [];
-%         end
-        
-        function gx = computeAlgebraicConditions(this, x, t)
-            % Callback to compute algebraic conditions, if any.
-            gx = [];
+        function updateDimensions(this)
+            this.NumTotalDofs = this.NumStateDofs + this.NumAlgebraicDofs;
         end
         
         function validateModel(this, model)%#ok
