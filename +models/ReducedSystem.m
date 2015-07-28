@@ -46,7 +46,7 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
             % Parameters:
             % rmodel: [Optional] The reduced model to create the reduced
             % system from.
-            this = this@models.BaseDynSystem(rmodel);
+            this = this@models.BaseFirstOrderSystem(rmodel);
             if nargin == 1
                 this.setReducedModel(rmodel);
             end
@@ -201,9 +201,6 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
             end
             odefun = eval(['@(t,x)' funstr]);
         end
-    end
-    
-    methods(Access=protected, Sealed)
         
         function x0 = getX0(this, mu)
             % Gets the initial value of `x_0(\mu)`.
@@ -217,6 +214,9 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
                 x0 = [x0; m.ErrorEstimator.getE0(mu)];
             end
         end
+    end
+    
+    methods(Access=protected)
         
         function validateModel(this, model)%#ok
             % Overrides the validateModel function in BaseDynSystem.

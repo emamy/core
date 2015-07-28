@@ -53,8 +53,7 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
             % Override this method in subclasses (with call to parent) if
             % custom behaviour of your system is required prior/posterior
             % to reduced model computation.
-            error('TODO');
-            rsys = models.ReducedSystem(rmodel);
+            rsys = models.ReducedSecondOrderSystem(rmodel);
         end
         
         function prepareSimulation(this, mu, inputidx)
