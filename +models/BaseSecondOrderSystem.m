@@ -23,8 +23,20 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
     
     properties(SetAccess=protected)
         NumDerivativeDofs;
+        
+        % A logical column vector containing true at the locations of
+        % explicit derivative dirichlet conditions.
+        % The vector must have the same size as NumStateDofs.
+        %
+        % See also: getDerivativeDirichletValues
+        DerivativeDirichletPosInStateDofs;
     end
         
+    properties(Access=private)
+        % Pre-Computed pattern for dx-part
+        JDX;
+    end
+    
     methods      
         function this = BaseSecondOrderSystem(model)
             % Creates a new base dynamical system class instance.
@@ -87,11 +99,27 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
             x = x_xdot_c(1:num_x_dof);
             xdot = x_xdot_c(num_x_dof+(1:num_xdot_dof));
             
-            % Set x'=xdot
-            dx_xdot_c(1:num_x_dof) = xdot;
-            % HERE WE ALSO NEED DERIVATIVE DIRICHLET CONDS!
+            %% Set x'=xdot
+            % Check for derivative dirichlet conditions - insert them here
+            % as direct values
+            if num_x_dof ~= num_xdot_dof % Quickest check
+                dx = zeros(num_x_dof,1);
+                % Execute callback - subclasses must provide the (possibly
+                % time-dependent) valuess
+                val = this.getDerivativeDirichletValues(t);
+                pos = this.DerivativeDirichletPosInStateDofs;
+                % Dirichlet values
+                dx(pos) = val;
+                % Dof values
+                dx(~pos) = xdot;
+                % Set in global dof vector
+                dx_xdot_c(1:num_x_dof) = dx;
+            else
+                % Direct forwarding - no derivative dirichlet conditions
+                dx_xdot_c(1:num_x_dof) = xdot;
+            end
             
-            % Set x''=xdot' = A(x)+D(y)+f(x,y)+Bu
+            %% Set x''=xdot' = A(x)+D(y)+f(x,y)+Bu
             dy = zeros(num_xdot_dof,1);
             if ~isempty(this.A)
                 dy = dy + this.A.evaluate(x, t);
@@ -125,7 +153,7 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
             x = x_xdot_c(xpos);
             xdot = x_xdot_c(xdotpos);
             J = sparse(td,td);
-            J(xpos,:) = [sparse(sd,sd) speye(sd) sparse(sd,ad)];
+            J(xpos,:) = this.JDX;
             if ~isempty(this.A)
                 J(xdotpos,xpos) = J(xdotpos,xpos) + this.A.getStateJacobian(x, t);
             end
@@ -152,7 +180,10 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
             ad = this.NumAlgebraicDofs;
             xdotpos = sd+(1:dd);
             JP = logical(sparse(td,td));
-            JP(1:sd,:) = [sparse(sd,sd) speye(sd) sparse(sd,ad)];
+            I = speye(sd);
+            I(:,this.DerivativeDirichletPosInStateDofs) = [];
+            this.JDX = [sparse(sd,sd) I sparse(sd,ad)];
+            JP(1:sd,:) = this.JDX;
             if ~isempty(this.A) && ~isempty(this.A.JSparsityPattern)
                 JP(xdotpos,1:sd) = JP(xdotpos,1:sd) | this.A.JSparsityPattern;
             end
@@ -171,16 +202,18 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
         function x_xdot_c0 = getX0(this, mu)
             % Gets the initial state variable at `t=0`.
             x_c0 = getX0@models.BaseFirstOrderSystem(this, mu);
-            sd = this.NumStateDofs;
-            dd = this.NumDerivativeDofs;
+            num_x_dof = this.NumStateDofs;
+            num_xdot_dof = this.NumDerivativeDofs;
             x_xdot_c0 = zeros(this.NumTotalDofs,1);
             
-            x_xdot_c0(1:sd) = x_c0(1:sd);
-            % Insert xdot0 between
-            x_xdot_c0(sd+(1:dd)) = zeros(dd,1);
-            % TODO:
-            % Remove derivative dirichlet values
-            x_xdot_c0(sd+dd+1:end) = x_c0(sd+1:end);
+            % Insert state initial values
+            x_xdot_c0(1:num_x_dof) = x_c0(1:num_x_dof);
+            
+            % Insert zero derivative initial values (xdot0) between
+            x_xdot_c0(num_x_dof+(1:num_xdot_dof)) = zeros(num_xdot_dof,1);
+            
+            % Insert alg cond initial values
+            x_xdot_c0(num_x_dof+num_xdot_dof+1:end) = x_c0(num_x_dof+1:end);
         end
         
         function M = getMassMatrix(this)
@@ -199,74 +232,11 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
         end
     end
     
-    methods(Sealed)
-        function y = computeOutput(this, x, mu)
-            % Computes the output `y(t) = C(t,\mu)Sx(t)` from a given state
-            % result vector `x(t)`, using the system's time and current mu (if given).
-            %
-            % The matrix `S` represents possibly set state space scaling, and `C(t,\mu)` is an
-            % output conversion. Identity values are assumed if the corresponding components
-            % are not set/given.
-            %
-            % Parameters:
-            % x: The state variable vector at each time step per column @type matrix<double>
-            % mu: The parameter to use. If not specified, the currently set
-            % `\mu` value of this system is used. @type colvec<double>
-            % @default this.mu
-            %
-            % Return values:
-            % y: The output according to `y(t) = C(t,\mu)Sx(t)`
-            %
-            % NOTE: This is also called for reduced simulations within ReducedModel.simulate.
-            % However, reduced models do not employ state scaling anymore as it has been
-            % included in the x0, C components at build-time for the reduced model,
-            % respectively. Consequently, the StateScaling property of ReducedSystems is 1.
-            %
-            % See models.ReducedSystem.setReducedModel
-            
-            if nargin < 3
-                mu = this.mu;
-            end
-            
-            % Re-scale state variable
-            if ~isequal(this.StateScaling,1)
-                if isscalar(this.StateScaling)
-                    x = this.StateScaling*x;
-                else
-                    x = bsxfun(@times,x,this.StateScaling);
-                end
-            end
-            y = x;
-            if ~isempty(this.C)
-                if this.C.TimeDependent
-                    % Evaluate the output conversion at each time t
-                    % Figure out resulting size of C*x evaluation
-                    t = this.Model.scaledTimes;
-                    hlp = this.C.evaluate(t(1),mu)*x(:,1);
-                    y = zeros(size(hlp,1),length(t));
-                    y(:,1) = hlp;
-                    for idx=2:length(t)
-                        y(:,idx) = this.C.evaluate(t(idx),mu)*x(:,idx);
-                    end
-                else
-                    % otherwise it's a constant matrix so multiplication
-                    % can be preformed much faster.
-                    y = this.C.evaluate([],mu)*x;
-                end
-            end
-        end
-    end
-    
     methods(Access=protected)
         
         function updateDimensions(this)
             this.NumTotalDofs = this.NumStateDofs ...
                 + this.NumDerivativeDofs + this.NumAlgebraicDofs;
-        end
-        
-        function gx = computeAlgebraicConditions(this, x, t)
-            % Callback to compute algebraic conditions, if any.
-            gx = [];
         end
         
         function validateModel(this, model)%#ok
@@ -280,5 +250,20 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
             end
         end
     end        
+    
+    methods(Access=protected, Abstract)
+        % Computes the derivative dirichlet values dependent on the
+        % current time.
+        %
+        % The logical field DerivativeDirichletPosInStateDofs indicates
+        % the positions of those values within the StateDofs.
+        %
+        % The default behaviour is doing nothing (just return []); this
+        % function will only be called if NumStateDofs and
+        % NumDerivativeDofs differ.
+        %
+        % See also: ODEFun DerivativeDirichletPosInStateDofs
+        val = getDerivativeDirichletValues(this, t);
+    end
 end
 
