@@ -75,11 +75,9 @@ classdef ReducedModel < models.BaseModel
     
     methods
         
-        function this = ReducedModel(fullmodel, target_dim)
+        function this = ReducedModel(fullmodel)
             this = this@models.BaseModel;
-            if nargin > 0
-                this.setFullModel(fullmodel, target_dim);
-            end
+            this.FullModel = fullmodel;
         end
         
         function delete(this)
@@ -95,7 +93,7 @@ classdef ReducedModel < models.BaseModel
     
     methods(Sealed)
         
-        function setFullModel(this, fullmodel, varargin)
+        function build(this, target_dim)
             % Creates a new reduced model instance from a full model.
             %
             % Ensure that offlineGenerations have been called on the full
@@ -112,19 +110,19 @@ classdef ReducedModel < models.BaseModel
             % See also: models.BaseFullModel
             % models.BaseFullModel.buildReducedModel
             % models.BaseFullModel.offlineGenerations            
-            if nargin == 0 || ~isa(fullmodel,'models.BaseFullModel')
-                error('ReducedModel instances require a full model to construct from.');
-            elseif isempty(fullmodel.Approx) && isempty(fullmodel.SpaceReducer)
-                error('No reduction methods found on full model. No use in building a reduced model from it.');
-            end
             
             disp('Building reduced model...');
+            fullmodel = this.FullModel;
+            if isempty(fullmodel.Approx) && isempty(fullmodel.SpaceReducer)
+                error('No reduction methods found on full model. No use in building a reduced model from it.');
+            end
+            if nargin < 2
+                % Default: create a reduced model 10th the size of the full
+                % one
+                target_dim = floor(fullmodel.System.StateSpaceDimension/10);
+            end
             
-            % IMPORTANT: Assign any model properties that are used during
-            % the creation of the reduced system! (i.e. V,W are used in the
-            % constructor of the reduced System)
-            this.FullModel = fullmodel;
-            % Update name ;-)
+            % Update name
             this.Name = ['Reduced: ' fullmodel.Name];
             
             %% Copy common values from the full model
@@ -145,14 +143,20 @@ classdef ReducedModel < models.BaseModel
             this.G = fullmodel.G;
             
             %% Get projection matrix
-            [this.V, this.W] = fullmodel.assembleProjectionMatrices(varargin{:});
-            %this.V = data.FileMatrix(V,'Dir',fd.DataDirectory);
-            %this.W = data.FileMatrix(W,'Dir',fd.DataDirectory);
-            
-            this.ParamSamples = fullmodel.Data.ParamSamples;
+            fd = fullmodel.Data;
+            fsys = fullmodel.System;
+            %[this.V, this.W] = fullmodel.assembleProjectionMatrices(target_dim);
+            V_ = fd.ProjectionSpaces(1).V(:,1:target_dim);
+            %if fsys.NumAlgebraicDofs > 0
+            %    V_ = blkdiag(V_,eye(fsys.NumAlgebraicDofs));
+            %end
+            this.V = V_;
+            this.W = this.V;
+            this.ParamSamples = fd.ParamSamples;
             
             %% Create a new reducedSystem passing this reduced model
-            this.System = fullmodel.System.buildReducedSystem(this);
+            this.System = fsys.getReducedSystemInstance(this);
+            this.System.build;
             
             % Use the error estimator that has been precomputed in 
             % the full model
@@ -294,6 +298,13 @@ classdef ReducedModel < models.BaseModel
                 end
             end
             this.fErrorEstimator = value;
+        end
+        
+        function set.FullModel(this, value)
+            if ~isempty(value) && ~isa(value,'models.BaseFullModel')
+                error('ReducedModel instances require a full model to build from.');
+            end
+            this.FullModel = value;
         end
     end
     

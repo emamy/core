@@ -30,6 +30,11 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
 % - \c Homepage http://www.morepas.org/software/index.html
 % - \c Documentation http://www.morepas.org/software/kermor/index.html
 % - \c License @ref licensing    
+
+    properties(SetAccess=protected)
+        % The reduced dof to full dof reconstruction matrix
+        R;
+    end
     
     properties(Access=private)
         plotPtr;
@@ -39,20 +44,13 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
         function this = ReducedSystem(rmodel)
             % Creates a new ReducedSystem instance.
             %
-            % The actual code for reduced system computation is in the
-            % method setReducedModel in order to comply with matlab's
-            % no-argument-object-constructor.
-            %
             % Parameters:
             % rmodel: [Optional] The reduced model to create the reduced
             % system from.
             this = this@models.BaseFirstOrderSystem(rmodel);
-            if nargin == 1
-                this.setReducedModel(rmodel);
-            end
         end
         
-        function setReducedModel(this, rmodel)
+        function build(this)
             % Creates a reduced system from BaseFullModel child system.
             % As default, all system's components are copied as-is and any
             % reduction changes are performed in the
@@ -71,8 +69,9 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
             %
             % See also: models.BaseFullModel#buildReducedModel
             disp('Start building reduced system...');
-            fullmodel = rmodel.FullModel;
             
+            rmodel = this.Model;
+            fullmodel = rmodel.FullModel;
             fullsys = fullmodel.System;
                         
             V = rmodel.V;
@@ -96,7 +95,7 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
             s = fullmodel.System.StateScaling;
             if s ~= 1
                 if isscalar(s)
-                    dim = fullsys.x0.evaluate(fullmodel.getRandomParam);
+                    dim = fullsys.NumStateDofs;
                     s(1:dim,1) = s;
                 else
                     dim = length(s);
@@ -168,6 +167,10 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
             % Set the plot-wrapper (uses the plot method from the full
             % system)
             this.plotPtr = @fullsys.plot;
+            
+            this.updateDimensions;
+            
+            this.compileReconstructionMatrix(V);
         end
         
         function plot(this, model, t, y)
@@ -176,31 +179,31 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
             this.plotPtr(model, t, y);
         end
         
-        function odefun = getODEFun(this)
-            % Determine correct ODE function (A,f,B combination)
-            xarg = 'x';
-            est = this.Model.ErrorEstimator;
-            haveest = ~isempty(est) && est.Enabled;
-            if haveest
-                xarg = 'x(1:end-est.ExtraODEDims,:)';
-            end
-            
-            str = {};
-            if ~isempty(this.A)
-                str{end+1} = sprintf('this.A.evaluate(%s, t)',xarg);
-            end
-            if ~isempty(this.f)
-                str{end+1} = sprintf('this.f.evaluate(%s, t)',xarg);
-            end
-            if ~isempty(this.B) && ~isempty(this.inputidx)
-                str{end+1} = 'this.B.evaluate(t, this.mu)*this.u(t)';
-            end
-            funstr = Utils.implode(str,' + ');
-            if haveest
-                funstr = ['[' funstr '; est.evalODEPart(x, t, this.u(t))]'];
-            end
-            odefun = eval(['@(t,x)' funstr]);
-        end
+%         function odefun = getODEFun(this)
+%             % Determine correct ODE function (A,f,B combination)
+%             xarg = 'x';
+%             est = this.Model.ErrorEstimator;
+%             haveest = ~isempty(est) && est.Enabled;
+%             if haveest
+%                 xarg = 'x(1:end-est.ExtraODEDims,:)';
+%             end
+%             
+%             str = {};
+%             if ~isempty(this.A)
+%                 str{end+1} = sprintf('this.A.evaluate(%s, t)',xarg);
+%             end
+%             if ~isempty(this.f)
+%                 str{end+1} = sprintf('this.f.evaluate(%s, t)',xarg);
+%             end
+%             if ~isempty(this.B) && ~isempty(this.inputidx)
+%                 str{end+1} = 'this.B.evaluate(t, this.mu)*this.u(t)';
+%             end
+%             funstr = Utils.implode(str,' + ');
+%             if haveest
+%                 funstr = ['[' funstr '; est.evalODEPart(x, t, this.u(t))]'];
+%             end
+%             odefun = eval(['@(t,x)' funstr]);
+%         end
         
         function x0 = getX0(this, mu)
             % Gets the initial value of `x_0(\mu)`.
@@ -217,6 +220,17 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
     end
     
     methods(Access=protected)
+        
+        function compileReconstructionMatrix(this, V)
+            this.R = V;
+        end
+        
+        function updateDimensions(this)
+            rm = this.Model;
+            this.NumStateDofs = size(rm.V,2);
+            this.NumAlgebraicDofs = rm.FullModel.System.NumAlgebraicDofs;
+            this.NumTotalDofs = this.NumStateDofs + this.NumAlgebraicDofs;
+        end
         
         function validateModel(this, model)%#ok
             % Overrides the validateModel function in BaseDynSystem.

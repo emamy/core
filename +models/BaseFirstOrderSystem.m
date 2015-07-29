@@ -187,9 +187,6 @@ classdef BaseFirstOrderSystem < KerMorObject
         % @type colvec
         StateScaling = 1;
         
-        
-        AlgebraicConditionDoF;
-        
         % The global sparsity pattern for the entire RHS
         SparsityPattern;
     end
@@ -217,22 +214,11 @@ classdef BaseFirstOrderSystem < KerMorObject
         
         % The number of the system's parameters.
         ParamCount;
-        
-        % The model's state space dimension
-        %
-        % Determined using the x0 initial conditions.
-        %
-        % @type integer
-        StateSpaceDimension;
     end
     
     properties(SetAccess=private)
         % The Model this System is attached to.
         Model;
-    end
-    
-    properties(Access=private)
-        statedim;
     end
         
     methods      
@@ -240,21 +226,17 @@ classdef BaseFirstOrderSystem < KerMorObject
             % Creates a new base dynamical system class instance.
             %
             % Uses default output mapping: state variables are output.
-            % Initial conditions are set to zero.
             this.validateModel(model);
             this.Model = model;
+            this.C = dscomponents.LinearOutputConv(1);
             
             % Register default properties
             this.registerProps('A','f','B','C','x0','Inputs','Params','MaxTimestep','StateScaling');
         end
         
-        function rsys = buildReducedSystem(this, rmodel)%#ok
+        function rsys = getReducedSystemInstance(rmodel)
             % Creates a reduced system given the current system and the
             % reduced model.
-            %
-            % Override this method in subclasses (with call to parent) if
-            % custom behaviour of your system is required prior/posterior
-            % to reduced model computation.
             rsys = models.ReducedSystem(rmodel);
         end
         
@@ -336,7 +318,7 @@ classdef BaseFirstOrderSystem < KerMorObject
         function dx = ODEFun(this,t,x)
             % Debug variant for single evaluation. Commented in function
             % above.
-            dx = zeros(this.StateSpaceDimension,1);
+            dx = zeros(this.NumTotalDofs,1);
             if ~isempty(this.A)
                 dx = dx + this.A.evaluate(x, t);
             end
@@ -465,6 +447,11 @@ classdef BaseFirstOrderSystem < KerMorObject
                 ss = repmat(ss,1,size(mu,2));
             end
             x0 = this.x0.evaluate(mu) ./ ss;
+            
+            % Append DoFs for algebraic conditions below (if set)
+            if this.NumAlgebraicDofs > 0
+                x0 = [x0; this.getAlgebraicDofsInitialConditions];
+            end
         end
         
         function M = getMassMatrix(this)
@@ -553,6 +540,11 @@ classdef BaseFirstOrderSystem < KerMorObject
             this.NumTotalDofs = this.NumStateDofs + this.NumAlgebraicDofs;
         end
         
+        function ad_ic = getAlgebraicDofsInitialConditions(this)
+            % The default is to return all zeros.
+            ad_ic = zeros(this.NumAlgebraicDofs,1);
+        end
+        
         function validateModel(this, model)%#ok
             % Validates if the model to be set is a valid BaseModel at
             % least.
@@ -633,14 +625,6 @@ classdef BaseFirstOrderSystem < KerMorObject
 %             end
             
             this.x0 = value;
-        end
-        
-        function sdim = get.StateSpaceDimension(this)
-            if isempty(this.statedim)
-                xinit = this.x0.evaluate(this.Model.DefaultMu);
-                this.statedim = size(xinit,1);
-            end
-            sdim = this.statedim;
         end
         
         function value = get.ParamCount(this)

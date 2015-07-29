@@ -6,60 +6,95 @@ classdef ReducedSecondOrderSystem < models.ReducedSystem & models.BaseSecondOrde
     end
     
     methods
-        function this = ReducedSecondOrderSystem(model)
+        function this = ReducedSecondOrderSystem(rmodel)
             % Creates a new base dynamical system class instance.
-            this = this@models.BaseSecondOrderSystem(model);
+            this = this@models.BaseSecondOrderSystem(rmodel);
+            this = this@models.ReducedSystem(rmodel);
         end
         
-        function setReducedModel(this, rmodel)
-            setReducedModel@models.ReducedSystem(this, rmodel);
+        function build(this)
+            build@models.ReducedSystem(this);
+            rm = this.Model;
+            fullsys = rm.FullModel.System; 
             % Additional steps
+            % Project damping matrix
+            if ~isempty(fullsys.D)
+                this.D = fullsys.D.project(rm.V,rm.W);
+            end
         end
         
-        function odefun = getODEFun(this)
-            % Determine correct ODE function (A,f,B combination)
-            xarg = 'x';
-            est = this.Model.ErrorEstimator;
-            haveest = ~isempty(est) && est.Enabled;
-            if haveest
-                xarg = 'x(1:end-est.ExtraODEDims,:)';
-            end
-            
-            str = {};
-            if ~isempty(this.A)
-                str{end+1} = sprintf('this.A.evaluate(%s, t)',xarg);
-            end
-            if ~isempty(this.f)
-                str{end+1} = sprintf('this.f.evaluate(%s, t)',xarg);
-            end
-            if ~isempty(this.B) && ~isempty(this.inputidx)
-                str{end+1} = 'this.B.evaluate(t, this.mu)*this.u(t)';
-            end
-            funstr = Utils.implode(str,' + ');
-            if haveest
-                funstr = ['[' funstr '; est.evalODEPart(x, t, this.u(t))]'];
-            end
-            odefun = eval(['@(t,x)' funstr]);
-        end
+%         function odefun = getODEFun(this)
+%             % Determine correct ODE function (A,f,B combination)
+%             xarg = 'x';
+%             est = this.Model.ErrorEstimator;
+%             haveest = ~isempty(est) && est.Enabled;
+%             if haveest
+%                 xarg = 'x(1:end-est.ExtraODEDims,:)';
+%             end
+%             
+%             str = {};
+%             if ~isempty(this.A)
+%                 str{end+1} = sprintf('this.A.evaluate(%s, t)',xarg);
+%             end
+%             if ~isempty(this.f)
+%                 str{end+1} = sprintf('this.f.evaluate(%s, t)',xarg);
+%             end
+%             if ~isempty(this.B) && ~isempty(this.inputidx)
+%                 str{end+1} = 'this.B.evaluate(t, this.mu)*this.u(t)';
+%             end
+%             funstr = Utils.implode(str,' + ');
+%             if haveest
+%                 funstr = ['[' funstr '; est.evalODEPart(x, t, this.u(t))]'];
+%             end
+%             odefun = eval(['@(t,x)' funstr]);
+%         end
         
-        function x0 = getX0(this, mu)
+        function z_zdot_c0 = getX0(this, mu)
             % Gets the initial value of `x_0(\mu)`.
             %
             % If the estimator is enabled, x0 is extended by the e0
             % components of the error estimator.
             
-            x0 = getX0@models.BaseFirstOrderSystem(this, mu);
+            z_c0 = getX0@models.BaseFirstOrderSystem(this, mu);
+            num_z_dof = this.NumStateDofs;
+            num_zdot_dof = this.NumDerivativeDofs;
+            z_zdot_c0 = zeros(this.NumTotalDofs,1);
+            
+            % Insert state initial values
+            z_zdot_c0(1:num_z_dof) = z_c0(1:num_z_dof);
+            
+            % Insert zero derivative initial values (xdot0) between
+            z_zdot_c0(num_z_dof+(1:num_zdot_dof)) = zeros(num_zdot_dof,1);
+            
+            % Insert alg cond initial values
+            z_zdot_c0(num_z_dof+num_zdot_dof+1:end) = z_c0(num_z_dof+1:end);
+            
             m = this.Model;
             if ~isempty(m.ErrorEstimator) && m.ErrorEstimator.Enabled
-                x0 = [x0; m.ErrorEstimator.getE0(mu)];
+                z_zdot_c0 = [z_zdot_c0; m.ErrorEstimator.getE0(mu)];
             end
         end
         
     end
     
     methods(Access=protected)
+        
+        function compileReconstructionMatrix(this, V)
+            this.R = blkdiag(V,V,eye(this.NumAlgebraicDofs));
+        end
+        
+        function updateDimensions(this)
+            updateDimensions@models.ReducedSystem(this);
+            this.NumDerivativeDofs = this.NumStateDofs;
+            this.NumTotalDofs = 2*this.NumStateDofs + this.NumAlgebraicDofs;
+        end
+        
         function val = getDerivativeDirichletValues(this, t)
             val = getDerivativeDirichletValues@models.BaseSecondOrderSystem(this, t);
+        end
+        
+        function validateModel(this, model)%#ok
+            validateModel@models.ReducedSystem(this, model);
         end
     end
     

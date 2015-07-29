@@ -46,7 +46,7 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
             this.registerProps('D');
         end
         
-        function rsys = buildReducedSystem(this, rmodel)%#ok
+        function rsys = getReducedSystemInstance(~, rmodel)
             % Creates a reduced system given the current system and the
             % reduced model.
             %
@@ -199,6 +199,8 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
         end
         
         function x_xdot_c0 = getX0(this, mu)
+            % Compiles the global x0 vector of the global dof vector
+            
             % Gets the initial state variable at `t=0`.
             x_c0 = getX0@models.BaseFirstOrderSystem(this, mu);
             num_x_dof = this.NumStateDofs;

@@ -57,7 +57,7 @@ classdef AffLinInputConv < general.AffParamMatrix & dscomponents.AInputConv
             end
         end
         
-        function prepareSimulation(this, mu) 
+        function prepareSimulation(this, mu)
             this.cachedB = [];
             if ~isempty(mu) && ~this.TimeDependent
                 this.cachedB = this.compose(0, mu);
