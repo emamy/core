@@ -32,7 +32,7 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
         DerivativeDirichletPosInStateDofs;
     end
         
-    properties(Access=private)
+    properties(Access=protected)
         % Pre-Computed pattern for dx-part
         JDX;
     end

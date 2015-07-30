@@ -23,6 +23,35 @@ classdef ReducedSecondOrderSystem < models.ReducedSystem & models.BaseSecondOrde
             end
         end
         
+        function J = getJacobian(this, t, x_xdot_c)
+            % Computes the global jacobian of the current RHS system.
+            td = this.NumTotalDofs;
+            sd = this.NumStateDofs;
+            dd = this.NumDerivativeDofs;
+            ad = this.NumAlgebraicDofs;
+            xdotpos = sd+(1:dd);
+            xpos = 1:sd;
+            cpos = sd+dd+(1:ad);
+            x = x_xdot_c(xpos);
+            xdot = x_xdot_c(xdotpos);
+            J = sparse(td,td);
+            I = speye(sd);
+            I(:,this.DerivativeDirichletPosInStateDofs) = [];
+            J(xpos,:) = [sparse(sd,sd) I sparse(sd,ad)];
+            if ~isempty(this.A)
+                J(xdotpos,xpos) = J(xdotpos,xpos) + this.A.getStateJacobian(x, t);
+            end
+            if ~isempty(this.D)
+                J(xdotpos,xdotpos) = J(xdotpos,xdotpos) + this.D.getStateJacobian(xdot, t);
+            end
+            if ~isempty(this.f)
+                J(xdotpos,:) = J(xdotpos,:) + this.f.getStateJacobian(x_xdot_c, t);
+            end
+            if ~isempty(this.g)
+                J(cpos,:) = this.g.getStateJacobian(x_xdot_c,t);
+            end
+        end
+        
 %         function odefun = getODEFun(this)
 %             % Determine correct ODE function (A,f,B combination)
 %             xarg = 'x';
@@ -75,12 +104,16 @@ classdef ReducedSecondOrderSystem < models.ReducedSystem & models.BaseSecondOrde
             end
         end
         
+        function updateSparsityPattern(this)
+            updateSparsityPattern@models.ReducedSystem(this);
+        end
+        
     end
     
     methods(Access=protected)
         
-        function compileReconstructionMatrix(this, V)
-            this.R = blkdiag(V,V,eye(this.NumAlgebraicDofs));
+        function R = compileReconstructionMatrix(this, V)
+            R = blkdiag(V,V,eye(this.NumAlgebraicDofs));
         end
         
         function updateDimensions(this)

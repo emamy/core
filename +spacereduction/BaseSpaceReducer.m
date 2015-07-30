@@ -74,13 +74,13 @@ classdef BaseSpaceReducer < KerMorObject & IReductionSummaryPlotProvider
             n = blockdata.getNumBlocks;
             x = blockdata.getBlock(1);
             x0 = x(subset,1);
-            if this.ComputeParallel
-                parfor idx=2:n
-                    x = blockdata.getBlock(idx);%#ok
-                    x0 = [x0, x(subset,1)];
-                end
-                x0 = unique(x0','rows')';
-            else
+%             if this.ComputeParallel
+%                 parfor idx=2:n
+%                     x = blockdata.getBlock(idx);%#ok
+%                     x0 = [x0, x(subset,1)];
+%                 end
+%                 x0 = unique(x0','rows')';
+%             else
                 for idx=2:n
                     x = blockdata.getBlock(idx);
                     x = x(subset,1);
@@ -89,7 +89,7 @@ classdef BaseSpaceReducer < KerMorObject & IReductionSummaryPlotProvider
                         x0 = [x0 x];%#ok
                     end
                 end
-            end
+%             end
             if all(x0 == 0)
                 if KerMor.App.Verbose > 1
                     fprintf('Initial values are all zero vectors. Using main POD mode of first block data as initial space.\n');

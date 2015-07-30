@@ -28,10 +28,6 @@ classdef LinearOutputConv < dscomponents.AOutputConv
         
         function proj = project(this, V, W)%#ok
             % Performs projection for the standard output conversion.
-            
-            % Dont store V,W due to hard drive space saving (not really needed here)
-%             proj = project@general.AProjectable(this, V, W,...
-%                 dscomponents.LinearOutputConv(this.C*V));
             proj = dscomponents.LinearOutputConv(this.C*V);
         end
         

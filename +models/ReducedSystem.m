@@ -86,6 +86,8 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
             if ~isempty(V) && isempty(W)
                 W = V;
             end
+            
+            this.updateDimensions;
                         
             % The state scaling for the reduced system is one, as the scaling matrices have been
             % incorporated into the V,W matrices via V := SV and W = S^-1W inside the ReducedModel
@@ -128,7 +130,8 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
                 if ~isempty(fullsys.x0)  % otherwise error for static models
                     this.x0 = fullsys.x0.project(SV,SW);
                 end
-                this.C = fullsys.C.project(SV,SW);
+                SR = this.compileReconstructionMatrix(SV);
+                this.C = fullsys.C.project(SR,SW);
             else
                 if ~isempty(fullsys.x0)  % otherwise error for static models
                     this.x0 = fullsys.x0.clone;
@@ -138,6 +141,8 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
             
             % Check whether projection was setup for this system
             if ~isempty(V)
+                this.R = this.compileReconstructionMatrix(V);
+                
                 % Project input
                 if ~isempty(fullsys.B)
                     this.B = fullsys.B.project(V,W);
@@ -151,11 +156,18 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
                     this.f = fullmodel.Approx.project(V,W);
                 elseif ~isempty(fullsys.f)
                     % Otherwise project the models' full function.
-                    this.f = fullsys.f.project(V,W);
+                    this.f = fullsys.f.project(this.R,W);
                 end
                 % Project mass matrix
                 if ~isempty(fullsys.M)
                     this.M = fullsys.M.project(V,W);
+                end
+                % Project algebraic constraints function
+                % This needs only affect the getStateJacobian function of
+                % ACoreFun
+                if ~isempty(fullsys.g)
+                    this.g = fullsys.g.project(this.R,1);
+                    this.g.setSystem(this);
                 end
             else
                 % Only use approximated version if set
@@ -163,14 +175,19 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
                     this.f = fullmodel.Approx;
                 end
             end
+            % Set the reduced system as base system for the projected
+            % ACoreFun - it will need to change references to the full
+            % system itself if required
+            this.f.setSystem(this);
             
             % Set the plot-wrapper (uses the plot method from the full
             % system)
             this.plotPtr = @fullsys.plot;
-            
-            this.updateDimensions;
-            
-            this.compileReconstructionMatrix(V);
+        end
+        
+        function updateSparsityPattern(this)
+            % Reduced systems are not sparse anymore
+            this.SparsityPattern = [];
         end
         
         function plot(this, model, t, y)
@@ -221,8 +238,8 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
     
     methods(Access=protected)
         
-        function compileReconstructionMatrix(this, V)
-            this.R = V;
+        function R = compileReconstructionMatrix(this, V)
+            R = V;
         end
         
         function updateDimensions(this)

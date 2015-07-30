@@ -113,13 +113,17 @@ classdef ReducedModel < models.BaseModel
             
             disp('Building reduced model...');
             fullmodel = this.FullModel;
+            fd = fullmodel.Data;
             if isempty(fullmodel.Approx) && isempty(fullmodel.SpaceReducer)
                 error('No reduction methods found on full model. No use in building a reduced model from it.');
             end
             if nargin < 2
                 % Default: create a reduced model 10th the size of the full
                 % one
-                target_dim = floor(fullmodel.System.StateSpaceDimension/10);
+                target_dim = floor(fullmodel.System.NumTotalDofs/10);
+            elseif target_dim > size(fd.ProjectionSpaces(1).V,2)
+                warning('Target dimension %d too large, using max value of %d.',target_dim,size(fd.ProjectionSpaces(1).V,2));
+                target_dim = size(fd.ProjectionSpaces(1).V,2);
             end
             
             % Update name
@@ -143,7 +147,7 @@ classdef ReducedModel < models.BaseModel
             this.G = fullmodel.G;
             
             %% Get projection matrix
-            fd = fullmodel.Data;
+            
             fsys = fullmodel.System;
             %[this.V, this.W] = fullmodel.assembleProjectionMatrices(target_dim);
             V_ = fd.ProjectionSpaces(1).V(:,1:target_dim);
@@ -202,6 +206,7 @@ classdef ReducedModel < models.BaseModel
                 x = xext;
             end
             ctime = ctime + cpre + cpost;
+            fprintf('Finished after %gs\n',ctime);
         end
              
         function saveFinal(this, filename)
