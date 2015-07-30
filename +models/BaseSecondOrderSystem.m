@@ -64,27 +64,6 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
                 this.D.prepareSimulation(mu);
             end
         end
-    
-        function odefun = getODEFun(this)
-            odefun = @this.ODEFun;
-            return;
-%             % Determine correct ODE function (A,f,B combination)
-%             str = {};
-%             if ~isempty(this.A)
-%                 str{end+1} = 'this.A.evaluate(x, t)';
-%             end
-%             if ~isempty(this.f)
-%                 str{end+1} = 'this.f.evaluate(x, t)';
-%             end
-%             if ~isempty(this.B) && ~isempty(this.inputidx)
-%                 str{end+1} = 'this.B.evaluate(t, this.mu)*this.u(t)';
-%             end
-%             odefunstr = Utils.implode(str,' + ');
-%             if ~isempty(this.g)
-%                 odefunstr = ['[' odefunstr '; this.g.evaluate(x,t)]'];
-%             end
-%             odefun = eval(['@(t,x)' odefunstr]);
-        end
         
         function dx_xdot_c = ODEFun(this, t, x_xdot_c)
             % The state space vector is composed of

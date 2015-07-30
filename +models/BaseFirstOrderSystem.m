@@ -203,9 +203,9 @@ classdef BaseFirstOrderSystem < KerMorObject
     end
     
     properties(SetAccess=protected)
-        NumStateDofs;
-        NumAlgebraicDofs;
-        NumTotalDofs;
+        NumStateDofs = [];
+        NumAlgebraicDofs = 0;
+        NumTotalDofs = [];
     end
     
     properties(SetAccess=private, Dependent)
@@ -234,7 +234,7 @@ classdef BaseFirstOrderSystem < KerMorObject
             this.registerProps('A','f','B','C','x0','Inputs','Params','MaxTimestep','StateScaling');
         end
         
-        function rsys = getReducedSystemInstance(rmodel)
+        function rsys = getReducedSystemInstance(~, rmodel)
             % Creates a reduced system given the current system and the
             % reduced model.
             rsys = models.ReducedSystem(rmodel);
@@ -292,27 +292,6 @@ classdef BaseFirstOrderSystem < KerMorObject
             if ~isempty(this.B)
                 this.B.prepareSimulation(mu);
             end
-        end
-    
-        function odefun = getODEFun(this)
-            odefun = @this.ODEFun;
-            return;
-            % Determine correct ODE function (A,f,B combination)
-            str = {};
-            if ~isempty(this.A)
-                str{end+1} = 'this.A.evaluate(x, t)';
-            end
-            if ~isempty(this.f)
-                str{end+1} = 'this.f.evaluate(x, t)';
-            end
-            if ~isempty(this.B) && ~isempty(this.inputidx)
-                str{end+1} = 'this.B.evaluate(t, this.mu)*this.u(t)';
-            end
-            odefunstr = Utils.implode(str,' + ');
-            if ~isempty(this.g)
-                odefunstr = ['[' odefunstr '; this.g.evaluate(x,t)]'];
-            end
-            odefun = eval(['@(t,x)' odefunstr]);
         end
         
         function dx = ODEFun(this,t,x)

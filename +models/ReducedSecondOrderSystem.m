@@ -52,31 +52,9 @@ classdef ReducedSecondOrderSystem < models.ReducedSystem & models.BaseSecondOrde
             end
         end
         
-%         function odefun = getODEFun(this)
-%             % Determine correct ODE function (A,f,B combination)
-%             xarg = 'x';
-%             est = this.Model.ErrorEstimator;
-%             haveest = ~isempty(est) && est.Enabled;
-%             if haveest
-%                 xarg = 'x(1:end-est.ExtraODEDims,:)';
-%             end
-%             
-%             str = {};
-%             if ~isempty(this.A)
-%                 str{end+1} = sprintf('this.A.evaluate(%s, t)',xarg);
-%             end
-%             if ~isempty(this.f)
-%                 str{end+1} = sprintf('this.f.evaluate(%s, t)',xarg);
-%             end
-%             if ~isempty(this.B) && ~isempty(this.inputidx)
-%                 str{end+1} = 'this.B.evaluate(t, this.mu)*this.u(t)';
-%             end
-%             funstr = Utils.implode(str,' + ');
-%             if haveest
-%                 funstr = ['[' funstr '; est.evalODEPart(x, t, this.u(t))]'];
-%             end
-%             odefun = eval(['@(t,x)' funstr]);
-%         end
+        function dx = ODEFun(this,t,x)
+            dx = ODEFun@models.ReducedSystem(this,t,x);
+        end
         
         function z_zdot_c0 = getX0(this, mu)
             % Gets the initial value of `x_0(\mu)`.

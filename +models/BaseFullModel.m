@@ -572,9 +572,11 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 numalgdofs = this.System.NumAlgebraicDofs;
                 for k = 1:ns
                     td = this.SpaceReducer(k).TargetDimensions;
-                    if (strcmp(td,':') && numalgdofs > 0)
-                        this.SpaceReducer(k).TargetDimensions = 1:dim-numalgdofs;
-                        fprintf('Adjusting TargetDimensions of space reducer#%d: Selection '':'' invalid when having algebraic constraints.\n',k);
+                    if strcmp(td,':')
+                        if numalgdofs > 0
+                            this.SpaceReducer(k).TargetDimensions = 1:dim-numalgdofs;
+                            fprintf('Adjusting TargetDimensions of space reducer#%d: Selection '':'' invalid when having algebraic constraints.\n',k);
+                        end
                     elseif any(td > dim-numalgdofs)
                         disp(td(td > dim-numalgdofs));
                         error('Cannot select algebraic constraints for reduction (Check System.AlgebraicConditionDoF and SpaceReducer.TargetDimensions) ! Conflicting DoF indices above.');

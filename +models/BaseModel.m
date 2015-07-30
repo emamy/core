@@ -506,6 +506,10 @@ classdef BaseModel < KerMorObject
             end
             sys = this.System;
             
+            if isempty(sys.NumStateDofs)
+                error('System configuration incomplete. NumStateDofs not set.');
+            end
+            
             % Stop the time
             st = tic;
             
@@ -539,7 +543,7 @@ classdef BaseModel < KerMorObject
             end
             
             % Call solver
-            [t, x] = slv.solve(sys.getODEFun, this.scaledTimes, sys.getX0(mu));
+            [t, x] = slv.solve(@sys.ODEFun, this.scaledTimes, sys.getX0(mu));
             
             if length(this.scaledTimes) == 2
                 t = [t(1), t(end)];
