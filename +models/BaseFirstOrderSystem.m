@@ -305,8 +305,7 @@ classdef BaseFirstOrderSystem < KerMorObject
                 dx = dx + this.f.evaluate(x, t);
             end
             if ~isempty(this.B) && ~isempty(this.inputidx)
-                B_ = this.B.evaluate(t, this.mu)*this.u(t);
-                dx = dx + B_;
+                dx = dx + this.B.evaluate(t, this.mu)*this.u(t);
             end
             if ~isempty(this.g)
                 dx = [dx; this.g.evaluate(x,t)];
@@ -437,8 +436,12 @@ classdef BaseFirstOrderSystem < KerMorObject
             % For first order systems, only algebraic constraints need to
             % be catered for.
             M = this.M;
-            if this.NumAlgebraicDofs > 0
-                error('First order with AlgebraicDofs not yet implemented.');
+            if isempty(M)
+                M = dscomponents.ConstMassMatrix(speye(this.NumStateDofs));
+            else
+                if this.NumAlgebraicDofs > 0
+                    error('First order with AlgebraicDofs not yet implemented.');
+                end
             end
         end
         

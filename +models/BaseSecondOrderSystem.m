@@ -198,12 +198,17 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
         
         function M = getMassMatrix(this)
             M = this.M;
-            if ~isa(M,'dscomponents.ConstMassMatrix')
-                error('Non-constant mass matrices not yet implemented for second order systems');
-            end
+            if isempty(M)
+                M = speye(this.NumDerivativeDofs);
+            else
+                if ~isa(M,'dscomponents.ConstMassMatrix')
+                    error('Non-constant mass matrices not yet implemented for second order systems');
+                end
+                M = this.M.M;
+            end    
             sd = this.NumStateDofs;
             ad = this.NumAlgebraicDofs;
-            M = blkdiag(speye(sd),this.M.M,sparse(ad,ad));
+            M = blkdiag(speye(sd),M,sparse(ad,ad));
             % Tell the mass matrix which components are algebraic
             % constraint dofs - those wont be used determinig a suitable
             % initial slope in e.g. solvers.MLWrapper

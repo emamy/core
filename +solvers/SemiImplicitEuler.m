@@ -31,6 +31,9 @@ classdef SemiImplicitEuler < solvers.BaseCustomSolver
     methods
         function this = SemiImplicitEuler(model)
             this.model = model;
+            if ~isa(model.System,'models.BaseFirstOrderSystem')
+                error('Solver not implemented for non-first order systems.');
+            end
             this.Name = 'Semi-implicit euler method';
             this.SolverType = solvers.SolverTypes.Implicit;
         end
@@ -94,13 +97,10 @@ classdef SemiImplicitEuler < solvers.BaseCustomSolver
             end
             
             % Check if a mass matrix is present, otherwise assume identity matrix
-            M = speye(length(x0)-edim);
-            mdep = false;
-            if ~isempty(s.M)
-                mdep = s.M.TimeDependent;
-                if ~mdep
-                    M = s.M.evaluate(0);
-                end
+            M = s.getMassMatrix;
+            mdep = M.TimeDependent;
+            if ~mdep
+                M = M.evaluate(0);
             end
             
             fdep = s.A.TimeDependent;
