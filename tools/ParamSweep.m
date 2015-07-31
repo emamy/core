@@ -49,10 +49,12 @@ if nargin < 6
     pm = PlotManager;
 end
 
+haveerrest = ~isempty(rmodel.ErrorEstimator) && rmodel.ErrorEstimator.Enabled;
+
 % Iterate over parameter values
 Y = zeros(npar,length(rmodel.Times));
 E = [];
-if rmodel.ErrorEstimator.Enabled
+if haveerrest
     E = Y;
 end
 pi = ProcessIndicator('Starting parameter sweep with %d parameter sets for %s...',npar,false,npar,pname);
@@ -64,7 +66,7 @@ for idx = 1:npar
     end
     Y(idx,:) = y;
     
-    if rmodel.ErrorEstimator.Enabled
+    if haveerrest
         E(idx,:) = rmodel.ErrorEstimator.OutputError;%#ok
     end
     pi.step;
@@ -82,7 +84,7 @@ tit = sprintf('Outputs for parameter sweep of "%s" (idx:%d) from %1.3f to %1.3f,
     pname,param,paramvals(1),paramvals(end),num2str(mu'),ustr);
 h = pm.nextPlot('param_sweep',tit,'t',sprintf('Parameter %d: %s',param,pname));
 %% Upper bound
-if rmodel.ErrorEstimator.Enabled
+if haveerrest
     obj = surf(h,T,MU,Y+E,'EdgeColor','none','FaceColor','red');
     alpha(obj,.3);
 %     mesh(T,MU,Y+E,'EdgeColor','none','FaceColor','red');
@@ -94,7 +96,7 @@ surf(h,T,MU,Y,'EdgeColor','none');
 colormap jet;
 
 %% Lower bound
-if rmodel.ErrorEstimator.Enabled    
+if haveerrest
     obj = surf(h,T,MU,Y-E,'EdgeColor','none','FaceColor','red');
     alpha(obj,.3);
 %     mesh(T,MU,Y-E,'EdgeColor','none','FaceColor','red');

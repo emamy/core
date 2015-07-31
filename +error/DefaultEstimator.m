@@ -106,7 +106,7 @@ classdef DefaultEstimator < error.BaseEstimator
             yr = this.ReducedModel.System.computeOutput(xr);
             this.RealOutputError = Norm.L2(yf-yr);
             ct = ct + toc(st);
-            ct = ct + postProcess@error.BaseEstimator(x, t, inputidx);
+            ct = ct + postProcess@error.BaseEstimator(this, x, t, inputidx);
         end
         
         function ct = prepareConstants(this, mu, inputidx)

@@ -790,7 +790,22 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             this.plot(this.Times,y);
         end
         
-%         function [V, W] = assembleProjectionMatrices(this, target_dim)
+        function [V, W] = assembleProjectionMatrices(this, target_dim)
+            fd = this.Data;
+            if nargin < 2
+                % Default: create a reduced model 10th the size of the full
+                % one
+                target_dim = floor(this.System.NumTotalDofs/10);
+            end
+            if target_dim > size(fd.ProjectionSpaces(1).V,2)
+                warning('Target dimension %d too large, using max value of %d.',...
+                    target_dim,size(fd.ProjectionSpaces(1).V,2));
+                target_dim = size(fd.ProjectionSpaces(1).V,2);
+            end
+            V = fd.ProjectionSpaces(1).V(:,1:target_dim);
+            W = V;
+            
+            %% Old code for multiple projection spaces (not currently used anywhere)
 %             md = this.Data;
 %             ps = md.ProjectionSpaces;
 %             ns = length(ps);
@@ -848,7 +863,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 % %                 V(unreduced,end+(1:nunred)) = eye(nunred);
 % %                 W(unreduced,end+(1:nunred)) = eye(nunred);
 %             end
-%         end
+        end
         
         function file = save(this, directory, filename)
             % Saves this instance inside the data.ModelData.DataDirectory folder using the

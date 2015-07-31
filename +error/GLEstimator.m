@@ -78,7 +78,7 @@ classdef GLEstimator < error.BaseCompLemmaEstimator
             
             st = tic;
             this.StateError(1,:) = x(end,:);
-            ct = postProcess@error.BaseCompLemmaEstimator(this, t, x, mu, inputidx) + toc(st);
+            ct = postProcess@error.BaseCompLemmaEstimator(this, x, t, inputidx) + toc(st);
         end
     end
     

@@ -93,7 +93,7 @@ classdef ReducedModel < models.BaseModel
     
     methods(Sealed)
         
-        function build(this, target_dim)
+        function build(this, varargin)
             % Creates a new reduced model instance from a full model.
             %
             % Ensure that offlineGenerations have been called on the full
@@ -117,14 +117,7 @@ classdef ReducedModel < models.BaseModel
             if isempty(fullmodel.Approx) && isempty(fullmodel.SpaceReducer)
                 error('No reduction methods found on full model. No use in building a reduced model from it.');
             end
-            if nargin < 2
-                % Default: create a reduced model 10th the size of the full
-                % one
-                target_dim = floor(fullmodel.System.NumTotalDofs/10);
-            elseif target_dim > size(fd.ProjectionSpaces(1).V,2)
-                warning('Target dimension %d too large, using max value of %d.',target_dim,size(fd.ProjectionSpaces(1).V,2));
-                target_dim = size(fd.ProjectionSpaces(1).V,2);
-            end
+            
             
             % Update name
             this.Name = ['Reduced: ' fullmodel.Name];
@@ -147,18 +140,11 @@ classdef ReducedModel < models.BaseModel
             this.G = fullmodel.G;
             
             %% Get projection matrix
-            
-            fsys = fullmodel.System;
-            %[this.V, this.W] = fullmodel.assembleProjectionMatrices(target_dim);
-            V_ = fd.ProjectionSpaces(1).V(:,1:target_dim);
-            %if fsys.NumAlgebraicDofs > 0
-            %    V_ = blkdiag(V_,eye(fsys.NumAlgebraicDofs));
-            %end
-            this.V = V_;
-            this.W = this.V;
+            [this.V, this.W] = fullmodel.assembleProjectionMatrices(varargin{:});
             this.ParamSamples = fd.ParamSamples;
             
             %% Create a new reducedSystem passing this reduced model
+            fsys = fullmodel.System;
             this.System = fsys.getReducedSystemInstance(this);
             this.System.build;
             

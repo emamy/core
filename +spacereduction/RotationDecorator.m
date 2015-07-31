@@ -45,7 +45,7 @@ classdef RotationDecorator < spacereduction.BaseSpaceReducer
             if isempty(s)
                 error('Rotation decorator must be given an underlying space reduction class.');
             end
-            if ~strcmp(s.ReducableDims,':')
+            if ~strcmp(s.TargetDimensions,':')
                 error('Rotation decorator not implemented for partial reduction (ReducableDims != :)');
             end
             this.sp = s;
@@ -62,7 +62,7 @@ classdef RotationDecorator < spacereduction.BaseSpaceReducer
             %
             
             % Call subclass reduction
-            [V, W] = this.sp.generateReducedSpace(model, subset);
+            [V, W] = this.sp.generateReducedSpaceImpl(model, subset);
             
             %rnd = RandStream('mt19937ar','Seed',2564);
             
