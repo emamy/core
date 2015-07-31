@@ -245,7 +245,13 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
         
         function updateDimensions(this)
             rm = this.Model;
-            this.NumStateDofs = size(rm.V,2);
+            if ~isempty(rm.V)
+                % This is the projection case
+                this.NumStateDofs = size(rm.V,2);
+            else
+                % No projection case
+                this.NumStateDofs = rm.FullModel.System.NumStateDofs;
+            end
             this.NumAlgebraicDofs = rm.FullModel.System.NumAlgebraicDofs;
             this.NumTotalDofs = this.NumStateDofs + this.NumAlgebraicDofs;
         end

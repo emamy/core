@@ -506,10 +506,6 @@ classdef BaseModel < KerMorObject
             end
             sys = this.System;
             
-            if isempty(sys.NumStateDofs)
-                error('System configuration incomplete. NumStateDofs not set.');
-            end
-            
             % Stop the time
             st = tic;
             

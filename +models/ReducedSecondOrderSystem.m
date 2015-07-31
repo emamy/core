@@ -53,7 +53,18 @@ classdef ReducedSecondOrderSystem < models.ReducedSystem & models.BaseSecondOrde
         end
         
         function dx = ODEFun(this,t,x)
-            dx = ODEFun@models.ReducedSystem(this,t,x);
+            est = this.Model.ErrorEstimator;
+            haveest = ~isempty(est) && est.Enabled;
+            if haveest
+                xall = x;
+                x = x(1:end-est.ExtraODEDims,:);    
+            end
+            
+            dx = ODEFun@models.BaseSecondOrderSystem(this,t,x);
+            
+            if haveest
+                dx = [dx; est.evalODEPart(xall, t, this.u(t))];
+            end
         end
         
         function z_zdot_c0 = getX0(this, mu)

@@ -129,14 +129,6 @@ classdef ReducedModel < models.BaseModel
             this.isStatic = fullmodel.isStatic;
             this.DefaultMu = fullmodel.DefaultMu;
             this.DefaultInput = fullmodel.DefaultInput;
-            fms = fullmodel.ODESolver;
-            if isa(fms,'solvers.SemiImplicitEuler')
-                this.ODESolver = solvers.SemiImplicitEuler(this);
-            elseif isa(fms,'solvers.FullyImplEuler')
-                this.ODESolver = solvers.FullyImplEuler(this);
-            else
-                this.ODESolver = fms;
-            end
             this.G = fullmodel.G;
             
             %% Get projection matrix
@@ -147,6 +139,16 @@ classdef ReducedModel < models.BaseModel
             fsys = fullmodel.System;
             this.System = fsys.getReducedSystemInstance(this);
             this.System.build;
+            
+            %% Solver stuff
+            fms = fullmodel.ODESolver;
+            if isa(fms,'solvers.SemiImplicitEuler')
+                this.ODESolver = solvers.SemiImplicitEuler(this);
+            elseif isa(fms,'solvers.FullyImplEuler')
+                this.ODESolver = solvers.FullyImplEuler(this);
+            else
+                this.ODESolver = fms;
+            end
             
             % Use the error estimator that has been precomputed in 
             % the full model

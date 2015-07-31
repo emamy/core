@@ -81,7 +81,7 @@ classdef PointerCoreFun < dscomponents.ACoreFun
             fun = @(x,t,mu)x*3.*t;
             m.System.x0 = dscomponents.ConstInitialValue(1);
             m.System.f = dscomponents.PointerCoreFun(fun,1);
-            m.simulate();
+            m.simulate;
             clear m;
         end
     end

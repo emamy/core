@@ -278,6 +278,12 @@ classdef BaseFirstOrderSystem < KerMorObject
         function prepareSimulation(this, mu, inputidx)
             this.setConfig(mu, inputidx);
             
+            if isempty(this.NumStateDofs)
+                this.NumStateDofs = size(this.x0.evaluate(mu),1);
+                fprintf(2,'NumStateDofs not set. Guess from initial value: %d\n',this.NumStateDofs);
+                this.updateDimensions;
+            end
+            
             % Forward preparation call to nonlinearity, if present
             if ~isempty(this.A)
                 this.A.prepareSimulation(mu);

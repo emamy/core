@@ -146,7 +146,7 @@ classdef LinspaceSelector < data.selection.ASelector
     
     methods(Static)
         function res = test_LinSpaceSelector
-            [res, m] = models.burgers.Tests.test_Burgers_DEIM_versions(50,2);
+            [res, m] = models.burgers.Tests.testBurgers_DEIM_versions(50,2);
             m.Approx.TrainDataSelector = data.selection.LinspaceSelector;
             m.Approx.TrainDataSelector.Size = 300;
             m.off4_genApproximationTrainData;

@@ -799,19 +799,23 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
         
         function [V, W] = assembleProjectionMatrices(this, target_dim)
             fd = this.Data;
-            if nargin < 2
-                % Default: create a reduced model 10th the size of the full
-                % one
-                target_dim = floor(this.System.NumTotalDofs/10);
+            if isempty(fd.ProjectionSpaces)
+                V = [];
+            else
+                if nargin < 2
+                    % Default: create a reduced model 10th the size of the full
+                    % one
+                    target_dim = floor(this.System.NumTotalDofs/10);
+                end
+                if target_dim > size(fd.ProjectionSpaces(1).V,2)
+                    warning('Target dimension %d too large, using max value of %d.',...
+                        target_dim,size(fd.ProjectionSpaces(1).V,2));
+                    target_dim = size(fd.ProjectionSpaces(1).V,2);
+                end
+                V = fd.ProjectionSpaces(1).V(:,1:target_dim);
             end
-            if target_dim > size(fd.ProjectionSpaces(1).V,2)
-                warning('Target dimension %d too large, using max value of %d.',...
-                    target_dim,size(fd.ProjectionSpaces(1).V,2));
-                target_dim = size(fd.ProjectionSpaces(1).V,2);
-            end
-            V = fd.ProjectionSpaces(1).V(:,1:target_dim);
+            % We do 
             W = V;
-            
             %% Old code for multiple projection spaces (not currently used anywhere)
 %             md = this.Data;
 %             ps = md.ProjectionSpaces;
