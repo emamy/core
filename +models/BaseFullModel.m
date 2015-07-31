@@ -262,12 +262,13 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
     end
     
     properties(SetObservable, Dependent)
-        % The indices of inputs to use for training data generation.
+        % The indices of inputs to use for training data generation. Uses
+        % the DefaultInput if not set (and DefaultInput is not empty)
         %
         % @propclass{optional} Set subindices to restrict offline generation phase to a subset of
         % inputs.
         %
-        % @default 1:InputCount @type integer
+        % @default DefaultInput @type integer
         TrainingInputs;
         
         % The indices of the model parameters to use for training data
@@ -397,6 +398,12 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             
             oldv = this.EnableTrajectoryCaching;
             this.EnableTrajectoryCaching = false;
+            
+            % Automatically use the default input if exists and no others
+            % are set.
+            if isempty(this.TrainingInputs) && ~isempty(this.DefaultInput)
+                this.TrainingInputs = this.DefaultInput;
+            end
             
             %% Parallel - computation
             if this.ComputeParallel

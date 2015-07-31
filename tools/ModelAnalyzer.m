@@ -301,17 +301,17 @@ classdef ModelAnalyzer < handle;
             if isempty(this.rm.ErrorEstimator)
                 error('Error analysis only available for models with error estimator');
             end
-            
+            rmodel = this.rm;
             if nargin < 4
                 pm = PlotManager(false, 2, 3);
                 if nargin < 3
-                    inputidx = [];
+                    inputidx = rmodel.DefaultInput;
                     if nargin < 2
-                        mu = [];
+                        mu = rmodel.DefaultMu;
                     end
                 end
             end
-            rmodel = this.rm;
+            
             
             %% Initial computations
             [~, y, time, x] = rmodel.FullModel.simulate(mu, inputidx);
