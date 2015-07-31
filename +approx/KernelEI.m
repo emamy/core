@@ -145,19 +145,17 @@ classdef KernelEI < approx.BaseApprox
             this.V1Expansion = [];
             this.V2Expansions = [];
             if this.Variant == 1
-                % Compute Vz and f(Vz) values globally
-                
-		% no space projection via W,V
-                if isempty(model.Data.W) 
-                    zi = atd.xi;
+                % no space projection via W,V
+                if isempty(this.W) 
+                    zi = atd.xi.toMemoryMatrix;
                 else
-                    zi = model.Data.W'*atd.xi;
+                    zi = this.W'*atd.xi.toMemoryMatrix;
                 end
                 
-                if isempty(model.Data.V)
+                if isempty(this.V)
                     Vzi = zi;
                 else
-                    Vzi = model.Data.V*zi;
+                    Vzi = this.V*zi;
                 end
                 
                 fzi = model.System.f.evaluateMulti(Vzi,atd.ti,atd.mui);
@@ -283,6 +281,14 @@ classdef KernelEI < approx.BaseApprox
         
         function projected = project(this, V, W)
             projected = this.clone;
+            if ~isempty(this.V1Expansion)
+                % No W projection needed as we are directly learning up to
+                % MaxOrder components
+                orig = this.V1Expansion.Ma;
+                this.V1Expansion.Ma = rand(size(W,1),1);
+                projected.V1Expansion = this.V1Expansion.project(V,W);
+                projected.V1Expansion.Ma = orig;
+            end
             projected = project@approx.BaseApprox(this, V, W, projected);
             projected.updateOrderData;
         end
@@ -372,6 +378,13 @@ classdef KernelEI < approx.BaseApprox
             
             this.updateOrderData;
         end
+        
+        function set.MaxOrder(this, value)
+            if ~isempty(this.fOrder) && this.fOrder > value%#ok
+                this.fOrder = value;%#ok
+            end
+            this.MaxOrder = value;
+        end
     end
     
     methods(Static)
@@ -401,7 +414,7 @@ classdef KernelEI < approx.BaseApprox
             m.Approx.MaxOrder = 5;
             m.System.Params(1).Desired = 2;
             m.SpaceReducer = spacereduction.PODGreedy;
-            m.SpaceReducer.Eps = 1e-2;
+            m.SpaceReducer.Eps = 1e-5;
             m.offlineGenerations;
             
             mu = m.getRandomParam;

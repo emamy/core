@@ -51,7 +51,7 @@ classdef ATrajectoryData < data.ABlockedData
         end
         
         function [n, m] = size(this, dim)
-            n = [this.getTrajectoryDoFs this.getNumBlocks * this.getTrajectoryLength];
+            n = [this.getTrajectoryDoFs this.getTotalLength];
             if nargin == 2
                 if dim > 0 && dim < 3
                     n = n(dim);
@@ -73,7 +73,7 @@ classdef ATrajectoryData < data.ABlockedData
         n = getNumTrajectories(this);
         
         % Length of the stored trajectories
-        l = getTrajectoryLength(this);
+        l = getTotalLength(this);
         
         % Gets the trajectory with the number nr.
         [x, mu, inputidx, ctime] = getTrajectoryNr(this, nr);

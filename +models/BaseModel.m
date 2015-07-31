@@ -528,30 +528,7 @@ classdef BaseModel < KerMorObject
             
             % Assign jacobian information if available
             if isa(slv,'solvers.AJacobianSolver')
-                slv.JPattern = [];
-                slv.JacFun = [];
-                % Only set for full models (jacobians for reduced models
-                % are not available [or required] in general)
-                %if isa(this, 'models.BaseFullModel')
-                    if ~isempty(sys.A) && ~isempty(sys.f)
-                        slv.JacFun = @(t, x)sys.A.getStateJacobian(x, t) + sys.f.getStateJacobian(x, t);
-                        if ~isempty(sys.A.JSparsityPattern) && ~isempty(sys.f.JSparsityPattern)
-                            [i,j] = find(sys.A.JSparsityPattern + sys.f.JSparsityPattern);
-                            slv.JPattern = sparse(i,j,ones(length(i),1),...
-                                sys.A.fDim,sys.A.xDim);
-                        end
-                    elseif ~isempty(sys.A)
-                        slv.JacFun = @(t, x)sys.A.getStateJacobian(x, t);
-                        if  ~isempty(sys.A.JSparsityPattern)
-                            slv.JPattern = sys.A.JSparsityPattern;
-                        end
-                    elseif ~isempty(sys.f)
-                        slv.JacFun = @(t, x)sys.f.getStateJacobian(x, t);
-                        if  ~isempty(sys.f.JSparsityPattern)
-                            slv.JPattern = sys.f.JSparsityPattern;
-                        end
-                    end
-                %end
+                [slv.JacFun, slv.JPattern] = this.getJacobianInfo;
             end
             
             % Assign mass matrix to solver if present
@@ -624,6 +601,30 @@ classdef BaseModel < KerMorObject
                 ss = repmat(this.System.StateScaling,1,size(mu,2));
             end
             x0 = this.System.x0.evaluate(mu) ./ ss;
+        end
+        
+        function [JacFun, JPattern] = getJacobianInfo(this)
+            sys = this.System;
+            JPattern = [];
+            JacFun = [];
+            if ~isempty(sys.A) && ~isempty(sys.f)
+                JacFun = @(t, x)sys.A.getStateJacobian(x, t) + sys.f.getStateJacobian(x, t);
+                if ~isempty(sys.A.JSparsityPattern) && ~isempty(sys.f.JSparsityPattern)
+                    [i,j] = find(sys.A.JSparsityPattern + sys.f.JSparsityPattern);
+                    JPattern = sparse(i,j,ones(length(i),1),...
+                        sys.A.fDim,sys.A.xDim);
+                end
+            elseif ~isempty(sys.A)
+                JacFun = @(t, x)sys.A.getStateJacobian(x, t);
+                if  ~isempty(sys.A.JSparsityPattern)
+                    JPattern = sys.A.JSparsityPattern;
+                end
+            elseif ~isempty(sys.f)
+                JacFun = @(t, x)sys.f.getStateJacobian(x, t);
+                if  ~isempty(sys.f.JSparsityPattern)
+                    JPattern = sys.f.JSparsityPattern;
+                end
+            end
         end
         
         function this = saveobj(this)

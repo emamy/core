@@ -161,11 +161,12 @@ classdef TPWLApprox < approx.BaseApprox
             this.Ai = cell(0,as);
             for i = 1:as
                 if isempty(mui)
-                     mu = [];
+                    mu = [];
                 else
                     mu = mui(:,i);
                 end
-                this.Ai{i} = model.System.f.getStateJacobian(this.xi(:,i),ti(i),mu);
+                model.System.setConfig(mu,model.DefaultInput);
+                this.Ai{i} = model.System.f.getStateJacobian(this.xi(:,i),ti(i));
                 this.bi(:,i) = fxi(:,i) - this.Ai{i}*this.xi(:,i);
             end
         end

@@ -193,6 +193,9 @@ classdef ModelData < data.FileData
             this.TrajectoryFxiData = [];
             this.ApproxTrainData = [];
             this.JacobianTrainData = [];
+            if ~isempty(this.JacSimTransData)
+                this.JacSimTransData.VFull = [];
+            end
             delete@data.FileData(this);
         end
         

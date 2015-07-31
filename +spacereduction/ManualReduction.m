@@ -25,6 +25,10 @@ classdef ManualReduction < spacereduction.BaseSpaceReducer
             end
         end
         
+    end
+    
+    methods(Access=protected)
+        
         function [V,W] = generateReducedSpaceImpl(this, model, subset)%#ok
             % Simply returns the manually selected values.
             V = this.V(subset,:);

@@ -221,12 +221,12 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             %
             % @change{0,3,dw,2011-04-19} Fixed an error when no MultiArgumentEvaluations were supported and
             % no parameter `\mu` was given (Crashed due to index out of bounds)
-            
-            if ~isempty(this.V)
+            cp = this.CustomProjection;
+            if ~cp && ~isempty(this.V)
                 x = this.V*x;
             end
             fx = this.evaluateCoreFun(x, t);
-            if ~isempty(this.V)
+            if ~cp && ~isempty(this.V)
                 fx = this.W'*fx;
             end
         end

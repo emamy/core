@@ -84,7 +84,7 @@ classdef MemoryTrajectoryData < data.ATrajectoryData
            n = size(this.TrajectoryData,3);
         end
         
-        function l = getTrajectoryLength(this)
+        function l = getTotalLength(this)
             l = size(this.TrajectoryData,2);
         end
         

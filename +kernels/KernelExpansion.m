@@ -1,4 +1,4 @@
-classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipschitz
+classdef KernelExpansion < KerMorObject & general.AProjectable & dscomponents.IGlobalLipschitz
 % KernelExpansion: Base class for state-space kernel expansions
 %
 % The KernelExpansion class represents a function `f` in the space induced
@@ -302,6 +302,25 @@ classdef KernelExpansion < KerMorObject & ICloneable & dscomponents.IGlobalLipsc
         
         function c = getGlobalLipschitz(this, t, mu)%#ok          
             c = sum(this.Ma_norms) * this.Kernel.getGlobalLipschitz;
+        end
+        
+        function target = project(this, V, W)
+            target = this.clone;
+            k = target.Kernel;
+            % For rotation invariant kernel expansions the snapshots can be
+            % transferred into the subspace without loss.
+            if k.IsRBF
+                target.Centers.xi = W' * this.Centers.xi;
+                PG = V'*(k.G*V);
+                if all(all(abs(PG - eye(size(PG,1))) < 100*eps))
+                    PG = 1;
+                end
+                target.Kernel.G = PG;
+            elseif k.IsScProd
+                target.Centers.xi = V' * (k.G * this.Centers.xi);
+                target.Kernel.G = 1;
+            end
+            target.Ma = W'*this.Ma;
         end
         
         function copy = clone(this, copy)
