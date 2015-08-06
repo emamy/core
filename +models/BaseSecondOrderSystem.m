@@ -189,8 +189,8 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
             % Insert state initial values
             x_xdot_c0(1:num_x_dof) = x_c0(1:num_x_dof);
             
-            % Insert zero derivative initial values (xdot0) between
-            x_xdot_c0(num_x_dof+(1:num_xdot_dof)) = zeros(num_xdot_dof,1);
+            % Insert derivative initial values (xdot0) between
+            x_xdot_c0(num_x_dof+(1:num_xdot_dof)) = this.getDerivativeInitialValues(mu);
             
             % Insert alg cond initial values
             x_xdot_c0(num_x_dof+num_xdot_dof+1:end) = x_c0(num_x_dof+1:end);
@@ -233,6 +233,16 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
             if ~isa(model, 'models.BaseModel')
                 error('The Model property has to be a child of models.BaseModel');
             end
+        end
+        
+        % Computes the derivative initial values
+        %
+        % The default behaviour is zero everywhere. Override in subclasses
+        % to provide different values.
+        %
+        % See also: NumDerivativeDofs
+        function val = getDerivativeInitialValues(this, ~)
+            val = zeros(this.NumDerivativeDofs,1);
         end
     end        
     
