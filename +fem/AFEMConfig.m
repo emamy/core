@@ -119,11 +119,11 @@ classdef AFEMConfig < handle
             
             %% Get the geometry
             geo = this.getGeometry;
-            if isa(geo,'geometry.Cube27Node')
+            if isa(geo,'fem.geometry.Cube27Node')
                 this.FEM = fem.HexahedronTriquadratic(geo);
-            elseif isa(geo,'geometry.Cube20Node')
+            elseif isa(geo,'fem.geometry.Cube20Node')
                 this.FEM = fem.HexahedronSerendipity(geo);
-            elseif isa(geo,'geometry.Cube8Node')
+            elseif isa(geo,'fem.geometry.Cube8Node')
                 this.FEM = fem.HexahedronTrilinear(geo);
             end
             this.Geometry = geo;
@@ -166,6 +166,43 @@ classdef AFEMConfig < handle
             if any(any(displ_dir & velo_dir)) 
                 error('Cannot impose displacement and velocity dirichlet conditions on same DoF');
             end
+        end
+        
+        function [force, nodeidx, faceswithforce] = getSpatialExternalForces(this)
+            fe = this.FEM;
+            geo = fe.Geometry;
+            ngp = fe.GaussPointsPerElemFace;
+            force = zeros(geo.NumNodes * 3,1);
+            faceswithforce = false(1,geo.NumFaces);
+            
+            globalcoord = strcmp(this.NeumannCoordinateSystem,'global');
+            for fn = 1:geo.NumFaces
+                elemidx = geo.Faces(1,fn);
+                faceidx = geo.Faces(2,fn);
+                masterfacenodeidx = geo.MasterFaces(faceidx,:);
+                % So far: Constant pressure on all gauss points!
+                P = this.getBoundaryPressure(elemidx, faceidx);
+                if ~isempty(P)
+                    faceswithforce(fn) = true;
+                    integrand = zeros(3,geo.NodesPerFace);
+                    if globalcoord
+                        N = geo.FaceNormals(:,faceidx);
+                    end
+                    for gi = 1:ngp
+                        if ~globalcoord
+                            N = fe.NormalsOnFaceGP(:,gi,fn);
+                        end
+                        PN = (P * N) * fe.Ngpface(:,gi,fn)';
+                        integrand = integrand + fe.FaceGaussWeights(gi)*PN*fe.face_detjac(fn,gi);
+                    end
+                    facenodeidx = geo.Elements(elemidx,masterfacenodeidx);
+                    facenodeidx = (facenodeidx-1)*3+1;
+                    facenodeidx = [facenodeidx; facenodeidx+1; facenodeidx+2];%#ok
+                    force(facenodeidx(:)) = force(facenodeidx(:)) + integrand(:);
+                end
+            end
+            % Augment to u,v,w vector
+            nodeidx = find(force);
         end
     end
     

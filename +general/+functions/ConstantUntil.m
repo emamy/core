@@ -1,4 +1,4 @@
-classdef ConstantUntil < tools.AFunGen
+classdef ConstantUntil < general.functions.AFunGen
     %CONSTANTUNTIL Summary of this class goes here
     %   Detailed explanation goes here
     

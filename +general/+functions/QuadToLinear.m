@@ -1,4 +1,4 @@
-classdef QuadToLinear < tools.AFunGen
+classdef QuadToLinear < general.functions.AFunGen
     % Returns the modified markert law functions for the OVERALL energy density
     % funcion derivative w.r.t. C (i.e. INCLUDING the 1/lam^2 prefactor
     % from chain rule!)
@@ -37,7 +37,7 @@ classdef QuadToLinear < tools.AFunGen
             if nargin < 2
                 range = [1 1.2*this.lam0];
             end
-            plot@tools.AFunGen(this, range, varargin{:});
+            plot@general.functions.AFunGen(this, range, varargin{:});
             if (range(2) > this.lam0)
                 f = this.getFunction;
                 ax = get(gcf,'Children');
@@ -55,7 +55,7 @@ classdef QuadToLinear < tools.AFunGen
             t0 = 2*mfungen.t0;
             ft0 = mfun(t0);
             l0 = 2*(t0-ft0/m)-1;
-            qfungen = tools.QuadToLinear(l0,m);
+            qfungen = general.functions.QuadToLinear(l0,m);
         end
     end
     

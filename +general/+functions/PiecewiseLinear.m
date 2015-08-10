@@ -1,4 +1,4 @@
-classdef PiecewiseLinear < tools.AFunGen
+classdef PiecewiseLinear < general.functions.AFunGen
     
     properties(Access=protected)
         pts;
@@ -55,7 +55,7 @@ classdef PiecewiseLinear < tools.AFunGen
                 x = this.transform(this.pts,this.vals);
                 range = [min(x) max(x)];
             end
-            pm = plot@tools.AFunGen(this, range);
+            pm = plot@general.functions.AFunGen(this, range);
         end
         
     end
@@ -71,11 +71,11 @@ classdef PiecewiseLinear < tools.AFunGen
     
     methods(Static)
         function test_PiecewiseLinear
-            p = tools.PiecewiseLinear;
+            p = general.functions.PiecewiseLinear;
             p.plot;
-            p = tools.PiecewiseLinear(rand(1,7));
+            p = general.functions.PiecewiseLinear(rand(1,7));
             p.plot;
-            p = tools.PiecewiseLinear(rand(1,7),rand(1,7));
+            p = general.functions.PiecewiseLinear(rand(1,7),rand(1,7));
             p.plot;
         end
     end

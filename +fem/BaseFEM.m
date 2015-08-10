@@ -451,8 +451,8 @@ classdef BaseFEM < handle
             ranges = {-1:1, -2:1, -2:2};
             res = true;
             for k = 1:length(ranges)
-                [pts, cubes] = geometry.Cube8Node.DemoGrid(ranges{k},ranges{k});
-                g = geometry.Cube8Node(pts, cubes);
+                [pts, cubes] = fem.geometry.RegularHex8Grid(ranges{k},ranges{k});
+                g = fem.geometry.Cube8Node(pts, cubes);
                 tl = fem.HexahedronTrilinear(g);
                 tq = fem.HexahedronTriquadratic(g.toCube27Node);
                 res = res && norm(tl.elem_detjac-tq.elem_detjac,'inf') < 1e-14;

@@ -1,4 +1,4 @@
-classdef Ramp < tools.AFunGen
+classdef Ramp < general.functions.AFunGen
     
     properties(Access=private)
         ramptime;

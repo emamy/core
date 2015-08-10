@@ -6,7 +6,7 @@ classdef HexahedronTriquadratic < fem.BaseFEM
     methods
         function this = HexahedronTriquadratic(geo)
             if nargin < 1
-                geo = geometry.Cube27Node;
+                geo = fem.geometry.Cube27Node;
             end
             this = this@fem.BaseFEM(geo);
         end

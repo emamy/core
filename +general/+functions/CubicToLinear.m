@@ -1,4 +1,4 @@
-classdef CubicToLinear < tools.AFunGen
+classdef CubicToLinear < general.functions.AFunGen
     % Returns the modified markert law functions for the OVERALL energy density
     % funcion derivative w.r.t. C (i.e. INCLUDING the 1/lam^2 prefactor
     % from chain rule!)
@@ -40,7 +40,7 @@ classdef CubicToLinear < tools.AFunGen
             i.addParamValue('R',[1 1.2*this.lam0]);
             i.parse(varargin{:});
             res = i.Results;
-            pm = plot@tools.AFunGen(this, varargin{:});
+            pm = plot@general.functions.AFunGen(this, varargin{:});
             if (res.R(2) > this.lam0)
                 mc = metaclass(this);
                 for k = 1:length(pm.Figures)
@@ -64,7 +64,7 @@ classdef CubicToLinear < tools.AFunGen
             t0 = 2*mfungen.t0;
             ft0 = mfun(t0);
             l0 = 2*(t0-ft0/m)-1;
-            qfungen = tools.CubicToLinear(l0,m);
+            qfungen = general.functions.CubicToLinear(l0,m);
         end
     end
     

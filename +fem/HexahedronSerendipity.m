@@ -6,7 +6,7 @@ classdef HexahedronSerendipity < fem.BaseFEM
     methods
         function this = HexahedronSerendipity(geo)
             if nargin < 1
-                geo = geometry.Cube20Node;
+                geo = fem.geometry.Cube20Node;
             end
             this = this@fem.BaseFEM(geo);
         end

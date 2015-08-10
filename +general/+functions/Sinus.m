@@ -1,4 +1,4 @@
-classdef Sinus < tools.AFunGen
+classdef Sinus < general.functions.AFunGen
     
     properties(Access=private)
         freq;

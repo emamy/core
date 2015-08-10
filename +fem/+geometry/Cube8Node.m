@@ -1,4 +1,4 @@
-classdef Cube8Node < geometry.BaseGeometry
+classdef Cube8Node < fem.geometry.BaseGeometry
 %% Cube indexing:
 %  /7---8 1: (-1,-1,-1)
 % 5-+-6/| 2: ( 1,-1,-1)
@@ -13,7 +13,7 @@ classdef Cube8Node < geometry.BaseGeometry
         
         function this = Cube8Node(pts, cubes)
             if nargin < 2
-                [pts, cubes] = geometry.Cube8Node.DemoGrid;
+                [pts, cubes] = fem.geometry.RegularHex8Grid;
             elseif size(unique(pts','rows'),1) ~= size(pts,2);
                 error('Please provide unique points!');
             end
@@ -77,7 +77,7 @@ classdef Cube8Node < geometry.BaseGeometry
                 nodes20(:,pos) = nodes8(:,cube)*T';
             end
             [nodes20, ~, elems20] = unique(nodes20','rows','stable');
-            cube20 = geometry.Cube20Node(nodes20',reshape(elems20,20,[])');
+            cube20 = fem.geometry.Cube20Node(nodes20',reshape(elems20,20,[])');
         end
         
         function cube27 = toCube27Node(this)
@@ -111,48 +111,8 @@ classdef Cube8Node < geometry.BaseGeometry
                 nodes27(:,pos) = nodes8(:,cube)*T';
             end
             [nodes27, ~, elems27] = unique(nodes27','rows','stable');
-            cube27 = geometry.Cube27Node(nodes27',reshape(elems27,27,[])');
+            cube27 = fem.geometry.Cube27Node(nodes27',reshape(elems27,27,[])');
         end
 
     end
-    
-    methods(Static)
-        function [pts, cubes] = DemoGrid(xr,yr,zr,devperc)
-            if nargin < 4
-                devperc = 0;
-                if nargin < 3
-                    zr = [-1 1];
-                    if nargin < 2
-                        yr = [-1 1];
-                        if nargin < 1
-                            xr = [-1 1];
-                        end
-                    end
-                end
-            end
-            % Generate regular grid
-            [X,Y,Z] = ndgrid(xr,yr,zr);
-            pts = [X(:) Y(:) Z(:)]';
-            
-            cubes = double.empty(0,8);
-            for i = 1:size(X,1)-1
-                for j = 1:size(X,2)-1
-                    for k = 1:size(X,3)-1
-                        hx = X([i i+1],[j j+1],[k k+1]);
-                        hy = Y([i i+1],[j j+1],[k k+1]);
-                        hz = Z([i i+1],[j j+1],[k k+1]);
-                        cubes(end+1,:) = Utils.findVecInMatrix(pts,[hx(:) hy(:) hz(:)]');%#ok
-                    end
-                end
-            end
-            
-            % Slightly deviate the grid
-            if devperc > 0
-                s = RandStream('mt19937ar','Seed',1);
-                pts = pts + s.rand(size(pts))*devperc;
-            end
-        end
-    end
-    
-    
 end

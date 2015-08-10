@@ -5,7 +5,7 @@ classdef HexahedronTrilinear < fem.BaseFEM
     methods
         function this = HexahedronTrilinear(geo)
             if nargin < 1
-                geo = geometry.Cube8Node;
+                geo = fem.geometry.Cube8Node;
             end
             this = this@fem.BaseFEM(geo);
             %this.EdgeIndices = 1:8;

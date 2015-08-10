@@ -1,4 +1,4 @@
-classdef Polynomial < tools.AFunGen
+classdef Polynomial < general.functions.AFunGen
     
     properties(Access=private)
         poly;

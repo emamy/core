@@ -1,4 +1,4 @@
-classdef Cube20Node < geometry.BaseGeometry
+classdef Cube20Node < fem.geometry.BaseGeometry
 % Hexahedral geometry with 20 position nodes on each basic hexahedron/cube.
 %
 % Cube indexing on [-1, 1]³:
@@ -54,7 +54,7 @@ classdef Cube20Node < geometry.BaseGeometry
         
         function this = Cube20Node(pts, cubes)
             if nargin < 2
-                [pts, cubes] = geometry.Cube20Node.DemoGrid;
+                [pts, cubes] = fem.geometry.Cube20Node.DemoGrid;
             elseif size(unique(pts','rows'),1) ~= size(pts,2);
                 error('Please provide unique points!');
             end
@@ -110,7 +110,7 @@ classdef Cube20Node < geometry.BaseGeometry
             nodes8 = nodes20(:,usednodes);
             invidx(usednodes) = 1:length(usednodes);
             elems8 = invidx(elems8);
-            cube8 = geometry.Cube8Node(nodes8,elems8);
+            cube8 = fem.geometry.Cube8Node(nodes8,elems8);
         end
         
     end
@@ -121,8 +121,8 @@ classdef Cube20Node < geometry.BaseGeometry
             if length(varargin) > 3
                 devperc = varargin{4};
             end
-            [pts, cubes] = geometry.Cube8Node.DemoGrid(varargin{1:min(length(varargin),3)});
-            g8 = geometry.Cube8Node(pts, cubes);
+            [pts, cubes] = fem.geometry.RegularHex8Grid(varargin{1:min(length(varargin),3)});
+            g8 = fem.geometry.Cube8Node(pts, cubes);
             g20 = g8.toCube20Node;
             pts = g20.Nodes;
             cubes = g20.Elements;

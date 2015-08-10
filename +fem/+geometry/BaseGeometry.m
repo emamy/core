@@ -257,7 +257,7 @@ classdef BaseGeometry < handle
     
     methods(Access=protected)
         function faces = computeFaces(this)
-            % Computes the outward faces of this geometry.
+            % Computes the outward faces of this fem.geometry.
             %
             % Return values:
             % faces: A 2 x P index matrix of all P faces, containing the
@@ -400,24 +400,24 @@ classdef BaseGeometry < handle
     
     methods(Static)
         function res = test_DemoGrids
-            geometry.Cube8Node.DemoGrid(1:3);
-            geometry.Cube8Node.DemoGrid(1:3,1:4);
-            geometry.Cube8Node.DemoGrid(1:3,1:4,-1:3);
-            geometry.Cube8Node.DemoGrid(1:3,1:4,-1:3,.2);
-            geometry.Cube20Node.DemoGrid(1:2);
-            geometry.Cube20Node.DemoGrid(1:2,0:2);
-            geometry.Cube20Node.DemoGrid(-1:1,1:3,-1:1);
-            geometry.Cube20Node.DemoGrid(-1:1,1:2,-1:1,.2);
+            fem.geometry.RegularHex8Grid(1:3);
+            fem.geometry.RegularHex8Grid(1:3,1:4);
+            fem.geometry.RegularHex8Grid(1:3,1:4,-1:3);
+            fem.geometry.RegularHex8Grid(1:3,1:4,-1:3,.2);
+            fem.geometry.Cube20Node.DemoGrid(1:2);
+            fem.geometry.Cube20Node.DemoGrid(1:2,0:2);
+            fem.geometry.Cube20Node.DemoGrid(-1:1,1:3,-1:1);
+            fem.geometry.Cube20Node.DemoGrid(-1:1,1:2,-1:1,.2);
             res = true;
         end
         
         function test_subMesh
-            [n,e] = geometry.Cube27Node.DemoGrid(-1:1,1:2,-1:1,.2);
-            g = geometry.Cube27Node(n,e);
+            [n,e] = fem.geometry.Cube27Node.DemoGrid(-1:1,1:2,-1:1,.2);
+            g = fem.geometry.Cube27Node(n,e);
             [sg, node] = g.getSubMesh(1:3:g.NumElements);
             sg.plot;
-            [n,e] = geometry.Cube8Node.DemoGrid(-20:1,1:4,-1:1,.2);
-            g = geometry.Cube8Node(n,e);
+            [n,e] = fem.geometry.RegularHex8Grid(-20:1,1:4,-1:1,.2);
+            g = fem.geometry.Cube8Node(n,e);
             [sg, node] = g.getSubMesh([1 5 9 10 15 56 79 99]);
             sg.plot;
         end

@@ -74,10 +74,10 @@ classdef AFunGen < handle
         
         function sum = plus(this, other)
             % Provides an override for the simple sum of two AFunGen
-            if ~isa(this,'tools.AFunGen') || ~isa(other,'tools.AFunGen')
+            if ~isa(this,'general.functions.AFunGen') || ~isa(other,'general.functions.AFunGen')
                 error('Addition not defined for non-AFunGen classes.');
             end
-            sum = tools.FuncSum(this, other);
+            sum = general.functions.FuncSum(this, other);
         end
     end
     

@@ -1,4 +1,4 @@
-classdef Cube27Node < geometry.BaseGeometry
+classdef Cube27Node < fem.geometry.BaseGeometry
 % Hexahedral geometry with 27 position nodes on each basic hexahedron/cube.
 %
 % Cube indexing on [-1, 1]³:
@@ -38,7 +38,7 @@ classdef Cube27Node < geometry.BaseGeometry
         
         function this = Cube27Node(nodes, elems)
             if nargin < 2
-                [nodes, elems] = geometry.Cube27Node.DemoGrid;
+                [nodes, elems] = fem.geometry.Cube27Node.DemoGrid;
             elseif size(unique(nodes','rows'),1) ~= size(nodes,2);
                 error('Please provide unique points!');
             end
@@ -96,7 +96,7 @@ classdef Cube27Node < geometry.BaseGeometry
             usednodes = unique(elems8(:),'stable');
             invidx(usednodes) = 1:length(usednodes);
             elems8 = invidx(elems8);
-            cube8 = geometry.Cube8Node(this.Nodes(:,usednodes),elems8);
+            cube8 = fem.geometry.Cube8Node(this.Nodes(:,usednodes),elems8);
         end
         
         function cube20 = toCube20Node(this)
@@ -104,7 +104,7 @@ classdef Cube27Node < geometry.BaseGeometry
             usednodes = unique(elems20(:),'stable');
             invidx(usednodes) = 1:length(usednodes);
             elems20 = invidx(elems20);
-            cube20 = geometry.Cube20Node(this.Nodes(:,usednodes),elems20);
+            cube20 = fem.geometry.Cube20Node(this.Nodes(:,usednodes),elems20);
         end
         
         function swapYZ(this)
@@ -117,26 +117,4 @@ classdef Cube27Node < geometry.BaseGeometry
         end
         
     end
-   
-    methods(Static)
-        function [pts, cubes] = DemoGrid(varargin)
-            devperc = 0;
-            if length(varargin) > 3
-                devperc = varargin{4};
-            end
-            [pts, cubes] = geometry.Cube8Node.DemoGrid(varargin{1:min(length(varargin),3)});
-            g8 = geometry.Cube8Node(pts, cubes);
-            g27 = g8.toCube27Node;
-            pts = g27.Nodes;
-            cubes = g27.Elements;
-            
-            % Slightly deviate the grid
-            if devperc > 0
-                s = RandStream('mt19937ar','Seed',1);
-                pts = pts + s.rand(size(pts))*devperc;
-            end
-        end
-    end
-    
-    
 end

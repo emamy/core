@@ -1,4 +1,4 @@
-classdef FuncSum < tools.AFunGen
+classdef FuncSum < general.functions.AFunGen
     
     properties(Access=private)
         fungens;
