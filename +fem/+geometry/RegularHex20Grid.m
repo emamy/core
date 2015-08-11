@@ -11,7 +11,8 @@ function geo = RegularHex20Grid(varargin)
 % KerMor - Model Order Reduction using Kernels:
 % - \c Homepage http://www.morepas.org/software/kermor
 % - \c Documentation http://www.morepas.org/software/kermor/index.html
-% - \c License @ref licensing        
+% - \c License @ref licensing
+        
 devperc = 0;
 if length(varargin) > 3
     devperc = varargin{4};
