@@ -23,7 +23,7 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
 % implementation 'ODEFun'. This enables to avoid nested function handles with in turn allow for
 % a speedup of reduced simulations by almost a factor of 2.
 %
-% See also: models.BaseDynSystem
+% See also: models.BaseFirstOrderSystem
 %
 % This class is part of the framework
 % KerMor - Model Order Reduction using Kernels:
@@ -257,7 +257,7 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
         end
         
         function validateModel(this, model)%#ok
-            % Overrides the validateModel function in BaseDynSystem.
+            % Overrides the validateModel function in BaseFirstOrderSystem.
             % 
             % No need to call the superclass here as ReducedModel is a
             % child of BaseModel.

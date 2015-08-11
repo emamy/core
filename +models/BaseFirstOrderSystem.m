@@ -27,8 +27,8 @@ classdef BaseFirstOrderSystem < KerMorObject
     % concept is too confusing when reducing models (core function
     % evaluations must be fully self-contained regarding current mu and
     % especially inputs)
-    % - Renamed the prepareConstants to BaseDynSystem.setConfig
-    % - New BaseDynSystem.getParamInfo method to display formatted
+    % - Renamed the prepareConstants to BaseFirstOrderSystem.setConfig
+    % - New BaseFirstOrderSystem.getParamInfo method to display formatted
     % information about a given parameter vector.
     %
     % @change{0,5,dw,2011-07-07} New method getParamIndexFromName and fixed setConfig checks.
@@ -37,8 +37,8 @@ classdef BaseFirstOrderSystem < KerMorObject
     % flexibility during subsequent simulations are to be rated higher than proper setting of the
     % property, which should be assumed is being done (especially) for `x0(\mu)`
     %
-    % @change{0,4,dw,2011-05-13} Created new transient properties BaseDynSystem.mu and
-    % BaseDynSystem.u in order to store the current `\mu` and `u(t)` used for simulations on
+    % @change{0,4,dw,2011-05-13} Created new transient properties BaseFirstOrderSystem.mu and
+    % BaseFirstOrderSystem.u in order to store the current `\mu` and `u(t)` used for simulations on
     % a higher level. Removed the old 'getODEFun' function and replaced it by a direct
     % implementation 'ODEFun'. This enables to avoid nested function handles with in turn allow for
     % a speedup of reduced simulations by almost a factor of 2.
@@ -50,7 +50,7 @@ classdef BaseFirstOrderSystem < KerMorObject
     % @change{0,3,dw,2011-04-6} This class inherits from KerMorObject now
     % in order to enable correct saving/loading
     %
-    % @new{0,3,dw,2011-04-05} Added a setter for property BaseDynSystem.f
+    % @new{0,3,dw,2011-04-05} Added a setter for property BaseFirstOrderSystem.f
     % that checks for self references.
     %
     % This class is part of the framework

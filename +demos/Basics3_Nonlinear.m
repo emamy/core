@@ -16,7 +16,7 @@
 
 % Please see Basics1 and Basics2 for more elementary setups. For the
 % burgers model, most of the setup has been moved into class constructors
-% of classes inheriting from models.BaseFullModel and models.BaseDynSystem.
+% of classes inheriting from models.BaseFullModel and models.BaseFirstOrderSystem.
 
 dim = 500;
 

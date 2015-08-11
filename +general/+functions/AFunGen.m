@@ -19,7 +19,9 @@ classdef AFunGen < handle
             pm.LeaveOpen = true;
             
             i = inputParser;
+            i.CaseSensitive = true;
             i.KeepUnmatched = true;
+            i.FunctionName = 'general.functions.AFunGen#plot';
             i.addParamValue('PM',pm,@(v)isa(v,'PlotManager'));
             i.addParamValue('R',0:.1:1000);
             i.addParamValue('P',{});
@@ -35,9 +37,9 @@ classdef AFunGen < handle
             
             if ~isempty(res.AX)
                 hold(res.AX(1),'on');
-                plot(res.AX(1),range,f(range),varargin{:});
+                plot(res.AX(1),range,f(range),res.P{:});
                 hold(res.AX(2),'on');
-                plot(res.AX(2),range,f(range),varargin{:});
+                plot(res.AX(2),range,f(range),res.P{:});
             else
                 mc = metaclass(this);
                 ax = pm.nextPlot(mc.Name,...
@@ -69,7 +71,7 @@ classdef AFunGen < handle
             if numel(ax) < 2
                 error('Need two axes handles.');
             end
-            this.plot(range, ax, varargin{:});
+            this.plot(range, 'AX', ax, varargin{:});
         end
         
         function sum = plus(this, other)

@@ -34,10 +34,9 @@ classdef CubicToLinear < general.functions.AFunGen
         end
         
         function pm = plot(this, varargin)
-            % @fixme
+            varargin = [{'R',[1 1.2*this.lam0]} varargin];
             i = inputParser;
-            i.KeepUnmatched = true;
-            i.addParamValue('R',[1 1.2*this.lam0]);
+            i.addParamValue('R',0);
             i.parse(varargin{:});
             res = i.Results;
             pm = plot@general.functions.AFunGen(this, varargin{:});
@@ -65,6 +64,14 @@ classdef CubicToLinear < general.functions.AFunGen
             ft0 = mfun(t0);
             l0 = 2*(t0-ft0/m)-1;
             qfungen = general.functions.CubicToLinear(l0,m);
+        end
+    
+        function res = test_CubicToLinear
+            f = general.functions.CubicToLinear;
+            f.plot;
+            f = general.functions.CubicToLinear(4,5e6);
+            f.plot;
+            res = true;
         end
     end
     

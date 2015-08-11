@@ -120,7 +120,7 @@ classdef RandomSampler < sampling.BaseSampler
             % setup parameter domain etc
             % domain are all points in unit square with norm > 0.7
             m = models.BaseFullModel;
-            s = models.BaseDynSystem(m);
+            s = models.BaseFirstOrderSystem(m);
             m.System=s;
             s.addParam('param_a', 1);
             s.addParam('param_b', 34);

@@ -38,6 +38,28 @@ classdef FuncSum < general.functions.AFunGen
         end
     end
     
+    methods(Static)
+        function res = test_FuncSum
+            f1 = general.functions.PiecewiseLinear(-1:.3:1);
+            f1h = f1.getFunction;
+            w = rand(3,1)*5;
+            f2 = general.functions.Sinus(w(1),w(2),w(3));
+            f2h = f2.getFunction;
+            w = rand(3,1)*5;
+            f3 = general.functions.Sinus(w(1),w(2),w(3));
+            f3h = f3.getFunction;
+            
+            fs = general.functions.FuncSum(f1,f2,f3);
+            fsh = fs.getFunction;
+            
+            res = true;
+            for x = -1:.1:1
+                res = res && f1h(x)+f2h(x)+f3h(x) == fsh(x);
+            end
+            fs.plot;
+        end
+    end
+    
 end
 
 % Speed test

@@ -431,7 +431,7 @@ classdef BaseFEM < handle
         end
     end
     
-    methods(Static,Access=protected)
+    methods(Static, Access=protected)
         function res = test_BasisFun(subclass)
             h = 1e-8;
             res = true;
@@ -451,8 +451,7 @@ classdef BaseFEM < handle
             ranges = {-1:1, -2:1, -2:2};
             res = true;
             for k = 1:length(ranges)
-                [pts, cubes] = fem.geometry.RegularHex8Grid(ranges{k},ranges{k});
-                g = fem.geometry.Cube8Node(pts, cubes);
+                g = fem.geometry.RegularHex8Grid(ranges{k},ranges{k});
                 tl = fem.HexahedronTrilinear(g);
                 tq = fem.HexahedronTriquadratic(g.toCube27Node);
                 res = res && norm(tl.elem_detjac-tq.elem_detjac,'inf') < 1e-14;

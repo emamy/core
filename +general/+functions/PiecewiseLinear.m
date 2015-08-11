@@ -8,11 +8,12 @@ classdef PiecewiseLinear < general.functions.AFunGen
     methods
         function this = PiecewiseLinear(x,y)
             if nargin < 2
-                y = x;
-                x = 1:size(x,2);
                 if nargin < 1
                     x = 0:2;
                     y = [0 1 0];
+                else
+                    y = x;
+                    x = 1:size(x,2);
                 end
             end
             if length(x) ~= length(unique(x))
@@ -55,7 +56,7 @@ classdef PiecewiseLinear < general.functions.AFunGen
                 x = this.transform(this.pts,this.vals);
                 range = [min(x) max(x)];
             end
-            pm = plot@general.functions.AFunGen(this, range);
+            pm = plot@general.functions.AFunGen(this, 'R', range);
         end
         
     end

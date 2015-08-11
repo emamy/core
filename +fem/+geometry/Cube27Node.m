@@ -38,7 +38,8 @@ classdef Cube27Node < fem.geometry.BaseGeometry
         
         function this = Cube27Node(nodes, elems)
             if nargin < 2
-                [nodes, elems] = fem.geometry.Cube27Node.DemoGrid;
+                 this = fem.geometry.RegularHex27Grid;
+                 return;
             elseif size(unique(nodes','rows'),1) ~= size(nodes,2);
                 error('Please provide unique points!');
             end

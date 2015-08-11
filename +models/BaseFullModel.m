@@ -7,7 +7,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 % those from BaseModel) can be set to influence the model behaviour
 % and reduction methods.
 % For the implementation of custom dynamical systems, refer to
-% BaseDynSystem.
+% BaseFirstOrderSystem.
 %
 % Setting default values for properties that are handle classes will have the negative
 % side-effect of having each instance of BaseFullModel initialized with the SAME instance of the
@@ -20,7 +20,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
 % @todo If enabletrajectorycaching is off, the model complains about no
 % finding file system folders for trajectories etc after re-loading
 %
-% See also: models BaseModel BaseDynSystem
+% See also: models BaseModel BaseFirstOrderSystem
 %
 % @author Daniel Wirtz @date 16.03.2010
 %
@@ -805,7 +805,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 if nargin < 2
                     % Default: create a reduced model 10th the size of the full
                     % one
-                    target_dim = floor(this.System.NumTotalDofs/10);
+                    target_dim = max(1,floor(this.System.NumTotalDofs/10));
                 end
                 if target_dim > size(fd.ProjectionSpaces(1).V,2)
                     warning('Target dimension %d too large, using max value of %d.',...
@@ -1105,7 +1105,7 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
             m.Approx = [];
             m.Sampler = [];
             A = rand(2,2);
-            m.System = models.BaseDynSystem(m);
+            m.System = models.BaseFirstOrderSystem(m);
             m.System.f = dscomponents.PointerCoreFun(@(x,t,mu)A*x,2);
             m.System.x0 = dscomponents.ConstInitialValue(sin(1:2)');
             m.simulate();

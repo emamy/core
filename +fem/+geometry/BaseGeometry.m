@@ -404,20 +404,18 @@ classdef BaseGeometry < handle
             fem.geometry.RegularHex8Grid(1:3,1:4);
             fem.geometry.RegularHex8Grid(1:3,1:4,-1:3);
             fem.geometry.RegularHex8Grid(1:3,1:4,-1:3,.2);
-            fem.geometry.Cube20Node.DemoGrid(1:2);
-            fem.geometry.Cube20Node.DemoGrid(1:2,0:2);
-            fem.geometry.Cube20Node.DemoGrid(-1:1,1:3,-1:1);
-            fem.geometry.Cube20Node.DemoGrid(-1:1,1:2,-1:1,.2);
+            fem.geometry.RegularHex20Grid(1:2);
+            fem.geometry.RegularHex20Grid(1:2,0:2);
+            fem.geometry.RegularHex20Grid(-1:1,1:3,-1:1);
+            fem.geometry.RegularHex20Grid(-1:1,1:2,-1:1,.2);
             res = true;
         end
         
         function test_subMesh
-            [n,e] = fem.geometry.Cube27Node.DemoGrid(-1:1,1:2,-1:1,.2);
-            g = fem.geometry.Cube27Node(n,e);
+            g = fem.geometry.RegularHex27Grid(-1:1,1:2,-1:1,.2);
             [sg, node] = g.getSubMesh(1:3:g.NumElements);
             sg.plot;
-            [n,e] = fem.geometry.RegularHex8Grid(-20:1,1:4,-1:1,.2);
-            g = fem.geometry.Cube8Node(n,e);
+            g = fem.geometry.RegularHex8Grid(-20:1,1:4,-1:1,.2);
             [sg, node] = g.getSubMesh([1 5 9 10 15 56 79 99]);
             sg.plot;
         end

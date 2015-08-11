@@ -36,5 +36,15 @@ classdef Sinus < general.functions.AFunGen
         end
     end
     
+    methods(Static)
+        function res = test_Sinus
+            f = general.functions.Sinus;
+            f.plot;
+            f = general.functions.Sinus(10,2,4);
+            f.plot;
+            res = true;
+        end
+    end
+    
 end
 

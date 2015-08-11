@@ -259,7 +259,7 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             
             m.ODESolver = solvers.ExplEuler(dt);
             
-            s = models.BaseDynSystem(m);
+            s = models.BaseFirstOrderSystem(m);
             s.B = [];
             s.addParam('mu1',.5,'Range',[0 1],'Desired',4);
             s.addParam('mu2',.6,'Range',[0 1],'Desired',5);

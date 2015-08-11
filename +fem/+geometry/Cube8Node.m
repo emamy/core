@@ -13,7 +13,8 @@ classdef Cube8Node < fem.geometry.BaseGeometry
         
         function this = Cube8Node(pts, cubes)
             if nargin < 2
-                [pts, cubes] = fem.geometry.RegularHex8Grid;
+                this = fem.geometry.RegularHex8Grid;
+                return;
             elseif size(unique(pts','rows'),1) ~= size(pts,2);
                 error('Please provide unique points!');
             end

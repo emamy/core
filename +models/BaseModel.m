@@ -13,7 +13,7 @@ classdef BaseModel < KerMorObject
 %
 % @change{0,6,dw,2012-05-26} Adopted way of computing the jacobian and
 % jsparsity pattern for ode solvers according to new possibility of having
-% a (affine) linear models.BaseDynSystem.A component.
+% a (affine) linear models.BaseFirstOrderSystem.A component.
 %
 % @change{0,6,dw,2011-12-14} Introduced a \c ctime argument to the simulate and
 % computeTrajectory methods. This motivates from several caching strategies that may be applied
@@ -26,7 +26,7 @@ classdef BaseModel < KerMorObject
 %
 % @change{0,5,dw,2011-11-02} Modified the set.ODESolver method so that the MaxTimestep value is
 % set to empty if implicit solvers are used. If again an explicit solver is used, a warning is
-% issued if the models.BaseDynSystem.MaxTimestep value of the corresponding System is empty.
+% issued if the models.BaseFirstOrderSystem.MaxTimestep value of the corresponding System is empty.
 %
 % @change{0,5,dw,2011-10-14} Removed the TimeDirty flag as it wasnt used properly/at all.
 %
@@ -80,7 +80,7 @@ classdef BaseModel < KerMorObject
         %
         % @propclass{critical} No simulations without dynamical system.
         %
-        % @default [] @type models.BaseDynSystem
+        % @default [] @type models.BaseFirstOrderSystem
         System = [];
         
         % The name of the Model.
@@ -176,7 +176,7 @@ classdef BaseModel < KerMorObject
         %
         % @attention - This property is influencing the resulting output-times at which the
         % dynamical system is computed. If you need to set a maximum time-step size due to CFL
-        % conditions, for example, use the models.BaseDynSystem.MaxTimeStep property.
+        % conditions, for example, use the models.BaseFirstOrderSystem.MaxTimeStep property.
         % - When changing this property any offline computations have
         % to be repeated in order to obtain a new reduced model.
         %
@@ -499,9 +499,9 @@ classdef BaseModel < KerMorObject
             % @change{0,7,dw,2013-03-19} Fixed the MaxStep setting of the ODE solver when
             % time-scaling is used.
             if nargin < 3
-                inputidx = [];
+                inputidx = this.DefaultInput;
                 if nargin < 2
-                    mu = [];
+                    mu = this.DefaultMu;
                 end
             end
             sys = this.System;
@@ -563,7 +563,7 @@ classdef BaseModel < KerMorObject
             % mu: A matrix of random parameters within the specified range for this model.
             % @type matrix<double>
             %
-            % @change{0,6,dw,2012-07-13} Moved this method from models.BaseDynSystem to here
+            % @change{0,6,dw,2012-07-13} Moved this method from models.BaseFirstOrderSystem to here
             % for more convenience.
             if nargin < 3
                 seed = round(cputime*100);

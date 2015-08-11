@@ -54,7 +54,8 @@ classdef Cube20Node < fem.geometry.BaseGeometry
         
         function this = Cube20Node(pts, cubes)
             if nargin < 2
-                [pts, cubes] = fem.geometry.Cube20Node.DemoGrid;
+                this = fem.geometry.RegularHex20Grid;
+                return;
             elseif size(unique(pts','rows'),1) ~= size(pts,2);
                 error('Please provide unique points!');
             end
@@ -113,27 +114,5 @@ classdef Cube20Node < fem.geometry.BaseGeometry
             cube8 = fem.geometry.Cube8Node(nodes8,elems8);
         end
         
-    end
-    
-    methods(Static)
-        function [pts, cubes] = DemoGrid(varargin)
-            devperc = 0;
-            if length(varargin) > 3
-                devperc = varargin{4};
-            end
-            [pts, cubes] = fem.geometry.RegularHex8Grid(varargin{1:min(length(varargin),3)});
-            g8 = fem.geometry.Cube8Node(pts, cubes);
-            g20 = g8.toCube20Node;
-            pts = g20.Nodes;
-            cubes = g20.Elements;
-            
-            % Slightly deviate the grid
-            if devperc > 0
-                s = RandStream('mt19937ar','Seed',1);
-                pts = pts + s.rand(size(pts))*devperc;
-            end
-        end
-    end
-    
-    
+    end   
 end

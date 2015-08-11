@@ -122,7 +122,7 @@ classdef ACoreFun < KerMorObject & general.AProjectable
     properties(SetAccess=private)
         % The system associated with the current ACoreFun
         %
-        % @type models.BaseDynSystem
+        % @type models.BaseFirstOrderSystem
         System;
     end
     

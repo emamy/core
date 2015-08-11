@@ -56,7 +56,7 @@ classdef RandomModelEstimatorAnalyzer < EstimatorAnalyzer
             kexp.Centers.mui = [];
             
             %% System settings
-            sys = models.BaseDynSystem(fm);
+            sys = models.BaseFirstOrderSystem(fm);
             sys.MaxTimestep = fm.dt;
             sys.f = cf;
             
