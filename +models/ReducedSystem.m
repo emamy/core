@@ -153,7 +153,7 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
                 end
                 % Project the approximated CoreFun of the full model if exists
                 if ~isempty(fullmodel.Approx)
-                    this.f = fullmodel.Approx.project(V,W);
+                    this.f = fullmodel.Approx.project(this.R,W);
                 elseif ~isempty(fullsys.f)
                     % Otherwise project the models' full function.
                     this.f = fullsys.f.project(this.R,W);

@@ -71,13 +71,19 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & IReduction
                 td = data.FinDiffBlockData(td);
             end
             
+            o = general.Orthonormalizer;
             Vex = [];
             if this.IncludeBSpan
                 Vex = md.InputSpaceSpan(subset,:);
             end
             if this.IncludeInitialSpace
                 is = this.getInitialSpace(md.TrajectoryData, this, subset);
-                Vex = [Vex is];
+                % Orthogonalize w.r.t to BSpan if given
+                if ~isempty(Vex)
+                    Vex = o.orthonormalize([Vex is]);
+                else
+                    Vex = is;
+                end
             end
             
             [V, this.SingularValues] = this.computePOD(td, Vex, subset);
@@ -87,7 +93,6 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & IReduction
 %                 V = o.orthonormalize([Vex V]);
 %             end
             if ~isempty(Vex)
-                o = general.Orthonormalizer;
                 V = [Vex V];
                 id = speye(size(V,2));
                 while true  % V isn't really orthogonal after orthonormalizing once
