@@ -548,6 +548,8 @@ classdef BaseModel < KerMorObject
             
             % Get used time
             ctime = toc(st);
+            fprintf('Finished after %5.3gs (RHS:%d, Jacobians:%d)\n',...
+                ctime,sys.nfevals,sys.nJevals);
         end
         
         function mu = getRandomParam(this, num, seed)

@@ -17,6 +17,7 @@ classdef ReducedSecondOrderSystem < models.ReducedSystem & models.BaseSecondOrde
             rm = this.Model;
             fullsys = rm.FullModel.System; 
             % Additional steps
+            this.x0deriv = fullsys.x0deriv.project(rm.V,rm.W);
             % Project damping matrix
             if ~isempty(fullsys.D)
                 this.D = fullsys.D.project(rm.V,rm.W);
@@ -25,6 +26,7 @@ classdef ReducedSecondOrderSystem < models.ReducedSystem & models.BaseSecondOrde
         
         function J = getJacobian(this, t, x_xdot_c)
             % Computes the global jacobian of the current RHS system.
+            this.nJevals = this.nJevals + 1;
             td = this.NumTotalDofs;
             sd = this.NumStateDofs;
             dd = this.NumDerivativeDofs;
@@ -81,8 +83,8 @@ classdef ReducedSecondOrderSystem < models.ReducedSystem & models.BaseSecondOrde
             % Insert state initial values
             z_zdot_c0(1:num_z_dof) = z_c0(1:num_z_dof);
             
-            % Insert zero derivative initial values (xdot0) between
-            z_zdot_c0(num_z_dof+(1:num_zdot_dof)) = zeros(num_zdot_dof,1);
+            % Insert reduced derivative initial values (xdot0) between
+            z_zdot_c0(num_z_dof+(1:num_zdot_dof)) = this.x0deriv.evaluate(mu);
             
             % Insert alg cond initial values
             z_zdot_c0(num_z_dof+num_zdot_dof+1:end) = z_c0(num_z_dof+1:end);
@@ -97,22 +99,61 @@ classdef ReducedSecondOrderSystem < models.ReducedSystem & models.BaseSecondOrde
             updateSparsityPattern@models.ReducedSystem(this);
         end
         
+        function val = getDerivativeDirichletValues(this, t)
+            fsys = this.Model.FullModel.System;
+            val = fsys.getDerivativeDirichletValues(t);
+        end
+        
     end
     
     methods(Access=protected)
         
         function R = compileReconstructionMatrix(this, V)
-            R = blkdiag(V,V,eye(this.NumAlgebraicDofs));
+            if any(this.DerivativeDirichletPosInStateDofs)
+                sd = this.NumStateDofs;
+                dd = this.NumDerivativeDofs;
+                numdd = sd-dd;
+                fsys = this.FullSystem;
+                Vstate = zeros(fsys.NumStateDofs,this.NumStateDofs);
+                Vstate(fsys.DerivativeDirichletPosInStateDofs,1:numdd) = eye(numdd);
+                Vstate(~fsys.DerivativeDirichletPosInStateDofs,numdd+1:end) = V;
+            else
+                Vstate = V;
+            end
+            R = blkdiag(Vstate,V,eye(this.NumAlgebraicDofs));
+        end
+        
+        function x0proj = projectx0(this,x0,SV,SW)
+            if any(this.DerivativeDirichletPosInStateDofs)
+                fsys = this.FullSystem;
+                SWD = zeros(fsys.NumStateDofs,this.NumStateDofs);
+                numdd = fsys.NumStateDofs - fsys.NumDerivativeDofs;
+                SWD(fsys.DerivativeDirichletPosInStateDofs,1:numdd) = eye(numdd);
+                SWD(~fsys.DerivativeDirichletPosInStateDofs,numdd+1:end) = SW;
+                x0proj = x0.project(SV,SWD);
+            else
+                x0proj = projectx0@models.ReducedSystem(this,x0,SV,SW);
+            end
         end
         
         function updateDimensions(this)
             updateDimensions@models.ReducedSystem(this);
             this.NumDerivativeDofs = this.NumStateDofs;
-            this.NumTotalDofs = 2*this.NumStateDofs + this.NumAlgebraicDofs;
-        end
-        
-        function val = getDerivativeDirichletValues(this, t)
-            val = getDerivativeDirichletValues@models.BaseSecondOrderSystem(this, t);
+            
+            % Take care of extra derivative dirichlet values - they are not
+            % reduced but kept as full variables in the reduced system (not
+            % worth the effort)
+            fsys = this.Model.FullModel.System;
+            numdd = fsys.NumStateDofs - fsys.NumDerivativeDofs;
+            if numdd > 0
+                this.NumStateDofs = this.NumStateDofs + numdd;
+                pos = false(this.NumStateDofs,1);
+                pos(1:numdd) = true;
+                this.DerivativeDirichletPosInStateDofs = pos;
+            end
+            
+            this.NumTotalDofs = this.NumStateDofs + ...
+                this.NumDerivativeDofs + this.NumAlgebraicDofs;
         end
         
         function validateModel(this, model)%#ok

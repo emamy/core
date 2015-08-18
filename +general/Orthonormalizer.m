@@ -127,7 +127,7 @@ classdef Orthonormalizer < KerMorObject
             end
             
             % eliminate zero-columns
-            nsqr = sum(onvec.^2);
+            nsqr = Norm.L2(onvec);
             onvec = onvec(:,nsqr > 0.1);
         end
         

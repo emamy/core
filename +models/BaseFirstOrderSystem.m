@@ -206,6 +206,8 @@ classdef BaseFirstOrderSystem < KerMorObject
         NumStateDofs = [];
         NumAlgebraicDofs = 0;
         NumTotalDofs = [];
+        nfevals;
+        nJevals;
     end
     
     properties(SetAccess=private, Dependent)
@@ -278,6 +280,9 @@ classdef BaseFirstOrderSystem < KerMorObject
         function prepareSimulation(this, mu, inputidx)
             this.setConfig(mu, inputidx);
             
+            this.nfevals = 0;
+            this.nJevals = 0;
+            
             if isempty(this.NumStateDofs)
                 this.NumStateDofs = size(this.x0.evaluate(mu),1);
                 fprintf(2,'NumStateDofs not set. Guess from initial value: %d\n',this.NumStateDofs);
@@ -303,6 +308,7 @@ classdef BaseFirstOrderSystem < KerMorObject
         function dx = ODEFun(this,t,x)
             % Debug variant for single evaluation. Commented in function
             % above.
+            this.nfevals = this.nfevals + 1;
             dx = zeros(this.NumTotalDofs,1);
             if ~isempty(this.A)
                 dx = dx + this.A.evaluate(x, t);
@@ -392,6 +398,7 @@ classdef BaseFirstOrderSystem < KerMorObject
         
         function J = getJacobian(this, t, xc)
             % Computes the global jacobian of the current system.
+            this.nJevals = this.nJevals + 1;
             td = this.NumTotalDofs;
             sd = this.NumStateDofs;
             x = xc(1:sd);

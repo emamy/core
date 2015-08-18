@@ -19,6 +19,12 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
         % @type dscomponents.AffLinCoreFun,dscomponents.LinearCoreFun
         % @default []
         D;
+        
+        % The initial values for derivative DoFs.
+        %
+        % Obtained via a callback template that defaults to return all-zero
+        % initial values.
+        x0deriv;
     end
     
     properties(SetAccess=protected)
@@ -70,6 +76,8 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
             % x: Original state space of second order model
             % xdot: Substituted variable x'=y for first order transformation
             % c: Algebraic constraint variables
+            this.nfevals = this.nfevals + 1;
+            
             dx_xdot_c = zeros(size(x_xdot_c));
             
             num_x_dof = this.NumStateDofs;
@@ -121,6 +129,7 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
         
         function J = getJacobian(this, t, x_xdot_c)
             % Computes the global jacobian of the current RHS system.
+            this.nJevals = this.nJevals + 1;
             td = this.NumTotalDofs;
             sd = this.NumStateDofs;
             dd = this.NumDerivativeDofs;
@@ -190,7 +199,7 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
             x_xdot_c0(1:num_x_dof) = x_c0(1:num_x_dof);
             
             % Insert derivative initial values (xdot0) between
-            x_xdot_c0(num_x_dof+(1:num_xdot_dof)) = this.getDerivativeInitialValues(mu);
+            x_xdot_c0(num_x_dof+(1:num_xdot_dof)) = this.x0deriv.evaluate(mu);
             
             % Insert alg cond initial values
             x_xdot_c0(num_x_dof+num_xdot_dof+1:end) = x_c0(num_x_dof+1:end);
@@ -222,6 +231,11 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
         function updateDimensions(this)
             this.NumTotalDofs = this.NumStateDofs ...
                 + this.NumDerivativeDofs + this.NumAlgebraicDofs;
+            % Initialize a default initial value for the derivative dofs
+            % unless explicitly specified
+            if isempty(this.x0deriv)
+                this.x0deriv = dscomponents.ConstInitialValue(zeros(this.NumDerivativeDofs,1));
+            end
         end
         
         function validateModel(this, model)%#ok
@@ -234,19 +248,9 @@ classdef BaseSecondOrderSystem < models.BaseFirstOrderSystem
                 error('The Model property has to be a child of models.BaseModel');
             end
         end
-        
-        % Computes the derivative initial values
-        %
-        % The default behaviour is zero everywhere. Override in subclasses
-        % to provide different values.
-        %
-        % See also: NumDerivativeDofs
-        function val = getDerivativeInitialValues(this, ~)
-            val = zeros(this.NumDerivativeDofs,1);
-        end
     end        
     
-    methods(Access=protected, Abstract)
+    methods(Abstract)
         % Computes the derivative dirichlet values dependent on the
         % current time.
         %

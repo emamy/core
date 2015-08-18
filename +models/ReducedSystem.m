@@ -40,6 +40,10 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
         plotPtr;
     end
     
+    properties(Dependent)
+        FullSystem;
+    end
+    
     methods
         function this = ReducedSystem(rmodel)
             % Creates a new ReducedSystem instance.
@@ -128,7 +132,8 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
             % SV ~= 1 means that projection or nontrivial scaling is used.
             if ~isequal(SV,1) 
                 if ~isempty(fullsys.x0)  % otherwise error for static models
-                    this.x0 = fullsys.x0.project(SV,SW);
+                    this.x0 = this.projectx0(fullsys.x0,SV,SW);
+%                     this.x0 = fullsys.x0.project(SV,SW);
                 end
                 SR = this.compileReconstructionMatrix(SV);
                 this.C = fullsys.C.project(SR,SW);
@@ -235,12 +240,21 @@ classdef ReducedSystem < models.BaseFirstOrderSystem
                 x0 = [x0; m.ErrorEstimator.getE0(mu)];
             end
         end
+        
+        function fsys = get.FullSystem(this)
+            fsys = this.Model.FullModel.System;
+        end
     end
     
     methods(Access=protected)
         
         function R = compileReconstructionMatrix(this, V)
             R = V;
+        end
+        
+        function x0proj = projectx0(~, x0, SV, SW)
+            % Overridden in ReducedSecondOrderSystem
+            x0proj = x0.project(SV,SW);
         end
         
         function updateDimensions(this)

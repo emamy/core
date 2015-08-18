@@ -94,8 +94,8 @@ classdef PODReducer < spacereduction.BaseSpaceReducer & general.POD & IReduction
 %             end
             if ~isempty(Vex)
                 V = [Vex V];
-                id = speye(size(V,2));
                 while true  % V isn't really orthogonal after orthonormalizing once
+                    id = speye(size(V,2));
                     diff = max(max(abs(V'*V-id)));
                     if diff < 1e-9
                         break
