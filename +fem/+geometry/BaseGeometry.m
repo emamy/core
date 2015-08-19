@@ -419,6 +419,26 @@ classdef BaseGeometry < handle
             [sg, node] = g.getSubMesh([1 5 9 10 15 56 79 99]);
             sg.plot;
         end
+        
+        function res = test_BellyGeometryGeneration
+            g = fem.geometry.Belly(1,'InnerRadius',.2,'Gamma',7);
+            g = fem.geometry.Belly(35,'InnerRadius',[.2 .6],'Gamma',5);
+            g = fem.geometry.Belly(linspace(0,35,5),'InnerRadius',.2,'Gamma',[10 20]);
+            g = fem.geometry.Belly(linspace(0,35,3),'InnerRadius',[.2 .6],'Gamma',[10 20]);
+            g = fem.geometry.Belly([0 1 3.125 3.25 3.26 4 4.5 4.75 5 6 10 35],...
+                'InnerRadius',[.2 .6],'Gamma',[10 20]);
+            g = fem.geometry.Belly(20,'Radius',[4 2],'InnerRadius',.5,'Gamma',[10 20]);
+            g = fem.geometry.Belly(sort(rand(1,10)*3),'Radius',@(x)[sqrt(abs(x)); 1./(x-34).^2],'InnerRadius',.2);
+            g.plot;
+            g = fem.geometry.Belly(35,'Radius',@(x)sqrt(abs(x)));
+            g.plot;
+            g = fem.geometry.Belly(0:4:20,'Radius',[4 2],'InnerRadius',.5,...
+                'Gamma',[10 20],'MinZ',-1.5);
+            g.plot;
+            g = fem.geometry.Belly(10:3:35,'Radius',@(x)sqrt(abs(x)),'Layers',[.4 .7 1]);
+            g.plot;
+            res = 1;
+        end
     end
     
     

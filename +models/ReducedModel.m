@@ -194,7 +194,6 @@ classdef ReducedModel < models.BaseModel
                 x = xext;
             end
             ctime = ctime + cpre + cpost;
-            fprintf('Finished after %gs\n',ctime);
         end
              
         function saveFinal(this, filename)

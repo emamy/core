@@ -1,27 +1,29 @@
-function geo27 = Belly(parts, len, varargin)
+function geo27 = Belly(xgrid, varargin)
 % Code to generate a belly-shaped geometry with various options.
+if ~isnumeric(xgrid)
+    error('At least an xgrid numeric value has to be specified.');
+end
 i = inputParser;
 i.KeepUnmatched = true;
 i.addParamValue('Radius',1);
 i.addParamValue('InnerRadius',.5);
 i.addParamValue('Gamma',2);
+i.addParamValue('Center',[]);
 i.addParamValue('Layers',1);
 i.addParamValue('MinZ',[]);
 i.parse(varargin{:});
 opt = i.Results;
-if nargin < 2
-    len = 10;
-    if nargin < 1
-        parts = 4;
-    end
+if isscalar(xgrid)
+    xgrid = linspace(0,xgrid,4);
 end
-if numel(len) == 2
-    x = linspace(len(1),len(2),parts*2+1);
-else
-    x = linspace(0,len,parts*2+1);
-end
+% Make sure its a row vector
+xgrid = reshape(xgrid,1,[]);
+% refine the points as we have quadratic elements
+xgrid = [xgrid; xgrid(1:end-1)+diff(xgrid)/2 0];
+xgrid = xgrid(1:end-1);
+
 if isa(opt.Radius,'function_handle')
-    fx = opt.Radius(x);
+    fx = opt.Radius(xgrid);
     if size(fx,1) == 1
         fx = [fx; fx];
     end
@@ -34,9 +36,14 @@ else
     end
     k = kernels.GaussKernel;
     k.Gamma = opt.Gamma(1);
-    fx(1,:) = k.evaluate(x,len/2)'*opt.Radius(1);
+    if ~isempty(opt.Center)
+        cent = opt.Center;
+    else
+        cent = (xgrid(:,end)-xgrid(:,1))/2;
+    end
+    fx(1,:) = k.evaluate(xgrid,cent)'*opt.Radius(1);
     k.Gamma = opt.Gamma(2);
-    fx(2,:) = k.evaluate(x,len/2)'*opt.Radius(2);
+    fx(2,:) = k.evaluate(xgrid,cent)'*opt.Radius(2);
 end
 if isscalar(opt.InnerRadius)
     opt.InnerRadius = [1 1]*opt.InnerRadius;
@@ -47,36 +54,26 @@ posfun = @(omega,offset)[sin(omega+offset); cos(omega+offset)];
 qpart = getQuarterPart(opt.Layers);
 baseelems = zeros(size(qpart,1),size(qpart,2),4);
 baseelems(:,:,1) = qpart;
-nelems = size(baseelems,1)/2;
-for k=1:nelems
+nlayerelems = size(baseelems,1)/2;
+for k=1:nlayerelems
     pos = (1:2)+2*(k-1);
     baseelems(pos,:,2) = [-1 0; 0 1]*baseelems(pos,[3 2 1 6 5 4 9 8 7],1);
 end
 baseelems(:,:,3) = -baseelems(:,9:-1:1,1);
 baseelems(:,:,4) = -baseelems(:,9:-1:1,2);
 
-%             c = sin(pi/4);
-%             c8 = cos(pi/8);
-%             s8 = sin(pi/8);
-%             baseplane(:,:,1) = [0 .5 1  0 .5*c c8 0 s8 c
-%                                 0  0 0 .5 .5*c s8 1 c8 c];
-%             % Mirror first segment
-%             baseplane(:,:,2) = [-1 0; 0 1]*baseplane(:,[3 2 1 6 5 4 9 8 7],1);
-%             % Rotate others by 180°
-%             baseplane(:,:,3) = -baseplane(:,9:-1:1,1);
-%             baseplane(:,:,4) = -baseplane(:,9:-1:1,2);
-
-npp = 27*parts*nelems;
+nelems = floor(length(xgrid)/2);
+npp = 27*nelems*nlayerelems;
 nodes = zeros(3,npp*4);
-for p = 1:parts
+for p = 1:nelems
     elempos = (p-1)*2 + (1:3);
     rx = ones(9,1) * (opt.InnerRadius(1) + fx(1,elempos));
     ry = ones(9,1) * (opt.InnerRadius(2) + fx(2,elempos));
-    z = ones(9,1) * x(elempos);
-    for k=1:nelems
+    z = ones(9,1) * xgrid(elempos);
+    for k=1:nlayerelems
         elem = baseelems((1:2)+2*(k-1),:,:);
         for rotpart = 1:4
-            nodepos = (((p-1) * nelems + (k-1))*4 + (rotpart-1))*27 + (1:27);
+            nodepos = (((p-1) * nlayerelems + (k-1))*4 + (rotpart-1))*27 + (1:27);
             nodes(1,nodepos) = bsxfun(@times,repmat(elem(1,:,rotpart),1,3),rx(:)');
             nodes(2,nodepos) = bsxfun(@times,repmat(elem(2,:,rotpart),1,3),ry(:)');
             nodes(3,nodepos) = z(:);
@@ -119,10 +116,10 @@ elems = reshape(elems,27,[])';
 % is larger than the intermediate node position of the side
 % faces, the muscle geometry will appear "dented".
 if ~isempty(opt.MinZ)
-    error('Fixme');
+%     error('Fixme');
     hlp_g27 = fem.geometry.Cube27Node;
     centerline_facenodeidx = hlp_g27.MasterFaces(3,:);
-    for elem = [3:4:4*parts 4:4:4*parts]
+    for elem = [3:4:4*nelems 4:4:4*nelems]
         centerline_nodes = elems(elem,centerline_facenodeidx);
         toScale = nodes(2,centerline_nodes) < opt.MinZ;
         factor = opt.MinZ./nodes(2,centerline_nodes(toScale));
