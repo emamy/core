@@ -148,6 +148,17 @@ classdef BaseScalarSVR < KerMorObject & ICloneable & IKernelCoeffComp
                 sf = StopFlag.NO_SUPPORT_VECTORS_FOUND;
             end
         end
+        
+        function kexp = directCompute(this, kernel, x, fx)
+            this.K = kernel.evaluate(x,x);
+            fxmax = max(abs(fx(:)));
+            fx = fx / fxmax;
+            [ai,svidx] = this.computeKernelCoefficients(fx,[]);
+            kexp = kernels.KernelExpansion;
+            kexp.Kernel = kernel;
+            kexp.Centers.xi = x(:,svidx);
+            kexp.Ma = ai'*fxmax;
+        end
     end
         
     methods(Abstract)

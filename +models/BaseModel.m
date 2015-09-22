@@ -129,6 +129,14 @@ classdef BaseModel < KerMorObject
         %
         % @type integer @default []
         DefaultInput = [];
+        
+        % The starting time for any simulation.
+        %
+        % @propclass{optional} Usually dynamical systems are simulated
+        % starting from t=0
+        %
+        % @default 0 @type double
+        t0 = 0
     end
     
     properties(SetAccess=private, Dependent)
@@ -638,11 +646,11 @@ classdef BaseModel < KerMorObject
     %% Getter & Setter
     methods
         function value = get.Times(this)
-            value = 0:this.dt:this.T;
+            value = this.t0:this.dt:this.T;
         end
         
         function value = get.scaledTimes(this)
-            value = 0:this.dtscaled:this.Tscaled;
+            value = this.t0/this.ftau:this.dtscaled:this.Tscaled;
         end
         
         function value = get.Tscaled(this)
