@@ -1,4 +1,4 @@
-function geo27 = Belly(xgrid, varargin)
+function [geo27, rx, ry] = Belly(xgrid, varargin)
 % Code to generate a belly-shaped geometry with various options.
 if ~isnumeric(xgrid)
     error('At least an xgrid numeric value has to be specified.');
@@ -65,17 +65,19 @@ baseelems(:,:,4) = -baseelems(:,9:-1:1,2);
 nelems = floor(length(xgrid)/2);
 npp = 27*nelems*nlayerelems;
 nodes = zeros(3,npp*4);
+rx = opt.InnerRadius(1) + fx(1,:);
+ry = opt.InnerRadius(2) + fx(2,:);
 for p = 1:nelems
     elempos = (p-1)*2 + (1:3);
-    rx = ones(9,1) * (opt.InnerRadius(1) + fx(1,elempos));
-    ry = ones(9,1) * (opt.InnerRadius(2) + fx(2,elempos));
+    rx_ = ones(9,1) * rx(elempos);
+    ry_ = ones(9,1) * ry(elempos);
     z = ones(9,1) * xgrid(elempos);
     for k=1:nlayerelems
         elem = baseelems((1:2)+2*(k-1),:,:);
         for rotpart = 1:4
             nodepos = (((p-1) * nlayerelems + (k-1))*4 + (rotpart-1))*27 + (1:27);
-            nodes(1,nodepos) = bsxfun(@times,repmat(elem(1,:,rotpart),1,3),rx(:)');
-            nodes(2,nodepos) = bsxfun(@times,repmat(elem(2,:,rotpart),1,3),ry(:)');
+            nodes(1,nodepos) = bsxfun(@times,repmat(elem(1,:,rotpart),1,3),rx_(:)');
+            nodes(2,nodepos) = bsxfun(@times,repmat(elem(2,:,rotpart),1,3),ry_(:)');
             nodes(3,nodepos) = z(:);
         end
     end
