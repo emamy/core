@@ -1078,7 +1078,7 @@ classdef FileMatrix < data.FileData & data.ABlockedData
             % Left multiplication is exact as whole blocks can be used
             res = res && LA == L*Amat;
             % Right multiplication requires accumulation of values -> rounding errors
-            res = res && norm(AR - Amat*R) < 1e-12;
+            res = res && norm(AR - Amat*R) < 1e-11;
         end
         
         function res = test_2FileMatrix_MTimes

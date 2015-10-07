@@ -207,7 +207,8 @@ classdef PODGreedy < spacereduction.BaseSpaceReducer & IParallelizable
             if this.ComputeParallel
                 n = md.getNumBlocks;
                 if KerMor.App.Verbose > 3
-                   fprintf('POD-Greedy: Computing maximum error over %d trajectories on %d workers for subspace size %d...\n',n,matlabpool('size'),size(V,2));
+                   fprintf('POD-Greedy: Computing maximum error over %d trajectories on %d workers for subspace size %d...\n',...
+                       n,PCPool.size,size(V,2));
                 end
                 err = zeros(1,n);
                 parfor i=1:n
