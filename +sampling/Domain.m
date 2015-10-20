@@ -44,7 +44,7 @@ classdef Domain < handle
             this.Locations = locations;
         end
         
-        function [params, idx] = filter(this, params)
+        function [points, idx] = filter(this, points)
             % Filters from the given parameters only those that belong to
             % this domain
             %
@@ -56,9 +56,9 @@ classdef Domain < handle
             % @type matrix<double>
             % idx: The indices of the chosen parameters within params @type
             % rowvec<integer>
-            nn = dsearchn(this.Points', params');
+            nn = dsearchn(this.Points', points');
             idx = find(this.Locations(nn));
-            params = params(:, idx);
+            points = points(:, idx);
         end
         
         function set.Locations(this, value)
@@ -66,6 +66,22 @@ classdef Domain < handle
                 error('Locations must be a logical row vector.');
             end
             this.Locations = value;
+        end
+        
+        function ax = plot(this)
+            if size(this.Points,1) == 2
+                N = 80;
+                [m,M] = Utils.getBoundingBox(this.Points);
+                [X,Y] = meshgrid(linspace(m(1),M(1),N),...
+                    linspace(m(2),M(2),N));
+                points = this.filter([X(:) Y(:)]');
+                figure;
+                plot(points(1,:),points(2,:),'rx');
+                axis tight;
+                ax = gca;
+            else
+                error('Plot implemented only for 2D domains');
+            end
         end
     end
     

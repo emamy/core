@@ -226,7 +226,12 @@ else
         ranges = rangesFromATD(sec);
         conf.td = sec;
     elseif isa(sec,'double')
-        ranges.xrange = sec;
+        if size(sec,2) > 2
+            [m,M] = Utils.getBoundingBox(sec);
+            ranges.xrange = [m M];
+        else
+            ranges.xrange = sec;
+        end
     else
         stop(h,'The second argument has to be a ranges struct or a struct with the fields xrange (+trange,murange if given).');
     end
