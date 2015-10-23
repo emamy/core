@@ -216,7 +216,9 @@ classdef BaseModel < KerMorObject
         %
         % @default false @type logical
         RealTimePlotting;
-        
+    end
+    
+    properties(SetAccess=protected)
         % The default parameter value if none is given
         %
         % @type colvec<double> @default []
