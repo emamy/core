@@ -311,7 +311,7 @@ classdef ApproxTrainData < handle
             % model: The full model instance @type models.BaseFullModel
             % f: The model's core function @type dscomponents.ACoreFun
             % selector: The training data selector @type data.selection.ASelector
-            % parallel: Flag to set if computation should be done in parallel (MatlabPool)
+            % parallel: Flag to set if computation should be done in parallel (parpool)
             % @type logical @default false
             %
             % See also: models.BaseFullModel error.DEIMEstimator
@@ -350,7 +350,7 @@ classdef ApproxTrainData < handle
                 if parallel
                     fval = zeros(size(atd.xi));
                     if KerMor.App.Verbose > 0
-                        fprintf('Starting parallel f-values computation at %d points on %d workers...\n',size(atd.xi,2),matlabpool('size'));
+                        fprintf('Starting parallel f-values computation at %d points on %d workers...\n',size(atd.xi,2),PCPool.size);
                     end
                     parfor sidx=1:size(atd.xi,2)
                         fval(:,sidx) = ...

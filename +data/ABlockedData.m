@@ -96,7 +96,7 @@ classdef ABlockedData < handle
                     v0 = rand(n,1);
                     opts.v0 = v0 - Vexclude*(Vexclude'*v0);
                 end
-                doparallel = exist('matlabpool','file') == 2 && matlabpool('size') > 1;
+                doparallel = PCPool.isAvailable && PCPool.isOpen;
                 [U,S] = eigs(@mult,n,k,'la',opts);
                 if KerMor.App.Verbose > 2, fprintf('BlockSVD: Finished after %d multiplications.\n',cnt); end
                 S = sqrt(S);

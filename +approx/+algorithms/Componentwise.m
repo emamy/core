@@ -338,7 +338,8 @@ classdef Componentwise < approx.algorithms.ABase & IParallelizable
             % See also: StopFlag
             n = size(kexp.Centers.xi,2);
             fdims = size(fxi,1);
-            fprintf('Starting parallel component-wise approximation computation of %d dimensions on %d workers...\n',fdims,matlabpool('size'));
+            fprintf('Starting parallel component-wise approximation computation of %d dimensions on %d workers...\n',...
+                fdims,PCPool.size);
             Ma = zeros(fdims, n);
             sf = zeros(fdims, 1);
             parfor fdim = 1:fdims

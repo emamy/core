@@ -117,6 +117,11 @@ classdef ARBFKernel < kernels.BaseKernel
                 n2 = size(y,2);
             end;
             r = ((ones(n2,1)*n1sq)' + ones(n1,1)*n2sq - 2*sx'*y);
+            % Fix for MatLab 2015a - some values might be slightly
+            % negative, leading to complex values when the square root is
+            % taken. Example: approx.algorithms.VKOGA.test_VKOGA2D1D has a 
+            % different evaluation of the sx'*y part over R2013b and R2015a
+            r(r<0) = 0;
         end
     end
     

@@ -151,7 +151,7 @@ classdef ScalarNuSVR < general.regression.BaseQPSVR
             plot(sv,fx(svidx),'.r',x(skipped),fx(skipped),'xr');
 
             fdiff = abs(fsvr(svidx)-fx(svidx));
-            errors = find(fdiff  < .999*epsi);
+            errors = find(fdiff  > 1.01*epsi);
             res = isempty(errors);
             if ~res
                 plot(x(svidx(errors)),fx(svidx(errors)),'blackx','LineWidth',4);
@@ -219,7 +219,7 @@ classdef ScalarNuSVR < general.regression.BaseQPSVR
             title(sprintf('epsilon = %f, #SV = %d, C = %d',epsi,length(esvidx),esvr.C));
             hold off;
             
-            res = norm(fsvr-efsvr) < sqrt(eps);
+            res = norm(fsvr-efsvr) < 1e-5 && max((fsvr-efsvr)./fsvr) < .5e-3;
         end
     end
 end

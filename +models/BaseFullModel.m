@@ -414,7 +414,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                 end
                 idxmat = Utils.createCombinations(1:num_s,this.TrainingInputs);
                 
-                fprintf('Starting parallel projection training data computation of %d trajectories on %d workers...\n',size(idxmat,2),matlabpool('size'));
+                fprintf('Starting parallel projection training data computation of %d trajectories on %d workers...\n',...
+                    size(idxmat,2),PCPool.size);
                 % Iterate through all param/input combinations
                 paridx = idxmat(1,:); % Use sliced variables here
                 inidx = idxmat(2,:);

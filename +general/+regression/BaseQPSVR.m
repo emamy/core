@@ -29,7 +29,7 @@ classdef BaseQPSVR < general.regression.BaseScalarSVR
         % @propclass{important} The flags for the matlab builtin quadprog solver.
         %
         % See also: quadprog
-        QuadProgOpts = optimset('Display','off','Algorithm','active-set');
+        QuadProgOpts = optimset('Display','off','Algorithm','interior-point-convex');
         %'LargeScale','off', interior-point-convex, trust-region-reflective
     end
     
