@@ -21,6 +21,15 @@ classdef DEIM < approx.BaseApprox & general.DEIM
 % - \c Documentation http://www.morepas.org/software/kermor/index.html
 % - \c License @ref licensing
     
+    properties
+        % If 'model.Data.ApproxTrainData.fxi' is a 'data.ABlockedData', a
+        % blockSVD is computed - if you want to avoid this and compute a
+        % global POD instead, set this property to 'true'
+        %
+        % @default false
+        makeFxiMatrixData = false;
+    end
+
     methods
         function this = DEIM(sys)
             this = this@general.DEIM;
@@ -31,7 +40,13 @@ classdef DEIM < approx.BaseApprox & general.DEIM
         end
         
         function approximateSystemFunction(this, model)
-            this.computeDEIM(model.System.f, model.Data.ApproxTrainData.fxi);
+            if this.makeFxiMatrixData 
+                % to perform a normal POD/SVD, the fxi data needs to be
+                % transformed to a matrix
+                this.computeDEIM(model.System.f, model.Data.ApproxTrainData.fxi.toMemoryMatrix);
+            else
+                this.computeDEIM(model.System.f, model.Data.ApproxTrainData.fxi);
+            end
         end
         
         function fx = evaluate(this, x, t)
