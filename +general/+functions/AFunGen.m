@@ -22,10 +22,10 @@ classdef AFunGen < handle
             i.CaseSensitive = true;
             i.KeepUnmatched = true;
             i.FunctionName = 'general.functions.AFunGen#plot';
-            i.addParamValue('PM',pm,@(v)isa(v,'PlotManager'));
-            i.addParamValue('R',0:.1:1000);
-            i.addParamValue('P',{});
-            i.addParamValue('AX',[],@(v)all(ishandle(v)));
+            i.addParameter('PM',pm,@(v)isa(v,'PlotManager'));
+            i.addParameter('R',0:.1:1000);
+            i.addParameter('P',{});
+            i.addParameter('AX',[],@(v)all(ishandle(v)));
             i.parse(varargin{:});
             res = i.Results;
             pm = res.PM;
