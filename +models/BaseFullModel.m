@@ -765,11 +765,8 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     this.Approx.prepareSimulation(mu);
                 end
                 
-                if this.isStatic
-                    [t, x] = solveStatic(this, mu, inputidx);
-                else
-                    [t, x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
-                end
+                [t, x] = computeTrajectory@models.BaseModel(this, mu, inputidx);
+                
                 time = toc(st);
                 if this.EnableTrajectoryCaching
                     if size(x,2) == length(this.Times)
@@ -780,6 +777,90 @@ classdef BaseFullModel < models.BaseModel & IParallelizable
                     end
                 end
                 cache = 0;
+            end
+        end
+        
+        function [t, y, sec, lastx] = simulateIntervals(this, mu, inputidx, chunksize, callback)
+            % Simulate the current model in intervals and return only a
+            % selected output.
+            %
+            % This convenience method allows to perform simulations where
+            % the full state space vector would not fit into memory.
+            %
+            % Parameters:
+            % mu: The desired model parameter @type colvec<double>
+            % inputidx: The input to use. Set to [] for no input. @type
+            % handle
+            % chunksize: The maximum size of a full single trajectory in
+            % GB @type double @default Quarter of the system's memory
+            % callback: A function handle to use for extracting the
+            % quantities of interest from each interval solution.
+            % Caution: There are no checks as to whether the callback tries
+            % to create matrices that are too large for the current system.
+            % Usually, the callback extracts the system output or a
+            % small-dimensional subset @type function_handle
+            % @default this.System.computeOutput
+            %
+            % Return values:
+            % t: The computed total times
+            % y: The total output, where each interval's result has been
+            % processed by the callback to obtain y.
+            % sec: The total computation time in seconds @type double
+            % lastx: The state of the full system at the final time T. Can
+            % be used as e.g. initial value for further simulations.
+            % @type colvec<double>
+            
+            if nargin < 5
+                callback = @this.System.computeOutput;
+                if nargin < 4
+                    mem = memory;
+                    % Default to a quarter of the available RAM on this machine
+                    chunksize = mem.TotalSystemMemory/1024^3/4;
+                end
+            end
+            t = this.Times;
+            total_len = length(t);
+            nchunks = ceil(this.FullStateTrajectorySize/chunksize);
+            if nchunks == 1
+                [~,~,sec,x] = this.simulate(mu,inputidx);
+                hlp = tic;
+                y = callback(x);
+                sec = sec+toc(hlp);
+            else
+                interval_idx = floor(linspace(1,total_len,nchunks+1));
+                intervals = this.Times(interval_idx);
+                numint = length(intervals)-1;
+                % Store original values
+                oldT = this.T;
+                oldt0 = this.t0;
+                oldx0 = this.System.x0;
+                tc = this.EnableTrajectoryCaching;
+                this.EnableTrajectoryCaching = false;
+                try
+                    sec = 0;
+                    for iidx = 1:numint
+                        this.t0 = intervals(iidx);
+                        this.T = intervals(iidx+1);
+                        fprintf('Starting interval %d of %d (size %gMB) ... ',...
+                            iidx,numint,this.FullStateTrajectorySize*1024);
+                        [~,~,ct,x] = this.simulate(mu,inputidx);
+                        hlp = tic;
+                        y(:,interval_idx(iidx):interval_idx(iidx+1)) = callback(x);
+                        sec = sec+ct+toc(hlp);
+                        this.System.x0 = dscomponents.ConstInitialValue(x(:,end));
+                    end
+                    lastx = x(:,end);
+                catch ME
+                    this.T = oldT;
+                    this.t0 = oldt0;
+                    this.System.x0 = oldx0;
+                    this.EnableTrajectoryCaching = tc;
+                    rethrow(ME);
+                end
+                this.T = oldT;
+                this.t0 = oldt0;
+                this.System.x0 = oldx0;
+                this.EnableTrajectoryCaching = tc;
             end
         end
         

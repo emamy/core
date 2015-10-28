@@ -130,11 +130,6 @@ classdef BaseModel < KerMorObject
         % @type integer @default []
         DefaultInput = [];
         
-        % The default parameter value if none is given
-        %
-        % @type colvec<double> @default []
-        DefaultMu = [];
-        
         % The starting time for any simulation.
         %
         % @propclass{optional} Usually dynamical systems are simulated
@@ -221,6 +216,11 @@ classdef BaseModel < KerMorObject
         %
         % @default false @type logical
         RealTimePlotting;
+        
+        % The default parameter value if none is given
+        %
+        % @type colvec<double> @default []
+        DefaultMu = [];
     end
     
     properties(SetAccess=private)
@@ -247,6 +247,16 @@ classdef BaseModel < KerMorObject
         %
         % @type struct
         %ParamIdx;
+    end
+    
+    properties(Dependent)
+        % The size of the matrix containing the current full state space
+        % trajectory depending on the spatial and temporal resolution.
+        %
+        % The unit is GB.
+        %
+        % @type double
+        FullStateTrajectorySize;
     end
     
     properties(Access=private)
@@ -334,7 +344,8 @@ classdef BaseModel < KerMorObject
                 this.ctime = tic;
             end
             if this.isStatic
-                % solve static equation
+                % solve as series of static equations
+                % works only for linear systems.
                 [t, x, time] = this.solveStatic(mu, inputidx);
             else
                 
@@ -786,6 +797,13 @@ classdef BaseModel < KerMorObject
                 this.initDefaultParameter;
             end
             mu = this.fDefMu;
+        end
+        
+        function value = get.FullStateTrajectorySize(this)
+            value = NaN;
+            if ~isempty(this.System)
+                value = this.System.NumTotalDofs*8*length(this.Times)/1024^3;
+            end
         end
     end
 end
