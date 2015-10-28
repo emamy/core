@@ -2,37 +2,30 @@ classdef Sinus < general.functions.AFunGen
     
     properties(Access=private)
         freq;
-        foffset;
-        voffset;
+        opts;
     end
     
     methods
-        function this = Sinus(freq, foffset, voffset)
-            if nargin < 3
-                voffset = 0;
-                if nargin < 2
-                    foffset = 0;
-                    if nargin < 1
-                        freq = 3;
-                    end
-                end
-            end
-            this.freq = freq;
-            this.foffset = foffset;
-            this.voffset = voffset;
+        function this = Sinus(varargin)
+            i = inputParser;
+            i.addParamValue('Frequency',1,@(v)isscalar(v));
+            i.addParamValue('fOff',0,@(v)isscalar(v));
+            i.addParamValue('vOff',0,@(v)isscalar(v));
+            i.addParamValue('Amplitude',1,@(v)isscalar(v));
+            i.parse(varargin{:});
+            this.opts = i.Results;
         end
         
         function [fhandle, dfhandle] = getFunction(this)
-            f = this.freq;
-            fo = this.foffset;
-            vo = this.voffset;
-            fhandle = @(t)sin(t/1000*f*2*pi+fo)+vo;
-            dfhandle = @(t)cos(t/1000*f*2*pi+fo);
+            o = this.opts;
+            fhandle = @(t)o.Amplitude*sin(t/1000*o.Frequency*2*pi+o.fOff)+o.vOff;
+            dfhandle = @(t)o.Amplitude*cos(t/1000*o.Frequency*2*pi+o.fOff);
         end
         
         function str = getConfigStr(this)
-            str = sprintf('Frequency: %g [Hz], ArgOffset: %g, valueOffset: %g',...
-                this.freq,this.foffset,this.voffset);
+            o = this.opts;
+            str = sprintf('Frequency: %g [Hz], Amplitude: %g [-], ArgOffset: %g, ValueOffset: %g',...
+                o.Frequency,o.Amplitude,o.fOff,o.vOff);
         end
     end
     
@@ -40,7 +33,8 @@ classdef Sinus < general.functions.AFunGen
         function res = test_Sinus
             f = general.functions.Sinus;
             f.plot;
-            f = general.functions.Sinus(10,2,4);
+            f = general.functions.Sinus('Frequency',50,...
+                'fOff',2,'vOff',4,'Amplitude',2);
             f.plot;
             res = true;
         end

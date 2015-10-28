@@ -130,6 +130,11 @@ classdef BaseModel < KerMorObject
         % @type integer @default []
         DefaultInput = [];
         
+        % The default parameter value if none is given
+        %
+        % @type colvec<double> @default []
+        DefaultMu = [];
+        
         % The starting time for any simulation.
         %
         % @propclass{optional} Usually dynamical systems are simulated
@@ -216,13 +221,6 @@ classdef BaseModel < KerMorObject
         %
         % @default false @type logical
         RealTimePlotting;
-    end
-    
-    properties(SetAccess=protected)
-        % The default parameter value if none is given
-        %
-        % @type colvec<double> @default []
-        DefaultMu = [];
     end
     
     properties(SetAccess=private)
