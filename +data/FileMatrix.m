@@ -129,9 +129,9 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 ip.addRequired('m');
             end
             
-            ip.addParamValue('Dir',KerMor.App.TempDirectory,...
+            ip.addParameter('Dir',KerMor.App.TempDirectory,...
                 @(v)isempty(v) || (ischar(v) && exist(v,'dir') == 7));
-            ip.addParamValue('BlockSize',KerMor.App.BlockSize,@(v)isposrealscalar(v));
+            ip.addParameter('BlockSize',KerMor.App.BlockSize,@(v)isposrealscalar(v));
             ip.parse(varargin{:});
             % Latest at here we have an m value
             if isfield(ip.Results,'m')
