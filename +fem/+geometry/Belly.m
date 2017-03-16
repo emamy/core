@@ -11,6 +11,7 @@ i.addParamValue('Gamma',2);
 i.addParamValue('Center',[]);
 i.addParamValue('Layers',1);
 i.addParamValue('MinZ',[]);
+i.addParamValue('Half',false);
 i.parse(varargin{:});
 opt = i.Results;
 if isscalar(xgrid)
@@ -59,8 +60,10 @@ for k=1:nlayerelems
     pos = (1:2)+2*(k-1);
     baseelems(pos,:,2) = [-1 0; 0 1]*baseelems(pos,[3 2 1 6 5 4 9 8 7],1);
 end
-baseelems(:,:,3) = -baseelems(:,9:-1:1,1);
-baseelems(:,:,4) = -baseelems(:,9:-1:1,2);
+if ~opt.Half
+    baseelems(:,:,3) = -baseelems(:,9:-1:1,1);
+    baseelems(:,:,4) = -baseelems(:,9:-1:1,2);
+end
 
 nelems = floor(length(xgrid)/2);
 npp = 27*nelems*nlayerelems;
