@@ -393,9 +393,11 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
                 this.setPointSet(1, set);
                 fxc = this.evaluateComponentSetMulti(1, x, t, mu);
                 tmp = fx(set,:);
+                fehler = (tmp-fxc);
                 err = abs((tmp-fxc)./tmp);
                 err = err(tmp ~= 0);
                 d = max(err);
+                maxerr = 10*sqrt(eps);
                 lres = isempty(d) || d < 1e-3;
                 if ~lres || d > 10*sqrt(eps)
                     fprintf(2,'Warning! ACompEvalCoreFun evaluation test: Max rel. diff. for component wise vs. full evaluation: %e\n',full(d));
@@ -478,6 +480,7 @@ classdef ACompEvalCoreFun < dscomponents.ACoreFun
             xd = size(x,2);
             
             X = repmat(x,1,d); T = repmat(t,1,d); %#ok<*PROP>
+            Ideriv = full(sparse(deriv,1:d,ones(1,d),size(x,1),d));
             I = sparse(deriv,1:d,ones(1,d),size(x,1),d)*dt;
             dfx = (this.evaluateComponentsMulti(pts, ends, idx, self, X+I, T, this.mu) ...
                 - this.evaluateComponentsMulti(pts, ends, idx, self, X, T, this.mu))/dt;

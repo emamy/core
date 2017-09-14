@@ -96,22 +96,21 @@ classdef JacCompEvalWrapper < dscomponents.ACompEvalCoreFun
             else
                 nonzero = 1:this.f.fDim*this.f.xDim;
             end
+            % Anzahl partielle Ableitungen * Zeitschritte
             fx = zeros(length(nonzero),size(x,2));
-            singlemu = size(mu,2) == 1;
+            % Änderung, weil sonst Indexfehler auftritt
+            singlemu = (size(mu,2) == 1) | (size(mu,2) == 0);
+            
             if singlemu
                 oldmu = this.f.mu;
                 this.f.prepareSimulation(mu);
-            else
-                for i=1:size(x,2)
-                    if ~singlemu
-                        this.f.prepareSimulation(mu(:,i));
-                    end
-                    J = this.f.getStateJacobian(x(:,i),t(i));
-                    fx(:,i) = J(nonzero);
-                end
             end
-            if singlemu
-                this.f.prepareSimulation(oldmu);
+            for i=1:size(x,2)
+                if ~singlemu
+                   this.f.prepareSimulation(mu(:,i));
+                end
+                J = this.f.getStateJacobian(x(:,i),t(i));
+                fx(:,i) = J(nonzero);
             end
         end
         

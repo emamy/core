@@ -330,7 +330,7 @@ classdef ACoreFun < KerMorObject & general.AProjectable
             % finite differences.
             %
             % Parameters:
-            % x: The state variable vector/matrix (with colum state
+            % x: The state variable vector/matrix (with column state
             % vectors)
             % t: The corresponding times for each state vector. Set to []
             % if no time is used.

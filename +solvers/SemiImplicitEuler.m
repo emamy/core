@@ -116,13 +116,19 @@ classdef SemiImplicitEuler < solvers.BaseCustomSolver
             
             % Solve for each time step
             oldx = x0(1:end-edim);
-            for idx = 2:steps;
+            for idx = 2:steps
                 RHS = M*oldx;
                 if ~isempty(s.f)
                     RHS = RHS + dt*s.f.evaluate(oldx, t(idx-1));
                 end
                 if ~isempty(s.B)
+%                     disp(s.B.evaluate(t(idx-1)));
+%                     disp(s.u(t(idx-1)));
+%                     disp(s.B.evaluate(t(idx-1), s.mu)*s.u(t(idx-1)));
+%                     disp(dt*s.B.evaluate(t(idx-1), s.mu)*s.u(t(idx-1)));
                     RHS = RHS + dt*s.B.evaluate(t(idx-1), s.mu)*s.u(t(idx-1));
+%                     RHS(1) = 0;
+%                     RHS(length(RHS)) = 0;
                 end
                 
                 % Time-independent case: constant

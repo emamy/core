@@ -67,7 +67,7 @@ p.Value = 50;
 m.SpaceReducer = p;
             
 % Approximation of nonlinearity: Choose DEIM method here
-a = approx.DEIM;
+a = approx.DEIM(m.System);
 a.MaxOrder = 100;
 m.Approx = a;
 

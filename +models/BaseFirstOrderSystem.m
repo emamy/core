@@ -68,7 +68,7 @@ classdef BaseFirstOrderSystem < KerMorObject
         f;
         
         % Represents a linear or affine-linear component of the dynamical
-        % system.
+        % system. 
         %
         % If there is any linear part in your system, assign it here to
         % take advantage of more involved solvers like semi-implicit euler.

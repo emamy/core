@@ -128,7 +128,10 @@ classdef FileMatrix < data.FileData & data.ABlockedData
                 n = var;
                 ip.addRequired('m');
             end
-            
+            % disp(KerMor.App.TempDirectory);
+            % temp = exist(KerMor.App.TempDirectory,'dir');
+            % disp(temp);
+            % block = KerMor.App.BlockSize;
             ip.addParameter('Dir',KerMor.App.TempDirectory,...
                 @(v)isempty(v) || (ischar(v) && exist(v,'dir') == 7));
             ip.addParameter('BlockSize',KerMor.App.BlockSize,@(v)isposrealscalar(v));
